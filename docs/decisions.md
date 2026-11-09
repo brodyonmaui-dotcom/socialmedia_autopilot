@@ -1,4 +1,11 @@
-# Decision points — status: AWAITING PICK (2026-11-09)
+# Decisions — status: **APPROVED 2026-11-09** (all recommended options)
+
+Approval notes:
+- Test on the **real** accounts (all small); no test accounts needed. The first real post per platform still needs an explicit OK.
+- TikTok is a **Personal** account and must stay Personal (viral sounds). Zernio docs say the Business-API lane accepts Personal accounts (DMs need Business; posting/comments don't). Verify at connect time; if it forces a switch → fallback (Upload-Post, or assisted TikTok via share sheet).
+- No domain yet → buy one on Cloudflare (~$10/yr, ask at purchase).
+- IG: ~<200 followers, so trials are likely ineligible for now. Ship with trial auto-detect: try trial → if refused, post as a regular reel + flag; re-probe eligibility daily.
+- Existing Meta app + FB Page + token come from the user's separate socials project.
 
 Costs are monthly USD, checked 2026-11-09 (see the verification log in `research.md`). Nothing gets bought or connected until you pick.
 

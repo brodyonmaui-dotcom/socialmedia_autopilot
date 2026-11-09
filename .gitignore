@@ -1,0 +1,15 @@
+node_modules/
+.next/
+dist/
+coverage/
+logs/*
+!logs/.gitkeep
+.env
+.env.*
+!.env.example
+.secrets/
+*.pem
+*.key
+media/
+*.mp4
+*.mov

@@ -1,0 +1,26 @@
+{$DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin
+	}
+	# M0: static pages (privacy policy for Meta Live mode, Snapchat share test).
+	# M1: everything else proxies to the Next.js app: reverse_proxy web:3000
+	handle /privacy* {
+		root * /srv/static
+		rewrite * /privacy.html
+		file_server
+	}
+	handle /snap-test* {
+		root * /srv/static
+		rewrite * /snap-test.html
+		file_server
+	}
+	handle /healthz {
+		respond "ok" 200
+	}
+	handle {
+		respond "autopilot: not public" 404
+	}
+}

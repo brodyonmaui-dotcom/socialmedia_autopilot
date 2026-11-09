@@ -107,3 +107,11 @@ Method note: this build session's network blocks direct fetches of developers.fa
 - Business Discovery at Standard Access (expected to work; confirm with one call).
 - Reel `total watch time` metric name in current insights (`ig_reels_video_view_total_time`?).
 - Whether API-posted content gets less reach (no source; track it in analytics).
+
+### Addendum — read Zernio's docs directly (2026-11-09, via curl `docs.zernio.com/*.mdx`)
+- **Pricing confirmed:** 2 accounts included (no card needed), then $6/$3/$1 per account by band; posts unlimited; Inbox is 10,000 outbound messages/mo included.
+- **Snapchat confirmed unavailable:** "Snap has not approved Zernio's app … `403 PLATFORM_BETA_RESTRICTED` … no release date."
+- **TikTok Business-app lane works for Personal accounts:** the inbox docs say DMs need "a TikTok Business Account. TikTok refuses personal accounts" and "Comment management does not need a Business Account". Video direct posts are public-only; non-public means Creator Inbox drafts (`tiktokSettings.draft: true`, max **5 pending drafts/24 h**, TikTok app ≥ 31.8). Caps: 15 videos/24 h per account plus Zernio's 25 posts/hour; beyond the cap, posts are held and published later, not failed. Comments arrive by **webhook**. Captions 2,200 chars; video 3 s–10 min, ≤ 4 GB.
+- **Safety features we'll use:** `Idempotency-Key` header (24 h window; a retry returns the original post), `scheduledFor` + `timezone` (Zernio holds the TikTok clock), and `dryRun: true` on create-post (TikTok only, creates nothing).
+- **Music:** the API can attach only Commercial Music Library tracks (Business lane). Trending, non-commercial sounds still mean finishing in the TikTok app (draft route).
+- **Reachability from this cloud session:** `graph.facebook.com`, `graph.instagram.com`, `googleapis.com`, `zernio.com`, `api.anthropic.com` answer; outbound SSH is blocked.
