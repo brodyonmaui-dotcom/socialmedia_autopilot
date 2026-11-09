@@ -1,4 +1,4 @@
-# M0 — verify & set up (proposed: Mon Nov 16 – Sun Nov 22, after decisions are picked)
+# M0 — verify & set up (proposed: starts the day you pick the decisions, ~Nov 10–16)
 
 Rule: every account creation, connection or real post below happens only after your explicit OK at that step.
 
@@ -32,10 +32,10 @@ Rule: every account creation, connection or real post below happens only after y
 ## Proposed milestone dates (confirm, including your semester start and holiday availability)
 | M | Dates (2026–27) | Content |
 |---|---|---|
-| M0 | Nov 16–22 | verify & set up |
-| M1 | Nov 23 – Dec 6 | library/ingest/dedupe/touch-ups, batch + approval, scheduler/outbox, IG + YT live (Thanksgiving week is lighter) |
-| M2 | Dec 7–13 | TikTok + Snapchat adapters, PWA + push, calendar |
-| M3 | Dec 14–20 | inbox, auto-replies (shadow mode first), DM triage |
-| M4 | Dec 21–27 | analytics + weekly report, trial recommendations (needs ≥2 weeks of real posts from M1) |
-| M5 | Dec 28 – Jan 3 | research branch, creators, ideas, scripts |
-| M6 | Jan 4–10 | hardening; full real week at 4/day; runbooks |
+| M0 | Nov 10–16 | verify & set up |
+| M1 | Nov 17–30 | library/ingest/dedupe/touch-ups, batch + approval, scheduler/outbox, IG + YT live (Thanksgiving week is lighter) |
+| M2 | Dec 1–7 | TikTok + Snapchat adapters, PWA + push, calendar |
+| M3 | Dec 8–14 | inbox, auto-replies (shadow mode first), DM triage |
+| M4 | Dec 15–21 | analytics + weekly report, trial recommendations (needs ≥2 weeks of real posts from M1) |
+| M5 | Dec 22–28 | research branch, creators, ideas, scripts |
+| M6 | Dec 29 – Jan 10 | hardening; full real week at 4/day; runbooks; ~1 week buffer before semester |
