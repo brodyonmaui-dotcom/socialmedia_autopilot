@@ -39,6 +39,7 @@ Single-creator tool: phone-first dashboard + always-on worker that posts approve
 - One fresh session per milestone. End each milestone with: demo checklist (phone clicks), what changed, what's next, deadline risks; run tests + `simulate-week` dry run first.
 
 ## Environment notes
+- **The repo is PUBLIC.** Never commit secrets or location-revealing values (the creator's time zone, domain, server IP, places). Those live in `.env` only.
 - The cloud session can't SSH out. The user runs server commands; deploys pull from git on the VPS.
 - developers.facebook.com / docs.zernio.com don't resolve for WebFetch here, but `curl https://docs.zernio.com/<page>.mdx` and `llms.txt` work.
 

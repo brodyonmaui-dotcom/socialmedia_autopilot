@@ -7,8 +7,8 @@ Work top to bottom. Each step ends with a one-line result to paste back to me. *
 | # | Step | Time | You paste back |
 |---|---|---|---|
 | 0 | Share context: [setup/context-handoff.md](setup/context-handoff.md) | 5 m | "handoff ready" |
-| 1 | Domain + R2: [setup/cloudflare.md](setup/cloudflare.md) `[OK? ~$10/yr]` | 15 m | domain name |
-| 2 | Server: [setup/vps.md](setup/vps.md) `[OK? ~€6/mo]` | 25 m | `bootstrap ok …` line |
+| 1 | Domain + R2: [setup/cloudflare.md](setup/cloudflare.md) (approved) | 15 m | domain name |
+| 2 | Server: [setup/vps.md](setup/vps.md) (approved) | 25 m | `bootstrap ok …` line |
 | 3 | HTTPS up: DNS record, `docker compose up -d` | 10 m | output of `curl https://<domain>/healthz` |
 | 4 | Snapchat test on iPhone: open `https://<domain>/snap-test` | 10 m | answers to the 5 checklist questions |
 | 5 | Instagram read-only probe: [setup/meta.md](setup/meta.md) | 10 m | the `PASS/FAIL ig.*` lines |
