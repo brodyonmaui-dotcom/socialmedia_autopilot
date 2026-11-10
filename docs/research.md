@@ -128,3 +128,10 @@ Method note: this build session's network blocks direct fetches of developers.fa
 - Reels with licensed music come back without `media_url` (own and others'). The app must keep its own masters and never rely on re-downloading from IG.
 - YouTube: a Short over 60 s with a music copyright claim gets blocked → keep Shorts ≤ 60 s when they carry licensed music (the old project trimmed to 58.5 s from the middle).
 - Content rules carried over: no dates/times/locations/gym names in captions; gym posts publish from a buffer, never the same day they were filmed; trading posts carry "Not financial advice"; never invent numbers (leave a placeholder and ask).
+
+### M0 result — Instagram (2026-11-10, probe on the VPS)
+- `connect-meta`: all 8 scopes granted. **Page token: expires never; data access until 2027-02-08** (Meta's 90-day data-access window → re-run `probe:connect-meta` before then; the worker must alert 7 days ahead).
+- Account @dalongprocess: 134 followers. **Publishing quota reads 0/100 per 24 h** (the docs' 50-vs-100 conflict resolves to 100 for this account).
+- One `/media?fields=…,comments{…}` call returns recent posts + comments → comment polling is cheap.
+- Reel insights accepted in v25: `views, reach, saved, shares, ig_reels_avg_watch_time, ig_reels_video_view_total_time, reels_skip_rate, reposts`. Rejected per reel: `follows, profile_visits` (as expected).
+- Business Discovery works at Standard Access in Development mode (a 139K-follower creator was read).
