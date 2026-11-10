@@ -2,7 +2,6 @@
 // Paste a short-lived Graph API Explorer user token (input hidden) → exchange for a long-lived user token →
 // derive the Page token for the Page linked to the IG account (no fixed expiry) → write .env. Never prints a token.
 import { readFileSync, writeFileSync } from "node:fs";
-import { createInterface } from "node:readline";
 import { getJson, need, record, startLog, summary } from "./lib.js";
 
 startLog("connect-meta");
@@ -12,12 +11,26 @@ const g = (path: string) => `https://graph.facebook.com${ver}${path}`;
 const WANTED = ["instagram_basic", "instagram_content_publish", "instagram_manage_comments", "instagram_manage_insights", "instagram_manage_messages", "pages_show_list", "pages_read_engagement", "business_management"];
 
 function askHidden(prompt: string): Promise<string> {
+  // Raw-mode read: nothing echoes, the prompt stays visible, Enter finishes.
   return new Promise((resolve) => {
-    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    const rlAny = rl as unknown as { _writeToOutput: (s: string) => void; output: NodeJS.WriteStream };
     process.stdout.write(prompt);
-    rlAny._writeToOutput = () => rlAny.output.write("*"); // mask what's typed or pasted
-    rl.question("", (answer) => { rl.close(); process.stdout.write("\n"); resolve(answer.trim()); });
+    const stdin = process.stdin;
+    let buf = "";
+    stdin.setRawMode?.(true);
+    stdin.resume();
+    stdin.setEncoding("utf8");
+    const onData = (chunk: string) => {
+      for (const ch of chunk) {
+        if (ch === "\r" || ch === "\n") {
+          stdin.setRawMode?.(false); stdin.pause(); stdin.off("data", onData);
+          process.stdout.write(` [${buf.length} chars received]\n`);
+          return resolve(buf.trim());
+        }
+        if (ch === "\u0003") { process.stdout.write("\n"); process.exit(130); } // Ctrl+C
+        if (ch === "\u007f") buf = buf.slice(0, -1); else buf += ch;
+      }
+    };
+    stdin.on("data", onData);
   });
 }
 
