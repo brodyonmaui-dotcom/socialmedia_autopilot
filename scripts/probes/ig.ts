@@ -68,22 +68,38 @@ if (creator && !isIgLogin) {
   record("business_discovery", !!bd, bd ? `@${creator}: ${bd.followers_count} followers, ${bd.media?.data?.length ?? 0} posts read` : JSON.stringify(r.body?.error?.message));
 }
 
-// 6. Trial reel (LIVE only). Ineligible accounts should fail here; that failure is the fallback signal.
+// 6. Trial reel (LIVE only), with the decided fallback: refused trial -> plain reel + flag.
+// Ineligible accounts are expected to refuse the trial; that refusal is the fallback signal, not a failure.
 const videoUrl = argValue("video-url");
 if (videoUrl) {
   if (!LIVE) {
-    record("trial_reel", true, "dry-run: would create REELS container with trial_params.graduation_strategy=MANUAL (add --live and DRY_RUN=false)");
+    record("trial_reel", true, "dry-run: would create REELS container with trial_params.graduation_strategy=MANUAL, falling back to a plain reel if refused (add --live and DRY_RUN=false)");
   } else {
-    const body = new URLSearchParams({
+    const baseFields = {
       media_type: "REELS",
       video_url: videoUrl,
       caption: argValue("caption") ?? "",
       share_to_feed: "true",
-      trial_params: JSON.stringify({ graduation_strategy: "MANUAL" }),
+    };
+    let containerId: string | undefined;
+    let fellBack = false;
+
+    const trial = await getJson(api(`/${igId}/media`), {
+      method: "POST",
+      body: new URLSearchParams({ ...baseFields, trial_params: JSON.stringify({ graduation_strategy: "MANUAL" }) }),
+      ...auth,
     });
-    const c = await getJson(api(`/${igId}/media`), { method: "POST", body, ...auth });
-    const containerId = c.body?.id;
-    record("trial_container", !!containerId, containerId ? `container ${containerId}` : `rejected: ${c.body?.error?.message} (code ${c.body?.error?.code}/${c.body?.error?.error_subcode})`);
+    containerId = trial.body?.id;
+    record("trial_container", !!containerId, containerId ? `container ${containerId}` : `refused: ${trial.body?.error?.message} (code ${trial.body?.error?.code}/${trial.body?.error?.error_subcode})`);
+
+    if (!containerId) {
+      // Decided fallback (decisions.md #5): ineligible for trials -> post as a regular reel, and flag it.
+      const plain = await getJson(api(`/${igId}/media`), { method: "POST", body: new URLSearchParams(baseFields), ...auth });
+      containerId = plain.body?.id;
+      fellBack = true;
+      record("fallback_reel_container", !!containerId, containerId ? `container ${containerId} (FLAG: posted as a regular reel, not a trial)` : `rejected: ${plain.body?.error?.message}`);
+    }
+
     if (containerId) {
       let status = "IN_PROGRESS";
       for (let i = 0; i < 10 && status === "IN_PROGRESS"; i++) {
@@ -91,10 +107,10 @@ if (videoUrl) {
         const s = await getJson(api(`/${containerId}?fields=status_code,status`), auth);
         status = s.body?.status_code ?? "ERROR";
       }
-      record("trial_container_status", status === "FINISHED", status);
+      record("container_status", status === "FINISHED", status);
       if (status === "FINISHED") {
         const p = await getJson(api(`/${igId}/media_publish`), { method: "POST", body: new URLSearchParams({ creation_id: containerId }), ...auth });
-        record("trial_publish", !!p.body?.id, p.body?.id ? `media ${p.body.id}` : `publish rejected: ${p.body?.error?.message}`);
+        record("publish", !!p.body?.id, p.body?.id ? `media ${p.body.id}${fellBack ? " (FLAG: regular reel, trial refused)" : " (trial, MANUAL)"}` : `publish rejected: ${p.body?.error?.message}`);
       }
     }
   }
