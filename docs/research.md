@@ -139,3 +139,6 @@ Method note: this build session's network blocks direct fetches of developers.fa
 ### M0 results — YouTube + TikTok (2026-11-10)
 - **YouTube:** the Google Auth Platform app is "In production", unverified, **with no logo** (adding a logo triggers brand verification). Branding needs a homepage, privacy and terms URLs plus an authorized domain, all served from the VPS. The Desktop OAuth client works via the paste-the-redirect-URL flow on the server. The refresh token is in `.secrets/yt.json` on the VPS; the read-only probe passed (token refresh + channel). Gotcha: the new console shows the client secret only once, so re-copying it from the client page gives a wrong value. Use "Add secret" if in doubt.
 - **TikTok via Zernio:** connected without a Business-account prompt. The probe passed 3/3: accounts, creator-info privacy levels, and Zernio `dryRun` canPublish.
+
+### M0 result — AI triage (2026-11-10)
+- Claude Haiku 5.5 with structured output sorted all 6 samples correctly: praise → short reply; mockery → "Thanks for watching, have a great day 😊👍"; a gear question → flag; a brand inquiry → flag; a scam link → hide_flag; **"where is this trail?" → flag (location question never auto-answered)**. A $5/mo spend limit is set on a dedicated `autopilot-server` key.

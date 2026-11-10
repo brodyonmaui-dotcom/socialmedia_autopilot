@@ -1,4 +1,4 @@
-# M0 — verify & set up (tonight, Nov 9; see `m0-tonight.md` for the step-by-step)
+# M0 — verify & set up — ✅ DONE 2026-11-10 (results: `m0-report.md`)
 
 Rule: every account creation, connection or real post below happens only after your explicit OK at that step.
 
