@@ -115,3 +115,8 @@ Method note: this build session's network blocks direct fetches of developers.fa
 - **Safety features we'll use:** `Idempotency-Key` header (24 h window; a retry returns the original post), `scheduledFor` + `timezone` (Zernio holds the TikTok clock), and `dryRun: true` on create-post (TikTok only, creates nothing).
 - **Music:** the API can attach only Commercial Music Library tracks (Business lane). Trending, non-commercial sounds still mean finishing in the TikTok app (draft route).
 - **Reachability from this cloud session:** `graph.facebook.com`, `graph.instagram.com`, `googleapis.com`, `zernio.com`, `api.anthropic.com` answer; outbound SSH is blocked.
+
+### M0 result — Snapchat handoff on iPhone (2026-11-10)
+- Web Share API from Safari (`/snap-test`) → share sheet → Snapchat **works**: a 1-minute video arrived full length, the caption carried over, and both Story and **Spotlight** were offered.
+- Gotcha: Snapchat's share extension showed a **blank sheet** until the Snapchat app had been opened recently. After opening the app once, it worked. The M2 handoff UI should say "if blank, open Snapchat once, then retry."
+- Still to check in M2: location / Snap Map is off on the posting screen. The user will create a **new, dedicated Snapchat account** for the creator brand, not the existing personal one.
