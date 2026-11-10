@@ -12,23 +12,28 @@ const api = (path: string) => `${host}${ver}${path}`;
 const auth = { headers: { Authorization: `Bearer ${META_ACCESS_TOKEN}` } };
 record("token_type", true, isIgLogin ? "Instagram Login (no Business Discovery)" : "Facebook Login");
 
-// 1. Find the IG professional account
+// 1. Find the IG professional account (IG_USER_ID from connect-meta, else discover via the user token)
 let igId = process.env.IG_USER_ID ?? "";
 if (isIgLogin) {
   const r = await getJson(api("/me?fields=user_id,username,account_type,followers_count,media_count"), auth);
   igId ||= r.body?.user_id ?? r.body?.id ?? "";
   record("account", r.status === 200, r.status === 200 ? `@${r.body.username} · ${r.body.followers_count} followers · ${r.body.account_type}` : JSON.stringify(r.body?.error?.message));
 } else {
-  const r = await getJson(api("/me/accounts?fields=name,instagram_business_account{id,username,followers_count,media_count}"), auth);
-  const page = (r.body?.data ?? []).find((p: any) => p.instagram_business_account);
-  igId ||= page?.instagram_business_account?.id ?? "";
-  const ig = page?.instagram_business_account;
-  record("account", !!ig, ig ? `@${ig.username} · ${ig.followers_count} followers · page "${page.name}" · IG_USER_ID=${ig.id}` : `no linked IG account (${r.status} ${r.body?.error?.message ?? ""})`);
-  const p = await getJson(api("/me/permissions"), auth);
-  const granted = (p.body?.data ?? []).filter((x: any) => x.status === "granted").map((x: any) => x.permission);
-  const wanted = ["instagram_basic", "instagram_content_publish", "instagram_manage_comments", "instagram_manage_insights", "instagram_manage_messages", "pages_show_list", "pages_read_engagement", "business_management"];
-  const missing = wanted.filter((w) => !granted.includes(w));
-  record("scopes", missing.length === 0, missing.length ? `missing: ${missing.join(", ")}` : `all ${wanted.length} present`);
+  if (!igId) {
+    const r = await getJson(api("/me/accounts?fields=name,instagram_business_account{id}"), auth);
+    igId = (r.body?.data ?? []).find((p: any) => p.instagram_business_account)?.instagram_business_account?.id ?? "";
+  }
+  const a = igId ? await getJson(api(`/${igId}?fields=username,followers_count,media_count`), auth) : { status: 0, body: {} as any };
+  record("account", a.status === 200, a.status === 200 ? `@${a.body.username} · ${a.body.followers_count} followers · ${a.body.media_count} posts` : `no IG account (${a.body?.error?.message ?? "run connect-meta"})`);
+  // Scopes via debug_token on the user token (page tokens inherit them)
+  const { META_APP_ID, META_APP_SECRET, META_USER_TOKEN } = process.env;
+  if (META_APP_ID && META_APP_SECRET && META_USER_TOKEN) {
+    const d = await getJson(api(`/debug_token?input_token=${encodeURIComponent(META_USER_TOKEN)}&access_token=${encodeURIComponent(`${META_APP_ID}|${META_APP_SECRET}`)}`));
+    const granted: string[] = d.body?.data?.scopes ?? [];
+    const wanted = ["instagram_basic", "instagram_content_publish", "instagram_manage_comments", "instagram_manage_insights", "instagram_manage_messages", "pages_show_list", "pages_read_engagement"];
+    const missing = wanted.filter((w) => !granted.includes(w));
+    record("scopes", missing.length === 0, missing.length ? `missing: ${missing.join(", ")}` : `all ${wanted.length} present`);
+  }
 }
 if (!igId) summary("ig");
 

@@ -120,3 +120,11 @@ Method note: this build session's network blocks direct fetches of developers.fa
 - Web Share API from Safari (`/snap-test`) → share sheet → Snapchat **works**: a 1-minute video arrived full length, the caption carried over, and both Story and **Spotlight** were offered.
 - Gotcha: Snapchat's share extension showed a **blank sheet** until the Snapchat app had been opened recently. After opening the app once, it worked. The M2 handoff UI should say "if blank, open Snapchat once, then retry."
 - Still to check in M2: location / Snap Map is off on the posting screen. The user will create a **new, dedicated Snapchat account** for the creator brand, not the existing personal one.
+
+### M0 — existing Meta setup (from the user's HANDOFF.md, 2026-11-08 checks)
+- App "Shmitty's Helper", **Facebook Login**, Graph **v25.0**, mode **Development** (Standard Access; the user is the only role). The Page is linked to the IG Business account.
+- Old token: long-lived USER token, expires 2026-12-18, read-only scopes (no `instagram_content_publish`, `instagram_manage_comments` or `instagram_manage_messages`) → regenerate with all scopes and switch to a **Page token** (no fixed expiry) via `probe:connect-meta`.
+- Development mode means no real webhooks, so polling for comments/DMs (already the plan). Insights metric is `saved` (not `saves`); one wrong metric fails the whole request, so request metrics individually or validate them.
+- Reels with licensed music come back without `media_url` (own and others'). The app must keep its own masters and never rely on re-downloading from IG.
+- YouTube: a Short over 60 s with a music copyright claim gets blocked → keep Shorts ≤ 60 s when they carry licensed music (the old project trimmed to 58.5 s from the middle).
+- Content rules carried over: no dates/times/locations/gym names in captions; gym posts publish from a buffer, never the same day they were filmed; trading posts carry "Not financial advice"; never invent numbers (leave a placeholder and ask).

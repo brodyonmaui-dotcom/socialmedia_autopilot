@@ -11,6 +11,7 @@
     "probe:yt": "tsx scripts/probes/yt.ts",
     "probe:tiktok": "tsx scripts/probes/zernio.ts",
     "probe:ai": "tsx scripts/probes/anthropic.ts",
+    "probe:connect-meta": "tsx scripts/probes/connect-meta.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
   },
