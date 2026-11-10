@@ -135,3 +135,7 @@ Method note: this build session's network blocks direct fetches of developers.fa
 - One `/media?fields=…,comments{…}` call returns recent posts + comments → comment polling is cheap.
 - Reel insights accepted in v25: `views, reach, saved, shares, ig_reels_avg_watch_time, ig_reels_video_view_total_time, reels_skip_rate, reposts`. Rejected per reel: `follows, profile_visits` (as expected).
 - Business Discovery works at Standard Access in Development mode (a 139K-follower creator was read).
+
+### M0 results — YouTube + TikTok (2026-11-10)
+- **YouTube:** the Google Auth Platform app is "In production", unverified, **with no logo** (adding a logo triggers brand verification). Branding needs a homepage, privacy and terms URLs plus an authorized domain, all served from the VPS. The Desktop OAuth client works via the paste-the-redirect-URL flow on the server. The refresh token is in `.secrets/yt.json` on the VPS; the read-only probe passed (token refresh + channel). Gotcha: the new console shows the client secret only once, so re-copying it from the client page gives a wrong value. Use "Add secret" if in doubt.
+- **TikTok via Zernio:** connected without a Business-account prompt. The probe passed 3/3: accounts, creator-info privacy levels, and Zernio `dryRun` canPublish.
