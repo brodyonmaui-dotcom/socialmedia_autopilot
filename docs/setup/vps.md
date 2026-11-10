@@ -23,14 +23,15 @@ git clone -b claude/dazzling-dijkstra-6ra0n5 https://github.com/brodyonmaui-dotc
 ## 4. Bootstrap + secrets file
 ```
 less /opt/autopilot/infra/bootstrap-vps.sh   # read it first (q to quit)
-cd /opt/autopilot && cp .env.example .env && chmod 600 .env && openssl rand -hex 24
+cd /opt/autopilot && cp .env.example .env && chmod 600 .env && sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env   # sets a random DB password without printing it
 nano .env
 bash /opt/autopilot/infra/bootstrap-vps.sh
 ```
-In `nano`, set `TZ_CREATOR` to your time zone (this file is never committed), fill in `POSTGRES_PASSWORD` (paste the random string printed above) and the R2 values. `DOMAIN` comes in step 5. Save with Ctrl+O, exit with Ctrl+X. From now on, log in as `ssh deploy@<server-ip>`; root password login is off.
+In `nano`, set `TZ_CREATOR` to your time zone (this file is never committed), leave `POSTGRES_PASSWORD` as the sed command set it, and fill in the R2 values. `DOMAIN` comes in step 5. Save with Ctrl+O, exit with Ctrl+X. From now on, log in as `ssh deploy@<server-ip>`; root password login is off.
 
 ## 5. DNS + start
 - Cloudflare → your domain → **DNS → Add record**: type `A`, name `app`, IPv4 = server IP, proxy status **DNS only** (grey cloud). Set `DOMAIN=app.<yourdomain>` in `.env`.
+- `ln -sf ../.env /opt/autopilot/infra/.env` (compose reads `.env` from `infra/`; the bootstrap does this for you)
 - `cd /opt/autopilot/infra && docker compose up -d && sleep 20 && curl -s https://app.<yourdomain>/healthz`
 
 Paste back: the `bootstrap ok …` line and the `curl` output (`ok`).

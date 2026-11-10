@@ -11,7 +11,10 @@ mkdir -p /home/deploy/.ssh && cp /root/.ssh/authorized_keys /home/deploy/.ssh/ &
 sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/; s/^#\?PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
 systemctl restart ssh || systemctl restart sshd
 ufw default deny incoming && ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw --force enable
-mkdir -p /opt/autopilot && chown -R deploy:deploy /opt/autopilot
+mkdir -p /opt/autopilot
+# docker compose reads .env from infra/; point it at the single root .env
+[ -e /opt/autopilot/infra/.env ] || ln -s ../.env /opt/autopilot/infra/.env
+chown -R deploy:deploy /opt/autopilot
 # let deploy run `git pull` with the read-only deploy key
 for f in github_deploy github_deploy.pub config; do [ -f /root/.ssh/$f ] && cp /root/.ssh/$f /home/deploy/.ssh/; done
 chown -R deploy:deploy /home/deploy/.ssh && chmod 600 /home/deploy/.ssh/* 2>/dev/null || true
