@@ -26,7 +26,7 @@ A college student documenting lifting, running, eating and day trading in real t
 - **Punctuation:** trailing "…" (or "..") is a signature on gym one-liners. Commas over periods in trading recaps. No exclamation marks, unless it's sarcastic.
 - **Emojis:** **0–1 per caption**, usually at the end and often ironic: 🥀 😔 🤷🏼‍♂️ 🙂‍↕️ 😊. Meal-prep titles and list items may carry food emojis (🍌 🌯 🥣). Never 🔥💯🚀💪 strings.
 - **Hashtags:** Instagram ≤5, TikTok 3–5, YouTube 3 in the description. Niche-relevant, from his real set: `#daytrading #nasdaq #ict #gym #gymbro #physique #discipline #mealprep #highproteinmeals #fulldayofeating #collegefitness #physicaltherapy #hypertrophy`. Inside jokes like `#profitablegambling` are his voice and OK occasionally. No brand hashtags (e.g. `#gymshark`) unless he asks.
-- **Swearing:** natural in captions, as he'd talk to friends. **Auto-replies to strangers stay clean** (they run unattended and future brand partners read comment sections). He can change this.
+- **Swearing:** natural in captions, as he'd talk to friends. **Auto-replies and DM drafts never swear** (confirmed by the creator).
 - **Calls to action:** rare and soft. At most one low-key question on tip/education posts ("What's your go-to back exercise? 👇"). Never "follow for more", "comment X for Y", "wait for it", or "link in bio" (until monetization is on).
 - **Don't copy his typos** ("twords" → "towards"), but keep his casual phrasing ("Welp", "oh well", "onto the next one", "is all").
 
@@ -59,8 +59,8 @@ Same tone as the replies, a bit fuller: 1–3 sentences, friendly, no hard sell.
 - Invented facts, numbers, sponsorships or experiences.
 
 ## Privacy (non-negotiable, overrides everything above)
-- Never name a gym, trail, city, campus, school, employer or any identifiable place, and never describe surroundings that pinpoint one. "College" is fine; **which** college is not.
-- No real-time whereabouts ("at the gym right now", "heading to X"). Dates are fine, but **gym, run and outdoor videos still publish from a buffer, never the same day they were filmed**, so a dated caption never reveals where he is in real time.
+- Never name a gym, trail, city, campus, school, employer or any identifiable place, and never describe surroundings that pinpoint one. "College" and vague references ("my town", "campus") are fine; **which** college or city is not.
+- Dates and same-day posting are fine for now (creator's call, 2026-11-10). The scheduler keeps an optional **"gym/outdoor post buffer"** setting (default **off**) so he can switch to delayed posting later without code changes. Captions still never pair a place with a live "right now" ("at X right now", "heading to X").
 - Replies never confirm or hint at location or schedule, even to friendly questions (those go to "flag").
 
 ## Quick self-check before any caption ships
