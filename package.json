@@ -1,0 +1,28 @@
+{
+  "name": "socialmedia-autopilot",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "probe:ig": "tsx scripts/probes/ig.ts",
+    "probe:yt": "tsx scripts/probes/yt.ts",
+    "probe:tiktok": "tsx scripts/probes/zernio.ts",
+    "probe:ai": "tsx scripts/probes/anthropic.ts",
+    "probe:connect-meta": "tsx scripts/probes/connect-meta.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "zod": "^4.1.0"
+  }
+}

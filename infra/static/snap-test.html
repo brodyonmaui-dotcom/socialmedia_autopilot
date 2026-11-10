@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Snapchat share test</title>
+<style>
+:root{--bg:#fff;--fg:#111;--mute:#666;--acc:#111;--card:#f4f4f4}
+@media (prefers-color-scheme:dark){:root{--bg:#111;--fg:#eee;--mute:#999;--acc:#fffc00;--card:#1d1d1d}}
+body{margin:0;padding:16px;font:16px/1.45 -apple-system,system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+.card{background:var(--card);border-radius:14px;padding:16px;margin:12px 0}
+button,input,textarea{font:inherit;width:100%;box-sizing:border-box;border-radius:10px;padding:12px;margin-top:8px}
+button{background:var(--acc);color:var(--bg);border:0;font-weight:600}
+@media (prefers-color-scheme:dark){button{color:#111}}
+small,#log{color:var(--mute)} #log{white-space:pre-wrap;font-size:13px}
+</style></head><body>
+<h1>Snapchat handoff test</h1>
+<p><small>M0 test: can a web page hand a full-length video to Snapchat → Spotlight? Report the checklist results back.</small></p>
+<div class="card"><b>A. From camera roll</b><input id="file" type="file" accept="video/*"></div>
+<div class="card"><b>B. From a URL</b> (how the dashboard will work)<input id="url" placeholder="https://…/video.mp4"></div>
+<div class="card"><b>Caption</b><textarea id="cap" rows="3">test caption — ignore</textarea>
+<button id="go">Copy caption + Share to Snapchat</button></div>
+<div class="card"><b>Checklist</b><br>1. Does Snapchat appear in the share sheet?<br>2. Does it open the preview with the full video (not cut to 10 s)?<br>3. Is <i>Spotlight</i> offered as a destination?<br>4. Was the caption carried over, or did you paste it?<br>5. Is location / Snap Map OFF on the post screen?<br><small>Don't actually post unless you want to.</small></div>
+<div id="log"></div>
+<script>
+const log=m=>document.getElementById('log').textContent+=m+"\n";
+document.getElementById('go').onclick=async()=>{
+  const cap=document.getElementById('cap').value;
+  try{await navigator.clipboard.writeText(cap);log('caption copied');}catch(e){log('clipboard failed: '+e.message);}
+  let f=document.getElementById('file').files[0];
+  const u=document.getElementById('url').value.trim();
+  if(!f&&u){log('fetching '+u);const b=await (await fetch(u)).blob();f=new File([b],'post.mp4',{type:b.type||'video/mp4'});}
+  if(!f){log('pick a file or URL first');return;}
+  log(`file ${f.name} ${(f.size/1e6).toFixed(1)} MB ${f.type}`);
+  const data={files:[f],text:cap};
+  if(!navigator.canShare||!navigator.canShare(data)){log('this browser cannot share files');return;}
+  try{await navigator.share(data);log('share sheet closed OK');}catch(e){log('share: '+e.name+' '+e.message);}
+};
+</script></body></html>

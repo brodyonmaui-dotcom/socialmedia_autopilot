@@ -1,0 +1,46 @@
+# One stack on the VPS: Caddy (HTTPS) → web (M1), worker (M1), Postgres, nightly backup.
+# M0 runs only caddy + db + backup; web/worker are added in M1.
+name: autopilot
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./static:/srv/static:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: autopilot
+      POSTGRES_DB: autopilot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes: [pg_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autopilot"]
+      interval: 10s
+      retries: 5
+
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    depends_on: { db: { condition: service_healthy } }
+    env_file: ../.env
+    environment:
+      PGHOST: db
+      PGUSER: autopilot
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: autopilot
+    volumes: [./backup.sh:/backup.sh:ro]
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache aws-cli >/dev/null && while true; do /bin/sh /backup.sh; sleep 86400; done"]
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pg_data:

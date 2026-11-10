@@ -1,0 +1,37 @@
+# Server (~25 min, ~€6/mo)
+
+## 1. SSH key on Windows (once)
+Open PowerShell:
+```
+ssh-keygen -t ed25519 -C "autopilot"
+type $env:USERPROFILE\.ssh\id_ed25519.pub
+```
+Press Enter through the prompts, though a passphrase is better. Copy the line it prints (the **public** key, safe to share).
+
+## 2. Order (approved)
+- **First choice: Hetzner Cloud** (console.hetzner.cloud): new project → **Add Server**. Location Falkenstein, Nuremberg or Helsinki. Image **Ubuntu 24.04**. Type **CX23** (shared vCPU, x86, ~€5.49 + IPv4). Add your SSH key. Name `autopilot`. New accounts sometimes need an ID check that can take a while.
+- **If CX23 can't be ordered or verification stalls: OVHcloud VPS-1** (US East/West), Ubuntu 24.04, ~$5–6.50 with daily backup included. Add your SSH key.
+
+## 3. First login: get the code (repo is public, so a plain HTTPS clone works)
+```
+ssh root@<server-ip>
+apt-get update -qq && apt-get install -y -qq git
+git clone -b claude/dazzling-dijkstra-6ra0n5 https://github.com/brodyonmaui-dotcom/socialmedia_autopilot.git /opt/autopilot
+```
+(If the repo goes private again: make a read-only GitHub **deploy key** on the server with `ssh-keygen -t ed25519 -f ~/.ssh/github_deploy -N ""`, add it under repo → Settings → Deploy keys, and clone with `git@github.com:…` instead.)
+
+## 4. Bootstrap + secrets file
+```
+less /opt/autopilot/infra/bootstrap-vps.sh   # read it first (q to quit)
+cd /opt/autopilot && cp .env.example .env && chmod 600 .env && sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env   # sets a random DB password without printing it
+nano .env
+bash /opt/autopilot/infra/bootstrap-vps.sh
+```
+In `nano`, set `TZ_CREATOR` to your time zone (this file is never committed), leave `POSTGRES_PASSWORD` as the sed command set it, and fill in the R2 values. `DOMAIN` comes in step 5. Save with Ctrl+O, exit with Ctrl+X. From now on, log in as `ssh deploy@<server-ip>`; root password login is off.
+
+## 5. DNS + start
+- Cloudflare → your domain → **DNS → Add record**: type `A`, name `app`, IPv4 = server IP, proxy status **DNS only** (grey cloud). Set `DOMAIN=app.<yourdomain>` in `.env`.
+- `ln -sf ../.env /opt/autopilot/infra/.env` (compose reads `.env` from `infra/`; the bootstrap does this for you)
+- `cd /opt/autopilot/infra && docker compose up -d && sleep 20 && curl -s https://app.<yourdomain>/healthz`
+
+Paste back: the `bootstrap ok …` line and the `curl` output (`ok`).
