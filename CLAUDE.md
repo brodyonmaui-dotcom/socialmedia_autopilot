@@ -40,7 +40,8 @@ Single-creator tool: phone-first dashboard + always-on worker that posts approve
 
 ## Environment notes
 - **The repo is PUBLIC.** Never commit secrets or location-revealing values (the creator's time zone, domain, server IP, places). Those live in `.env` only.
-- The cloud session can't SSH out. The user runs server commands; deploys pull from git on the VPS.
+- Server: `ssh autopilot` (an alias in the user's `~/.ssh/config`; the IP is never committed). Local laptop sessions can SSH; cloud sessions can't, so there the user runs server commands. Deploy = `git pull` on the VPS in `/opt/autopilot` (tracks `main`), then `docker compose up -d` in `infra/`.
+- Ask before running anything on the server that changes state (restart, migrate, post).
 - developers.facebook.com / docs.zernio.com don't resolve for WebFetch here, but `curl https://docs.zernio.com/<page>.mdx` and `llms.txt` work.
 
 ## Commands
