@@ -100,7 +100,7 @@ Method note: this build session's network blocks direct fetches of developers.fa
 | 13 | **Claude API** | "a few dollars" | Claude Haiku 5.5: **$0.10 in / $0.50 out per M tokens** (≤100K-token prompts). | Comment + DM AI ≈ **<$1–2/mo**. |
 
 ### Still open (M0)
-- ~~Trial eligibility for the main IG account~~ — resolved 2026-11-11: refused with a permission error (not a follower-count one), fallback-to-plain-reel confirmed working. Whether trial insights come back is still open (no trial has published yet).
+- Trial reels — likely needs **200 followers** (professional account): creator, via Meta AI, 2026-11-11; official doc page not yet found (see the 2026-11-11 trial-threshold entry). Account was at 137 when refused. Re-probe at 200 followers and after any permission change; fallback to plain reel + flag stays. Whether trial insights come back is still open (no trial has published yet).
 - Whether IG comment/DM webhooks fire for an own account at Standard Access in Live mode.
 - Whether the Zernio TikTok connection forces a Business account (music library impact).
 - Spotlight via the iOS share sheet: full-length video, Spotlight destination available, location/Snap Map off.
@@ -148,3 +148,9 @@ Method note: this build session's network blocks direct fetches of developers.fa
 
 ### M0 result — AI triage (2026-11-10)
 - Claude Haiku 5.5 with structured output sorted all 6 samples correctly: praise → short reply; mockery → "Thanks for watching, have a great day 😊👍"; a gear question → flag; a brand inquiry → flag; a scam link → hide_flag; **"where is this trail?" → flag (location question never auto-answered)**. A $5/mo spend limit is set on a dedicated `autopilot-server` key.
+
+### Trial reels — follower threshold (2026-11-11)
+- **Claim:** trial reels need a public **professional account with 200+ followers** (personal accounts: 1,000). Source: creator, via Meta AI; official doc page not yet found.
+- **Fits what we saw:** the M1 day-1 refusal (`code 10 / error_subcode 2207081`, "Application does not have permission for this action") came at 137 followers. The error text names no threshold, so a permission cause is still possible; the re-probe settles it.
+- **Searched:** the IG User Media reference (`developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media.md`) documents `trial_params` (`graduation_strategy` MANUAL / SS_PERFORMANCE) with **no eligibility or follower rule**. The error-codes reference doesn't list 2207081. The help.instagram.com "About trial reels" page didn't come up in search and couldn't be fetched. Third-party guides cite it as saying 200 (professional) / 1,000 (personal) + public + recommendation-eligible, e.g. https://flowgent.ai/blog/instagram-trial-reels, https://outfeed.ai/blog/instagram-trial-reels/. Older reports (Mosseri, mid-2025) said 1,000 for everyone, so the number has changed at least once.
+- **Action:** no code change (fallback = plain reel + flag). The daily trial re-probe should **also fire when followers reach 200** (worker/adapter work, F1/F4).
