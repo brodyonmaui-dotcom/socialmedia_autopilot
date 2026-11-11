@@ -40,7 +40,7 @@ Single-creator tool: phone-first dashboard + always-on worker that posts approve
 
 ## Environment notes
 - **The repo is PUBLIC.** Never commit secrets or location-revealing values (the creator's time zone, domain, server IP, places). Those live in `.env` only.
-- Server: `ssh autopilot` (an alias in the user's `~/.ssh/config`; the IP is never committed). Local laptop sessions can SSH; cloud sessions can't, so there the user runs server commands. Deploy = `git pull` on the VPS in `/opt/autopilot` (tracks `main`), then `docker compose up -d` in `infra/`.
+- Server: `ssh autopilot` (an alias in the user's `~/.ssh/config`; the IP is never committed). Local laptop sessions can SSH; cloud sessions can't, so there the user runs server commands. Deploy = `git pull` on the VPS in `/opt/autopilot` (tracks `main`), then `docker compose up -d` in `infra/`. If `Caddyfile` changed, also `docker compose restart caddy` — `up -d` alone won't reload it (it's a bind-mounted file, not an image layer, and git's replace-via-rename leaves a long-running container's mount pointing at the old inode).
 - Ask before running anything on the server that changes state (restart, migrate, post).
 - developers.facebook.com / docs.zernio.com don't resolve for WebFetch here, but `curl https://docs.zernio.com/<page>.mdx` and `llms.txt` work.
 

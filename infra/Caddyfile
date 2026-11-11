@@ -5,8 +5,11 @@
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin
 	}
-	# M0: static pages (privacy policy for Meta Live mode, Snapchat share test).
-	# M1: everything else proxies to the Next.js app: reverse_proxy web:3000
+	# Static pages (privacy policy for Meta/Google branding, Snapchat share test) stay static;
+	# /app is the dashboard (Next.js), not yet behind login — don't link it publicly before M2 auth lands.
+	handle /app* {
+		reverse_proxy web:3000
+	}
 	handle /privacy* {
 		root * /srv/static
 		rewrite * /privacy.html

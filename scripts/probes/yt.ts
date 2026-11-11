@@ -67,7 +67,7 @@ const file = argValue("file");
 if (file) {
   const publishAt = argValue("publish-at");
   const meta = {
-    snippet: { title: argValue("title") ?? "probe upload", description: "", categoryId: "22" },
+    snippet: { title: argValue("title") ?? "probe upload", description: argValue("description") ?? "", categoryId: "22" },
     status: { privacyStatus: "private", selfDeclaredMadeForKids: false, ...(publishAt ? { publishAt } : {}) },
   };
   if (!LIVE) {
