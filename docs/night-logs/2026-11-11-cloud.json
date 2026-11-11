@@ -42,7 +42,7 @@
   ],
   "tests": { "passed": 126, "failed": 0, "notes": "was 48 on main; pnpm typecheck + apps/web tsc + next build pass" },
   "commits": 8,
-  "prUrl": null,
+  "prUrl": "https://github.com/brodyonmaui-dotcom/socialmedia_autopilot/pull/4",
   "nextPickup": [
     "Day session: run migrations 0003 + 0004 on the VPS after merge (asks first)",
     "Day session: verify metrics response shapes, then implement sources and register the ingest job in the worker"

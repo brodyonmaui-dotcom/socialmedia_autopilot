@@ -24,16 +24,16 @@ a{color:var(--strong)}footer{color:var(--mute);font-size:12px;margin-top:18px}
 <p style="margin-top:8px">F6 and F5 both done in one branch: research backlog + voice/privacy lint + 4 skills, and analytics snapshots + weekly report + trial-share recommendations with a phone page. 126 tests green; ready to review and merge.</p></header>
 
 <div class="kpis">
-<div class="kpi"><div class="v">16.16M</div><div class="l">total tokens</div></div>
-<div class="kpi"><div class="v">116.5K</div><div class="l">output tokens</div></div>
-<div class="kpi"><div class="v">15.84M</div><div class="l">cache reads</div></div>
-<div class="kpi"><div class="v">$6.50</div><div class="l">API-equivalent (not your plan bill)</div></div>
-<div class="kpi"><div class="v">0.4h</div><div class="l">first→last activity · 90 model calls</div></div>
+<div class="kpi"><div class="v">16.95M</div><div class="l">total tokens</div></div>
+<div class="kpi"><div class="v">119.5K</div><div class="l">output tokens</div></div>
+<div class="kpi"><div class="v">16.63M</div><div class="l">cache reads</div></div>
+<div class="kpi"><div class="v">$6.74</div><div class="l">API-equivalent (not your plan bill)</div></div>
+<div class="kpi"><div class="v">0.4h</div><div class="l">first→last activity · 93 model calls</div></div>
 <div class="kpi"><div class="v">126/126</div><div class="l">tests passing</div></div>
 </div>
 
 <section class="attn"><h2>Needs you</h2><ul><li><b>Review and merge the PR</b><span class="d">Tests green (126, was 48). New: packages/research, packages/analytics, migrations 0003 + 0004, /research and /analytics pages, scripts/skills, .claude/skills.</span></li><li><b>Add PRIVACY_BLOCKLIST to the server env file</b><span class="d">Comma-separated private terms (city, school, gym names). The lint blocks them in captions, hooks, ideas and creator notes. Never commit it.</span></li><li><b>Verify metrics response shapes, then implement the parsers</b><span class="d">research.md has IG metric names but not the insights response envelope, likes/comments fields or units (watch time, skip rate); nothing for YouTube or Zernio analytics. Sources are stubs (createUnverifiedSource) until a day session logs them.</span></li><li><b>Business Discovery field list isn&#39;t in research.md</b><span class="d">research-brief live fetch is a stub. Use a snapshot file via --fixture until it&#39;s verified.</span></li><li><b>Confirm how the outbox records IG trial state</b><span class="d">Analytics assumes batch_items.trial.fellBack=true when the trial fell back to a plain reel, and trial.sharedAt when you shared it. Whoever builds IG publishing (F4) should write those keys, or tell me the real ones.</span></li></ul></section>
-
+<section><h2>Pull request</h2><p><a href="https://github.com/brodyonmaui-dotcom/socialmedia_autopilot/pull/4">https://github.com/brodyonmaui-dotcom/socialmedia_autopilot/pull/4</a></p><p class="muted">Review → merge → the day session deploys.</p></section>
 <section><h2>Done</h2><ul><li>F6 packages/research: creators, idea backlog state machine, hooks, voice/privacy lint, research brief</li><li>F6 migration 0003_research.sql and phone pages /research (overview, ideas, hooks, creators)</li><li>F6 4 skills: weekly-batch, research-brief, platform-check, weekly-report, with pnpm skill:* scripts (weekly-batch create writes status=draft only)</li><li>F5 packages/analytics: metrics snapshots (24 h/72 h/7 d/28 d checkpoints, idempotent), ingestion pass on fakes, weekly report (per-platform totals, week-over-week, lift by pillar/hook/length/time/trial with sample sizes), trial-share recommendations</li><li>F5 migration 0004_analytics.sql, /analytics page with a clearly labelled demo mode</li><li>Smoke-tested on a throwaway local Postgres with an iPhone viewport: research forms, privacy rejections, weekly-batch create, weekly-report from the DB</li></ul></section>
 <section><h2>Not done</h2><ul><li>Real metrics sources for IG/YT/TikTok (stubs; shapes unverified)</li><li>Wiring the ingest pass into the worker as a job (worker is F1&#39;s area tonight)</li><li>Business Discovery fetch (stub)</li><li>Login on the new pages (F2 owns single-user auth)</li></ul></section>
 <section><h2>Decisions for Brody</h2><ul><li>TikTok inbox drafts (tiktokDraft) block batch creation: batch_items has no column for the draft flag yet, so creating would publish without the sound</li><li>Voice lint: privacy findings are always errors; hype, CTAs and {{placeholders}} are errors; exclamation marks, all-caps and a missing &#39;Not financial advice.&#39; are warnings</li><li>weekly-batch never assigns times (F1&#39;s scheduler does); without times a draft can be checked but not created</li><li>Lint lives in packages/research so this run didn&#39;t touch packages/core while F1/F4 run; F2/F3 can move it</li><li>Report recommends only when a group AND the rest each have n&gt;=3, a platform has &gt;=6 posts, and lift is &gt;=1.25x or &lt;=0.75x; max 8 recommendations; identical post sets shown once</li><li>Trials: &#39;share&#39; only if views &gt;= your regular-reel median and engagement and skip rate aren&#39;t worse; &#39;don&#39;t share&#39; only after 72 h and under 0.5x; otherwise &#39;wait&#39;. No verdict before 24 h or with fewer than 3 regular reels. Only trials from the last 14 days are listed</li><li>Missed snapshot checkpoints aren&#39;t back-filled under an old label</li></ul></section>
@@ -47,7 +47,7 @@ a{color:var(--strong)}footer{color:var(--mute);font-size:12px;margin-top:18px}
 </table></section>
 
 <section><h2>Tokens by model</h2><table><tr><th>Model</th><th>Input</th><th>Output</th><th>Cache read</th><th>Cache write</th></tr>
-<tr><td>claude-opus-5-5</td><td class="n">171</td><td class="n">116.5K</td><td class="n">15.84M</td><td class="n">199.3K</td></tr>
+<tr><td>claude-opus-5-5</td><td class="n">178</td><td class="n">119.5K</td><td class="n">16.63M</td><td class="n">205.8K</td></tr>
 </table></section>
-<footer>Generated 2026-11-11T16:28:49.868Z from 2026-11-11-cloud.json and 1 transcript file(s). API-equivalent cost uses list prices and is only a relative measure of work done.</footer>
+<footer>Generated 2026-11-11T16:29:23.462Z from 2026-11-11-cloud.json and 1 transcript file(s). API-equivalent cost uses list prices and is only a relative measure of work done.</footer>
 </main></body></html>
