@@ -11,8 +11,22 @@ export interface ProbeResult {
   capturedAt?: string;
 }
 
-/** Tag keys ffprobe surfaces for embedded GPS/location data across common container/codec combos. */
-const LOCATION_TAG_KEYS = ["location", "location-eng", "com.apple.quicktime.location.iso6709", "gps_latitude", "gps_longitude"];
+/**
+ * Any tag key that can carry a place: "location", "location-eng", Apple's
+ * "com.apple.quicktime.location.ISO6709" (uppercase on iPhones), Android/EXIF-style "gps_*".
+ * Matched case-insensitively on the container AND every stream, so a key spelled differently by
+ * another camera app still counts. touchUp strips all metadata regardless; this only drives the
+ * QA warning (and the touch-up queue).
+ */
+const LOCATION_KEY = /location|iso6709|(^|[._-])gps/i;
+
+export function findLocationTagKeys(ffprobeJson: { format?: { tags?: Record<string, unknown> }; streams?: Array<{ tags?: Record<string, unknown> }> }): string[] {
+  const keys = [
+    ...Object.keys(ffprobeJson.format?.tags ?? {}),
+    ...(ffprobeJson.streams ?? []).flatMap((s) => Object.keys(s.tags ?? {})),
+  ];
+  return [...new Set(keys.filter((k) => LOCATION_KEY.test(k)))];
+}
 
 export async function probe(filePath: string): Promise<ProbeResult> {
   const { stdout } = await run("ffprobe", [
@@ -34,7 +48,7 @@ export async function probe(filePath: string): Promise<ProbeResult> {
     ...(data.format?.tags as Record<string, unknown> | undefined),
     ...(video.tags as Record<string, unknown> | undefined),
   };
-  const hasLocationTags = LOCATION_TAG_KEYS.some((k) => k in allTags);
+  const hasLocationTags = findLocationTagKeys(data).length > 0;
 
   const capturedAt = (allTags.creation_time as string | undefined) ?? undefined;
 
