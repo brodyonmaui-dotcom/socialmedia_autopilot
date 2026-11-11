@@ -6,8 +6,14 @@
 		Referrer-Policy strict-origin
 	}
 	# Static pages (privacy policy for Meta/Google branding, Snapchat share test) stay static;
-	# /app is the dashboard (Next.js), not yet behind login — don't link it publicly before M2 auth lands.
+	# /app is the dashboard (Next.js, basePath /app: pages AND assets live under it). Until the M2
+	# passkey login lands, HTTP basic auth gates all of /app*. DASH_USER / DASH_HASH come from .env
+	# (hash from `caddy hash-password`, see docs/runbooks/dashboard-password.md). If either is unset,
+	# Caddy still loads and /app* rejects every login (fails closed; checked with caddy 2.10 locally).
 	handle /app* {
+		basic_auth {
+			{$DASH_USER} {$DASH_HASH}
+		}
 		reverse_proxy web:3000
 	}
 	handle /privacy* {
