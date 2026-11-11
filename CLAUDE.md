@@ -44,6 +44,9 @@ Single-creator tool: phone-first dashboard + always-on worker that posts approve
 - Ask before running anything on the server that changes state (restart, migrate, post).
 - developers.facebook.com / docs.zernio.com don't resolve for WebFetch here, but `curl https://docs.zernio.com/<page>.mdx` and `llms.txt` work.
 
+## Guardrails
+- `.claude/settings.json` + `.claude/hooks/guard.mjs` block destructive git, secret reads, broad deletes; `AUTOPILOT_OVERNIGHT=1` adds the overnight rules. Unattended runs follow `docs/overnight.md`. Humans change guardrail files, not agents.
+
 ## Commands
 - `pnpm install` · `pnpm typecheck` · `pnpm test`
 - On the VPS: `./infra/probe.sh <ig|yt|tiktok|ai> [flags]`, `cd infra && docker compose up -d`
