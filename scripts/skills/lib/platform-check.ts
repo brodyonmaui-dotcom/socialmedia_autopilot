@@ -20,6 +20,7 @@ const DEADLINE_PATTERNS: Array<{ label: string; re: RegExp; warnDays: number }> 
 ];
 
 export function analyzeResearch(md: string, now = new Date()): PlatformCheckReport {
+  md = md.replace(/\r\n/g, "\n"); // Windows checkouts (core.autocrlf) give CRLF
   const dates = [...md.matchAll(/^#{2,3} .*?(\d{4}-\d{2}-\d{2})/gm)].map((m) => m[1]!).sort();
   const lastVerified = dates.at(-1) ?? null;
 

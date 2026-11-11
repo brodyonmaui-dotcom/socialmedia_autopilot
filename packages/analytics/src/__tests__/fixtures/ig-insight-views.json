@@ -1,0 +1,12 @@
+{
+  "data": [
+    {
+      "name": "views",
+      "period": "lifetime",
+      "values": [{ "value": 1532 }],
+      "title": "Views",
+      "description": "Total number of times IG Media has been played on Instagram.",
+      "id": "17944070922377356/insights/views/lifetime"
+    }
+  ]
+}

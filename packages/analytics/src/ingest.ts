@@ -102,10 +102,8 @@ export function instagramInsightPaths(mediaId: string): string[] {
 }
 
 /**
- * STUB. The insights response envelope, likes/comments field names, and units (watch time,
- * skip rate) aren't recorded in docs/research.md yet, so no parser is written against a guess.
- * Same for YouTube (Analytics/Data API statistics) and Zernio TikTok analytics.
- * → needsAttention: verify on the official docs, log in research.md, then implement.
+ * Throwing placeholder for a platform with no verified metrics source (Snapchat: assisted, no API).
+ * Instagram, YouTube and TikTok (Zernio) have real sources in sources.ts (docs/research.md, 2026-11-11).
  */
 export function createUnverifiedSource(platform: Platform): MetricsSource {
   return {

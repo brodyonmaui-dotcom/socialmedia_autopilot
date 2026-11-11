@@ -100,12 +100,12 @@ Method note: this build session's network blocks direct fetches of developers.fa
 | 13 | **Claude API** | "a few dollars" | Claude Haiku 5.5: **$0.10 in / $0.50 out per M tokens** (≤100K-token prompts). | Comment + DM AI ≈ **<$1–2/mo**. |
 
 ### Still open (M0)
-- ~~Trial eligibility for the main IG account~~ — resolved 2026-11-11: refused with a permission error (not a follower-count one), fallback-to-plain-reel confirmed working. Whether trial insights come back is still open (no trial has published yet).
+- Trial reels — likely needs **200 followers** (professional account): creator, via Meta AI, 2026-11-11; official doc page not yet found (see the 2026-11-11 trial-threshold entry). Account was at 137 when refused. Re-probe at 200 followers and after any permission change; fallback to plain reel + flag stays. Whether trial insights come back is still open (no trial has published yet).
 - Whether IG comment/DM webhooks fire for an own account at Standard Access in Live mode.
 - Whether the Zernio TikTok connection forces a Business account (music library impact).
 - Spotlight via the iOS share sheet: full-length video, Spotlight destination available, location/Snap Map off.
-- Business Discovery at Standard Access (expected to work; confirm with one call).
-- Reel `total watch time` metric name in current insights (`ig_reels_video_view_total_time`?).
+- ~~Business Discovery at Standard Access~~ — confirmed in the M0 Instagram probe (2026-11-10).
+- ~~Reel total watch time metric name~~ — `ig_reels_video_view_total_time`, confirmed in Meta's media-insights reference and accepted by the M0 probe (2026-11-11).
 - Whether API-posted content gets less reach (no source; track it in analytics).
 
 ### Addendum — read Zernio's docs directly (2026-11-09, via curl `docs.zernio.com/*.mdx`)
@@ -148,3 +148,16 @@ Method note: this build session's network blocks direct fetches of developers.fa
 
 ### M0 result — AI triage (2026-11-10)
 - Claude Haiku 5.5 with structured output sorted all 6 samples correctly: praise → short reply; mockery → "Thanks for watching, have a great day 😊👍"; a gear question → flag; a brand inquiry → flag; a scam link → hide_flag; **"where is this trail?" → flag (location question never auto-answered)**. A $5/mo spend limit is set on a dedicated `autopilot-server` key.
+
+### Trial reels — follower threshold (2026-11-11)
+- **Claim:** trial reels need a public **professional account with 200+ followers** (personal accounts: 1,000). Source: creator, via Meta AI; official doc page not yet found.
+- **Fits what we saw:** the M1 day-1 refusal (`code 10 / error_subcode 2207081`, "Application does not have permission for this action") came at 137 followers. The error text names no threshold, so a permission cause is still possible; the re-probe settles it.
+- **Searched:** the IG User Media reference (`developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media.md`) documents `trial_params` (`graduation_strategy` MANUAL / SS_PERFORMANCE) with **no eligibility or follower rule**. The error-codes reference doesn't list 2207081. The help.instagram.com "About trial reels" page didn't come up in search and couldn't be fetched. Third-party guides cite it as saying 200 (professional) / 1,000 (personal) + public + recommendation-eligible, e.g. https://flowgent.ai/blog/instagram-trial-reels, https://outfeed.ai/blog/instagram-trial-reels/. Older reports (Mosseri, mid-2025) said 1,000 for everyone, so the number has changed at least once.
+- **Action:** no code change (fallback = plain reel + flag). The daily trial re-probe should **also fire when followers reach 200** (worker/adapter work, F1/F4).
+
+### Metrics response shapes (2026-11-11, docs only, no API calls)
+- **Instagram media insights** (https://developers.facebook.com/documentation/instagram-platform/reference/instagram-media/insights): `GET /{media-id}/insights?metric=…` → `{ data: [{ name, period, values: [{ value }], title, description, id, total_value?: { value, breakdowns? } }] }`. `value` is an Integer; `period` is always `lifetime` for media. `ig_reels_avg_watch_time` = "average amount of time spent playing the reel" (**Meta's page gives no unit**; Zernio's analytics schema says **milliseconds**). `reels_skip_rate` = **percentage** of initial views skipped in the first 3 s. `ig_reels_video_view_total_time` and `views` are labelled "in development"; `reach` is "estimated".
+- **IG Media fields** (https://developers.facebook.com/documentation/instagram-platform/reference/instagram-media): `like_count` (excludes promoted; **omitted when the owner hides likes**), `comments_count` (includes replies). `total_like_count` / `total_comments_count` add promoted/boosted surfaces (FB Login only). We use the organic counts.
+- **YouTube** (https://developers.google.com/youtube/v3/docs/videos): `videos.list?part=statistics&id=…` → `items[].statistics.{viewCount, likeCount, commentCount}` as **strings** (unsigned long); `dislikeCount` owner-only; `favoriteCount` always 0. **Watch time isn't in the Data API.** It needs the YouTube Analytics API (https://developers.google.com/youtube/analytics/metrics: `averageViewDuration`, seconds; `estimatedMinutesWatched`; `averageViewPercentage`) and the `yt-analytics.readonly` scope.
+- **Zernio** (https://docs.zernio.com/products/analytics.mdx, https://docs.zernio.com/analytics/get-analytics.mdx): `GET /v1/analytics?postId=…` (Zernio, external or native id) → `analytics` (PostAnalytics: impressions, reach, likes, comments, shares, saves, clicks, views, follows, `igReelsAvgWatchTime` ms, …) + `platformAnalytics[]` per platform with its own `analytics` and `syncStatus`. TikTok post metrics: **likes, comments, shares, views** ("more on Business app connections"). `202` = still syncing. **`402` = "Analytics add-on required" on legacy plans; usage-based plans include it.** Which plan our account is on isn't confirmed.
+- Implemented in `packages/analytics/src/sources.ts` behind `MetricsSource`, using fixtures written from these shapes. Snapchat stays a stub. Not wired into apps/worker.
