@@ -28,6 +28,8 @@ export interface OutboxPost {
   platform: Platform;
   mediaUrl: string;
   caption: string;
+  /** YouTube only. */
+  title?: string;
   scheduledFor: string; // ISO 8601
   status: PostStatus;
   attempts: number;
