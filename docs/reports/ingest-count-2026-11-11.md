@@ -37,5 +37,5 @@ No subset of the folders adds up to exactly 219 (203 + 16, or 240 − 21 is a co
 - Added **Single Sets/Lower Body, PT + Plyos, Core + Abs** (creator's OK). Dry run: 93 to ingest, 0 duplicates. Real run: **93 ingested, 0 failed** over three passes. Passes 1 and 2 lost the SSH tunnel mid-run, and the re-runs skipped what was already in by content hash.
 - `media` rows: **297** (296 `ready`, 1 `archived`).
 - The orphan row (`Single Sets/Physique/shirtless-physique-check.mp4`) is now **`archived`**. Its R2 copy is kept; batch `create` refuses archived clips; the library shows "file missing" when run on the laptop.
-- `INGEST_ROOTS` in `.env` still lists only the original 3 roots; the run passed the 6 roots via the environment. Add the 3 new folders to `.env` so future runs include them.
+- `INGEST_ROOTS` in `.env` still lists only the original 3 roots; this run passed just the 3 new folders via an environment override. Add the 3 new folders to `.env` so future runs include them.
 - Duplicate report refreshed: `docs/reports/duplicates-2026-11-11-refresh.md`, **449 files, 0 duplicate sets** (the 11 reviewed copies in `duplicates-review/` are skipped).
