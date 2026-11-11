@@ -39,6 +39,9 @@ importers:
       next:
         specifier: ^15.1.0
         version: 15.5.29(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      pg:
+        specifier: ^8.13.0
+        version: 8.23.1
       react:
         specifier: ^19.0.0
         version: 19.3.1
@@ -52,6 +55,9 @@ importers:
       '@types/node':
         specifier: ^22.10.0
         version: 22.20.5
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.23.1
       '@types/react':
         specifier: ^19.0.0
         version: 19.3.0
