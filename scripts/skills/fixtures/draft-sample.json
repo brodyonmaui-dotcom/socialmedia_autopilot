@@ -1,0 +1,23 @@
+{
+  "weekStart": "2030-01-07",
+  "items": [
+    {
+      "mediaId": "00000000-0000-4000-8000-000000000001",
+      "pillar": "gym",
+      "label": "pull day top set",
+      "posts": {
+        "instagram": { "caption": "My lats are not a fan of this pull day…\n\n#gym #gymbro #hypertrophy", "scheduledFor": "2030-01-07T10:30:00Z" },
+        "youtube": { "title": "My lats are not a fan of this pull day…", "caption": "Just stacking days is all.\n\n#gym #gymbro #hypertrophy", "scheduledFor": "2030-01-07T10:30:00Z" },
+        "tiktok": { "caption": "My lats are not a fan of this pull day… #gym #gymbro #physique", "scheduledFor": "2030-01-08T10:30:00Z" }
+      }
+    },
+    {
+      "mediaId": "00000000-0000-4000-8000-000000000002",
+      "pillar": "trading",
+      "label": "recap",
+      "posts": {
+        "instagram": { "caption": "Monday P/L {{P/L}}, waited for the BOS (break of structure) and took the 1:1R. Not financial advice.\n\n#daytrading #nasdaq #ict", "scheduledFor": "2030-01-07T20:00:00Z" }
+      }
+    }
+  ]
+}
