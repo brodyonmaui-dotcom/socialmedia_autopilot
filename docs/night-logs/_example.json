@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-12",
+  "startedAt": "2026-11-12T05:00:00Z",
+  "endedAt": "2026-11-12T13:00:00Z",
+  "model": "claude-fable-5-1",
+  "session": "cloud · autopilot-overnight",
+  "backlogItem": "F1 · Scheduler + outbox",
+  "summary": "One or two sentences: what got built and whether it's ready to merge.",
+  "needsAttention": [
+    { "priority": 1, "title": "Review and merge the PR", "detail": "Tests green; touches packages/core only." },
+    { "priority": 2, "title": "Decide: retry budget", "detail": "Picked 4 attempts over 30 min; change in Settings if you prefer." }
+  ],
+  "done": ["Outbox table + state machine", "simulate-week dry run passes for 7 days × 4 slots × 3 platforms"],
+  "notDone": ["Real adapters (F4)"],
+  "decisions": ["Staggered TikTok 1 day after Instagram for the same video"],
+  "blocked": [],
+  "tests": { "passed": 128, "failed": 0, "notes": "" },
+  "commits": 14,
+  "prUrl": "https://github.com/OWNER/REPO/pull/0",
+  "nextPickup": ["Start F2 from the tracker", "Day session: deploy worker after merge"]
+}
