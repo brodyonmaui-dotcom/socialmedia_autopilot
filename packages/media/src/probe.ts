@@ -7,6 +7,8 @@ export interface ProbeResult {
   durationS: number;
   hasAudio: boolean;
   hasLocationTags: boolean;
+  /** When the camera recorded a capture timestamp. A date, not a place — fine to keep internally. */
+  capturedAt?: string;
 }
 
 /** Tag keys ffprobe surfaces for embedded GPS/location data across common container/codec combos. */
@@ -34,6 +36,8 @@ export async function probe(filePath: string): Promise<ProbeResult> {
   };
   const hasLocationTags = LOCATION_TAG_KEYS.some((k) => k in allTags);
 
+  const capturedAt = (allTags.creation_time as string | undefined) ?? undefined;
+
   return {
     width: Number(video.width ?? 0),
     height: Number(video.height ?? 0),
@@ -41,5 +45,6 @@ export async function probe(filePath: string): Promise<ProbeResult> {
     durationS: Number(data.format?.duration ?? video.duration ?? 0),
     hasAudio: !!audio,
     hasLocationTags,
+    capturedAt,
   };
 }
