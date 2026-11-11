@@ -32,3 +32,10 @@ No subset of the folders adds up to exactly 219 (203 + 16, or 240 − 21 is a co
 1. **Orphan row:** mark it as not postable (e.g. status `missing`/`archived`) instead of `ready`, so a batch can't pick a clip whose master is gone. Deleting the row and its R2 object would need an explicit OK.
 2. **Scope:** if the three Single Sets folders should be in the library, add them to `INGEST_ROOTS` in `.env` (+93 files, upload time ≈ 30–40 min) and run the ingest agent.
 3. **Guard:** have the ingest agent print `N rows whose source file is gone` at the end of a run (read-only check), so drift shows up without a manual audit.
+
+## Update — later on 2026-11-11 (day run c)
+- Added **Single Sets/Lower Body, PT + Plyos, Core + Abs** (creator's OK). Dry run: 93 to ingest, 0 duplicates. Real run: **93 ingested, 0 failed** over three passes. Passes 1 and 2 lost the SSH tunnel mid-run, and the re-runs skipped what was already in by content hash.
+- `media` rows: **297** (296 `ready`, 1 `archived`).
+- The orphan row (`Single Sets/Physique/shirtless-physique-check.mp4`) is now **`archived`**. Its R2 copy is kept; batch `create` refuses archived clips; the library shows "file missing" when run on the laptop.
+- `INGEST_ROOTS` in `.env` still lists only the original 3 roots; the run passed the 6 roots via the environment. Add the 3 new folders to `.env` so future runs include them.
+- Duplicate report refreshed: `docs/reports/duplicates-2026-11-11-refresh.md`, **449 files, 0 duplicate sets** (the 11 reviewed copies in `duplicates-review/` are skipped).
