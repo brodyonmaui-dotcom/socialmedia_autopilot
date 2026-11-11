@@ -100,7 +100,7 @@ Method note: this build session's network blocks direct fetches of developers.fa
 | 13 | **Claude API** | "a few dollars" | Claude Haiku 5.5: **$0.10 in / $0.50 out per M tokens** (≤100K-token prompts). | Comment + DM AI ≈ **<$1–2/mo**. |
 
 ### Still open (M0)
-- Trial eligibility for the main IG account, and whether trial insights come back.
+- ~~Trial eligibility for the main IG account~~ — resolved 2026-11-11: refused with a permission error (not a follower-count one), fallback-to-plain-reel confirmed working. Whether trial insights come back is still open (no trial has published yet).
 - Whether IG comment/DM webhooks fire for an own account at Standard Access in Live mode.
 - Whether the Zernio TikTok connection forces a Business account (music library impact).
 - Spotlight via the iOS share sheet: full-length video, Spotlight destination available, location/Snap Map off.
@@ -139,6 +139,12 @@ Method note: this build session's network blocks direct fetches of developers.fa
 ### M0 results — YouTube + TikTok (2026-11-10)
 - **YouTube:** the Google Auth Platform app is "In production", unverified, **with no logo** (adding a logo triggers brand verification). Branding needs a homepage, privacy and terms URLs plus an authorized domain, all served from the VPS. The Desktop OAuth client works via the paste-the-redirect-URL flow on the server. The refresh token is in `.secrets/yt.json` on the VPS; the read-only probe passed (token refresh + channel). Gotcha: the new console shows the client secret only once, so re-copying it from the client page gives a wrong value. Use "Add secret" if in doubt.
 - **TikTok via Zernio:** connected without a Business-account prompt. The probe passed 3/3: accounts, creator-info privacy levels, and Zernio `dryRun` canPublish.
+
+### M1 day 1 — first real posts, all 3 platforms (2026-11-10/11)
+- **Instagram:** trial reel (`trial_params.graduation_strategy=MANUAL`) was refused on both attempts with `code 10 / error_subcode 2207081` ("Application does not have permission for this action") — not a follower-count rejection, a permission-level one, at 137 followers. The decided fallback (plain reel + flag) fired automatically and both posts published (`media 17944070922377356`, `media 18121843144753776`). Re-check trial access after the app's data-access/permission review, not just at a follower milestone.
+- **YouTube:** upload private + `publishAt` ~3 min out works as designed; both videos flipped public on schedule with no manual step.
+- **TikTok (Zernio):** both posts returned `HTTP 201 status=published` immediately; Zernio's `posts` list response for a public TikTok post **does not include `platformPostUrl` right after posting** (came back empty on both) — logged-out verification has to happen by opening the TikTok profile directly, not from the Zernio API response.
+- Workflow note: R2 upload needs `aws` CLI, which isn't on the bare VPS host; the already-running `backup` container has it (from its own entrypoint) and was reused via `docker cp` + `docker exec` instead of installing anything new.
 
 ### M0 result — AI triage (2026-11-10)
 - Claude Haiku 5.5 with structured output sorted all 6 samples correctly: praise → short reply; mockery → "Thanks for watching, have a great day 😊👍"; a gear question → flag; a brand inquiry → flag; a scam link → hide_flag; **"where is this trail?" → flag (location question never auto-answered)**. A $5/mo spend limit is set on a dedicated `autopilot-server` key.
