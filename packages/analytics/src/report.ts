@@ -1,7 +1,7 @@
 import type { Platform } from "@autopilot/core";
 import { classifyHook, firstLine } from "@autopilot/research";
 import { engagementRate, fmtInt, fmtPct, fmtX, lengthBucket, localHour, median, timeBucket } from "./stats.js";
-import { recommendTrialShares, type TrialRecommendation } from "./trials.js";
+import { recommendTrialShares, TRIAL_RULES, type TrialRecommendation } from "./trials.js";
 import type { PostRecord } from "./types.js";
 
 /** Group size below which we say "too early to tell" instead of recommending. */
@@ -11,6 +11,10 @@ export const MIN_PLATFORM = 6;
 export const LIFT_UP = 1.25;
 export const LIFT_DOWN = 0.75;
 export const COMPARISON_DAYS = 28;
+/** A phone screen's worth; the strongest signals win. */
+export const MAX_RECOMMENDATIONS = 8;
+/** When two groups contain exactly the same posts, keep the more useful label. */
+const DIM_PRIORITY: Dimension[] = ["pillar", "length", "hook", "time", "trial"];
 
 export type Dimension = "pillar" | "hook" | "length" | "time" | "trial";
 export interface GroupStat {
@@ -49,7 +53,7 @@ export interface WeeklyReport {
   groups: GroupStat[];
   recommendations: Recommendation[];
   tooEarly: Platform[];
-  trials: { baselineN: number; recommendations: TrialRecommendation[] };
+  trials: { baselineN: number; olderUnshared: number; recommendations: TrialRecommendation[] };
   dataGaps: string[];
   markdown: string;
 }
@@ -126,7 +130,8 @@ export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): Wee
   // ---- comparisons over a rolling window ending with the report week ----
   const windowPosts = posts.filter((p) => inRange(p, end - COMPARISON_DAYS * DAY, end) && p.metrics.views !== null);
   const groups: GroupStat[] = [];
-  const recommendations: Recommendation[] = [];
+  const members = new Map<GroupStat, string>();
+  const candidates: Array<Recommendation & { sig: string }> = [];
   const tooEarly: Platform[] = [];
   for (const platform of PLATFORMS) {
     const mine = windowPosts.filter((p) => p.platform === platform);
@@ -142,7 +147,7 @@ export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): Wee
     for (const [k, xs] of [...buckets.entries()].sort(([a], [b]) => a.localeCompare(b))) {
       const [dimension, group] = k.split("\u0000") as [Dimension, string];
       const mv = median(xs.map((p) => p.metrics.views!));
-      groups.push({
+      const g: GroupStat = {
         platform,
         dimension,
         group,
@@ -150,17 +155,20 @@ export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): Wee
         medianViews: mv,
         medianEr: median(xs.map((p) => engagementRate(p.metrics)).filter((x): x is number => x !== null)),
         lift: mv !== null && platformMedian ? mv / platformMedian : null,
-      });
+      };
+      groups.push(g);
+      members.set(g, xs.map((p) => p.batchItemId).sort().join(","));
     }
     if (mine.length < MIN_PLATFORM) {
       tooEarly.push(platform);
       continue;
     }
-    for (const g of groups.filter((x) => x.platform === platform && x.n >= MIN_GROUP && x.lift !== null && x.n < mine.length)) {
+    for (const g of groups.filter((x) => x.platform === platform && x.n >= MIN_GROUP && mine.length - x.n >= MIN_GROUP && x.lift !== null)) {
       if (g.group === "unknown" || g.group === "unsorted" || g.group === "other") continue;
       if (g.lift! >= LIFT_UP || g.lift! <= LIFT_DOWN) {
         const kind = g.lift! >= LIFT_UP ? "more" : "less";
-        recommendations.push({
+        candidates.push({
+          sig: `${platform}|${members.get(g)}`,
           platform,
           kind,
           dimension: g.dimension,
@@ -172,7 +180,21 @@ export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): Wee
       }
     }
   }
-  recommendations.sort((a, b) => Math.abs(Math.log(b.lift)) - Math.abs(Math.log(a.lift)) || a.text.localeCompare(b.text));
+  candidates.sort(
+    (a, b) =>
+      Math.abs(Math.log(b.lift)) - Math.abs(Math.log(a.lift)) ||
+      DIM_PRIORITY.indexOf(a.dimension) - DIM_PRIORITY.indexOf(b.dimension) ||
+      a.text.localeCompare(b.text),
+  );
+  const seen = new Set<string>();
+  const recommendations: Recommendation[] = [];
+  for (const { sig, ...rec } of candidates) {
+    if (seen.has(sig)) continue; // same posts under another label (e.g. every gym post is a deadpan one-liner)
+    seen.add(sig);
+    recommendations.push(rec);
+  }
+  const hiddenRecommendations = Math.max(0, recommendations.length - MAX_RECOMMENDATIONS);
+  recommendations.splice(MAX_RECOMMENDATIONS);
 
   const trials = recommendTrialShares(posts, now);
 
@@ -194,10 +216,12 @@ export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): Wee
   lines.push("", `## What worked (last ${COMPARISON_DAYS} days, within each platform)`);
   if (recommendations.length) for (const r of recommendations) lines.push(`- ${r.text}`);
   else lines.push("- Nothing stands out yet.");
+  if (hiddenRecommendations) lines.push(`- (+${hiddenRecommendations} weaker signal(s) not shown)`);
   if (tooEarly.length) lines.push(`- Too early to tell on ${tooEarly.join(", ")} (fewer than ${MIN_PLATFORM} posts with metrics).`);
-  lines.push("", `Groups need n≥${MIN_GROUP} and a lift of ≥${fmtX(LIFT_UP)} or ≤${fmtX(LIFT_DOWN)}. These are correlations, not causes.`);
+  lines.push("", `Groups (and the rest of the posts) need n≥${MIN_GROUP} and a lift of ≥${fmtX(LIFT_UP)} or ≤${fmtX(LIFT_DOWN)}. These are correlations, not causes.`);
   lines.push("", "## Trial reels (share manually in the Instagram app)");
   if (!trials.recommendations.length) lines.push("- No unshared trial reels.");
+  if (trials.olderUnshared) lines.push(`- ${trials.olderUnshared} older unshared trial(s) not listed (over ${TRIAL_RULES.listDays} days).`);
   for (const t of trials.recommendations) {
     const verdict = t.verdict === "share" ? "SHARE" : t.verdict === "dont-share" ? "DON'T SHARE" : "WAIT";
     lines.push(`- **${verdict}** "${firstLine(t.caption)}" (${t.ageHours} h, ${fmtInt(t.views)} views): ${t.reason}`);

@@ -30,9 +30,14 @@ export const TRIAL_RULES = {
   /** Baseline window. */
   baselineDays: 28,
   weakRatio: 0.5,
+  /** Older unshared trials drop off the list (counted, not shown): sharing a stale trial isn't the point. */
+  listDays: 14,
 } as const;
 
-export function recommendTrialShares(posts: PostRecord[], now = new Date()): { baselineN: number; recommendations: TrialRecommendation[] } {
+export function recommendTrialShares(
+  posts: PostRecord[],
+  now = new Date(),
+): { baselineN: number; olderUnshared: number; recommendations: TrialRecommendation[] } {
   const since = now.getTime() - TRIAL_RULES.baselineDays * 86_400_000;
   const regular = posts.filter(
     (p) => p.platform === "instagram" && !p.isTrial && p.metrics.views !== null && Date.parse(p.postedAt) >= since && Date.parse(p.postedAt) <= now.getTime(),
@@ -41,9 +46,9 @@ export function recommendTrialShares(posts: PostRecord[], now = new Date()): { b
   const baseEr = median(regular.map((p) => engagementRate(p.metrics)).filter((x): x is number => x !== null));
   const baseSkip = median(regular.map((p) => p.metrics.skipRate).filter((x): x is number => x !== null));
 
-  const trials = posts
-    .filter((p) => p.platform === "instagram" && p.isTrial && !p.trialSharedAt && Date.parse(p.postedAt) <= now.getTime())
-    .sort((a, b) => a.postedAt.localeCompare(b.postedAt));
+  const listFrom = now.getTime() - TRIAL_RULES.listDays * 86_400_000;
+  const unshared = posts.filter((p) => p.platform === "instagram" && p.isTrial && !p.trialSharedAt && Date.parse(p.postedAt) <= now.getTime());
+  const trials = unshared.filter((p) => Date.parse(p.postedAt) >= listFrom).sort((a, b) => a.postedAt.localeCompare(b.postedAt));
 
   const recommendations = trials.map((t): TrialRecommendation => {
     const ageHours = Math.floor((now.getTime() - Date.parse(t.postedAt)) / 3_600_000);
@@ -70,5 +75,5 @@ export function recommendTrialShares(posts: PostRecord[], now = new Date()): { b
     return say("wait", `views ${ratio!.toFixed(2)}× your regular-reel median so far (n=${regular.length})`);
   });
 
-  return { baselineN: regular.length, recommendations };
+  return { baselineN: regular.length, olderUnshared: unshared.length - trials.length, recommendations };
 }

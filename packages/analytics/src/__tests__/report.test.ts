@@ -63,10 +63,19 @@ describe("buildWeeklyReport: recommendations", () => {
     const texts = r.recommendations.map((x) => x.text);
     expect(r.recommendations[0]!.lift).toBeCloseTo(0.4, 12); // |log 0.4| > |log 1.6|: strongest first
     expect(texts).toContain("instagram: trading posts got ×0.40 your median views (n=4) → do fewer or rework");
-    expect(texts).toContain("instagram: gym posts got ×1.60 your median views (n=4) → do more");
-    expect(texts).toContain("instagram: <15s videos got ×1.60 your median views (n=4) → do more");
-    expect(texts).toContain("instagram: evening posts got ×0.40 your median views (n=4) → do fewer or rework");
+    // gym ≡ <15s ≡ deadpan ≡ 16:00 and trading ≡ 30–60s ≡ "number" ≡ evening here: one rec per set of posts, pillar label wins
+    expect(texts).toEqual([
+      "instagram: trading posts got ×0.40 your median views (n=4) → do fewer or rework",
+      "instagram: gym posts got ×1.60 your median views (n=4) → do more",
+    ]);
     for (const rec of r.recommendations) expect(rec.n).toBeGreaterThanOrEqual(3);
+  });
+
+  it("caps the list for a phone screen and says how many were hidden", () => {
+    const many = buildWeeklyReport(syntheticPosts({ weekStart: "2026-11-02" }), opts);
+    expect(many.recommendations.length).toBeLessThanOrEqual(8);
+    const sigs = new Set(many.recommendations.map((x) => `${x.platform}|${x.lift}|${x.n}`));
+    expect(sigs.size).toBe(many.recommendations.length);
   });
 
   it("never prints the time zone, and is deterministic", () => {
@@ -83,9 +92,22 @@ describe("buildWeeklyReport: recommendations", () => {
 describe("synthetic demo data", () => {
   it("lets the report find the built-in pattern (gym up, trading down on TikTok)", () => {
     const r = buildWeeklyReport(syntheticPosts({ weekStart: "2026-11-02" }), opts);
-    const tt = r.recommendations.filter((x) => x.platform === "tiktok" && x.dimension === "pillar");
-    expect(tt.find((x) => x.group === "gym")?.kind).toBe("more");
-    expect(tt.find((x) => x.group === "trading")?.kind).toBe("less");
+    const tt = (g: string) => r.groups.find((x) => x.platform === "tiktok" && x.dimension === "pillar" && x.group === g)!;
+    expect(tt("gym").lift!).toBeGreaterThanOrEqual(1.25);
+    expect(tt("trading").lift!).toBeLessThanOrEqual(0.75);
+    expect(r.recommendations[0]!.text).toMatch(/<15s videos .* do more/);
     expect(r.trials.recommendations.length).toBeGreaterThan(0);
+  });
+});
+
+describe("buildWeeklyReport: mix artifacts", () => {
+  it("doesn't recommend a group whose complement is too small to compare against (1 trial vs 12 regular)", () => {
+    const posts = [
+      ...Array.from({ length: 6 }, (_, i) => post({ pillar: "gym", views: 400, postedAt: `2026-11-0${2 + (i % 6)}T16:00:00Z` })),
+      ...Array.from({ length: 6 }, (_, i) => post({ pillar: "trading", views: 150, postedAt: `2026-11-0${2 + (i % 6)}T16:00:00Z` })),
+      post({ pillar: "gym", views: 400, isTrial: true, postedAt: "2026-11-08T16:00:00Z" }),
+    ];
+    const r = buildWeeklyReport(posts, opts);
+    expect(r.recommendations.map((x) => `${x.dimension}:${x.group}`)).toEqual(["pillar:trading"]);
   });
 });

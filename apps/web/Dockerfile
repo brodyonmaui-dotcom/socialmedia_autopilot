@@ -5,11 +5,13 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/core/package.json packages/core/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/research/package.json packages/research/package.json
+COPY packages/analytics/package.json packages/analytics/package.json
 COPY apps/web/package.json apps/web/package.json
 RUN pnpm install --frozen-lockfile --filter @autopilot/web...
 COPY packages/core packages/core
 COPY packages/db packages/db
 COPY packages/research packages/research
+COPY packages/analytics packages/analytics
 COPY apps/web apps/web
 WORKDIR /app/apps/web
 RUN pnpm build

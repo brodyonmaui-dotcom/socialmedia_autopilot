@@ -61,6 +61,13 @@ describe("recommendTrialShares", () => {
     expect(verdicts([...baseline, trial(110, "2026-11-07T11:00:00Z")])[0]![0]).toBe("wait"); // 0.55×
   });
 
+  it("lists only trials from the last 14 days and counts the older unshared ones", () => {
+    const old = post({ isTrial: true, postedAt: "2026-10-26T11:00:00Z", views: 900 });
+    const r = recommendTrialShares([...baseline, old, trial(250, "2026-11-08T12:00:00Z")], now);
+    expect(r.recommendations.map((x) => x.views)).toEqual([250]);
+    expect(r.olderUnshared).toBe(1);
+  });
+
   it("skips trials already shared, non-IG posts, and ignores trials in the baseline", () => {
     const shared = post({ isTrial: true, trialSharedAt: "2026-11-09T00:00:00Z", postedAt: "2026-11-08T00:00:00Z", views: 5000 });
     const yt = post({ platform: "youtube", isTrial: true, postedAt: "2026-11-08T00:00:00Z" });
