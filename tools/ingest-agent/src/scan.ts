@@ -35,7 +35,8 @@ function walk(dir: string, pillar: string, out: FoundFile[]): void {
     if (stat.isDirectory()) {
       if (SKIP_DIR.test(entry)) continue;
       walk(full, pillar, out);
-    } else if (VIDEO_EXT.test(entry)) {
+    } else if (VIDEO_EXT.test(entry) && !entry.startsWith(".")) {
+      // Hidden files are skipped too: macOS "._clip.mp4" AppleDouble sidecars look like videos but aren't.
       out.push({ path: full, pillar });
     }
   }

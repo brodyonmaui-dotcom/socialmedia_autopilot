@@ -118,9 +118,12 @@ export async function createDraftBatch(pool: InsertClient, draft: BatchDraft, op
   const check = checkDraft(draft, opts);
   if (!check.creatable) throw new Error(`draft not creatable: ${check.errors} error(s)${check.ok ? ", missing times" : ""}`);
   const mediaIds = [...new Set(draft.items.map((i) => i.mediaId))];
-  const { rows: found } = await pool.query("select id from media where id = any($1)", [mediaIds]);
+  const { rows: found } = await pool.query("select id, status from media where id = any($1)", [mediaIds]);
   const missing = mediaIds.filter((id) => !found.some((r) => r.id === id));
   if (missing.length) throw new Error(`${missing.length} mediaId(s) not in the library`);
+  // Archived = the source master is gone (kept in R2 for the record): never schedulable.
+  const archived = found.filter((r) => r.status === "archived").length;
+  if (archived) throw new Error(`${archived} mediaId(s) are archived (source file missing), pick other clips`);
 
   await pool.query("begin");
   try {

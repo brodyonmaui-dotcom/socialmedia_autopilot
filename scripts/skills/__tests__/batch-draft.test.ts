@@ -53,13 +53,13 @@ describe("checkDraft", () => {
 });
 
 describe("createDraftBatch", () => {
-  function fakeClient(mediaIds: string[]) {
+  function fakeClient(mediaIds: string[], archived: string[] = []) {
     const calls: Array<{ sql: string; params?: unknown[] }> = [];
     return {
       calls,
       async query(sql: string, params?: unknown[]) {
         calls.push({ sql, params });
-        if (sql.startsWith("select id from media")) return { rows: mediaIds.map((id) => ({ id })) };
+        if (sql.startsWith("select id, status from media")) return { rows: mediaIds.map((id) => ({ id, status: archived.includes(id) ? "archived" : "ready" })) };
         if (sql.startsWith("insert into batches")) return { rows: [{ id: "batch-1" }] };
         return { rows: [] };
       },
@@ -89,6 +89,13 @@ describe("createDraftBatch", () => {
   it("refuses when media is missing from the library or the draft isn't creatable", async () => {
     await expect(createDraftBatch(fakeClient([]), ready(), { now })).rejects.toThrow(/not in the library/);
     await expect(createDraftBatch(fakeClient([]), sample, { now })).rejects.toThrow(/not creatable/);
+  });
+
+  it("refuses archived media (source file gone) and writes nothing", async () => {
+    const ids = sample.items.map((i) => i.mediaId);
+    const c = fakeClient(ids, [ids[0]!]);
+    await expect(createDraftBatch(c, ready(), { now })).rejects.toThrow(/archived/);
+    expect(c.calls.some((x) => x.sql.startsWith("insert"))).toBe(false);
   });
 
   it("rolls back when an insert fails", async () => {

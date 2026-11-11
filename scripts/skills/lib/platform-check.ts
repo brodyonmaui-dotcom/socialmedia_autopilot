@@ -16,8 +16,9 @@ const days = (from: Date, toIso: string) => Math.floor((Date.parse(toIso + "T00:
 /** Known dated facts in research.md. A regex miss means the doc changed: the report says so. */
 const DEADLINE_PATTERNS: Array<{ label: string; re: RegExp; warnDays: number }> = [
   { label: "Meta data access (re-run probe:connect-meta)", re: /data access until (\d{4}-\d{2}-\d{2})/i, warnDays: 14 },
-  { label: "Old Meta user token expiry", re: /expires (\d{4}-\d{2}-\d{2})/i, warnDays: 7 },
 ];
+// Not tracked: the old Meta USER token ("expires 2026-12-18" in research.md). The Page token
+// (no fixed expiry) replaced it on 2026-11-10 and it is allowed to lapse (creator, 2026-11-11).
 
 export function analyzeResearch(md: string, now = new Date()): PlatformCheckReport {
   md = md.replace(/\r\n/g, "\n"); // Windows checkouts (core.autocrlf) give CRLF

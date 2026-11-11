@@ -1,7 +1,7 @@
 // Read-only: hashes every video file under the two "Ready To Post" trees and reports exact
 // byte-for-byte duplicates (same sha256 in more than one place). Never moves, renames or deletes
 // anything — that's a human decision. Writes docs/reports/duplicates-<date>.md.
-//   pnpm exec tsx scripts/find-duplicates.mjs
+//   pnpm exec tsx scripts/find-duplicates.mjs [--out docs/reports/<name>.md]
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 if (existsSync(".env")) process.loadEnvFile(".env");
@@ -11,7 +11,7 @@ const { findDuplicateSets } = await import("../packages/media/src/dedupe.ts");
 const VIDEO_EXT = /\.(mp4|mov|m4v)$/i;
 // Same posted/-qa/hidden-dir skip rules as the ingest agent, plus the editor-internal junk dirs
 // discovered under Trade Recaps (DaVinci Resolve's cache mirrors the whole filesystem).
-const SKIP_DIR = /^posted$|^already posted$|-qa$|^\.|^cacheclip$|^resolve project backups$|^edit status$|^trim review$|^compare day/i;
+const SKIP_DIR = /^posted$|^already posted$|-qa$|^\.|^cacheclip$|^resolve project backups$|^edit status$|^trim review$|^compare day|^duplicates-review$/i; // duplicates-review: copies already moved aside for a human decision
 
 const ROOTS = [
   `${process.env.USERPROFILE}\\Gym Content\\Ready To Post`,
@@ -36,7 +36,7 @@ function findVideos(dir, out) {
     if (stat.isDirectory()) {
       if (SKIP_DIR.test(entry)) continue;
       findVideos(full, out);
-    } else if (VIDEO_EXT.test(entry)) {
+    } else if (VIDEO_EXT.test(entry) && !entry.startsWith(".")) { // hidden files (macOS ._ sidecars) aren't videos
       out.push({ path: full, size: stat.size });
     }
   }
@@ -70,6 +70,7 @@ if (dupeSets.length === 0) {
 }
 
 mkdirSync("docs/reports", { recursive: true });
-const outPath = `docs/reports/duplicates-${today}.md`;
+const oi = process.argv.indexOf("--out");
+const outPath = oi > 0 ? process.argv[oi + 1] : `docs/reports/duplicates-${today}.md`;
 writeFileSync(outPath, lines.join("\n") + "\n");
 console.log(`wrote ${outPath}: ${dupeSets.length} duplicate set(s) across ${dupeSets.reduce((n, g) => n + g.files.length, 0)} files`);
