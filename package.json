@@ -17,7 +17,8 @@
     "skill:platform-check": "tsx scripts/skills/platform-check.ts",
     "skill:weekly-report": "tsx scripts/skills/weekly-report.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev:seed": "tsx scripts/dev/seed.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
