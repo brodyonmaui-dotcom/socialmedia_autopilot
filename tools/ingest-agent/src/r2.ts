@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 export interface R2Config {
   accountId: string;
@@ -25,4 +25,9 @@ export async function uploadToR2(client: S3Client, bucket: string, key: string, 
       ContentType: "video/mp4",
     }),
   );
+}
+
+/** Used to clean up a media row that was ingested into the wrong scope (e.g. a corrected INGEST_ROOTS). */
+export async function deleteFromR2(client: S3Client, bucket: string, key: string): Promise<void> {
+  await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
