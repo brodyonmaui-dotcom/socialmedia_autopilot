@@ -22,6 +22,7 @@ For unattended sessions (e.g. Fable 5.1 overnight). The goal: wake up to **a pul
 **No:** anything needing credentials, the server, real posting, your phone, the Meta/Google/TikTok dashboards, or voice/brand judgment calls (those are day tasks with you).
 
 ## Ranked overnight backlog (highest ROI first)
+**Order of record: `docs/fable-week.json`** (the table below explains why; the tracker holds status).
 | Night | Task | Why it's high-ROI for an autonomous run | Area |
 |---|---|---|---|
 | 1 | **Scheduler + outbox engine + `simulate-week`**: slot assignment from cadence windows, per-platform caps, staggering, DST/time-zone math, idempotency keys, retry/backoff, "unknown" timeout state, existence check before retry; fake adapters; exhaustive tests | The most correctness-critical code (double posts, missed posts), pure logic, and the tests are the oracle | `packages/core`, `apps/worker` |
@@ -36,24 +37,37 @@ For unattended sessions (e.g. Fable 5.1 overnight). The goal: wake up to **a pul
 
 ## Night brief template (paste into the overnight session; replace the {{...}} parts)
 ```
-OVERNIGHT RUN. Unattended. Read CLAUDE.md, docs/overnight.md, docs/decisions.md, docs/voice.md, and the verification log at the end of docs/research.md.
+OVERNIGHT RUN. Unattended. Read CLAUDE.md, docs/overnight.md, docs/decisions.md, docs/voice.md, docs/fable-week.json, and the verification log at the end of docs/research.md.
 
-Goal: {{one task from the backlog table, e.g. "Night 1: scheduler + outbox engine + simulate-week"}}
-Area you own: {{paths}}. Don't modify anything outside it except shared types in packages/core when unavoidable (list those in the PR).
+Work: take the first item in docs/fable-week.json whose status is "todo" or "in-progress" and whose model matches this session ({{fable|opus}}). Set it to "in-progress". When it's done and budget remains, continue with the next item in the same branch/PR, as separate, clearly labelled commits.
+Stay inside each item's "area". Touch shared types in packages/core only when unavoidable, and list them in the PR.
 
-Done means:
-- {{3–6 concrete acceptance criteria}}
-- pnpm typecheck and pnpm test pass; the simulate-week dry run passes (or is added, if this task creates it).
-- One PR from your branch with: summary, what's tested, what's NOT done, open questions, and a 5-step "how to verify on my phone/server" checklist.
+Done means, per item:
+- Its acceptance criteria are met (derive 3–6 concrete ones from the item and the docs; write them at the top of the PR).
+- pnpm typecheck and pnpm test pass; simulate-week passes once it exists.
+
+Checkpoint every ~45 minutes AND after each finished item (you may hit a usage limit at any time, so the report must always be current):
+1. Commit and push to your branch (never main, never force).
+2. Update docs/fable-week.json (status + one-line notes) and docs/night-logs/{{YYYY-MM-DD}}.json, using the shape of docs/night-logs/_example.json.
+3. Run: node scripts/night/report.mjs --log docs/night-logs/{{YYYY-MM-DD}}.json   (one-line output)
+4. Commit the log + docs/night-reports/night-{{YYYY-MM-DD}}.html.
+At the very end: open or update the PR, and if a SendUserFile tool exists, send the HTML report with status "proactive".
 
 Rules:
-- Never use real credentials, the server, --live or DRY_RUN=false. Everything runs on fakes/fixtures/seed data.
-- Platform behavior comes only from docs/research.md. If a fact you need is missing, write it to NIGHT_LOG.md as a question and stub it.
-- Voice/brand or product decisions: pick the most conservative option and list it under "Decisions for Brody" in the PR.
-- If you're blocked or a guard hook denies something, don't work around it. Log it in NIGHT_LOG.md and continue with the next item.
-- Commit small and often to your branch. Never force-push, never push to main.
-- Stop when done or when the remaining work needs a human. Don't start unrelated work.
+- Never use real credentials, the server, --live or DRY_RUN=false. Everything runs on fakes, fixtures and seed data.
+- Platform behavior comes only from docs/research.md. If a fact is missing, add it as a needsAttention item and stub it.
+- Voice/brand/product calls: pick the most conservative option and list it under "decisions".
+- If a guard hook or permission rule denies something, don't work around it. Record it under "blocked" and move on.
+- Save tokens: don't re-read files you've already read, read logs only on FAIL, run targeted tests while iterating and the full suite at checkpoints, no video/media reads, and keep tool output short.
+- Commit small and often. Stop when the items for your model are done or the remaining work needs a human. Don't start work outside docs/fable-week.json.
 ```
+
+## Local Opus run (laptop, unattended through a usage-limit reset)
+Different from a cloud night: it has your laptop, videos and SSH tunnel. So it gets **no server changes, no posting, no file moves and no deletes**, only building and read-only checks.
+1. Settings: in `~/.claude/settings.json` (your user file, not the repo's) add `"autoContinueAtUsageLimit": true`, so the session waits for the limit to reset and continues by itself.
+2. Windows: plug in, and set Settings → System → Power → Screen and sleep → "When plugged in, put my device to sleep after" → **Never** for the night.
+3. Restart the session so the repo's guard hook loads: `/exit`, then `claude --continue`, then switch to auto mode (Shift+Tab until it shows auto).
+4. Paste the brief with model = opus (it picks up item O1 in the tracker), plus the local limits above.
 
 ## Morning review (10 min)
 1. Read the PR summary, "NOT done" and "Decisions for Brody". 2. Check CI/tests are green. 3. Skim the diff for anything outside the owned area. 4. Merge, or leave comments for the day session. 5. Day session: `git pull`, deploy with `docker compose up -d` (asks first), quick phone check.
