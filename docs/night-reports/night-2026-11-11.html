@@ -1,0 +1,53 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Night report 2026-11-11</title>
+<style>
+:root{--bg:#fafafa;--card:#fff;--fg:#111;--mute:#6b6b6b;--line:#e4e4e4;--chip:#f0f0f0;--strong:#000}
+@media (prefers-color-scheme:dark){:root{--bg:#0e0e0e;--card:#171717;--fg:#ededed;--mute:#9a9a9a;--line:#2a2a2a;--chip:#222;--strong:#fff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+header h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}header p{margin:0;color:var(--mute)}
+.pill{display:inline-block;padding:2px 10px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--mute);margin-right:6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:18px 0}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi .v{font-size:22px;font-weight:600;color:var(--strong);font-variant-numeric:tabular-nums}.kpi .l{font-size:12px;color:var(--mute)}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0}
+section h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:0 0 8px;font-weight:600}
+section.attn{border-color:var(--strong)}ul{margin:0;padding-left:18px}li{margin:6px 0}.d{display:block;color:var(--mute);font-size:13px}
+.muted{color:var(--mute);margin:0}table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--mute);font-weight:500}td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.st{font-size:12px;padding:1px 8px;border-radius:999px;background:var(--chip)}.st.done{background:var(--strong);color:var(--bg)}
+.bar{height:6px;background:var(--chip);border-radius:3px;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--strong)}
+a{color:var(--strong)}footer{color:var(--mute);font-size:12px;margin-top:18px}
+</style></head><body><main>
+<header><h1>Night report: 2026-11-11</h1>
+<p><span class="pill">claude-opus-5-5</span><span class="pill">laptop · O1 night run (≈07:15–07:30Z, PR #3) + day run (≈16:05–16:25Z)</span><span class="pill">O1 · Ingest run, library + duplicate report, touch-up queue, library page</span></p>
+<p style="margin-top:8px">Night: library page, touch-up queue, duplicate scanner + report (merged as PR #3). Day: moved the 11 hash-verified &#39; - Copy&#39; duplicates into a review folder and finished the Upper Body ingest — every file in all 3 ingest roots now has a media row (204 rows).</p></header>
+
+<div class="kpis">
+<div class="kpi"><div class="v">45.25M</div><div class="l">total tokens</div></div>
+<div class="kpi"><div class="v">55.8K</div><div class="l">output tokens</div></div>
+<div class="kpi"><div class="v">44.56M</div><div class="l">cache reads</div></div>
+<div class="kpi"><div class="v">$13.21</div><div class="l">API-equivalent (not your plan bill)</div></div>
+<div class="kpi"><div class="v">9.1h</div><div class="l">first→last activity · 120 model calls</div></div>
+<div class="kpi"><div class="v">48/48</div><div class="l">tests passing</div></div>
+</div>
+
+<section class="attn"><h2>Needs you</h2><ul><li><b>Review the 11 copies, then delete them yourself</b><span class="d">Under Final Draft/duplicates-review; each is SHA-256 identical to its original (still in place). ~8 GB. Nothing was deleted.</span></li><li><b>~219 expected vs 204 rows</b><span class="d">The 3 roots hold 203 video files on disk and all are ingested (Upper Body 135/135). The gap is in the estimate, not the run — check whether a folder is missing from INGEST_ROOTS.</span></li><li><b>Merge branch day-2026-11-11</b><span class="d">Docs only: this log + O1 status. Tests 48/48.</span></li></ul></section>
+
+<section><h2>Done</h2><ul><li>Night: library page (apps/web/library), touch-up queue, duplicate-content scanner (findDuplicateSets in packages/media), path-redacted report docs/reports/duplicates-2026-11-11.md</li><li>Night: schedule-catchup script (IG-only content → YouTube/TikTok slots)</li><li>Day: 11 &#39;- Copy.mp4&#39; files verified (original exists, full SHA-256 match) and moved to duplicates-review (mv -n, no overwrite)</li><li>Day: Upper Body ingest resumed — 108 already in, 27 new ingested (26 + 1 retry after a transient TLS error on R2 upload); 0 failed</li><li>Media rows 177 → 204; every file in the 3 INGEST_ROOTS has a row</li><li>deleteFromR2 (tools/ingest-agent/src/r2.ts, added in aa72389): a helper to remove an R2 object for a media row ingested under the wrong scope (e.g. after correcting INGEST_ROOTS). Nothing calls it — index.ts imports only createR2Client and uploadToR2; no other references in the repo.</li></ul></section>
+<section><h2>Not done</h2><p class="muted">Nothing.</p></section>
+<section><h2>Decisions for Brody</h2><ul><li>Resumed with INGEST_ROOTS overridden to the Upper Body entry only (env var set before launch; .env doesn&#39;t override it)</li><li>Re-ran Upper Body once for the TLS failure: no DB row had been written, and the R2 key is content-hash based, so the retry was idempotent</li></ul></section>
+<section><h2>Blocked or denied by guardrails</h2><p class="muted">Nothing was blocked.</p></section>
+<section><h2>Pick up next</h2><ul><li>Brody: review/delete duplicates-review, reconcile the ~219 estimate</li><li>Fable tonight: F1–F4 per docs/fable-week.json</li></ul></section>
+
+<section><h2>Week plan · 1/8 done</h2>
+<div class="bar"><i style="width:12.5%"></i></div>
+<table><tr><th>#</th><th>Task</th><th>Status</th><th>Notes</th></tr>
+<tr><td class="n">O1</td><td>Tonight (Opus, laptop): finish ingest run, library + duplicate REPORT (no file moves), touch-up queue, library page</td><td><span class="st done">Done</span></td><td>Ingest complete (204 rows, all roots); 11 verified copies moved to duplicates-review for Brody to delete</td></tr><tr><td class="n">F1</td><td>Scheduler + outbox engine + simulate-week (caps, stagger, DST, idempotency, retries, &#39;unknown&#39; state)</td><td><span class="st ">To do</span></td><td></td></tr><tr><td class="n">F2</td><td>Batch builder + phone approval UI + single-user passkey login</td><td><span class="st ">To do</span></td><td></td></tr><tr><td class="n">F3</td><td>Engagement: comment polling, triage (mocked AI), reply rotation, limits, kill switch, shadow mode, inbox + DM drafts</td><td><span class="st ">To do</span></td><td></td></tr><tr><td class="n">F4</td><td>Platform adapters (IG, YT, Zernio, Snapchat assisted) + fixtures + token health + PWA push</td><td><span class="st ">To do</span></td><td></td></tr><tr><td class="n">F5</td><td>Analytics ingestion + weekly report + trial-share recommendations</td><td><span class="st ">To do</span></td><td></td></tr><tr><td class="n">F6</td><td>Research branch (creators, idea backlog, hooks/scripts) + the 4 .claude/skills</td><td><span class="st ">To do</span></td><td></td></tr><tr><td class="n">F7</td><td>Red-team review + hardening (double-post paths, secret/location leaks, missing tests)</td><td><span class="st ">To do</span></td><td></td></tr>
+</table></section>
+
+<section><h2>Tokens by model</h2><table><tr><th>Model</th><th>Input</th><th>Output</th><th>Cache read</th><th>Cache write</th></tr>
+<tr><td>claude-sonnet-5</td><td class="n">142</td><td class="n">40.8K</td><td class="n">41.30M</td><td class="n">581.5K</td></tr><tr><td>claude-opus-5-5</td><td class="n">122</td><td class="n">15.0K</td><td class="n">3.26M</td><td class="n">54.1K</td></tr>
+</table></section>
+<footer>Generated 2026-11-11T16:23:31.705Z from 2026-11-11.json and 2 transcript file(s). API-equivalent cost uses list prices and is only a relative measure of work done.</footer>
+</main></body></html>

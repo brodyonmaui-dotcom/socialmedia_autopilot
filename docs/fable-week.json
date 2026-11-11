@@ -1,7 +1,7 @@
 {
   "about": "Working tracker for the autonomous-run week. Each run takes the first item whose status is not done/blocked, updates status/notes here, and writes docs/night-logs/<date>.json. Order = highest ROI + biggest token appetite first.",
   "items": [
-    { "id": "O1", "title": "Tonight (Opus, laptop): finish ingest run, library + duplicate REPORT (no file moves), touch-up queue, library page", "model": "opus", "area": "tools/ingest-agent, packages/media, apps/web/library", "status": "in-progress", "notes": "" },
+    { "id": "O1", "title": "Tonight (Opus, laptop): finish ingest run, library + duplicate REPORT (no file moves), touch-up queue, library page", "model": "opus", "area": "tools/ingest-agent, packages/media, apps/web/library", "status": "done", "notes": "Ingest complete (204 rows, all roots); 11 verified copies moved to duplicates-review for Brody to delete" },
     { "id": "F1", "title": "Scheduler + outbox engine + simulate-week (caps, stagger, DST, idempotency, retries, 'unknown' state)", "model": "fable", "area": "packages/core, apps/worker", "status": "todo", "notes": "" },
     { "id": "F2", "title": "Batch builder + phone approval UI + single-user passkey login", "model": "fable", "area": "apps/web", "status": "todo", "notes": "" },
     { "id": "F3", "title": "Engagement: comment polling, triage (mocked AI), reply rotation, limits, kill switch, shadow mode, inbox + DM drafts", "model": "fable", "area": "apps/worker, apps/web/inbox", "status": "todo", "notes": "" },

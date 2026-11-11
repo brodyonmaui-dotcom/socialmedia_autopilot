@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-11",
+  "startedAt": "2026-11-11T07:15:00Z",
+  "endedAt": "2026-11-11T16:25:00Z",
+  "model": "claude-opus-5-5",
+  "session": "laptop · O1 night run (≈07:15–07:30Z, PR #3) + day run (≈16:05–16:25Z)",
+  "backlogItem": "O1 · Ingest run, library + duplicate report, touch-up queue, library page",
+  "summary": "Night: library page, touch-up queue, duplicate scanner + report (merged as PR #3). Day: moved the 11 hash-verified ' - Copy' duplicates into a review folder and finished the Upper Body ingest — every file in all 3 ingest roots now has a media row (204 rows).",
+  "needsAttention": [
+    { "priority": 1, "title": "Review the 11 copies, then delete them yourself", "detail": "Under Final Draft/duplicates-review; each is SHA-256 identical to its original (still in place). ~8 GB. Nothing was deleted." },
+    { "priority": 2, "title": "~219 expected vs 204 rows", "detail": "The 3 roots hold 203 video files on disk and all are ingested (Upper Body 135/135). The gap is in the estimate, not the run — check whether a folder is missing from INGEST_ROOTS." },
+    { "priority": 3, "title": "Merge branch day-2026-11-11", "detail": "Docs only: this log + O1 status. Tests 48/48." }
+  ],
+  "done": [
+    "Night: library page (apps/web/library), touch-up queue, duplicate-content scanner (findDuplicateSets in packages/media), path-redacted report docs/reports/duplicates-2026-11-11.md",
+    "Night: schedule-catchup script (IG-only content → YouTube/TikTok slots)",
+    "Day: 11 '- Copy.mp4' files verified (original exists, full SHA-256 match) and moved to duplicates-review (mv -n, no overwrite)",
+    "Day: Upper Body ingest resumed — 108 already in, 27 new ingested (26 + 1 retry after a transient TLS error on R2 upload); 0 failed",
+    "Media rows 177 → 204; every file in the 3 INGEST_ROOTS has a row",
+    "deleteFromR2 (tools/ingest-agent/src/r2.ts, added in aa72389): a helper to remove an R2 object for a media row ingested under the wrong scope (e.g. after correcting INGEST_ROOTS). Nothing calls it — index.ts imports only createR2Client and uploadToR2; no other references in the repo."
+  ],
+  "notDone": [],
+  "decisions": [
+    "Resumed with INGEST_ROOTS overridden to the Upper Body entry only (env var set before launch; .env doesn't override it)",
+    "Re-ran Upper Body once for the TLS failure: no DB row had been written, and the R2 key is content-hash based, so the retry was idempotent"
+  ],
+  "blocked": [],
+  "tests": { "passed": 48, "failed": 0, "notes": "pnpm test, day run; no code changed" },
+  "commits": 1,
+  "prUrl": "",
+  "nextPickup": [
+    "Brody: review/delete duplicates-review, reconcile the ~219 estimate",
+    "Fable tonight: F1–F4 per docs/fable-week.json"
+  ]
+}
