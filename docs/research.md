@@ -104,8 +104,8 @@ Method note: this build session's network blocks direct fetches of developers.fa
 - Whether IG comment/DM webhooks fire for an own account at Standard Access in Live mode.
 - Whether the Zernio TikTok connection forces a Business account (music library impact).
 - Spotlight via the iOS share sheet: full-length video, Spotlight destination available, location/Snap Map off.
-- Business Discovery at Standard Access (expected to work; confirm with one call).
-- Reel `total watch time` metric name in current insights (`ig_reels_video_view_total_time`?).
+- ~~Business Discovery at Standard Access~~ — confirmed in the M0 Instagram probe (2026-11-10).
+- ~~Reel total watch time metric name~~ — `ig_reels_video_view_total_time`, confirmed in Meta's media-insights reference and accepted by the M0 probe (2026-11-11).
 - Whether API-posted content gets less reach (no source; track it in analytics).
 
 ### Addendum — read Zernio's docs directly (2026-11-09, via curl `docs.zernio.com/*.mdx`)
