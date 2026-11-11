@@ -46,3 +46,13 @@ export interface PlatformAdapter {
   platform: Platform;
   publish(post: OutboxPost): Promise<PublishResult>;
 }
+
+/**
+ * A posting window in the creator's local wall-clock time ("HH:MM", 24h), editable via
+ * Settings → cadence. The time zone that makes this meaningful is TZ_CREATOR (.env only —
+ * never commit it); the window bounds themselves aren't location-revealing.
+ */
+export interface PostingWindow {
+  start: string;
+  end: string;
+}
