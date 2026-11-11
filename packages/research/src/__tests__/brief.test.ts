@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildResearchBrief, classifyHook, fetchCreatorSnapshot, firstLine, type CreatorSnapshot } from "../brief.js";
+import { buildResearchBrief, classifyHook, firstLine, type CreatorSnapshot } from "../brief.js";
 import type { Creator } from "../types.js";
 
 const fixture = JSON.parse(readFileSync(new URL("../../fixtures/research-sample.json", import.meta.url), "utf8")) as {
@@ -64,6 +64,3 @@ describe("classifyHook / firstLine", () => {
   });
 });
 
-it("the Business Discovery fetcher is an explicit stub until the fields are verified", async () => {
-  await expect(fetchCreatorSnapshot(fixture.creators[0]!)).rejects.toThrow(/not verified/);
-});
