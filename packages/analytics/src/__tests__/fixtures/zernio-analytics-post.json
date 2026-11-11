@@ -1,0 +1,30 @@
+{
+  "postId": "6731c0ffee0000000000abcd",
+  "latePostId": "6731c0ffee0000000000abcd",
+  "status": "published",
+  "content": "Just stacking days is all",
+  "scheduledFor": "2026-11-10T18:00:00Z",
+  "publishedAt": "2026-11-10T18:00:04Z",
+  "analytics": { "impressions": 0, "reach": 0, "likes": 44, "comments": 3, "shares": 2, "saves": 0, "clicks": 0, "views": 980, "follows": 0, "igReelsAvgWatchTime": 0 },
+  "platformAnalytics": [
+    {
+      "platform": "tiktok",
+      "status": "published",
+      "platformPostId": "7436000000000000000",
+      "accountId": "acc_1",
+      "accountUsername": null,
+      "analytics": { "impressions": 0, "reach": 0, "likes": 44, "comments": 3, "shares": 2, "saves": 0, "clicks": 0, "views": 980, "follows": 0, "igReelsAvgWatchTime": 0 },
+      "syncStatus": "synced",
+      "platformPostUrl": null,
+      "errorMessage": null
+    }
+  ],
+  "platform": "tiktok",
+  "platformPostUrl": null,
+  "isExternal": false,
+  "syncStatus": "synced",
+  "message": null,
+  "thumbnailUrl": null,
+  "mediaType": "video",
+  "mediaItems": []
+}
