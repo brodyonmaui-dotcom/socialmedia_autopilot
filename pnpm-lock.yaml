@@ -30,12 +30,18 @@ importers:
 
   apps/web:
     dependencies:
+      '@autopilot/analytics':
+        specifier: workspace:*
+        version: link:../../packages/analytics
       '@autopilot/core':
         specifier: workspace:*
         version: link:../../packages/core
       '@autopilot/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@autopilot/research':
+        specifier: workspace:*
+        version: link:../../packages/research
       next:
         specifier: ^15.1.0
         version: 15.5.29(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -102,6 +108,25 @@ importers:
         specifier: ^3.0.0
         version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
 
+  packages/analytics:
+    dependencies:
+      '@autopilot/core':
+        specifier: workspace:*
+        version: link:../core
+      '@autopilot/research':
+        specifier: workspace:*
+        version: link:../research
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
+
   packages/core:
     devDependencies:
       '@types/node':
@@ -140,6 +165,22 @@ importers:
         version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
 
   packages/media:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.7(@types/node@22.20.5)(jiti@2.7.0)(lightningcss@1.33.0)(tsx@4.23.15)
+
+  packages/research:
+    dependencies:
+      '@autopilot/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: ^22.10.0

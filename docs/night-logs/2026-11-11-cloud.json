@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-11-cloud",
+  "startedAt": "2026-11-11T16:00:00Z",
+  "endedAt": "2026-11-11T17:30:00Z",
+  "model": "claude-opus-5-5",
+  "session": "cloud · autopilot-overnight",
+  "backlogItem": "F6 · Research branch + skills, then F5 · Analytics",
+  "summary": "F6 and F5 both done in one branch: research backlog + voice/privacy lint + 4 skills, and analytics snapshots + weekly report + trial-share recommendations with a phone page. 126 tests green; ready to review and merge.",
+  "needsAttention": [
+    { "priority": 1, "title": "Review and merge the PR", "detail": "Tests green (126, was 48). New: packages/research, packages/analytics, migrations 0003 + 0004, /research and /analytics pages, scripts/skills, .claude/skills." },
+    { "priority": 2, "title": "Add PRIVACY_BLOCKLIST to the server env file", "detail": "Comma-separated private terms (city, school, gym names). The lint blocks them in captions, hooks, ideas and creator notes. Never commit it." },
+    { "priority": 3, "title": "Verify metrics response shapes, then implement the parsers", "detail": "research.md has IG metric names but not the insights response envelope, likes/comments fields or units (watch time, skip rate); nothing for YouTube or Zernio analytics. Sources are stubs (createUnverifiedSource) until a day session logs them." },
+    { "priority": 4, "title": "Business Discovery field list isn't in research.md", "detail": "research-brief live fetch is a stub. Use a snapshot file via --fixture until it's verified." },
+    { "priority": 5, "title": "Confirm how the outbox records IG trial state", "detail": "Analytics assumes batch_items.trial.fellBack=true when the trial fell back to a plain reel, and trial.sharedAt when you shared it. Whoever builds IG publishing (F4) should write those keys, or tell me the real ones." }
+  ],
+  "done": [
+    "F6 packages/research: creators, idea backlog state machine, hooks, voice/privacy lint, research brief",
+    "F6 migration 0003_research.sql and phone pages /research (overview, ideas, hooks, creators)",
+    "F6 4 skills: weekly-batch, research-brief, platform-check, weekly-report, with pnpm skill:* scripts (weekly-batch create writes status=draft only)",
+    "F5 packages/analytics: metrics snapshots (24 h/72 h/7 d/28 d checkpoints, idempotent), ingestion pass on fakes, weekly report (per-platform totals, week-over-week, lift by pillar/hook/length/time/trial with sample sizes), trial-share recommendations",
+    "F5 migration 0004_analytics.sql, /analytics page with a clearly labelled demo mode",
+    "Smoke-tested on a throwaway local Postgres with an iPhone viewport: research forms, privacy rejections, weekly-batch create, weekly-report from the DB"
+  ],
+  "notDone": [
+    "Real metrics sources for IG/YT/TikTok (stubs; shapes unverified)",
+    "Wiring the ingest pass into the worker as a job (worker is F1's area tonight)",
+    "Business Discovery fetch (stub)",
+    "Login on the new pages (F2 owns single-user auth)"
+  ],
+  "decisions": [
+    "TikTok inbox drafts (tiktokDraft) block batch creation: batch_items has no column for the draft flag yet, so creating would publish without the sound",
+    "Voice lint: privacy findings are always errors; hype, CTAs and {{placeholders}} are errors; exclamation marks, all-caps and a missing 'Not financial advice.' are warnings",
+    "weekly-batch never assigns times (F1's scheduler does); without times a draft can be checked but not created",
+    "Lint lives in packages/research so this run didn't touch packages/core while F1/F4 run; F2/F3 can move it",
+    "Report recommends only when a group AND the rest each have n>=3, a platform has >=6 posts, and lift is >=1.25x or <=0.75x; max 8 recommendations; identical post sets shown once",
+    "Trials: 'share' only if views >= your regular-reel median and engagement and skip rate aren't worse; 'don't share' only after 72 h and under 0.5x; otherwise 'wait'. No verdict before 24 h or with fewer than 3 regular reels. Only trials from the last 14 days are listed",
+    "Missed snapshot checkpoints aren't back-filled under an old label"
+  ],
+  "blocked": [
+    "Guard hook blocks any Bash command that mentions docs/overnight.md or CLAUDE.md (even cat), and matches 'sed' inside words like 'used' next to '.env' text; used the Read/Write tools instead",
+    "Guard hook blocked TRUNCATE on a throwaway local test DB; the smoke test used unique names instead"
+  ],
+  "tests": { "passed": 126, "failed": 0, "notes": "was 48 on main; pnpm typecheck + apps/web tsc + next build pass" },
+  "commits": 8,
+  "prUrl": "https://github.com/brodyonmaui-dotcom/socialmedia_autopilot/pull/4",
+  "nextPickup": [
+    "Day session: run migrations 0003 + 0004 on the VPS after merge (asks first)",
+    "Day session: verify metrics response shapes, then implement sources and register the ingest job in the worker"
+  ]
+}

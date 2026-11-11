@@ -1,0 +1,27 @@
+{
+  "about": "Synthetic seed data for research-brief and tests. Fictional handles, invented numbers; not real creators.",
+  "creators": [
+    { "id": "c1", "platform": "instagram", "handle": "example_lifter", "pillar": "gym", "notes": "dry one-liners, good pull-day hooks", "followers": 120000, "active": true, "lastCheckedAt": null, "createdAt": "2026-11-01T00:00:00Z" },
+    { "id": "c2", "platform": "instagram", "handle": "example_trader", "pillar": "trading", "notes": "honest P/L recaps", "followers": 45000, "active": true, "lastCheckedAt": null, "createdAt": "2026-11-01T00:00:00Z" },
+    { "id": "c3", "platform": "tiktok", "handle": "example_mealprep", "pillar": "meal", "notes": "structured meal lists", "followers": null, "active": true, "lastCheckedAt": null, "createdAt": "2026-11-01T00:00:00Z" },
+    { "id": "c4", "platform": "instagram", "handle": "example_paused", "pillar": "tip", "notes": "", "followers": 5000, "active": false, "lastCheckedAt": null, "createdAt": "2026-11-01T00:00:00Z" }
+  ],
+  "snapshots": [
+    { "creatorId": "c1", "followers": 120000, "posts": [
+      { "id": "p1", "caption": "My lats did not sign up for this…\n#gym #pullday", "likes": 9000, "comments": 300, "views": 210000, "mediaType": "reel", "postedAt": "2026-11-08T17:00:00Z" },
+      { "id": "p2", "caption": "Most people don't need more volume. They need better reps.", "likes": 4000, "comments": 500, "views": 90000, "mediaType": "reel", "postedAt": "2026-11-05T17:00:00Z" },
+      { "id": "p3", "caption": "Leg day at Riverside Fitness right now", "likes": 7000, "comments": 100, "views": 150000, "mediaType": "reel", "postedAt": "2026-11-06T17:00:00Z" },
+      { "id": "p4", "caption": "Old post outside the window", "likes": 99999, "comments": 9999, "views": 1, "mediaType": "reel", "postedAt": "2026-09-01T17:00:00Z" }
+    ] },
+    { "creatorId": "c2", "followers": 45000, "posts": [
+      { "id": "p5", "caption": "Why I stopped trading the open?", "likes": 2000, "comments": 400, "views": 60000, "mediaType": "reel", "postedAt": "2026-11-09T14:00:00Z" },
+      { "id": "p6", "caption": "3 mistakes that cost me my first funded account", "likes": 1500, "comments": 200, "views": 40000, "mediaType": "carousel", "postedAt": "2026-11-07T14:00:00Z" }
+    ] },
+    { "creatorId": "c3", "followers": null, "posts": [
+      { "id": "p7", "caption": "Weekly meal prep, simple and high protein", "likes": 300, "comments": 20, "views": 9000, "mediaType": "video", "postedAt": "2026-11-10T19:00:00Z" }
+    ] },
+    { "creatorId": "c4", "followers": 5000, "posts": [
+      { "id": "p8", "caption": "Paused creator post", "likes": 10, "comments": 1, "views": 100, "mediaType": "reel", "postedAt": "2026-11-10T19:00:00Z" }
+    ] }
+  ]
+}

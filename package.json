@@ -12,6 +12,10 @@
     "probe:tiktok": "tsx scripts/probes/zernio.ts",
     "probe:ai": "tsx scripts/probes/anthropic.ts",
     "probe:connect-meta": "tsx scripts/probes/connect-meta.ts",
+    "skill:research-brief": "tsx scripts/skills/research-brief.ts",
+    "skill:weekly-batch": "tsx scripts/skills/weekly-batch.ts",
+    "skill:platform-check": "tsx scripts/skills/platform-check.ts",
+    "skill:weekly-report": "tsx scripts/skills/weekly-report.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
   },
