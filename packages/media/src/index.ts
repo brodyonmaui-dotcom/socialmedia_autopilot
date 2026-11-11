@@ -1,3 +1,4 @@
+export * from "./dedupe.js";
 export * from "./exec.js";
 export * from "./hash.js";
 export * from "./parse.js";
