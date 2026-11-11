@@ -5,6 +5,7 @@
 //   pnpm --filter @autopilot/ingest-agent ingest            # real run
 //   pnpm --filter @autopilot/ingest-agent ingest --dry-run  # scan + hash + dedupe check only:
 //                                                           # no QA, no upload, no DB writes
+// Exit codes: 0 ok · 1 some files failed · 2 stopped because the DB connection was lost (re-run).
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,6 +14,7 @@ import { runQa, sha256File, touchUp } from "@autopilot/media";
 import { parseIngestRoots } from "./config.js";
 import { createR2Client, uploadToR2 } from "./r2.js";
 import { withRetry } from "./retry.js";
+import { runIngest, summaryLine } from "./run.js";
 import { findVideoFiles } from "./scan.js";
 
 if (existsSync(".env")) process.loadEnvFile(".env");
@@ -41,32 +43,24 @@ const r2 = dryRun
     });
 
 const pool = createPool(databaseUrl);
+// An idle client dying (tunnel dropped between files) emits 'error' on the pool; without a
+// listener Node crashes the process. The next query surfaces it and runIngest handles it.
+pool.on("error", () => {});
+
 const files = findVideoFiles(roots);
 console.log(`${dryRun ? "DRY RUN: " : ""}found ${files.length} candidate file(s) across ${roots.length} root(s)`);
 
-let ingested = 0;
-let skipped = 0;
-let failed = 0;
-const seenThisRun = new Set<string>();
-
-for (const file of files) {
-  const base = file.path.split(/[\\/]/).pop();
-  try {
-    const hash = await sha256File(file.path);
-    const existing = await pool.query("select 1 from media where content_hash = $1", [hash]);
-    if (existing.rows.length || seenThisRun.has(hash)) {
-      console.log(`SKIP dup ${base}`);
-      skipped++;
-      continue;
-    }
-    seenThisRun.add(hash);
-
-    if (dryRun) {
-      console.log(`WOULD INGEST ${base} · ${file.pillar}`);
-      ingested++;
-      continue;
-    }
-
+const summary = await runIngest({
+  files,
+  dryRun,
+  hash: sha256File,
+  exists: async (hash) => (await pool.query("select 1 from media where content_hash = $1", [hash])).rows.length > 0,
+  ping: async () => {
+    await pool.query("select 1");
+  },
+  log: (line) => console.log(line),
+  ingest: async (file, hash) => {
+    const base = file.path.split(/[\\/]/).pop();
     const qa = await runQa(file.path, "reels");
     const tmp = mkdtempSync(join(tmpdir(), "autopilot-ingest-"));
     const cleanPath = join(tmp, "clean.mp4");
@@ -80,33 +74,15 @@ for (const file of files) {
       await pool.query(
         `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, qa, captured_at)
          values ($1, $2, $3, $4, $5, $6, $7, 'ready', $8, $9)`,
-        [
-          hash,
-          file.path,
-          key,
-          qa.probe.durationS,
-          qa.probe.width,
-          qa.probe.height,
-          file.pillar,
-          JSON.stringify(qa),
-          qa.probe.capturedAt ?? null,
-        ],
+        [hash, file.path, key, qa.probe.durationS, qa.probe.width, qa.probe.height, file.pillar, JSON.stringify(qa), qa.probe.capturedAt ?? null],
       );
-      console.log(`INGESTED ${base} · ${file.pillar} · ${qa.probe.durationS.toFixed(1)}s · ${qa.warnings.length} warning(s)`);
-      ingested++;
+      return `INGESTED ${base} · ${file.pillar} · ${qa.probe.durationS.toFixed(1)}s · ${qa.warnings.length} warning(s)`;
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
-  } catch (err) {
-    console.log(`ERROR ${base} — ${(err as Error).message}`);
-    failed++;
-  }
-}
+  },
+});
 
-console.log(
-  dryRun
-    ? `ingest (dry run): ${ingested} would be ingested, ${skipped} skipped (dup), ${failed} failed`
-    : `ingest: ${ingested} ingested, ${skipped} skipped (dup), ${failed} failed`,
-);
-await pool.end();
-process.exit(failed ? 1 : 0);
+console.log(summaryLine(summary, dryRun));
+await pool.end().catch(() => {});
+process.exit(summary.stopped ? 2 : summary.failed ? 1 : 0);
