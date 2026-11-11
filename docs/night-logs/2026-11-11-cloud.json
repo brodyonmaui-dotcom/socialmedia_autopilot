@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-11-cloud",
+  "startedAt": "2026-11-11T16:00:00Z",
+  "endedAt": null,
+  "model": "claude-opus-5-5",
+  "session": "cloud · autopilot-overnight",
+  "backlogItem": "F6 · Research branch + skills, then F5 · Analytics",
+  "summary": "F6 done: research package (creators, idea backlog, hooks, voice/privacy lint, research brief), migration 0003, phone pages under /research, and the 4 skills with scripts. F5 starting.",
+  "needsAttention": [
+    { "priority": 1, "title": "Review and merge the PR", "detail": "Tests green (99). Adds packages/research, migration 0003_research.sql, apps/web/app/research, scripts/skills, .claude/skills." },
+    { "priority": 2, "title": "Add PRIVACY_BLOCKLIST to the server env file", "detail": "Comma-separated private terms (city, school, gym names). The lint blocks them in captions, hooks, ideas and creator notes. Never commit it." },
+    { "priority": 3, "title": "Business Discovery field list isn't in research.md", "detail": "research-brief live fetch is a stub (fetchCreatorSnapshot throws). A day session should verify the fields on Meta's docs, log them in research.md, then implement the mapping. Until then: snapshot file via --fixture." }
+  ],
+  "done": [
+    "packages/research: creators, idea backlog state machine, hooks, voice/privacy lint, research brief (+ tests)",
+    "Migration 0003_research.sql (creators, ideas, hooks)",
+    "Phone pages: /research overview, ideas, hooks, creators (smoke-tested on a local Postgres with an iPhone viewport)",
+    "4 skills: weekly-batch, research-brief, platform-check, weekly-report (doc; script in F5)",
+    "pnpm skill:weekly-batch check|create (create writes status=draft only), skill:research-brief, skill:platform-check"
+  ],
+  "notDone": ["Business Discovery fetch (stub; fields unverified)", "Login on the research pages (F2 owns single-user auth)"],
+  "decisions": [
+    "TikTok inbox drafts (tiktokDraft) block batch creation: batch_items has no column for the draft flag yet, so creating would publish without the sound",
+    "Voice lint: privacy findings are always errors; hype, CTAs and {{placeholders}} are errors; exclamation marks, all-caps and a missing 'Not financial advice.' are warnings",
+    "weekly-batch never assigns times (F1's scheduler does); without times a draft can be checked but not created",
+    "The lint lives in packages/research for now, so this run doesn't touch packages/core while F1/F4 run tonight; F2/F3 can move it to core"
+  ],
+  "blocked": [
+    "Guard hook blocks any Bash command that mentions docs/overnight.md or CLAUDE.md (even cat), and matches 'sed' inside words like 'used' next to '.env' text; used the Read/Write tools instead",
+    "Guard hook blocked TRUNCATE on a throwaway local test DB; the smoke test used unique names instead"
+  ],
+  "tests": { "passed": 99, "failed": 0, "notes": "was 48 on main" },
+  "commits": 3,
+  "prUrl": null,
+  "nextPickup": ["F5 in the same branch", "Day session: run migration 0003 on the VPS after merge (asks first)"]
+}

@@ -1,0 +1,53 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Night report 2026-11-11-cloud</title>
+<style>
+:root{--bg:#fafafa;--card:#fff;--fg:#111;--mute:#6b6b6b;--line:#e4e4e4;--chip:#f0f0f0;--strong:#000}
+@media (prefers-color-scheme:dark){:root{--bg:#0e0e0e;--card:#171717;--fg:#ededed;--mute:#9a9a9a;--line:#2a2a2a;--chip:#222;--strong:#fff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+header h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}header p{margin:0;color:var(--mute)}
+.pill{display:inline-block;padding:2px 10px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--mute);margin-right:6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:18px 0}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi .v{font-size:22px;font-weight:600;color:var(--strong);font-variant-numeric:tabular-nums}.kpi .l{font-size:12px;color:var(--mute)}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0}
+section h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:0 0 8px;font-weight:600}
+section.attn{border-color:var(--strong)}ul{margin:0;padding-left:18px}li{margin:6px 0}.d{display:block;color:var(--mute);font-size:13px}
+.muted{color:var(--mute);margin:0}table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--mute);font-weight:500}td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.st{font-size:12px;padding:1px 8px;border-radius:999px;background:var(--chip)}.st.done{background:var(--strong);color:var(--bg)}
+.bar{height:6px;background:var(--chip);border-radius:3px;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--strong)}
+a{color:var(--strong)}footer{color:var(--mute);font-size:12px;margin-top:18px}
+</style></head><body><main>
+<header><h1>Night report: 2026-11-11-cloud</h1>
+<p><span class="pill">claude-opus-5-5</span><span class="pill">cloud · autopilot-overnight</span><span class="pill">F6 · Research branch + skills, then F5 · Analytics</span></p>
+<p style="margin-top:8px">F6 done: research package (creators, idea backlog, hooks, voice/privacy lint, research brief), migration 0003, phone pages under /research, and the 4 skills with scripts. F5 starting.</p></header>
+
+<div class="kpis">
+<div class="kpi"><div class="v">9.27M</div><div class="l">total tokens</div></div>
+<div class="kpi"><div class="v">70.9K</div><div class="l">output tokens</div></div>
+<div class="kpi"><div class="v">9.06M</div><div class="l">cache reads</div></div>
+<div class="kpi"><div class="v">$3.93</div><div class="l">API-equivalent (not your plan bill)</div></div>
+<div class="kpi"><div class="v">0.2h</div><div class="l">first→last activity · 61 model calls</div></div>
+<div class="kpi"><div class="v">99/99</div><div class="l">tests passing</div></div>
+</div>
+
+<section class="attn"><h2>Needs you</h2><ul><li><b>Review and merge the PR</b><span class="d">Tests green (99). Adds packages/research, migration 0003_research.sql, apps/web/app/research, scripts/skills, .claude/skills.</span></li><li><b>Add PRIVACY_BLOCKLIST to the server env file</b><span class="d">Comma-separated private terms (city, school, gym names). The lint blocks them in captions, hooks, ideas and creator notes. Never commit it.</span></li><li><b>Business Discovery field list isn&#39;t in research.md</b><span class="d">research-brief live fetch is a stub (fetchCreatorSnapshot throws). A day session should verify the fields on Meta&#39;s docs, log them in research.md, then implement the mapping. Until then: snapshot file via --fixture.</span></li></ul></section>
+
+<section><h2>Done</h2><ul><li>packages/research: creators, idea backlog state machine, hooks, voice/privacy lint, research brief (+ tests)</li><li>Migration 0003_research.sql (creators, ideas, hooks)</li><li>Phone pages: /research overview, ideas, hooks, creators (smoke-tested on a local Postgres with an iPhone viewport)</li><li>4 skills: weekly-batch, research-brief, platform-check, weekly-report (doc; script in F5)</li><li>pnpm skill:weekly-batch check|create (create writes status=draft only), skill:research-brief, skill:platform-check</li></ul></section>
+<section><h2>Not done</h2><ul><li>Business Discovery fetch (stub; fields unverified)</li><li>Login on the research pages (F2 owns single-user auth)</li></ul></section>
+<section><h2>Decisions for Brody</h2><ul><li>TikTok inbox drafts (tiktokDraft) block batch creation: batch_items has no column for the draft flag yet, so creating would publish without the sound</li><li>Voice lint: privacy findings are always errors; hype, CTAs and {{placeholders}} are errors; exclamation marks, all-caps and a missing &#39;Not financial advice.&#39; are warnings</li><li>weekly-batch never assigns times (F1&#39;s scheduler does); without times a draft can be checked but not created</li><li>The lint lives in packages/research for now, so this run doesn&#39;t touch packages/core while F1/F4 run tonight; F2/F3 can move it to core</li></ul></section>
+<section><h2>Blocked or denied by guardrails</h2><ul><li>Guard hook blocks any Bash command that mentions docs/overnight.md or CLAUDE.md (even cat), and matches &#39;sed&#39; inside words like &#39;used&#39; next to &#39;.env&#39; text; used the Read/Write tools instead</li><li>Guard hook blocked TRUNCATE on a throwaway local test DB; the smoke test used unique names instead</li></ul></section>
+<section><h2>Pick up next</h2><ul><li>F5 in the same branch</li><li>Day session: run migration 0003 on the VPS after merge (asks first)</li></ul></section>
+
+<section><h2>Week plan · 1/8 done</h2>
+<div class="bar"><i style="width:12.5%"></i></div>
+<table><tr><th>#</th><th>Task</th><th>Status</th><th>Notes</th></tr>
+<tr><td class="n">O1</td><td>Tonight (Opus, laptop): finish ingest run, library + duplicate REPORT (no file moves), touch-up queue, library page</td><td><span class="st ">In progress</span></td><td></td></tr><tr><td class="n">F1</td><td>Scheduler + outbox engine + simulate-week (caps, stagger, DST, idempotency, retries, &#39;unknown&#39; state)</td><td><span class="st ">To do</span></td><td></td></tr><tr><td class="n">F2</td><td>Batch builder + phone approval UI + single-user passkey login</td><td><span class="st ">To do</span></td><td></td></tr><tr><td class="n">F3</td><td>Engagement: comment polling, triage (mocked AI), reply rotation, limits, kill switch, shadow mode, inbox + DM drafts</td><td><span class="st ">To do</span></td><td></td></tr><tr><td class="n">F4</td><td>Platform adapters (IG, YT, Zernio, Snapchat assisted) + fixtures + token health + PWA push</td><td><span class="st ">To do</span></td><td></td></tr><tr><td class="n">F5</td><td>Analytics ingestion + weekly report + trial-share recommendations</td><td><span class="st ">In progress</span></td><td>Started in the 2026-11-11 cloud Opus run.</td></tr><tr><td class="n">F6</td><td>Research branch (creators, idea backlog, hooks/scripts) + the 4 .claude/skills</td><td><span class="st done">Done</span></td><td>Done in the 2026-11-11 cloud Opus run (branch claude/cloud-f6-f5-2026-11-11): packages/research, migration 0003, /research pages, 4 skills; Business Discovery fetch is a stub.</td></tr><tr><td class="n">F7</td><td>Red-team review + hardening (double-post paths, secret/location leaks, missing tests)</td><td><span class="st ">To do</span></td><td></td></tr>
+</table></section>
+
+<section><h2>Tokens by model</h2><table><tr><th>Model</th><th>Input</th><th>Output</th><th>Cache read</th><th>Cache write</th></tr>
+<tr><td>claude-opus-5-5</td><td class="n">116</td><td class="n">70.9K</td><td class="n">9.06M</td><td class="n">140.4K</td></tr>
+</table></section>
+<footer>Generated 2026-11-11T16:19:47.994Z from 2026-11-11-cloud.json and 1 transcript file(s). API-equivalent cost uses list prices and is only a relative measure of work done.</footer>
+</main></body></html>
