@@ -1,0 +1,10 @@
+{
+  "name": "autopilot",
+  "short_name": "autopilot",
+  "start_url": "/app",
+  "scope": "/app",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111111",
+  "icons": []
+}

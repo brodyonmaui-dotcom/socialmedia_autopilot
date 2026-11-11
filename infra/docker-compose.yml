@@ -1,5 +1,4 @@
-# One stack on the VPS: Caddy (HTTPS) → web (M1), worker (M1), Postgres, nightly backup.
-# M0 runs only caddy + db + backup; web/worker are added in M1.
+# One stack on the VPS: Caddy (HTTPS) → web + worker (M1), Postgres, nightly backup.
 name: autopilot
 services:
   caddy:
@@ -13,6 +12,23 @@ services:
       - ./static:/srv/static:ro
       - caddy_data:/data
       - caddy_config:/config
+    depends_on: [web]
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on: { db: { condition: service_healthy } }
+
+  worker:
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on: { db: { condition: service_healthy } }
 
   db:
     image: postgres:17-alpine
