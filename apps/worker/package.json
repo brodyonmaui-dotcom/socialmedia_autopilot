@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@autopilot/core": "workspace:*",
+    "@autopilot/db": "workspace:*",
     "pg-boss": "^10.1.0"
   },
   "devDependencies": {

@@ -1,0 +1,23 @@
+{
+  "name": "@autopilot/db",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "migrate": "tsx src/cli-migrate.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@autopilot/core": "workspace:*",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

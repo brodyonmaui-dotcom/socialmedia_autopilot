@@ -2,7 +2,7 @@
 const nextConfig = {
   output: "standalone",
   basePath: "/app",
-  transpilePackages: ["@autopilot/core"],
+  transpilePackages: ["@autopilot/core", "@autopilot/db"],
   // @autopilot/core ships TS source with NodeNext-style ".js" import specifiers (for tsc/tsx);
   // webpack needs to know those resolve to .ts files too.
   webpack(config) {
