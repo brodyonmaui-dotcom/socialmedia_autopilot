@@ -36,6 +36,9 @@ importers:
       '@autopilot/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@autopilot/research':
+        specifier: workspace:*
+        version: link:../../packages/research
       next:
         specifier: ^15.1.0
         version: 15.5.29(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)

@@ -17,6 +17,9 @@ export default function DashboardPage() {
         <Link href="/touch-up" className="underline">
           touch-up queue
         </Link>
+        <Link href="/research" className="underline">
+          research
+        </Link>
       </div>
       <ul className="mt-6 divide-y divide-neutral-200 rounded-lg border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
         {platforms.map(([platform, cap]) => (

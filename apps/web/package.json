@@ -10,6 +10,7 @@
   "dependencies": {
     "@autopilot/core": "workspace:*",
     "@autopilot/db": "workspace:*",
+    "@autopilot/research": "workspace:*",
     "next": "^15.1.0",
     "pg": "^8.13.0",
     "react": "^19.0.0",
