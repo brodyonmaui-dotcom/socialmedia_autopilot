@@ -37,6 +37,8 @@ services:
       POSTGRES_USER: autopilot
       POSTGRES_DB: autopilot
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    # Loopback only (not 0.0.0.0) — reachable from the VPS host and an SSH -L tunnel, never the public internet.
+    ports: ["127.0.0.1:5432:5432"]
     volumes: [pg_data:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U autopilot"]
