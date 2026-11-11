@@ -7,6 +7,8 @@ services:
     ports: ["80:80", "443:443"]
     environment:
       DOMAIN: ${DOMAIN}
+      DASH_USER: ${DASH_USER}  # dashboard basic auth (docs/runbooks/dashboard-password.md)
+      DASH_HASH: ${DASH_HASH}  # bcrypt from caddy hash-password; single-quote it in .env
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./static:/srv/static:ro

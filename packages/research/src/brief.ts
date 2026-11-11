@@ -3,15 +3,15 @@ import type { Creator, Pillar } from "./types.js";
 import { lintText } from "./voice-lint.js";
 
 /**
- * One creator's recent public posts, already normalized. The fetcher that fills this from
- * Instagram Business Discovery is NOT built yet: research.md confirms Business Discovery works
- * at Standard Access, but doesn't record the field list, so the mapping is a stub (see
- * fetchCreatorSnapshot) until a day session verifies it against the official docs.
+ * One creator's recent public posts, already normalized. Filled from Instagram Business
+ * Discovery by fetchCreatorSnapshot (discovery.ts; shape logged in docs/research.md 2026-11-11)
+ * or from fixtures/manual snapshots.
  */
 export interface SnapshotPost {
   id: string;
   caption: string;
-  likes: number;
+  /** null when the owner hides like counts (Business Discovery omits like_count then). */
+  likes: number | null;
   comments: number;
   views: number | null;
   mediaType: "reel" | "video" | "image" | "carousel";
@@ -121,7 +121,7 @@ export function buildResearchBrief(creators: Creator[], snapshots: CreatorSnapsh
         pillar: c.pillar,
         hook,
         patterns: classifyHook(hook),
-        engagementRate: followers && followers > 0 ? (p.likes + p.comments) / followers : null,
+        engagementRate: followers && followers > 0 && p.likes !== null ? (p.likes + p.comments) / followers : null,
         postedAt: p.postedAt,
       });
     }
@@ -181,11 +181,4 @@ export function buildResearchBrief(creators: Creator[], snapshots: CreatorSnapsh
   };
 }
 
-/**
- * Stub: Business Discovery fetch. Not implemented until the field list is verified against
- * Meta's docs and recorded in docs/research.md (needsAttention in the night log). Use
- * fixtures/manual snapshots meanwhile.
- */
-export async function fetchCreatorSnapshot(_creator: Creator): Promise<CreatorSnapshot> {
-  throw new Error("fetchCreatorSnapshot: Business Discovery mapping not verified yet (see docs/research.md); use --fixture");
-}
+// fetchCreatorSnapshot (Instagram Business Discovery) lives in discovery.ts.

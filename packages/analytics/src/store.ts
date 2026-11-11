@@ -29,7 +29,7 @@ export function normalizeMetrics(raw: unknown): Metrics {
  */
 export async function loadPostRecords(pool: QueryPool, since: Date): Promise<PostRecord[]> {
   const { rows } = await pool.query(
-    `select bi.id, bi.platform, bi.caption, bi.scheduled_for, bi.trial, m.pillar, m.duration_s,
+    `select bi.id, bi.media_id, bi.platform, bi.caption, bi.scheduled_for, bi.trial, m.pillar, m.duration_s,
             pm.metrics, pm.captured_at
        from batch_items bi
        join media m on m.id = bi.media_id
@@ -44,6 +44,7 @@ export async function loadPostRecords(pool: QueryPool, since: Date): Promise<Pos
     const trial = (r.trial ?? null) as { fellBack?: boolean; sharedAt?: string } | null;
     return {
       batchItemId: r.id,
+      mediaId: r.media_id ?? undefined,
       platform: r.platform,
       pillar: r.pillar ?? null,
       caption: r.caption ?? "",

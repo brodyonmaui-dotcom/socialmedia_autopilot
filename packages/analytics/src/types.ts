@@ -32,6 +32,8 @@ export const EMPTY_METRICS: Metrics = {
 /** A published post plus its latest snapshot: the unit every comparison works on. */
 export interface PostRecord {
   batchItemId: string;
+  /** The clip (media row). The same clip posted to IG and TikTok shares one mediaId. */
+  mediaId?: string;
   platform: Platform;
   pillar: string | null;
   caption: string;
