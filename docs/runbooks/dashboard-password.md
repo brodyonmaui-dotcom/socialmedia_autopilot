@@ -17,11 +17,13 @@ Until the M2 passkey login lands, Caddy asks for a username + password before an
    cd infra && docker compose exec caddy caddy hash-password
    ```
    It prints one line starting with `$2a$`. That's the hash.
-3. Edit `/opt/autopilot/.env` and add (or replace) the two lines. **Use single quotes around the hash**: it contains `$` signs, and without quotes Docker Compose tries to expand them and corrupts the hash.
+3. Edit `/opt/autopilot/.env` (`infra/.env` is a symlink to it, and it's the file Compose interpolates `${DASH_HASH}` from) and add (or replace) the two lines. **Escape every `$` in the hash as `$$`.** A bcrypt hash has three `$` signs (`$2a$14$…`). Unescaped, Docker Compose reads `$2a`, `$14` and so on as variables, swaps in empty strings and corrupts the hash without any warning. `$$` is Compose's escape for one literal `$`.
    ```
    DASH_USER=pick-a-username
-   DASH_HASH='$2a$14$…the line from step 2…'
+   DASH_HASH=$$2a$$14$$…rest of the line from step 2…
    ```
+   - No quotes around it. Inside single quotes Compose takes the value literally, so `$$` would stay doubled and the hash would never match. (Single-quoting the original, unescaped hash also works on Compose v2, but use one method only. This runbook uses `$$`.)
+   - Quick check without showing the hash: `docker compose exec caddy sh -c 'case "$DASH_HASH" in "\$2a\$"*) echo prefix-ok;; *) echo BAD;; esac; echo ${#DASH_HASH}'` should print `prefix-ok` and `60`.
 4. Recreate caddy so it picks up the new env and the new Caddyfile (a plain `restart` keeps the old env and, after a git pull, the old Caddyfile inode):
    ```sh
    docker compose up -d caddy

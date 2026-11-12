@@ -179,3 +179,9 @@ Sources: https://docs.zernio.com/pricing.mdx, /pricing/social.mdx, /pricing/paym
 - **Errors worth handling:** "Duplicate content detected" (same content posted recently: change caption/media); `spam_risk` (API moderation is stricter than the app); upload timeout on large videos (check status later, treat as "unknown"); a `publishNow` rejection returns `207` with `post.status: "failed"`.
 - **Not possible via the API:** sound/music library search (only Commercial Music Library tracks on Business app connections), duets/stitches, effects, editing after publishing, starting DMs, For You analytics.
 - Summary for the creator: `docs/tiktok-free-plan.md`.
+
+### First real Instagram post: trial eligibility (2026-11-12, live)
+- One reel published through `packages/adapters` (outbox row `0271b649`, media ID `18081199997733148`) with `trial_params.graduation_strategy=MANUAL`.
+- **Trial refused again** (same code 10 / subcode 2207081 as day 1, "Application does not have permission for this action"). The adapter fell back to a **regular reel**; the row is `published` with `trial.fellBack=true` and the flag "trial refused: posted as a regular reel". So this account is still **not trial-eligible via the API**. Keep the fallback on, keep the daily re-probe, and expect regular reels until it passes.
+- Outbox path proven live: approved row → claim → container → poll → publish → `published`, 1 attempt, no alerts.
+- YouTube and TikTok rows from the same batch were skipped (no adapter): `YT_REFRESH_TOKEN` and `ZERNIO_TIKTOK_ACCOUNT_ID` are empty on the server (accounts not connected yet). The rows were set back to `draft`.
