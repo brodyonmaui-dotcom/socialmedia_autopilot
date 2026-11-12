@@ -35,6 +35,8 @@ For unattended sessions (e.g. Fable 5.1 overnight). The goal: wake up to **a pul
 
 **Day sessions (Opus, with you)** do what nights can't: review and merge last night's PR, deploy to the server, live tests with your OK, phone UX feedback, server ops. **Don't let the day session edit the area tonight's task owns**, or you'll get merge conflicts.
 
+**Fable runs use `docs/fable-lead.md` instead** (Fable as lead engineer, delegating to Opus `implementer` and Haiku `scout` subagents). The template below is for Opus-only runs.
+
 ## Night brief template (paste into the overnight session; replace the {{...}} parts)
 ```
 OVERNIGHT RUN. Unattended. Read CLAUDE.md, docs/overnight.md, docs/decisions.md, docs/voice.md, docs/fable-week.json, and the verification log at the end of docs/research.md.
