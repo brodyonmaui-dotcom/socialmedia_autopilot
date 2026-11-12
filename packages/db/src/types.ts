@@ -40,9 +40,24 @@ export interface BatchItemRow {
   idempotency_key: string;
   status: PostStatus;
   attempts: number;
+  /** Set while status = 'queued' (waiting out a retry backoff); migration 0005. */
+  next_attempt_at: string | null;
   last_error: string | null;
   platform_post_id: string | null;
   platform_post_url: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type AlertKind = "final-failure" | "unknown-outcome" | "cap-breach" | "duplicate";
+
+/** Outbox alerts a human must look at (migration 0005). One row per (kind, item). */
+export interface AlertRow {
+  id: string;
+  kind: AlertKind;
+  batch_item_id: string | null;
+  platform: Platform;
+  message: string;
+  created_at: string;
+  acknowledged_at: string | null;
 }
