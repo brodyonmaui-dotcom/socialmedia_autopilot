@@ -23,7 +23,7 @@
       "model": "fable",
       "area": "apps/web",
       "status": "todo",
-      "notes": ""
+      "notes": "Design ready: docs/design/F2.md + docs/prep/run-2-decisions.md (answers + corrections)."
     },
     {
       "id": "F3",
@@ -31,7 +31,7 @@
       "model": "fable",
       "area": "apps/worker, apps/web/inbox",
       "status": "todo",
-      "notes": ""
+      "notes": "Design ready: docs/design/F3.md + docs/prep/run-2-decisions.md (answers + corrections)."
     },
     {
       "id": "F4",
@@ -63,7 +63,7 @@
       "model": "fable",
       "area": "repo-wide, fixes only",
       "status": "todo",
-      "notes": ""
+      "notes": "Design ready: docs/design/F7.md + docs/prep/run-2-decisions.md (answers + corrections)."
     }
   ]
 }
