@@ -33,7 +33,15 @@ export function backoffMs(attemptsSoFar: number, policy: RetryPolicy = DEFAULT_R
   return Math.min(policy.maxBackoffMs, Math.round(policy.baseBackoffMs * policy.factor ** (n - 1)));
 }
 
-export type FailureClass = "timeout" | "rejected";
+export type FailureClass = "timeout" | "rejected" | "permanent";
+
+/**
+ * A rejection no retry can fix (bad caption, missing permission, location field, assisted platform):
+ * the engine marks the post failed and alerts at once instead of burning the retry budget.
+ */
+export class NonRetryableError extends Error {
+  override readonly name = "NonRetryableError";
+}
 
 /** The error thrown when the engine's own deadline passes. */
 export class PublishTimeoutError extends Error {
@@ -48,6 +56,7 @@ export class PublishTimeoutError extends Error {
  * deliberate rejection (4xx, validation, quota) where the platform told us nothing was created.
  */
 export function classifyFailure(err: unknown): FailureClass {
+  if (err instanceof NonRetryableError || (err as { name?: string } | undefined)?.name === "NonRetryableError") return "permanent";
   if (err instanceof PublishTimeoutError) return "timeout";
   if (err instanceof TypeError) return "timeout"; // undici: fetch network failure
   const name = (err as { name?: string } | undefined)?.name;
@@ -67,6 +76,7 @@ export type Decision =
  * Pure state transition after one attempt. `attemptsBefore` is the count before this attempt.
  *  - success        → published
  *  - rejected       → queued with backoff, or failed (+ alert) once maxAttempts is reached
+ *  - permanent      → failed (+ alert) at once
  *  - timeout        → unknown (+ alert); never queued again by the engine
  */
 export function decideAfterAttempt(
@@ -78,7 +88,7 @@ export function decideAfterAttempt(
   const attempts = attemptsBefore + 1;
   if (outcome.kind === "success") return { status: "published", attempts, alert: false };
   if (outcome.cls === "timeout") return { status: "unknown", attempts, alert: true };
-  if (attempts >= policy.maxAttempts) return { status: "failed", attempts, alert: true };
+  if (outcome.cls === "permanent" || attempts >= policy.maxAttempts) return { status: "failed", attempts, alert: true };
   return { status: "queued", attempts, nextAttemptAt: new Date(now.getTime() + backoffMs(attempts, policy)).toISOString(), alert: false };
 }
 

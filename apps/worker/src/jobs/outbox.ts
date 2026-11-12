@@ -1,6 +1,4 @@
 import {
-  createTikTokAdapter,
-  createYouTubeAdapter,
   normalizeCadence,
   runOutboxTick,
   type AlertSink,
@@ -14,6 +12,7 @@ import {
   type RetryPolicy,
   type TickResult,
 } from "@autopilot/core";
+import { buildAdapters, type AdapterCredentials } from "@autopilot/adapters";
 import { getSetting } from "@autopilot/db";
 
 /** Only what the store needs from pg.Pool, so tests pass a recording fake (same pattern as db/settings.ts). */
@@ -22,8 +21,8 @@ export interface OutboxPool {
 }
 
 export interface OutboxConfig {
-  youtube?: { clientId: string; clientSecret: string; refreshToken: string };
-  tiktok?: { apiKey: string; accountId: string };
+  /** Platform credentials; only configured platforms get an adapter (see credentialsFromEnv). */
+  credentials?: AdapterCredentials;
   publicMediaBase: string;
   dryRun: boolean;
   /** TZ_CREATOR. Required for a live run; a dry run without it falls back to UTC day boundaries and says so. */
@@ -40,7 +39,7 @@ interface Row {
   platform: Platform;
   caption: string;
   title: string | null;
-  trial: { tiktokDraft?: boolean } | null;
+  trial: { tiktokDraft?: boolean; graduationStrategy?: "MANUAL" | "SS_PERFORMANCE"; graduation_strategy?: "MANUAL" | "SS_PERFORMANCE" } | null;
   scheduled_for: string | Date;
   status: OutboxPost["status"];
   attempts: number;
@@ -88,6 +87,7 @@ export class PgOutboxStore implements OutboxStore {
       platformPostUrl: r.platform_post_url ?? undefined,
       mediaId: r.media_id,
       tiktokDraft: r.trial?.tiktokDraft === true,
+      trial: r.platform === "instagram" && (r.trial?.graduationStrategy ?? r.trial?.graduation_strategy) ? { graduationStrategy: (r.trial.graduationStrategy ?? r.trial.graduation_strategy)! } : undefined,
     };
   }
 
@@ -115,10 +115,15 @@ export class PgOutboxStore implements OutboxStore {
   }
 
   async markPublished(postId: string, result: PublishResult, attempts: number, now: Date): Promise<void> {
+    // trial.fellBack=true is what packages/analytics reads to tell a real trial from a fallback reel.
+    const patch: Record<string, unknown> = {};
+    if (result.trialFellBack) patch.fellBack = true;
+    if (result.flags?.length) patch.flags = result.flags;
     await this.pool.query(
-      `update batch_items set status = 'published', platform_post_id = $2, platform_post_url = $3, attempts = $4, next_attempt_at = null, last_error = null, updated_at = $5
+      `update batch_items set status = 'published', platform_post_id = $2, platform_post_url = $3, attempts = $4, next_attempt_at = null, last_error = null, updated_at = $5,
+         trial = case when $6::jsonb = '{}'::jsonb then trial else coalesce(trial, '{}'::jsonb) || $6::jsonb end
        where id = $1`,
-      [postId, result.platformPostId, result.platformPostUrl ?? null, attempts, now.toISOString()],
+      [postId, result.platformPostId, result.platformPostUrl ?? null, attempts, now.toISOString(), JSON.stringify(patch)],
     );
   }
 
@@ -179,10 +184,7 @@ export const consoleAlertSink: AlertSink = {
  * hold their own clock once handed off, so they go out ahead of scheduled_for; Instagram fires at it.
  */
 export async function runOutboxOnce(pool: OutboxPool, cfg: OutboxConfig): Promise<TickResult> {
-  const adapters: Partial<Record<Platform, PlatformAdapter>> = {};
-  if (cfg.youtube) adapters.youtube = createYouTubeAdapter(cfg.youtube);
-  if (cfg.tiktok) adapters.tiktok = createTikTokAdapter(cfg.tiktok);
-  return runOutboxWith(pool, adapters, cfg);
+  return runOutboxWith(pool, buildAdapters(cfg.credentials ?? {}), cfg);
 }
 
 /** Separated from runOutboxOnce so tests can inject fake adapters instead of hitting real APIs. */

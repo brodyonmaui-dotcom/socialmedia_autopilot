@@ -8,6 +8,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@autopilot/adapters": "workspace:*",
     "@autopilot/core": "workspace:*",
     "@autopilot/db": "workspace:*",
     "pg": "^8.13.0",

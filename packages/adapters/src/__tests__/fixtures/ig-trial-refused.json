@@ -1,0 +1,1 @@
+{ "error": { "message": "Application does not have permission for this action", "type": "OAuthException", "code": 10, "error_subcode": 2207081, "fbtrace_id": "AbCdEf" } }

@@ -44,11 +44,17 @@ export interface OutboxPost {
   mediaId?: string;
   /** TikTok only: send to the Creator Inbox as a draft (sound-dependent posts). */
   tiktokDraft?: boolean;
+  /** Instagram only: post as a trial reel (decisions.md §5). Absent = plain reel. */
+  trial?: { graduationStrategy: "MANUAL" | "SS_PERFORMANCE" };
 }
 
 export interface PublishResult {
   platformPostId: string;
   platformPostUrl?: string;
+  /** Instagram: the trial was refused and the post went out as a plain reel (stored as trial.fellBack=true). */
+  trialFellBack?: boolean;
+  /** Anything the creator should know about how it went out ("draft in Creator Inbox", …). */
+  flags?: string[];
 }
 
 export interface PublishOptions {
@@ -68,7 +74,7 @@ export interface PlatformAdapter {
   findExisting?(post: OutboxPost, opts?: PublishOptions): Promise<PublishResult | null>;
 }
 
-export type AlertKind = "final-failure" | "unknown-outcome" | "cap-breach" | "duplicate";
+export type AlertKind = "final-failure" | "unknown-outcome" | "cap-breach" | "duplicate" | "token-health";
 
 /** Raised by the outbox for anything a human must look at. Delivered by an AlertSink (log, DB, push). */
 export interface OutboxAlert {
