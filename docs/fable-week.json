@@ -14,8 +14,8 @@
       "title": "Scheduler + outbox engine + simulate-week (caps, stagger, DST, idempotency, retries, 'unknown' state)",
       "model": "fable",
       "area": "packages/core, apps/worker",
-      "status": "in-progress",
-      "notes": "Run A (2026-11-12, branch fable/run-a-2026-11-12): scheduler (assignSlots: caps, stagger, buffer, DST-safe), outbox engine (idempotency, backoff, existence check, unknown, alerts), pg store, migration 0005, pnpm simulate-week green."
+      "status": "done",
+      "notes": "Done in run A (2026-11-12, PR #9): assignSlots (caps, stagger, buffer, DST-safe), outbox engine (idempotency, backoff, existence check, unknown, alerts), PgOutboxStore, migration 0005, pnpm simulate-week + pnpm schedule-batch. Needs: migration 0005 on the VPS after merge."
     },
     {
       "id": "F2",
@@ -38,8 +38,8 @@
       "title": "Platform adapters (IG, YT, Zernio, Snapchat assisted) + fixtures + token health + PWA push",
       "model": "fable",
       "area": "packages/adapters",
-      "status": "todo",
-      "notes": ""
+      "status": "done",
+      "notes": "Done in run A (2026-11-12, PR #9): packages/adapters (IG container flow + trial fallback, YT, Zernio drafts, Snapchat handoff, registry), token-health daily job → alerts, 27 contract tests on fixtures. NOT done: PWA push (no web work this run); YouTube existence check (no documented lookup); first real IG post via the adapter still needs your OK."
     },
     {
       "id": "F5",
