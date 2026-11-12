@@ -1,0 +1,15 @@
+{
+  "data": {
+    "app_id": "000000000000000",
+    "type": "PAGE",
+    "application": "Shmitty's Helper",
+    "data_access_expires_at": 1802044800,
+    "expires_at": 0,
+    "is_valid": true,
+    "issued_at": 1762732800,
+    "profile_id": "100000000000000",
+    "scopes": ["pages_show_list", "pages_read_engagement", "instagram_basic", "instagram_content_publish", "instagram_manage_comments", "instagram_manage_insights", "instagram_manage_messages", "business_management"],
+    "granular_scopes": [],
+    "user_id": "100000000000000"
+  }
+}

@@ -6,8 +6,13 @@ import { runOutboxOnce, type OutboxConfig } from "./outbox.js";
 export async function registerOutboxJob(boss: PgBoss, pool: Pool, cfg: OutboxConfig): Promise<void> {
   await boss.createQueue(QUEUES.outboxTick);
   await boss.work(QUEUES.outboxTick, async () => {
-    const { processed, dryRun } = await runOutboxOnce(pool, cfg);
-    if (processed) console.log(`[outbox] tick: ${processed} item(s) ${dryRun ? "(dry-run)" : "processed"}`);
+    const r = await runOutboxOnce(pool, cfg);
+    if (r.considered || r.recovered || r.unknown) {
+      console.log(
+        `[outbox] tick: considered ${r.considered} · published ${r.published} (${r.recovered} recovered) · queued ${r.queued} · failed ${r.failed} · unknown ${r.unknown} · skipped ${r.skipped}${r.dryRun ? " (dry-run)" : ""}`,
+      );
+    }
   });
-  await boss.schedule(QUEUES.outboxTick, "* * * * *"); // every minute: native-scheduling platforms fire as soon as approved
+  // Every minute: Instagram fires at scheduled_for; YouTube/TikTok are handed off ahead of time; retries wake on next_attempt_at.
+  await boss.schedule(QUEUES.outboxTick, "* * * * *");
 }

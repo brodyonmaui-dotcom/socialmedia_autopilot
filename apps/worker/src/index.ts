@@ -3,6 +3,8 @@ import { createPool } from "@autopilot/db";
 import { createQueue } from "./queue.js";
 import { registerHealthJob } from "./jobs/health.js";
 import { registerOutboxJob } from "./jobs/register-outbox.js";
+import { registerTokenHealthJob, tokenHealthConfigFromEnv } from "./jobs/token-health.js";
+import { credentialsFromEnv } from "@autopilot/adapters";
 
 if (process.env.NODE_ENV !== "production") {
   const { existsSync } = await import("node:fs");
@@ -21,20 +23,25 @@ await boss.start();
 await registerHealthJob(boss);
 
 const dryRun = process.env.DRY_RUN !== "false";
+const credentials = credentialsFromEnv(process.env);
+const timeZone = process.env.TZ_CREATOR; // .env only, never committed; required for a live run
+if (!timeZone) {
+  if (!dryRun) {
+    console.error("TZ_CREATOR is not set: refusing a live outbox (daily caps are per creator-local day)");
+    process.exit(1);
+  }
+  console.log("[outbox] TZ_CREATOR not set: dry-run counts cap days in UTC");
+}
 await registerOutboxJob(boss, pool, {
   dryRun,
+  timeZone,
   publicMediaBase: process.env.PUBLIC_MEDIA_BASE ?? "",
-  youtube:
-    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.YT_REFRESH_TOKEN
-      ? { clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET, refreshToken: process.env.YT_REFRESH_TOKEN }
-      : undefined,
-  tiktok:
-    process.env.ZERNIO_API_KEY && process.env.ZERNIO_TIKTOK_ACCOUNT_ID
-      ? { apiKey: process.env.ZERNIO_API_KEY, accountId: process.env.ZERNIO_TIKTOK_ACCOUNT_ID }
-      : undefined,
+  credentials,
 });
+await registerTokenHealthJob(boss, pool, tokenHealthConfigFromEnv(process.env));
 
-console.log(`worker started · dry_run=${dryRun} · platforms=${Object.keys(CAPABILITIES).join(",")}`);
+const configured = (["instagram", "youtube", "tiktok"] as const).filter((p) => credentials[p]);
+console.log(`worker started · dry_run=${dryRun} · platforms=${Object.keys(CAPABILITIES).join(",")} · adapters=${configured.join(",") || "none"}`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {

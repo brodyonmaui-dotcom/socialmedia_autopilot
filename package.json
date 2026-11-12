@@ -18,7 +18,9 @@
     "skill:weekly-report": "tsx scripts/skills/weekly-report.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "dev:seed": "tsx scripts/dev/seed.ts"
+    "dev:seed": "tsx scripts/dev/seed.ts",
+    "simulate-week": "tsx scripts/simulate-week.ts",
+    "schedule-batch": "tsx scripts/schedule-batch.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

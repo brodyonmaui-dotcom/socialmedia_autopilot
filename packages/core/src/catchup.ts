@@ -1,34 +1,5 @@
 import type { PostingWindow } from "./types.js";
-
-function minutesOfDay(hhmm: string): number {
-  const [h = 0, m = 0] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-}
-
-/** Resolves "HH:MM on Y-M-D in timeZone" to the real UTC instant, via the standard two-pass offset correction. */
-function zonedTimeToUtc(year: number, month: number, day: number, hour: number, minute: number, timeZone: string): Date {
-  const guess = Date.UTC(year, month - 1, day, hour, minute, 0);
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-  const parts = Object.fromEntries(fmt.formatToParts(new Date(guess)).map((p) => [p.type, p.value]));
-  const seenUTC = Date.UTC(
-    Number(parts.year),
-    Number(parts.month) - 1,
-    Number(parts.day),
-    Number(parts.hour) === 24 ? 0 : Number(parts.hour),
-    Number(parts.minute),
-    Number(parts.second),
-  );
-  return new Date(guess - (seenUTC - guess));
-}
+import { minutesOfDay, zonedTimeToUtc } from "./time.js";
 
 export interface CatchUpSlotParams {
   /** How many slots to return. */

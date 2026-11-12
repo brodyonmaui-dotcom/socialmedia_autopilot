@@ -22,8 +22,9 @@ Writes text, never publishes. The batch lands as `draft`; only the creator's tap
    - Sound-dependent TikToks: set `tiktokDraft: true`; the checker will tell you they must be finished in the app for now.
 3. Run `pnpm skill:weekly-batch check logs/batch-<weekStart>.json`. On FAIL, read the log it names, fix the text, re-run. Never "fix" a privacy finding by rewording around a place: remove the place.
 4. Run `pnpm skill:weekly-batch review logs/batch-<weekStart>.json`. It writes `logs/batch-<weekStart>-review.md`: one row per clip with folder + file name (from the library when the DB is reachable, else blank), the IG / TikTok / YouTube text, and open questions (`{{…}}` gaps, check findings, YouTube > 60 s, TikTok drafts, numbers taken from file names, archived clips). Add anything only you know (what the clip seems to show) to that file. It refuses to replace an existing review; pass `--force` only after you've carried over any hand edits. Point him to the file and ask for numbers still in `{{…}}`.
-5. Only after he says to save it: `pnpm skill:weekly-batch create logs/batch-<weekStart>.json` (needs `DATABASE_URL`; on the VPS he runs it). It refuses unless every post has a time and zero errors.
-6. Tell him: "Draft batch saved; approve it on the phone." Nothing is approved by this skill.
+5. Times: `pnpm schedule-batch logs/batch-<weekStart>.json --write` fills every missing `scheduledFor` from the cadence grid (caps, stagger, DST-safe in `TZ_CREATOR`; existing times are kept). Preview without `--write`; on FAIL read the log it names.
+6. Only after he says to save it: `pnpm skill:weekly-batch create logs/batch-<weekStart>.json` (needs `DATABASE_URL`; on the VPS he runs it). It refuses unless every post has a time and zero errors.
+7. Tell him: "Draft batch saved; approve it on the phone." Nothing is approved by this skill.
 
 ## Never
 - Approve, publish, set `DRY_RUN=false` or pass `--live`.

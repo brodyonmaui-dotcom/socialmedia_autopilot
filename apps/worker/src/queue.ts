@@ -4,6 +4,7 @@ import PgBoss from "pg-boss";
 export const QUEUES = {
   health: "health-check",
   outboxTick: "outbox-tick",
+  tokenHealth: "token-health",
 } as const;
 
 export function createQueue(databaseUrl: string): PgBoss {

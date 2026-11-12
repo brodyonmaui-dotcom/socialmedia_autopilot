@@ -1,0 +1,1 @@
+{ "success": false, "post": { "id": "6730000000000000000000a3", "status": "failed", "platforms": [{ "platform": "tiktok", "accountId": "acct1", "status": "failed", "reason": "Duplicate content detected. Please change the caption or media." }] } }

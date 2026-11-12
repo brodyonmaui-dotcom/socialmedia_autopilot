@@ -1,0 +1,1 @@
+{ "accounts": [{ "_id": "acct1", "platform": "tiktok", "username": "creator", "displayName": "creator", "status": "active" }, { "_id": "acct2", "platform": "instagram", "username": "creator", "status": "active" }] }

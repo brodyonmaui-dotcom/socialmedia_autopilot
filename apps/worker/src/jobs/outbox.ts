@@ -1,99 +1,198 @@
-import { createTikTokAdapter, createYouTubeAdapter, type OutboxPost, type PlatformAdapter } from "@autopilot/core";
-import type { Pool } from "pg";
+import {
+  normalizeCadence,
+  runOutboxTick,
+  type AlertSink,
+  type CadenceSettings,
+  type OutboxAlert,
+  type OutboxPost,
+  type OutboxStore,
+  type Platform,
+  type PlatformAdapter,
+  type PublishResult,
+  type RetryPolicy,
+  type TickResult,
+} from "@autopilot/core";
+import { buildAdapters, type AdapterCredentials } from "@autopilot/adapters";
+import { getSetting } from "@autopilot/db";
+
+/** Only what the store needs from pg.Pool, so tests pass a recording fake (same pattern as db/settings.ts). */
+export interface OutboxPool {
+  query(sql: string, params?: unknown[]): Promise<{ rows: any[]; rowCount?: number | null }>;
+}
 
 export interface OutboxConfig {
-  youtube?: { clientId: string; clientSecret: string; refreshToken: string };
-  tiktok?: { apiKey: string; accountId: string };
+  /** Platform credentials; only configured platforms get an adapter (see credentialsFromEnv). */
+  credentials?: AdapterCredentials;
   publicMediaBase: string;
   dryRun: boolean;
-  maxAttempts?: number;
+  /** TZ_CREATOR. Required for a live run; a dry run without it falls back to UTC day boundaries and says so. */
+  timeZone?: string;
+  policy?: RetryPolicy;
+  alerts?: AlertSink;
+  log?: (line: string) => void;
 }
 
-/** Network/timeout failures mean we don't know if the platform-side action happened — never auto-retry these (non-negotiable #3). */
-function isTransient(err: unknown): boolean {
-  if (err instanceof TypeError) return true; // fetch network failure
-  const name = (err as { name?: string } | undefined)?.name;
-  return name === "TimeoutError" || name === "AbortError";
+interface Row {
+  id: string;
+  idempotency_key: string;
+  media_id: string;
+  platform: Platform;
+  caption: string;
+  title: string | null;
+  trial: { tiktokDraft?: boolean; graduationStrategy?: "MANUAL" | "SS_PERFORMANCE"; graduation_strategy?: "MANUAL" | "SS_PERFORMANCE" } | null;
+  scheduled_for: string | Date;
+  status: OutboxPost["status"];
+  attempts: number;
+  next_attempt_at: string | Date | null;
+  last_error: string | null;
+  platform_post_id: string | null;
+  platform_post_url: string | null;
+  updated_at: string | Date;
+  r2_key: string | null;
 }
+
+const iso = (v: string | Date | null | undefined): string | undefined => (v == null ? undefined : new Date(v).toISOString());
+
+const SELECT = `select bi.id, bi.idempotency_key, bi.media_id, bi.platform, bi.caption, bi.title, bi.trial, bi.scheduled_for, bi.status,
+  bi.attempts, bi.next_attempt_at, bi.last_error, bi.platform_post_id, bi.platform_post_url, bi.updated_at, m.r2_key
+  from batch_items bi join media m on m.id = bi.media_id`;
 
 /**
- * Fires approved batch_items for the native-scheduling platforms (YouTube, TikTok): both hold
- * their own publish clock once we hand a post off, so we submit as soon as it's approved rather
- * than waiting for scheduled_for (unlike Instagram's server-fires route).
- *
- * Known gap: YouTube's API has no idempotency key. A crash between a successful upload and our
- * status update could re-upload on retry. Narrow window, not fully closed — flagged for M6
- * hardening rather than solved here.
+ * OutboxStore over batch_items. Rules the SQL enforces:
+ *  - claim() is a conditional update (status in approved/queued), so two ticks can't both fire a row;
+ *  - every status write bumps updated_at, which is how a crashed "publishing" row gets noticed;
+ *  - alerts are unique per (kind, item), so recordAlert() reports whether the alert is new.
  */
-export async function runOutboxOnce(pool: Pool, cfg: OutboxConfig): Promise<{ processed: number; dryRun: boolean }> {
-  const adapters: Partial<Record<string, PlatformAdapter>> = {};
-  if (cfg.youtube) adapters.youtube = createYouTubeAdapter(cfg.youtube);
-  if (cfg.tiktok) adapters.tiktok = createTikTokAdapter(cfg.tiktok);
-  return processApprovedItems(pool, adapters, cfg);
+export class PgOutboxStore implements OutboxStore {
+  constructor(
+    private readonly pool: OutboxPool,
+    private readonly publicMediaBase: string,
+  ) {}
+
+  private toPost(r: Row): OutboxPost {
+    return {
+      id: r.id,
+      idempotencyKey: r.idempotency_key,
+      platform: r.platform,
+      mediaUrl: `${this.publicMediaBase}/${r.r2_key ?? ""}`,
+      caption: r.caption,
+      title: r.title ?? undefined,
+      scheduledFor: iso(r.scheduled_for)!,
+      status: r.status,
+      attempts: r.attempts,
+      nextAttemptAt: iso(r.next_attempt_at),
+      updatedAt: iso(r.updated_at),
+      lastError: r.last_error ?? undefined,
+      platformPostId: r.platform_post_id ?? undefined,
+      platformPostUrl: r.platform_post_url ?? undefined,
+      mediaId: r.media_id,
+      tiktokDraft: r.trial?.tiktokDraft === true,
+      trial: r.platform === "instagram" && (r.trial?.graduationStrategy ?? r.trial?.graduation_strategy) ? { graduationStrategy: (r.trial.graduationStrategy ?? r.trial.graduation_strategy)! } : undefined,
+    };
+  }
+
+  async listDue(now: Date): Promise<OutboxPost[]> {
+    const { rows } = await this.pool.query(
+      `${SELECT} where bi.status = 'approved' or (bi.status = 'queued' and (bi.next_attempt_at is null or bi.next_attempt_at <= $1))
+       order by bi.scheduled_for asc`,
+      [now.toISOString()],
+    );
+    return (rows as Row[]).map((r) => this.toPost(r));
+  }
+
+  async listStale(before: Date): Promise<OutboxPost[]> {
+    const { rows } = await this.pool.query(`${SELECT} where bi.status = 'publishing' and bi.updated_at < $1 order by bi.updated_at asc`, [before.toISOString()]);
+    return (rows as Row[]).map((r) => this.toPost(r));
+  }
+
+  async claim(postId: string, now: Date): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      `update batch_items set status = 'publishing', next_attempt_at = null, updated_at = $2
+       where id = $1 and status in ('approved', 'queued') returning id`,
+      [postId, now.toISOString()],
+    );
+    return rows.length === 1;
+  }
+
+  async markPublished(postId: string, result: PublishResult, attempts: number, now: Date): Promise<void> {
+    // trial.fellBack=true is what packages/analytics reads to tell a real trial from a fallback reel.
+    const patch: Record<string, unknown> = {};
+    if (result.trialFellBack) patch.fellBack = true;
+    if (result.flags?.length) patch.flags = result.flags;
+    await this.pool.query(
+      `update batch_items set status = 'published', platform_post_id = $2, platform_post_url = $3, attempts = $4, next_attempt_at = null, last_error = null, updated_at = $5,
+         trial = case when $6::jsonb = '{}'::jsonb then trial else coalesce(trial, '{}'::jsonb) || $6::jsonb end
+       where id = $1`,
+      [postId, result.platformPostId, result.platformPostUrl ?? null, attempts, now.toISOString(), JSON.stringify(patch)],
+    );
+  }
+
+  async markQueued(postId: string, attempts: number, nextAttemptAt: string, error: string, now: Date): Promise<void> {
+    await this.pool.query(`update batch_items set status = 'queued', attempts = $2, next_attempt_at = $3, last_error = $4, updated_at = $5 where id = $1`, [
+      postId,
+      attempts,
+      nextAttemptAt,
+      error,
+      now.toISOString(),
+    ]);
+  }
+
+  async markFailed(postId: string, attempts: number, error: string, now: Date): Promise<void> {
+    await this.pool.query(`update batch_items set status = 'failed', attempts = $2, next_attempt_at = null, last_error = $3, updated_at = $4 where id = $1`, [postId, attempts, error, now.toISOString()]);
+  }
+
+  async markUnknown(postId: string, attempts: number, error: string, now: Date): Promise<void> {
+    await this.pool.query(`update batch_items set status = 'unknown', attempts = $2, next_attempt_at = null, last_error = $3, updated_at = $4 where id = $1`, [postId, attempts, error, now.toISOString()]);
+  }
+
+  async countSentOn(platform: Platform, localDay: string, timeZone: string): Promise<number> {
+    // Postgres resolves the creator's calendar day from the IANA zone passed in (never stored).
+    const { rows } = await this.pool.query(
+      `select count(*)::int as n from batch_items
+       where platform = $1 and status in ('published', 'publishing', 'unknown') and (scheduled_for at time zone $3)::date = $2::date`,
+      [platform, localDay, timeZone],
+    );
+    return (rows[0]?.n as number | undefined) ?? 0;
+  }
+
+  async recordAlert(alert: OutboxAlert): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      `insert into alerts (kind, batch_item_id, platform, message, created_at) values ($1, $2, $3, $4, $5)
+       on conflict (kind, batch_item_id) do nothing returning id`,
+      [alert.kind, alert.postId, alert.platform, alert.message, alert.at],
+    );
+    return rows.length === 1;
+  }
+}
+
+/** Cadence = posting_windows (0002) + the cadence overrides (0005), validated against the core defaults. */
+export async function loadCadence(pool: OutboxPool): Promise<CadenceSettings> {
+  const windows = await getSetting<CadenceSettings["windows"]>(pool, "posting_windows");
+  const overrides = (await getSetting<Partial<CadenceSettings>>(pool, "cadence")) ?? {};
+  return normalizeCadence({ ...overrides, ...(windows?.length ? { windows } : {}) });
+}
+
+/** Console sink; the alert is already in the alerts table for the dashboard. PWA push arrives with F4. */
+export const consoleAlertSink: AlertSink = {
+  async send(alert) {
+    console.log(`[alert] ${alert.kind} ${alert.platform} item ${alert.postId}: ${alert.message}`);
+  },
+};
+
+/**
+ * One outbox tick against Postgres with the real adapters (only those configured). YouTube and TikTok
+ * hold their own clock once handed off, so they go out ahead of scheduled_for; Instagram fires at it.
+ */
+export async function runOutboxOnce(pool: OutboxPool, cfg: OutboxConfig): Promise<TickResult> {
+  return runOutboxWith(pool, buildAdapters(cfg.credentials ?? {}), cfg);
 }
 
 /** Separated from runOutboxOnce so tests can inject fake adapters instead of hitting real APIs. */
-export async function processApprovedItems(
-  pool: Pool,
-  adapters: Partial<Record<string, PlatformAdapter>>,
-  cfg: Pick<OutboxConfig, "publicMediaBase" | "dryRun" | "maxAttempts">,
-): Promise<{ processed: number; dryRun: boolean }> {
-  const platforms = Object.keys(adapters);
-  if (platforms.length === 0) return { processed: 0, dryRun: cfg.dryRun };
-
-  const maxAttempts = cfg.maxAttempts ?? 3;
-  const { rows } = await pool.query(
-    `select bi.id, bi.idempotency_key, bi.platform, bi.caption, bi.title, bi.scheduled_for, bi.attempts, m.r2_key
-     from batch_items bi join media m on m.id = bi.media_id
-     where bi.status = 'approved' and bi.platform = any($1)
-     order by bi.scheduled_for asc`,
-    [platforms],
-  );
-
-  let processed = 0;
-  for (const row of rows) {
-    const adapter = adapters[row.platform as string];
-    if (!adapter) continue;
-
-    if (cfg.dryRun) {
-      console.log(`[outbox] dry-run: would publish ${row.platform} item ${row.id} (scheduled_for ${row.scheduled_for})`);
-      processed++;
-      continue;
-    }
-
-    await pool.query("update batch_items set status = 'publishing', updated_at = now() where id = $1", [row.id]);
-    const post: OutboxPost = {
-      id: row.id,
-      idempotencyKey: row.idempotency_key,
-      platform: row.platform,
-      mediaUrl: `${cfg.publicMediaBase}/${row.r2_key}`,
-      caption: row.caption,
-      title: row.title ?? undefined,
-      scheduledFor: new Date(row.scheduled_for).toISOString(),
-      status: "publishing",
-      attempts: row.attempts,
-    };
-
-    try {
-      const result = await adapter.publish(post);
-      await pool.query(
-        "update batch_items set status = 'published', platform_post_id = $2, platform_post_url = $3, attempts = attempts + 1, updated_at = now() where id = $1",
-        [row.id, result.platformPostId, result.platformPostUrl ?? null],
-      );
-      console.log(`[outbox] published ${row.platform} item ${row.id} -> ${result.platformPostUrl ?? result.platformPostId}`);
-    } catch (err) {
-      const message = (err as Error).message ?? String(err);
-      if (isTransient(err)) {
-        await pool.query("update batch_items set status = 'unknown', last_error = $2, attempts = attempts + 1, updated_at = now() where id = $1", [row.id, message]);
-        console.log(`[outbox] unknown (timeout/network) for ${row.platform} item ${row.id}: ${message} — needs a manual check, won't auto-retry`);
-      } else {
-        const nextAttempts = row.attempts + 1;
-        const nextStatus = nextAttempts >= maxAttempts ? "failed" : "approved";
-        await pool.query("update batch_items set status = $2, last_error = $3, attempts = $4, updated_at = now() where id = $1", [row.id, nextStatus, message, nextAttempts]);
-        console.log(`[outbox] ${nextStatus} ${row.platform} item ${row.id} (attempt ${nextAttempts}/${maxAttempts}): ${message}`);
-      }
-    }
-    processed++;
-  }
-  return { processed, dryRun: cfg.dryRun };
+export async function runOutboxWith(pool: OutboxPool, adapters: Partial<Record<Platform, PlatformAdapter>>, cfg: OutboxConfig): Promise<TickResult> {
+  const log = cfg.log ?? ((line: string) => console.log(line));
+  if (!cfg.timeZone && !cfg.dryRun) throw new Error("TZ_CREATOR is required for a live outbox run (daily caps are per creator-local day)");
+  const timeZone = cfg.timeZone ?? "UTC";
+  const cadence = await loadCadence(pool);
+  const store = new PgOutboxStore(pool, cfg.publicMediaBase);
+  return runOutboxTick(store, { adapters, dryRun: cfg.dryRun, policy: cfg.policy, cadence, timeZone, alerts: cfg.alerts ?? consoleAlertSink, log });
 }
