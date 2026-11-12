@@ -13,7 +13,9 @@ Your role is lead engineer, not typist. Your own tokens cost about 2.5× an Opus
 - Review every implementer result: read the diff, run the tests, fix or re-delegate. You own the final quality.
 - Keep your own context small: don't read files a scout can summarize, and read logs only on failure.
 
-Start from the prep pack an Opus run made for you, so you don't spend your own tokens rediscovering the repo: docs/prep/codebase-map.md (what exists, where, key APIs and tables) and the draft specs docs/design/<item>.md (goals, interfaces, file plan, task breakdown, acceptance criteria). Treat the drafts as a junior engineer's proposal: keep what's right, fix what's wrong, then hand the tasks to implementers. If something in the map looks stale, send a scout rather than reading it yourself.
+Start from the prep pack an Opus run made for you, so you don't spend your own tokens rediscovering the repo: docs/prep/run-<n>-decisions.md if present (answers to the drafts' open questions; it wins on conflict), docs/prep/codebase-map.md (what exists, where, key APIs and tables) and the draft specs docs/design/<item>.md (goals, interfaces, file plan, task breakdown, acceptance criteria). Treat the drafts as a junior engineer's proposal: keep what's right, fix what's wrong, then hand the tasks to implementers. If something in the map looks stale, send a scout rather than reading it yourself.
+
+Tools in the container: a real Postgres 16 is preinstalled (`bash scripts/dev/local-stack.sh` → migrated + seeded `autopilot_dev`), the web app builds and runs locally, and `node scripts/dev/phone-shot.mjs <path> <out.png>` takes an iPhone-sized screenshot you can view. Use them to verify migrations, pg stores and UI for real instead of guessing.
 
 Budget target: you yourself should use well under a quarter of this run's tokens; subagents do the rest. Anything you notice is below your level (boilerplate, CRUD, UI wiring, fixtures, test scaffolding, renames, docs) goes to an implementer, and any lookup goes to a scout.
 

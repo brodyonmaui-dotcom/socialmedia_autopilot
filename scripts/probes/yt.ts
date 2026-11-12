@@ -56,12 +56,20 @@ const tok = await getJson("https://oauth2.googleapis.com/token", {
 });
 const access = tok.body?.access_token;
 record("token_refresh", !!access, access ? `ok, expires in ${tok.body.expires_in}s` : JSON.stringify(tok.body?.error_description ?? tok.body?.error));
+const granted = String(tok.body?.scope ?? "").split(/\s+/).filter(Boolean).map((u) => u.replace("https://www.googleapis.com/auth/", ""));
+if (access) record("scopes", granted.includes("youtube.force-ssl"), `granted: ${granted.join(", ") || "(not reported)"}${granted.includes("youtube.force-ssl") ? "" : " · comment replies need youtube.force-ssl (re-run --auth and tick every box)"}`);
 if (!access) summary("yt");
 const auth = { Authorization: `Bearer ${access}` };
 
 const ch = await getJson("https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,status&mine=true", { headers: auth });
 const c = ch.body?.items?.[0];
 record("channel", !!c, c ? `${c.snippet.title} · ${c.statistics.subscriberCount} subs · ${c.statistics.videoCount} videos` : JSON.stringify(ch.body?.error?.message));
+if (c) {
+  // Comment polling for engagement (F3): 1 quota unit, read-only; prints counts only, never text or names.
+  const ct = await getJson(`https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&allThreadsRelatedToChannelId=${c.id}&maxResults=20`, { headers: auth });
+  const threads: any[] = ct.body?.items ?? [];
+  record("comment_threads", ct.status === 200, ct.status === 200 ? `${threads.length} recent threads · authorChannelId on ${threads.filter((t) => t.snippet?.topLevelComment?.snippet?.authorChannelId?.value).length}/${threads.length}` : `HTTP ${ct.status} ${JSON.stringify(ct.body?.error?.errors?.[0]?.reason ?? ct.body?.error?.message)}`);
+}
 
 const file = argValue("file");
 if (file) {

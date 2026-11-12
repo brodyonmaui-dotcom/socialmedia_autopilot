@@ -47,6 +47,21 @@ const m = await getJson(api(`/${igId}/media?fields=id,media_type,media_product_t
 const media: any[] = m.body?.data ?? [];
 record("media_and_comments_poll", m.status === 200, `${media.length} recent posts, ${media.reduce((n, x) => n + (x.comments?.data?.length ?? 0), 0)} comments fetched in 1 call`);
 
+// 3b. Comment shape for engagement (F3): which author fields come back in Development mode. Read-only; prints counts only, never text or names.
+const cs = await getJson(api(`/${igId}/media?fields=id,comments.limit(25){id,timestamp,parent_id,hidden,from,username,replies{id,from,username}}&limit=10`), auth);
+const comments: any[] = (cs.body?.data ?? []).flatMap((x: any) => x.comments?.data ?? []);
+const replies: any[] = comments.flatMap((c) => c.replies?.data ?? []);
+const share = (arr: any[], f: (c: any) => unknown) => `${arr.filter(f).length}/${arr.length}`;
+record("comment_fields", cs.status === 200, cs.status === 200
+  ? `top-level ${comments.length}: from.id ${share(comments, (c) => c.from?.id)} · username ${share(comments, (c) => c.username || c.from?.username)} · hidden field ${share(comments, (c) => typeof c.hidden === "boolean")} | replies ${replies.length}: from.id ${share(replies, (c) => c.from?.id)}`
+  : JSON.stringify(cs.body?.error?.message));
+
+// 3c. DM read access for drafts (F3): list conversations only (no message text). Read-only.
+if (!isIgLogin) {
+  const dm = await getJson(api(`/me/conversations?platform=instagram&fields=id,updated_time&limit=3`), auth);
+  record("dm_read", dm.status === 200, dm.status === 200 ? `${dm.body?.data?.length ?? 0} recent conversations readable` : `HTTP ${dm.status} code ${dm.body?.error?.code ?? "?"}: ${dm.body?.error?.message ?? ""}`);
+}
+
 // 4. Reel insights: which metric names this API version accepts
 const reel = media.find((x) => x.media_product_type === "REELS");
 if (reel) {
