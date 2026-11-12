@@ -21,8 +21,17 @@ await boss.start();
 await registerHealthJob(boss);
 
 const dryRun = process.env.DRY_RUN !== "false";
+const timeZone = process.env.TZ_CREATOR; // .env only, never committed; required for a live run
+if (!timeZone) {
+  if (!dryRun) {
+    console.error("TZ_CREATOR is not set: refusing a live outbox (daily caps are per creator-local day)");
+    process.exit(1);
+  }
+  console.log("[outbox] TZ_CREATOR not set: dry-run counts cap days in UTC");
+}
 await registerOutboxJob(boss, pool, {
   dryRun,
+  timeZone,
   publicMediaBase: process.env.PUBLIC_MEDIA_BASE ?? "",
   youtube:
     process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.YT_REFRESH_TOKEN

@@ -33,9 +33,17 @@ export interface OutboxPost {
   scheduledFor: string; // ISO 8601
   status: PostStatus;
   attempts: number;
+  /** Set while a retry waits out its backoff (status "queued"). */
+  nextAttemptAt?: string;
+  /** Last status change (ISO); a "publishing" row older than the publish deadline is a crashed attempt. */
+  updatedAt?: string;
   lastError?: string;
   platformPostId?: string;
   platformPostUrl?: string;
+  /** Library clip id, when known (duplicate detection across the outbox). */
+  mediaId?: string;
+  /** TikTok only: send to the Creator Inbox as a draft (sound-dependent posts). */
+  tiktokDraft?: boolean;
 }
 
 export interface PublishResult {
@@ -43,10 +51,33 @@ export interface PublishResult {
   platformPostUrl?: string;
 }
 
-/** Implemented per platform in later milestones; this is the shared contract. */
+export interface PublishOptions {
+  /** Aborted by the outbox when the publish deadline passes; adapters should pass it to fetch. */
+  signal?: AbortSignal;
+}
+
+/** Implemented per platform; this is the shared contract the outbox engine drives. */
 export interface PlatformAdapter {
   platform: Platform;
-  publish(post: OutboxPost): Promise<PublishResult>;
+  publish(post: OutboxPost, opts?: PublishOptions): Promise<PublishResult>;
+  /**
+   * "Did this post already land?" — looked up by idempotency key (or media + caption) before any
+   * retry, so a resend can never double-post. Returns null when nothing is found. Adapters without a
+   * platform-side lookup leave it undefined; the engine then retries only deliberate rejections.
+   */
+  findExisting?(post: OutboxPost, opts?: PublishOptions): Promise<PublishResult | null>;
+}
+
+export type AlertKind = "final-failure" | "unknown-outcome" | "cap-breach" | "duplicate";
+
+/** Raised by the outbox for anything a human must look at. Delivered by an AlertSink (log, DB, push). */
+export interface OutboxAlert {
+  kind: AlertKind;
+  platform: Platform;
+  postId: string;
+  idempotencyKey: string;
+  message: string;
+  at: string; // ISO 8601
 }
 
 /**
