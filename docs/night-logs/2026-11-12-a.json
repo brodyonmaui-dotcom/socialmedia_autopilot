@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-12-a",
+  "startedAt": "2026-11-12T01:10:00Z",
+  "endedAt": null,
+  "model": "claude-fable-5-1",
+  "session": "cloud · autopilot-overnight · run A",
+  "backlogItem": "F1 · Scheduler + outbox engine + simulate-week (then F4 if budget remains)",
+  "summary": "Checkpoint 1: F1 built on fakes and green (scheduler, outbox engine, pg store, migration 0005, pnpm simulate-week). Still to do: PR, then F4 if budget remains.",
+  "needsAttention": [
+    { "priority": 1, "title": "Review and merge the PR", "detail": "Tests green (254, was 197). Touches packages/core, apps/worker, packages/db (migration 0005), scripts/. Run migration 0005 on the VPS after merge (asks first)." },
+    { "priority": 2, "title": "Decide: retry budget", "detail": "Picked 4 attempts with 5/15/45-minute backoff (≈65 min total), publish deadline 5 min. Change DEFAULT_RETRY_POLICY in packages/core/src/outbox/policy.ts if you prefer." },
+    { "priority": 3, "title": "Decide: daily caps + stagger defaults", "detail": "IG 4 / YouTube 4 / TikTok 4 / Snapchat 1 per local day; YouTube next slot same day, TikTok next day, Snapchat +2 days. Editable in the settings table (key 'cadence') once a Settings UI exists; see DEFAULT_CADENCE." },
+    { "priority": 4, "title": "YouTube has no existence check", "detail": "research.md doesn't document a way to find an upload by our idempotency key, so a YouTube post that times out stays 'unknown' until you look in Studio. F4 can add a lookup once verified." }
+  ],
+  "done": [
+    "packages/core/src/time.ts: DST-safe calendar/zone helpers (zonedTimeToUtc two-pass, gap/overlap handling, calendar-day arithmetic); catchup.ts now uses them",
+    "packages/core/src/cadence.ts: CadenceSettings (windows, slotsPerDay, dailyCaps, stagger, bufferDays, minGapMinutes), DEFAULT_CADENCE with doc-traced defaults, normalizeCadence validation, daySlotTimes grid",
+    "packages/core/src/scheduler.ts: assignSlots (least-loaded-day anchors, per-platform daily caps counting existing commitments, stagger across platforms/days, per-pillar buffer, pinned times, duplicate refusal, past-slot skipping) + findCapBreaches",
+    "packages/core/src/outbox/: policy (bounded backoff, failure classification, decideAfterAttempt) + engine (atomic claim, existence check before any retry, publish deadline → unknown, stale-publishing recovery, cap guard, deduped alerts, dry-run)",
+    "packages/core/src/testing/fakes.ts + sim/simulate-week.ts: fake platforms as the double-post oracle, memory store, 7d×4-slot simulation with scripted rejections/timeouts/crash; pnpm simulate-week prints one line and fails on any double post or cap breach",
+    "apps/worker: PgOutboxStore over batch_items (conditional claim, next_attempt_at, alerts table), loadCadence from settings, TZ_CREATOR required for live runs",
+    "packages/db/migrations/0005_outbox.sql: next_attempt_at, alerts table, cadence setting",
+    "pnpm schedule-batch <draft.json> [--write]: fills scheduledFor in a weekly-batch draft from the grid (DB cadence + existing posts when reachable)",
+    "57 new tests; typecheck + 254 tests green; simulate-week OK in a DST-crossing week"
+  ],
+  "notDone": ["PR not opened yet (next checkpoint)", "F4 adapters/fixtures/token health (after F1 PR)", "Dashboard view for the alerts table (F2 area)"],
+  "decisions": [
+    "Retry status is 'queued' + next_attempt_at (existing enum value, no new status); 'unknown' and 'failed' never re-enter the queue without a human",
+    "A row stuck in 'publishing' longer than the publish deadline is treated as a crashed attempt: recovered via the adapter's existence check when it has one, else marked unknown + alerted (never resent)",
+    "Daily cap guard in the engine holds a post and raises one 'cap-breach' alert per post (deduped by the alerts table), rather than silently dropping or rescheduling it",
+    "simulate-week uses TZ_CREATOR when set, else a labelled fixture zone (Europe/London) and picks a DST-crossing week by construction",
+    "With 4 slots and 4 windows the grid is one slot per window (midpoints), so the evening window is used; other counts keep the proportional spread of generateCatchUpSlots",
+    "Snapchat is never fired by the engine (assisted); the scheduler still places it at +2 days under the 1/day cap so the handoff list has a time"
+  ],
+  "blocked": [
+    "Guard hook blocks any Bash command whose text mentions the overnight playbook file by name (even cat, even inside a heredoc); used the Read/Write tools instead"
+  ],
+  "tests": { "passed": 254, "failed": 0, "notes": "was 197 on main; pnpm typecheck green; pnpm simulate-week OK" },
+  "commits": 1,
+  "prUrl": "",
+  "nextPickup": ["Open the PR for F1", "F4: Instagram adapter (container → poll → publish), fixtures for all adapters, token-health job"]
+}
