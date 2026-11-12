@@ -23,8 +23,9 @@ This is the route proven on 2026-11-11: the laptop's `.env` `DATABASE_URL` point
    ```
 3. **Migrate** **[changes state]**, within 60 s of step 2:
    ```sh
-   pnpm --filter @autopilot/db migrate
+   ./packages/db/node_modules/.bin/tsx packages/db/src/cli-migrate.ts   # run from the repo root
    ```
+   Run it from the repo root. The CLI loads `.env` from the current directory, and `pnpm --filter @autopilot/db migrate` runs inside `packages/db`, where there's no `.env`, so it stops with "DATABASE_URL is not set" (seen 2026-11-12).
    Expect `applied: 0003_research.sql, 0004_analytics.sql` (or `up to date, nothing to apply`).
 4. **Deploy** the code that uses the new tables ([deploy.md](deploy.md)).
 5. **Check:** `/research` and `/analytics` load on the phone (`/analytics` shows its labelled demo mode until real snapshots exist).
