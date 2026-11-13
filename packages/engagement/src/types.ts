@@ -122,6 +122,10 @@ export interface EngagementStore extends ActionHistory {
   markRetry(id: string, nextAttemptAt: Date, error: string, now: Date): Promise<void>; // sending → planned, attempts+1
   markFailed(id: string, error: string, now: Date): Promise<void>;
   markUnknown(id: string, error: string, now: Date): Promise<void>;
+  /** planned → cancelled (e.g. the creator replied first). Cancelled rows never return from listDueActions. */
+  markCancelled(id: string, reason: string, now: Date): Promise<void>;
+  /** Rows stuck in 'sending' longer than `olderThan` (a crashed send): settled as unknown, never resent. */
+  listStaleSending(olderThan: Date, limit?: number): Promise<EngagementActionRow[]>;
   limitCounts(platform: EngagementPlatform, authorId: string | null, limits: EngagementLimits, now: Date): Promise<LimitCounts>;
   recentOutcomes(platform: EngagementPlatform, n: number): Promise<Array<{ ok: boolean; error?: string }>>; // newest first, for the auto-trip
   recordAlert(alert: EngagementAlert): Promise<boolean>; // true when new (dedupe per kind+action)
@@ -135,6 +139,8 @@ export interface SendTickResult {
   retried: number;
   failed: number;
   unknown: number;
+  cancelled: number;
+  staleSettled: number;
   killedNow: string | null;
   alerts: EngagementAlert[];
 }
