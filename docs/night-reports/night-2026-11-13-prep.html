@@ -1,0 +1,54 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Night report 2026-11-13</title>
+<style>
+:root{--bg:#fafafa;--card:#fff;--fg:#111;--mute:#6b6b6b;--line:#e4e4e4;--chip:#f0f0f0;--strong:#000}
+@media (prefers-color-scheme:dark){:root{--bg:#0e0e0e;--card:#171717;--fg:#ededed;--mute:#9a9a9a;--line:#2a2a2a;--chip:#222;--strong:#fff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+header h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}header p{margin:0;color:var(--mute)}
+.pill{display:inline-block;padding:2px 10px;border:1px solid var(--line);border-radius:999px;font-size:12px;color:var(--mute);margin-right:6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:18px 0}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi .v{font-size:22px;font-weight:600;color:var(--strong);font-variant-numeric:tabular-nums}.kpi .l{font-size:12px;color:var(--mute)}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0}
+section h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:0 0 8px;font-weight:600}
+section.attn{border-color:var(--strong)}ul{margin:0;padding-left:18px}li{margin:6px 0}.d{display:block;color:var(--mute);font-size:13px}
+.muted{color:var(--mute);margin:0}table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--mute);font-weight:500}td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.st{font-size:12px;padding:1px 8px;border-radius:999px;background:var(--chip)}.st.done{background:var(--strong);color:var(--bg)}
+.bar{height:6px;background:var(--chip);border-radius:3px;overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--strong)}
+a{color:var(--strong)}footer{color:var(--mute);font-size:12px;margin-top:18px}
+</style></head><body><main>
+<header><h1>Night report: 2026-11-13</h1>
+<p><span class="pill">claude-opus-5-5</span><span class="pill">cloud · prep run for Fable run 3</span><span class="pill">Prep for run 3: decisions, F10, F9 T1, F11 design, codebase map, F8 T1/T2</span></p>
+<p style="margin-top:8px">In progress. Task 1 (run-3 decisions) done.</p></header>
+
+<div class="kpis">
+<div class="kpi"><div class="v">801.1K</div><div class="l">total tokens</div></div>
+<div class="kpi"><div class="v">3.4K</div><div class="l">output tokens</div></div>
+<div class="kpi"><div class="v">747.1K</div><div class="l">cache reads</div></div>
+<div class="kpi"><div class="v">$0.47</div><div class="l">API-equivalent (not your plan bill)</div></div>
+<div class="kpi"><div class="v">0%</div><div class="l">lead (Fable) share of cost · target &lt; 25%</div></div>
+<div class="kpi"><div class="v">0.0h</div><div class="l">first→last activity · 8 model calls</div></div>
+<div class="kpi"><div class="v">0/–</div><div class="l">tests passing</div></div>
+</div>
+
+<section class="attn"><h2>Needs you</h2><p class="muted">Nothing needs you.</p></section>
+
+<section><h2>Done</h2><ul><li>docs/prep/run-3-decisions.md: creator answers for F8/F9/F10, web-push approval, proxy over CORS, TikTok analytics off, run-3 order</li></ul></section>
+<section><h2>Not done</h2><ul><li>F10</li><li>F9 T1</li><li>F11 design</li><li>codebase map refresh</li><li>F8 T1/T2</li></ul></section>
+<section><h2>Decisions for Brody</h2><p class="muted">No decisions made on your behalf.</p></section>
+<section><h2>Blocked or denied by guardrails</h2><p class="muted">Nothing was blocked.</p></section>
+<section><h2>Pick up next</h2><ul><li>F10 T1–T4</li></ul></section>
+
+<section><h2>Week plan · 8/11 done</h2>
+<div class="bar"><i style="width:72.72727272727273%"></i></div>
+<table><tr><th>#</th><th>Task</th><th>Status</th><th>Notes</th></tr>
+<tr><td class="n">O1</td><td>Tonight (Opus, laptop): finish ingest run, library + duplicate REPORT (no file moves), touch-up queue, library page</td><td><span class="st done">Done</span></td><td>Ingest complete (204 rows, all roots); 11 verified copies moved to duplicates-review for Brody to delete</td></tr><tr><td class="n">F1</td><td>Scheduler + outbox engine + simulate-week (caps, stagger, DST, idempotency, retries, &#39;unknown&#39; state)</td><td><span class="st done">Done</span></td><td>Done in run A (2026-11-12, PR #9): assignSlots (caps, stagger, buffer, DST-safe), outbox engine (idempotency, backoff, existence check, unknown, alerts), PgOutboxStore, migration 0005, pnpm simulate-week + pnpm schedule-batch. Needs: migration 0005 on the VPS after merge.</td></tr><tr><td class="n">F2</td><td>Batch builder + phone approval UI + single-user passkey login</td><td><span class="st done">Done</span></td><td>Done in run 2 (2026-11-13): 0006 (auth, approval stamps, events, status CHECK, backfill), passkey login + middleware + requireSession everywhere (static test), batch domain + PgBatchStore, approval UI (/batches), worker approval gate, tiktokDraft, runbooks. Needs: 0006 on the VPS + passkey enrol.</td></tr><tr><td class="n">F3</td><td>Engagement: comment polling, triage (mocked AI), reply rotation, limits, kill switch, shadow mode, inbox + DM drafts</td><td><span class="st done">Done</span></td><td>Done on fakes in run 2 (2026-11-13), shadow mode everywhere: 0007, @autopilot/engagement (rules, pools, rotation, planner, triage, DM drafts, send tick, kill), comment sources (IG, YT read-only, TikTok stub, IG DM read-only), worker jobs + PgEngagementStore, /inbox, simulate-engagement in CI, runbook. Open: dm_read / comment_fields / YT force-ssl probe lines (creator); going live is a day-session call.</td></tr><tr><td class="n">F4</td><td>Platform adapters (IG, YT, Zernio, Snapchat assisted) + fixtures + token health + PWA push</td><td><span class="st done">Done</span></td><td>Done in run A (2026-11-12, PR #9): packages/adapters (IG container flow + trial fallback, YT, Zernio drafts, Snapchat handoff, registry), token-health daily job → alerts, 27 contract tests on fixtures. NOT done: PWA push (no web work this run); YouTube existence check (no documented lookup); first real IG post via the adapter still needs your OK.</td></tr><tr><td class="n">F5</td><td>Analytics ingestion + weekly report + trial-share recommendations</td><td><span class="st done">Done</span></td><td>Done in the 2026-11-11 cloud Opus run: packages/analytics, migration 0004, /analytics page, weekly-report skill. Platform metric parsers are stubs (response shapes unverified); ingest job not wired into the worker yet.</td></tr><tr><td class="n">F6</td><td>Research branch (creators, idea backlog, hooks/scripts) + the 4 .claude/skills</td><td><span class="st done">Done</span></td><td>Done in the 2026-11-11 cloud Opus run (branch claude/cloud-f6-f5-2026-11-11): packages/research, migration 0003, /research pages, 4 skills; Business Discovery fetch is a stub.</td></tr><tr><td class="n">F7</td><td>Red-team review + hardening (double-post paths, secret/location leaks, missing tests)</td><td><span class="st done">Done</span></td><td>Done in run 2 (2026-11-13): sanitiser, publish-time lint, null r2_key guard, IG caption normalisation, YT ambiguous errors → unknown, lint hardening + market-session allowlist, ingest post-strip verify, leak scanner in CI, run-mode keys, auth re-review, engagement red-team (3 real fixes). Creator items: D3/D4/D7 after deploy + 4 probe lines.</td></tr><tr><td class="n">F8</td><td>Alerts page + acknowledge audit + PWA push (VAPID, service worker, icons, alert-push job)</td><td><span class="st ">To do</span></td><td>Design draft: docs/design/F8.md. Next after F7 leftovers (docs/prep/run-3-plan.md).</td></tr><tr><td class="n">F9</td><td>Analytics ingest wiring: hourly worker job, probe-verified metric sources, metrics-health alert</td><td><span class="st ">To do</span></td><td>Design draft: docs/design/F9.md. Needs creator probe output for T3; T1 probe lines can ship early.</td></tr><tr><td class="n">F10</td><td>Snapchat handoff page (assisted: Web Share API, mark posted, skip)</td><td><span class="st ">To do</span></td><td>Design draft: docs/design/F10.md. Order: F8, F10, F9.</td></tr>
+</table></section>
+
+<section><h2>Tokens by model</h2><table><tr><th>Model</th><th>Input</th><th>Output</th><th>Cache read</th><th>Cache write</th></tr>
+<tr><td>claude-opus-5-5</td><td class="n">15</td><td class="n">3.4K</td><td class="n">747.1K</td><td class="n">50.6K</td></tr>
+</table></section>
+<footer>Generated 2026-11-13T16:27:39.190Z from 2026-11-13-prep.json and 1 transcript file(s). API-equivalent cost uses list prices and is only a relative measure of work done.</footer>
+</main></body></html>
