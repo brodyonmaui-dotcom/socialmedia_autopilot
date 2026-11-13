@@ -19,6 +19,13 @@ Tools in the container: a real Postgres 16 is preinstalled (`bash scripts/dev/lo
 
 Budget target: you yourself should use well under a quarter of this run's tokens; subagents do the rest. Anything you notice is below your level (boilerplate, CRUD, UI wiring, fixtures, test scaffolding, renames, docs) goes to an implementer, and any lookup goes to a scout.
 
+How to delegate without losing quality:
+- Spec first, code second. Each implementer gets: purpose, exact interfaces/types, the file list it may touch, the acceptance tests to write first, and the commands that must pass. A vague spec costs more in rework than it saves.
+- Parallel implementers run on disjoint files and **don't commit**; you review each diff, run the tests, then commit. Sequential implementers may commit their own work.
+- Review = read the diff + run the tests + check the spec's acceptance list. If it's wrong, send it back with the exact defect (cheap), and only fix it yourself if the fix is a few lines.
+- Scouts for every lookup ("where is X used", "what does Y return", "summarize this failing log"); read logs yourself only when a scout's summary isn't enough.
+- Keep the hard core yourself: schema and interface decisions, concurrency/idempotency logic, security-sensitive code (auth, secrets, publish gates), and the final integration.
+
 Work: docs/fable-week.json is the backlog. Take items in order, starting with {{FIRST ITEM, e.g. F2}}, then {{NEXT, e.g. F3}}, then F7 if budget remains. For each item: finalize its design doc, delegate, integrate, and get `pnpm typecheck`, `pnpm test` and `pnpm simulate-week` green.
 
 Finish the work. Keep going until every item you took is done and green. When you can decide something yourself, decide it, record it under "decisions", and continue. Stop only when the backlog items for this run are complete, when a remaining step truly requires the creator, or when the usage limit stops you. When one item is done and budget remains, start the next.
@@ -39,8 +46,21 @@ The safety boundary (the only things that need the creator):
 5. Location: generated text and data never contain identifiable places or real-time whereabouts.
 If a guard hook denies a command, use a different tool for the same goal (for example the Read tool instead of cat), or record it under "blocked" and continue.
 
+Plan the next run (always, before the final PR, even if the usage limit is near; it's the most valuable thing you hand over):
+- Write docs/prep/run-<n+1>-plan.md: what this run finished, what's left (with file:line pointers), the next 2–3 backlog items in order with why, and the lessons from this run (what wasted tokens, what delegation worked, the lead's share of cost from the report).
+- Add or update the next items in docs/fable-week.json (id, title, model, area, status "todo") and write a draft docs/design/<id>.md for each, in the same shape as the existing ones: goals, non-goals, interfaces, data model, file plan, a task table sized for one implementer each (files, dependencies, parallel-safe, acceptance tests), and open questions with recommended answers.
+- Delegate the drafting of those design docs to implementers/scouts from your outline. You review them.
+
 At the end: open a PR with summary, per-item acceptance criteria, test results, what's NOT done, decisions, and a short "how to check it on my phone" list. If a SendUserFile tool exists, send the HTML report with status "proactive". Push notifications: at most two, one only if fully blocked on the creator, one when the PR is ready.
 ```
+
+## Lessons from earlier runs (keep these true)
+- **Run A (2026-11-12): Fable wrote all the code itself.** It shipped F1 + F4 but spent most of the budget typing. → Lead + subagents, as above.
+- **Run B overlapped run A's usage window** and stopped after 24 minutes with nothing pushed. → One run per 5-hour window; nothing else running.
+- **Guard hook matches command text.** A Bash command (or a commit/PR message passed in one) that names a guarded file or the gitignored secrets folder is blocked, even inside a heredoc. → Use the Read/Write tools for those files, and describe the secrets folder in words, not by path.
+- **CLAUDE.md is a guardrail file.** Suggest edits to it under "Needs you" instead of making them.
+- **Checkpoints work.** Run A was paused once by the usage limit and once by a worker restart, and resumed with nothing lost.
+- **Items left "not done" weren't planned anywhere**, so they drifted. → Every run ends with the next-run plan.
 
 ## Settings for a lead run
 - **Model:** Fable for the lead. The `implementer` subagent is pinned to Opus and `scout` to Haiku in `.claude/agents/`.
