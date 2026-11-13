@@ -14,6 +14,8 @@
     "@autopilot/db": "workspace:*",
     "@autopilot/engagement": "workspace:*",
     "@autopilot/research": "workspace:*",
+    "@fontsource-variable/inter": "5.2.8",
+    "@fontsource/playfair-display": "5.2.8",
     "@simplewebauthn/browser": "14.0.0",
     "@simplewebauthn/server": "14.0.3",
     "next": "^15.1.0",

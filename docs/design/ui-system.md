@@ -1,150 +1,189 @@
-# UI system v1
+# UI system v2 · Warm Industrial
 
-The look for the creator's dashboard: calm, dark, serif, one light-blue accent, numbers first.
-Tokens: `apps/web/app/globals.css` (the `design system v1` block). Components: `apps/web/components/ui/`.
-Live style guide: `/app/design` (`?view=home|batch|components`). Screenshots: `docs/design/ui-shots/` (home, batch card and desktop in both themes, plus the approve sheet). UI work goes through the `designer` agent (`.claude/agents/designer.md`).
+v2 replaces v1's dark + Times New Roman look with the creator's chosen direction. The palette is warm gray (#EBEBE8). Inter carries the structure and Playfair Display italic adds editorial accents, over a visible 12-column grid. Labels are tiny tracked caps, readouts are monospace, and everything is sharp and rectangular with 1 px lines. There's one blue accent.
+- Tokens: `apps/web/app/globals.css` (the `design system v2` block).
+- Components: `apps/web/components/ui/`.
+- Live guide: `/app/design` (`?view=home|batch|components`, `&theme=dark` for Night).
+- Screenshots: `docs/design/ui-shots/`.
+- Agent: `.claude/agents/designer.md`.
 
 ## Principles
-1. **One accent.** Light blue (#29ABE2) marks the one thing to do or the one thing that's on. Everything else is gray.
-2. **Numbers are the heroes.** Big tabular figures, small muted captions. A card answers one question at a glance.
-3. **Quiet surfaces.** No borders on cards. Separation comes from three gray steps plus a soft shadow.
-4. **Phone first.** It's designed at 390 px and scaled up. The thumb reaches the primary action; tap targets are ≥ 44 px.
-5. **Serif, tuned.** Times New Roman everywhere: regular weight for big numbers and titles, uppercase tracking for small labels, and never below 13 px.
-6. **No green.** Approved, on, done and published use blue or white with a check. Warning is amber and danger is coral, and each always comes with an icon or a word.
-7. **Say it in words.** Status is never shown by colour alone. Empty states say what happens next.
+1. **The grid is visible and binding.** Twelve faint vertical lines (four on phones) run the full page height. Every box and text edge sits on a line.
+2. **Structure, not decoration.** Lines separate things, never shadows. Corners are square. Only CTA pills, badges, toggles and status dots are round.
+3. **Editorial contrast.** Heavy Inter 900 and outline (stroke) display type sit beside Playfair italic. Labels are 10 px bold caps, tracked 0.22em. Machine facts are monospace readouts.
+4. **Numbers stay the heroes.** The week's approval count is the hero headline, and every count uses tabular numerals.
+5. **One accent.** Blue (#2F7BFF, a touch lighter than #0066FF) is for stars, live dots, progress, active state and focus, and nothing else. The primary button is black.
+6. **Motion has inertia.** Everything moving uses `cubic-bezier(0.16, 1, 0.3, 1)`: 300 ms for hovers, 600 ms for clip-path reveals. `prefers-reduced-motion` stops marquees and pulses.
+7. **Phone first.** It's designed at 390 px. There's a bottom tab bar for the thumb, tap targets are ≥ 44 px, and hover reveals have a tap/visible fallback.
+
+## Source → app mapping
+The reference is a SaaS marketing page. Each of its sections becomes a real job in the app:
+
+| Reference section | In this app |
+|---|---|
+| Sticky header (nav · centered logo · pill CTA) | `SiteHeader`: desktop nav links in tiny caps; logo `run` (Playfair italic) + `MYSOCIALS` (Inter 900); pill CTA "New batch". Phone: logo + CTA only; nav moves to the bottom tab bar. |
+| Split hero (status · 3-line display · readouts · Start) | Home `Hero`: the "Autopilot on" pulse; display `WEEK 47` (stroke) / *approved* (serif) / `18/24` (solid); readouts for pending, next post, alerts and outbox; a black rectangular "Review batch →" button. |
+| Hero image + glass status card | The next post's thumbnail in grayscale with a 20 px inner frame, overlaid by a glass card with one status bar per platform plus mono IDs. |
+| Marquee ticker | `Marquee`: platforms and this week's pillars, stroke sans alternating with serif, separated by blue ✦. |
+| Project list (hover italic + clip-path reveal) | `RevealList`: "Up next", one row per scheduled post (index, time, title, platform logo). Hover/focus turns the title italic and wipes in the thumbnail. On a phone the thumbnail is always visible, small. |
+| Philosophical parallax | `Statement`: one large serif-italic line from the weekly report ("Short hooks under 2 s held 31% longer."). |
+| Technical journal | `Journal`: dated mono entries in a numbers grid (views, flagged, auto-replied, alerts), the posting calendar and the weekly-report items. |
+| Massive footer | `FooterBand`: black band, a big "Inbox — 7 waiting →" link, a 20vw background marquee "RUNMYSOCIALS" at 10%, and a status row with "Worker operational" pulse + version. |
 
 ## Tokens
 
-### Colour roles: dark (primary theme)
-| Token (Tailwind name) | Hex | Role | Contrast |
+### Colour roles · Day (default)
+| Token | Hex | Role | Contrast |
 |---|---|---|---|
-| `ds-frame` | #0B0C0E | sidebar, bottom tab bar | — |
-| `ds-bg` | #0F1113 | page | — |
-| `ds-card` | #1A1D21 | cards, sheets | — |
-| `ds-raised` | #23272C | inputs, wells, row hover, toggle-off track | — |
-| `ds-line` | #2E3338 | hairlines, progress track | 1.6:1 (decorative) |
-| `ds-line-strong` | #3D434A | control borders | 3.0:1 on card (UI ≥ 3:1 ✓) |
-| `ds-text` | #F5F6F7 | primary text | 15.6:1 on card |
-| `ds-muted` | #A7AEB6 | secondary text, captions | 7.5:1 on card, 8.4:1 on bg |
-| `ds-faint` | #8E959D | helper text, placeholders, disabled labels | 5.6:1 on card, 5.0:1 on raised |
-| `ds-accent` | #29ABE2 | primary fill, active, on, links | 6.5:1 as text on card, 7.2:1 on bg |
-| `ds-accent-hi` | #5BC0EB | hover, focus ring | 8.2:1 on card |
-| `ds-accent-lo` | #1679B5 | accent text on white | 4.7:1 on white |
-| `ds-accent-fg` | #29ABE2 | accent as **text/icon** (use this, not `ds-accent`, for blue text) | 6.5:1 on card |
-| `ds-focus` | #5BC0EB | focus ring | 8.2:1 on card |
-| `ds-ink` | #0B0D10 | text on accent and white fills | 7.4:1 on accent |
-| `ds-paper` / `ds-paper-2` | #FFFFFF / #ECEEF0 | white tab bar, light alert, menu rows | — |
-| `ds-paper-muted` | #5F6770 | muted text on white | 5.7:1 |
-| `ds-warn` | #F2B544 | warnings (with ⚠ icon) | 9.2:1 on card |
-| `ds-danger` | #F0716B | destructive, failed | 5.9:1 on card |
+| `ds-bg` / `ds-frame` | #EBEBE8 | page, header, tab bar: keep everywhere | — |
+| `ds-card` | #F4F4F2 | panels, marquee ribbon, sheets | — |
+| `ds-raised` | #E2E2DE | inputs, wells, row hover | — |
+| `ds-line` | #D4D4D8 | 1 px structure lines | decorative |
+| `ds-line-strong` | #71717A | control borders | 4.1:1 on bg (UI ✓) |
+| `ds-grid` | #18181B @ 10% | 12-column background lines | decorative |
+| `ds-text` | #18181B | text, stroke-text outline | 14.8:1 |
+| `ds-muted` | #52525B | secondary text | 6.5:1 |
+| `ds-faint` | #5F5F68 | helper, readout keys | 5.3:1 on bg, 4.9:1 on raised |
+| `ds-invert` / `ds-on-invert` | #18181B / #EBEBE8 | black button, footer band | 14.8:1 |
+| `ds-accent` | #2F7BFF | stars, dots, bars, active marks | 3.3:1 on bg (graphic ✓); ink label 4.6:1 |
+| `ds-accent-fg` / `ds-focus` | #0057D9 | blue text/icons, focus ring | 5.2:1 on bg, 5.7:1 on card |
+| `ds-warn` / `ds-danger` | #8A5300 / #B42318 | warnings, destructive (with icon/word) | 5.9 / 5.6:1 |
 
-### Light theme (optional, per device)
-`data-theme="light"` on the `.ds-root` element redefines the same roles, so components need no light-specific classes.
-- `AppShell` takes `theme` (read with `getTheme()` from `components/ui/theme-server.ts`).
-- `ThemeToggle` flips it instantly and stores it in the `ds-theme` cookie; it has an icon variant for the top bar and a row variant for settings.
-- Dark stays the default.
-
-| Role | Light hex | Contrast |
+### Night (`data-theme="dark"`, opt-in)
+| Role | Hex | Contrast |
 |---|---|---|
-| frame / bg / card / raised | #E9ECEF / #F2F4F6 / #FFFFFF / #EEF0F3 | — |
-| line / line-strong | #E1E4E8 / #858E98 | line-strong 3.3:1 on white (UI ✓) |
-| text / muted / faint | #15191D / #4E5660 / #5E6670 | 17.7 / 7.4 / 5.8:1 on card; faint 4.9:1 on frame |
-| accent (fills) | #1E9BD6 | ink label 6.2:1; 3.1:1 vs white as a graphic ✓ |
-| accent-hi (hover) | #4FBBEA | ink 8.9:1 |
-| accent-fg / focus | #13649A | 6.3:1 on card, 5.3:1 on frame |
-| warn / danger | #9A6200 / #C0392B | 5.1 / 5.4:1 on card |
+| bg/frame, card, raised | #18181B, #1F1F23, #27272A | — |
+| line, line-strong | #3F3F46, #71717A | line-strong 3.7:1 |
+| text, muted, faint | #EBEBE8, #A1A1AA, #8B8B94 | 14.8 / 6.9 / 5.3:1 |
+| invert / on-invert | #EBEBE8 / #18181B | 14.8:1 |
+| accent (= accent-fg, focus) | #6AA2FF | 6.9:1; ink label 6.9:1 |
+| warn, danger | #F2B544, #F0716B | 9+ / 5.9:1 |
 
-Rule: blue **text and icons** use `ds-accent-fg`. Blue **fills, bars, chart lines and rings** use `ds-accent`. Graphics need 3:1 and text needs 4.5:1, and one blue can't do both on white.
+**Deviation: the status pulse is blue, not green.** The reference uses #22C55E, but the creator's standing rule is no green. "Live/operational" uses `ds-accent` plus the word. To switch, change `StatusPulse`'s `tone` default; it's a one-line change.
 
-**Decision: labels on blue fills are ink, not white.** White on #29ABE2 is only 2.6:1, which fails AA even for large bold text. Ink on blue is 7.4:1 and reads crisper in a serif. Platforms are shown by their **logo glyph in the text colour** (`PlatformLogo`: white in dark, near-black in light). There are no brand colours and no circles behind the logos, so the screen stays one-accent.
+### Type
+| Role | Spec | Utility |
+|---|---|---|
+| Display (hero) | Inter 900, `clamp(56px, 13vw, 160px)`, line 0.88, -0.05em | `ds-display` (+ `ds-stroke` for outline lines, `ds-serif` for italic lines) |
+| Section title | Inter 900, 40 px phone / 64 px desktop, -0.04em, often with one serif word | — |
+| Row title (RevealList) | Inter 700, 28 px phone / 48 px desktop, -0.03em; becomes `ds-serif` on hover | — |
+| Big number | Inter 900, 40–64 px, -0.04em, `ds-num` | — |
+| Body | Inter 400, 16 px / 1.5 | — |
+| Label | 10 px (11 px on phone) Inter 700 caps, 0.22em | `ds-caps` |
+| Readout | system mono 10 px (11 px on phone), `KEY · VALUE` | `ds-mono` |
+| Editorial | Playfair Display italic 400 | `ds-serif` |
 
-### Type (Times New Roman stack, `font-ds`; `ds-num` = tabular-nums)
-| Role | Size / line | Weight | Tracking |
-|---|---|---|---|
-| Display number (hero) | 44 / 1.0 | 400 | -0.02em, `ds-num` |
-| Page title | 30 phone, 38 desktop / 1.1 | 400 | -0.015em |
-| Stat number | 30 / 1.05 | 400 | -0.01em, `ds-num` |
-| Card title | 18 / 1.25 | 700 | 0 |
-| Body | 17 / 1.45 | 400 | 0.005em |
-| Secondary | 15 / 1.35 | 400 | 0 (`ds-muted`) |
-| Label caps (`ds-caps`) | 13 / 1.2 | 700 | 0.08em uppercase |
-| Minimum | 13 | — | never smaller |
+**Fonts** are self-hosted from npm (`@fontsource-variable/inter`, `@fontsource/playfair-display` latin italic, both pinned). There are no requests to Google; mono uses the system stack.
 
-Serifs thin out at small sizes on dark backgrounds, so small text gets a heavier weight (caps 700) or a bigger size rather than a lighter colour. Thin page titles use weight 400, because Times has no 300.
+### Space, grid, shape, motion
+- **Grid:**
+  - 12 columns at ≥ 1024 px (max 1600 px, centred, 32 px gutters);
+  - 4 columns on phones and tablets (16 px gutters);
+  - lines are `ds-grid`, fixed, behind content (`GridLines`);
+  - content uses `grid-cols-4 lg:grid-cols-12` with `gap-0`, so cell borders sit on the lines.
+- **Sections** are full-bleed bands separated by 1 px `ds-line` borders. Inside them, cells have 24 px padding (phone) / 32 px (desktop).
+- **Corners:** radius tokens are 0. Only `rounded-full` is allowed: on pill CTAs (`ButtonLink variant="pill"`), badges, toggles, status dots and the "View" cursor circle.
+- **Elevation:** none. `shadow-ds-pop` is for sheets/tooltips only.
+- **Noise:** a fixed fractal-noise SVG at 4% opacity over everything (`NoiseOverlay`, `pointer-events: none`).
+- **Motion:**
+  - all transitions use `ease-ds` = `cubic-bezier(0.16,1,0.3,1)`, at 150 / 300 / 600 ms;
+  - the marquee runs 28 s linear;
+  - the pulse is 2 s;
+  - reduced motion turns all of it off.
 
-### Spacing, radius, elevation, motion
-- **Spacing:** 4 px base; Tailwind steps 1/2/3/4/5/6/8. The card padding is 20 px (`p-5`); the gaps between cards are 16 px on phone and 20 px on desktop; the page gutter is 16 px on phone and 32 px on desktop.
-- **Radius:** `rounded-ds-sm` 8 (chips, checkbox), `rounded-ds-md` 12 (buttons, inputs), `rounded-ds-lg` 16 (cards), `rounded-ds-xl` 22 (sheets, big + button); pills use `rounded-full`.
-- **Elevation:** cards use `shadow-ds-card`, and popovers and sheets use `shadow-ds-pop`. The active nav pill and the primary + button get `shadow-ds-glow` (the only glow).
-- **Motion:** 120 ms for presses, 200 ms for toggles, tabs and hover, and 320 ms for the sheet, all with the `ease-ds` curve. `prefers-reduced-motion` turns all of it off (globals.css).
-- **Scope:** everything lives under a `.ds-root` element (`AppShell` adds it), so the old pages are untouched until F12.
-
-## Components (`apps/web/components/ui`, import from `components/ui/index.ts`)
+## Components (`apps/web/components/ui`, import from `index.ts`)
 Server components unless marked **client**.
 
-| Component | Use it for | Rules |
-|---|---|---|
-| `AppShell` | every page (F12) | Sidebar ≥ 1024 px, bottom tabs below. Nav max 5 on phone. Takes `active`, `nav`, optional `accounts` (label + small value). |
-| `TopBar` | page title + one primary action | Phone: sticky, title left, one icon action right. Desktop: big thin title, search + accent "+" right. |
-| `Card` | every grouped block | Title top-left, optional corner action (thin +, link). `hero` slot = full-width accent band. `bleed` lets charts touch the bottom edge. |
-| `StatTile` | KPI pairs | Round icon, big number, muted caption. Numbers always `ds-num`. |
-| `ListRow` | posts, comments, accounts | Avatar (monogram), title, muted subtitle, trailing value right-aligned. Whole row is the link/button; ≥ 56 px tall. |
-| `Button` | actions | `solid` (accent, ink caps label) = the one primary per view; `outline`; `white`; `ghost`; `icon` (44 px square); `size="sm"`; `block` for full width. Destructive = `tone="danger"` outline. |
-| `Toggle` **client** | on/off settings | Pill track: off = raised, on = accent, white knob. Optional `variant="icon"` (✓/✕) or `"text"` (ON/OFF). Always has a visible label. |
-| `Checkbox` / `Radio` | multi / single choice | Raised rounded squares; checked = accent fill + white mark (radio = dot). Real inputs, label wraps. |
-| `Tabs` **client** (or link mode, server) | 2–5 sibling views | White segmented bar, thin dividers, caps labels, active = accent fill + ink text. Link mode for URL tabs. |
-| `Badge` / `Chip` | status, counts, warnings | Status: neutral, accent, warn, danger. Always text, plus an icon for warn and danger. |
-| `Input` / `SearchField` | text entry | Raised rounded rects, light text, helper text under. Label above (visually hidden allowed for search). |
-| `Select` / `Stepper` | choose from list / small numbers | Native `<select>` styled dark with caret; Stepper = dark pill with − / + (≥ 44 px), **client**. |
-| `ProgressBar` | approval progress, quota | Thick rounded accent fill on `ds-line` track; `role=progressbar` with values. |
-| `Slider` | rare numeric settings | Native range: thin track, accent fill, white knob. |
-| `Sheet` **client** | confirms on phone | Bottom sheet over dim scrim; native `<dialog>`; focus trapped by the browser; Esc closes. On desktop renders as centered dialog. |
-| `AlertCard` | "Attention" banners | `tone="dark"` (default) or `"light"`; ⚠ + caps title, small body, optional small accent pill action. |
-| `EmptyState` | empty lists | Icon in a raised circle, one line of what this is, one of what happens next, optional action. |
-| `Tooltip` | brief hints on icon buttons | CSS-only (hover + focus-within), dark card with pointer; never the only place information lives. |
-| `PageDots` | carousels/steps | Dots; active = white, wider. |
-| `Sparkline` / `MiniBars` / `AreaChart` | trends | Pure SVG from `components/ui/chart-math.ts`. Area bleeds to card bottom. No axes on phone. |
-| `Donut` | share of total | SVG ring + legend; ≤ 5 segments, accent + grays only. |
-| `MonthCalendar` | scheduled days | `weekStartsOn` 1 (Monday, default) or 0. 7-col grid, tabular day numbers, small dots under days (accent = scheduled, warn = needs action), today ringed. |
-| `Icon` | everything above | Inline SVG set, 1.5 px stroke, `aria-hidden`. |
-| `PlatformLogo` | anywhere a platform is named | Monochrome Instagram / YouTube / TikTok / Snapchat glyphs in `currentColor`. Shown bare, never in a circle. 26 px in rows, 16–18 px in chips and the sidebar. `title` makes it labelled. `ListRow avatar={{ platform }}`. |
-| `ThemeToggle` **client** | top bar (icon) / settings (row) | Flips `data-theme` on the nearest `.ds-root` and writes the `ds-theme` cookie. |
+**Frame**
+- `AppShell`:
+  - `.ds-root` + `NoiseOverlay` + `GridLines` + `SiteHeader` + `<main>` + phone `TabBar` (+ optional `FooterBand`);
+  - theme prop (Day default);
+  - replaces v1's sidebar.
+- `SiteHeader`:
+  - sticky, 64 / 80 px, `bg-ds-bg/80` + `backdrop-blur-[10px]`, 1 px bottom line;
+  - nav (≥ lg) left, logo absolute-centred, pill CTA + theme toggle right.
+- `TabBar`: phone only. Five items, square cells divided by 1 px lines, 10 px caps labels; the active item has a 2 px blue top rule plus bold text.
+- `GridLines`, `NoiseOverlay`: decorative, `aria-hidden`.
 
-Usage rules:
-- **One solid button per screen region.** A second action is outline or ghost.
-- **Lists are card-backed.** Rows separate with `ds-line` hairlines, inset to the text start.
-- **Truncation:** one line for titles in rows, two lines for captions; full text always in the detail view.
-- **Every interactive element is a real `<button>`/`<a>`/`<input>`** with a visible or `sr-only` label and ≥ 44 px target.
+**Editorial**
+- `Display`: lines of `{ text, style: 'solid'|'stroke'|'serif' }`, rendered as one `<h1>`.
+- `Readout`: mono `KEY · VALUE` list.
+- `StatusPulse`: 6 px dot + ring pulse + caps label.
+- `Marquee`: items alternate stroke/serif with blue ✦; duplicated track `aria-hidden`; reduced motion stops it; `size="xl"` (7xl ribbon, 120 px) or `"bg"` (20vw, 10%).
+- `RevealList` / `RevealRow` **client**:
+  - rows show an index, mono meta, a big title and a trailing platform logo;
+  - the `clip-path` image reveal runs from `inset(0 0 0 100%)` to `inset(0)` over 600 ms, grayscale with a blue 20% multiply;
+  - a "View" circle follows the cursor (pointer: fine only) and otherwise sits on the right;
+  - phone: 120 px rows with a visible 64 px thumbnail.
+- `FramedImage`: grayscale image or placeholder with a 20 px inner frame line. `GlassCard`: `bg-ds-card/60` + `backdrop-blur-md` + 1 px line, sharp.
+- `StatusBars`: labelled mono bars (platform → %).
+- `Statement`: big serif line with a small caps source.
+- `FooterBand`: inverted band, big link with an underline grow, background marquee, and a status row.
+- `SectionHead`: caps index "02 / UP NEXT" + title with optional serif word + right-side meta.
 
-Implementation notes:
-- **Barrel:** `components/ui/index.ts` exports everything. Client islands are Toggle, TabsClient (re-exported by `Tabs.tsx`), Stepper, Slider and Sheet; everything else is server-safe.
-- **Tests:** view logic is in pure modules (`chart-math.ts`, `toggle-state.ts`, `stepper-math.ts`, `buttonClasses`), plus `renderToStaticMarkup` smoke tests. The root `vitest.config.ts` only sets the automatic JSX runtime.
-- **Button labels:** all variants use caps (`ds-caps`), so labels have one voice, as in reference 2.
+**Controls (v1, restyled by tokens + small edits)**
+- `Button`:
+  - `solid` = black rectangle (`ds-invert`), caps label, arrow slot that rotates −45° on hover;
+  - `accent` = blue fill with ink label;
+  - `outline` = 1 px line;
+  - `ghost`; `icon` (44 px square);
+  - `pill` = rounded-full 1 px border with 10 px caps, used for header CTAs.
+- The rest:
+  - `Toggle` (pill track allowed);
+  - `Checkbox` / `Radio` (sharp squares);
+  - `Tabs` (bordered cells, active = black fill);
+  - `Badge` (pill) / `Chip` (sharp, 1 px line);
+  - `Input` / `SearchField` (sharp, raised fill, 1 px line on focus);
+  - `Select`, `Stepper`;
+  - `ProgressBar` (4 px, square ends, blue);
+  - `Slider`;
+  - `Sheet` (sharp top edge, 1 px top line);
+  - `AlertCard` (1 px line, caps title);
+  - `EmptyState`, `Tooltip`, `PageDots` (square dashes);
+  - `Card` (a bordered cell, no fill by default), `StatTile`, `ListRow`;
+  - charts (blue line, no fill gradients, mono axis labels), `Donut`, `MonthCalendar` (square today marker);
+  - `PlatformLogo`, `ThemeToggle` (Day/Night).
+
+Rules:
+- One black solid button per view. Secondary actions are outline/ghost.
+- No shadows, gradients (except the image tint) or rounded rectangles.
+- Labels are always caps (`ds-caps`). Values are tabular. Machine values (IDs, times, counts in readouts) are mono.
+- Hover-only information must also show on focus and on phones.
 
 ## Layout rules
-**Phone (< 1024 px, designed at 390):**
-- The top bar is 56 px and sticky, with the page title (24 px) on the left and one primary icon action on the right.
-- Cards stack in one column with a 16 px gutter.
-- The bottom tab bar is fixed, 64 px plus the safe area, `ds-frame`, and holds 5 items max: Home, Batches, Inbox, Analytics, More. The active item gets an accent icon and label plus a small accent bar.
-- The page has bottom padding equal to the tab bar height + 16 px.
+**Phone (< 1024 px):**
+- The 64 px sticky header has the logo centred, the pill CTA right and the theme icon left.
+- There are 4 grid lines and sections stack.
+- The hero display is 56–64 px; the hero image goes below the text at 4:5.
+- The 64 px bottom TabBar has 5 items, and content gets bottom padding for it.
+- The footer band sits above the tab bar.
 
 **Desktop (≥ 1024 px):**
-- The 260 px sidebar (`ds-frame`) shows the wordmark, the nav list (icon + label), an "Accounts" caps label over platform rows with small values, and the accent "+" pinned at the bottom. The active nav item is an accent pill with ink text and a glow.
-- In the content area, the title is 38 px thin at top-left, with the search icon button + the accent "+" at top-right.
-- The card grid is 2 columns ≥ 1024 px and 3 columns ≥ 1280 px, with a 20 px gap and max content width 1200 px.
+- The 80 px header has nav on the left (Home, Batches, Inbox, Analytics, Research), the logo centred and CTA + theme on the right.
+- There are 12 grid lines.
+- The hero splits 7 columns / 5 columns, the numbers band is 4 × 3 columns, and the journal is 8 + 4.
+- There's no tab bar.
 
-Tablet (640–1023 px) uses the phone shell with a 2-column grid.
+## Restyle plan (F12) — one Opus designer task each, in order
+Every task:
+- wraps the page in `AppShell` (it adds the header, grid, noise and tab bar);
+- uses `SectionHead` + bordered grid cells;
+- keeps all data loading, server actions, `requireSession()` and tests.
 
-## Restyle plan (F12) — one task per Opus implementer, in order
-Each task: wrap the page in `AppShell` + `TopBar`, replace ad-hoc classes with `components/ui`, keep all data loading, server actions, `requireSession()` and tests unchanged. Shared acceptance for every task: `pnpm typecheck && pnpm test` green, `pnpm --filter web build` green, phone-shot (390 px) + desktop shot reviewed, no green classes, no new one-off colours (grep `-(green|emerald|lime)-` = 0), contrast AA.
+Shared acceptance:
+- `pnpm typecheck && pnpm test` and the web build pass;
+- a 390 px phone shot plus a 1440 desktop shot have been reviewed, in Day and Night;
+- there's no `rounded-` except `rounded-full` on allowed elements, no shadows, and no green;
+- text contrast is AA;
+- edges align to the grid lines.
 
-1. **Shell rollout + home** (`app/layout.tsx` body classes → `ds-root` bg; `app/page.tsx`). Uses AppShell, TopBar, Card, StatTile, ListRow, MonthCalendar, AreaChart. Accept: the home matches "Home (proposed)" on `/design` with real data; logout moves into the More menu.
-2. **Batches list** (`app/batches/page.tsx`, `batches/ui/WarningChip.tsx` → re-export from ui). Uses ListRow, Badge, Card, EmptyState. Accept: each batch row shows week, counts and a status badge; StatusPill colours are mapped to Badge tones (approved → accent).
-3. **Batch detail / approval grid** (`app/batches/[id]/page.tsx`, `batches/ui/{PostCard,WeekGrid,ApproveBar,ItemForm,AddClipSheet}.tsx`). Uses Card ("Batch card (proposed)"), Chip, Button, ProgressBar, Sheet, Tabs. Accept: Approve-all confirm runs through a Sheet on phone; per-post actions are ≥ 44 px; warnings show as warn Chips.
-4. **Inbox + DMs** (`app/inbox/page.tsx`, `inbox/dms/page.tsx`, `inbox/ui/*`). Uses Tabs (link mode), Toggle (kill switch, mode rows), ListRow, Button, AlertCard, Badge. Accept: the kill switch is a labelled Toggle with confirm Sheet; tab counts are tabular.
-5. **Library + touch-up** (`app/library/page.tsx`, `app/touch-up/page.tsx`). Uses ListRow, Badge, EmptyState, SearchField. Accept: the file-missing state shows as a danger Badge with an icon; the list is readable at 390 px without horizontal scroll.
-6. **Analytics** (`app/analytics/page.tsx`). Uses StatTile, Card, AreaChart, MiniBars, Donut, Tabs (week prev/next as buttons). Accept: platform comparison as Donut + legend; every number is tabular; demo mode is badged.
-7. **Research (overview, ideas, hooks, creators)** (`app/research/**/page.tsx`, `research/ui.tsx`). Uses Tabs (link mode replaces ResearchHeader), Card, ListRow, Input, Select, Button, Badge. Accept: add-forms use Input/Select with helper text; lint warnings are warn Chips.
-8. **Login** (`app/login/page.tsx`, `PasskeyPanel.tsx`). This is a centered Card on `ds-bg` with no shell, using Button and AlertCard. Accept: it still works without JS errors; the passkey button is the only solid button.
-9. **Alerts** (F8 page, from the other branch). Uses AlertCard, ListRow, Badge, Button, EmptyState. Accept: acknowledge is a ghost/outline button and the open count shows in the nav badge.
-10. **Snapchat handoff** (F10 page, from the other branch). Uses Card, Button (solid "Share to Snapchat"), Badge, ProgressBar (1/day cap), Sheet (mark posted / skip). Accept: the share button stays the only solid one; the daily cap is visible.
+1. **Shell + Home** (`app/layout.tsx` body bg → `ds-bg`, `app/page.tsx`). Uses the Hero, Marquee, Up next RevealList, numbers band, Statement and FooterBand. Accept: it matches `/design?view=home` with real data, and logout moves into the header menu.
+2. **Batches list.** Uses RevealList rows per week (index = week number, meta = counts, Badge status). Accept: the status words are mapped (approved → accent badge).
+3. **Batch detail / approval grid.** Uses "Batch card (proposed)" as a bordered grid cell, Chips, `Button solid` Approve, ProgressBar and ConfirmSheet. Accept: approve-all goes through the Sheet; actions are ≥ 44 px.
+4. **Inbox + DMs.** Uses Tabs, Toggle (kill switch with ConfirmSheet), ListRow cells, StatusPulse for live mode, Readouts for limits.
+5. **Library + touch-up.** Uses a grid of FramedImage cells (4 / 12 cols), Badge "file missing" (danger) and SearchField.
+6. **Analytics.** Uses SectionHead, a numbers band, AreaChart, Donut, Statement (top insight) and Journal (report items).
+7. **Research.** Uses Tabs (link mode), RevealList for ideas/hooks, Input/Select forms and warn Chips.
+8. **Login.** Centred Display "Sign *in*", one black solid "Use passkey" button, GridLines + Noise, no tab bar.
+9. **Alerts** (F8, merged). Uses AlertCard rows, StatusPulse, and ghost "Acknowledge" buttons; the open count shows on the tab-bar badge.
+10. **Snapchat handoff** (F10, merged). Uses FramedImage preview, `Button solid` "Share to Snapchat", ProgressBar (1/day), and ConfirmSheet for posted/skip.
