@@ -39,7 +39,7 @@
       "model": "fable",
       "area": "packages/adapters",
       "status": "done",
-      "notes": "Done in run A (2026-11-12, PR #9): packages/adapters (IG container flow + trial fallback, YT, Zernio drafts, Snapchat handoff, registry), token-health daily job → alerts, 27 contract tests on fixtures. NOT done: PWA push (no web work this run); YouTube existence check (no documented lookup); first real IG post via the adapter still needs your OK."
+      "notes": "Done in run A (2026-11-12, PR #9): packages/adapters (IG container flow + trial fallback, YT, Zernio drafts, Snapchat handoff, registry), token-health daily job \u2192 alerts, 27 contract tests on fixtures. NOT done: PWA push (no web work this run); YouTube existence check (no documented lookup); first real IG post via the adapter still needs your OK."
     },
     {
       "id": "F5",
@@ -62,8 +62,8 @@
       "title": "Red-team review + hardening (double-post paths, secret/location leaks, missing tests)",
       "model": "fable",
       "area": "repo-wide, fixes only",
-      "status": "in-progress",
-      "notes": "Run 2: R2 (worker run mode, both keys), R6 (auth re-review), R7 (engagement red-team) committed; engine/adapters (A3, A4, sanitiser) in progress; A8/A9, A11, B9 scanner, C1, C3–C5, E6 open. Pointers: docs/prep/run-3-plan.md."
+      "status": "done",
+      "notes": "Done in run 2 (2026-11-13): sanitiser, publish-time lint, null r2_key guard, IG caption normalisation, YT ambiguous errors \u2192 unknown, lint hardening + market-session allowlist, ingest post-strip verify, leak scanner in CI, run-mode keys, auth re-review, engagement red-team (3 real fixes). Creator items: D3/D4/D7 after deploy + 4 probe lines."
     },
     {
       "id": "F8",
