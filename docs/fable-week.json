@@ -88,6 +88,14 @@
       "area": "apps/web/handoff",
       "status": "todo",
       "notes": "Design draft: docs/design/F10.md. Order: F8, F10, F9."
+    },
+    {
+      "id": "F12",
+      "title": "F12 \u00b7 UI restyle onto the design system (Fable art direction + designer agents)",
+      "model": "fable",
+      "area": "apps/web",
+      "status": "todo",
+      "notes": "Spec + per-page task list: docs/design/ui-system.md (Restyle plan). Components: apps/web/components/ui; live guide: /app/design; agent: .claude/agents/designer.md. Run after the F8/F10 pages land."
     }
   ]
 }
