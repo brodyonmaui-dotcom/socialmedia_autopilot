@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-13",
+  "startedAt": "2026-11-13T01:14:00Z",
+  "endedAt": "2026-11-13T06:20:00Z",
+  "model": "claude-fable-5-1",
+  "session": "cloud · autopilot-overnight · Fable run 2 (lead + implementer subagents)",
+  "backlogItem": "F2 · Batch builder + phone approval UI + passkey login, then F3 · Engagement",
+  "summary": "Checkpoint in progress. F2 back end is done and green (migration 0006, passkey login, middleware + requireSession on every page, batch domain + pg store, worker approval gate); the approval UI is being finished. F3 foundations are in (migration 0007, engagement package: rules, pools, rotation, planner, triage clients, DM drafts); send tick and platform comment sources in progress.",
+  "needsAttention": [
+    { "priority": 1, "title": "Review the PR when it opens; apply migrations 0006 + 0007 on the VPS after merge", "detail": "0006 backfills approved_at on existing approved/published rows so the new worker gate keeps firing them. Order: merge → backup → migrate → docker compose up -d --build (docs/runbooks/migrations.md)." },
+    { "priority": 2, "title": "Enrol your phone's passkey after deploy", "detail": "docker compose run --rm worker pnpm auth:enroll prints a 15-min code; /app/login → Add this device (docs/runbooks/login.md). The Caddy prompt stays as the first layer." },
+    { "priority": 3, "title": "Usage: the 5-hour window closed 41 minutes into the run", "detail": "Five Opus implementers in parallel plus the lead burned the window by 01:55 UTC; the run resumed at 06:12 UTC when it reset. Run 3 should cap parallel implementers at 2–3." }
+  ],
+  "done": [
+    "F2 T1 migration 0006: auth tables, approved_at/approved_session, batch_item_events, status CHECK (NOT VALID → VALIDATE), backfill, scheduled_for nullable; applied and verified on the local Postgres",
+    "F2 T2 auth core: 32-byte tokens stored as sha256 only, 30-day sliding / 90-day hard cap, single-use enrol codes + challenges, 10-per-15-min rate limit → 'auth' alert; worker CLI auth:enroll / auth:revoke-all (runs in the worker image)",
+    "F2 T3/T4: @simplewebauthn 14 register/login, /login page, edge middleware (cookie shape) + requireSession() (DB) on every DB page and server action, static test enforcing it; dev:session for local screenshots (local DB + non-production only)",
+    "F2 T5/T6: pure warnings (placeholder, past/missing time, lint incl. location, cap breach, no clean file block; duplicates/QA/TikTok draft/>60 s warn) + transitions (approve/approve-all/edit→draft/unapprove/reject with handed-off guards); PgBatchStore apply = one transaction, conditional on from-status, audit events; fill-times via assignSlots",
+    "F2 T8/T9: worker listDue requires approved_at + batch approved; tiktokDraft stored in trial and accepted by the weekly-batch skill; schedule-catchup --approve stamps + audits; seed adds a draft week",
+    "F2 T10: docs/runbooks/login.md, migrations.md (0005/0006 pending), dashboard-password.md updated",
+    "F3 T1: migration 0007 (comments, comment_triage, engagement_actions unique(comment, kind), cursors, blocklist, dm_*), @autopilot/engagement package + shared types, AlertKind unified in core",
+    "F3 T2/T3: pools from voice.md, settings merge (shadow/shadow/off defaults), pre/post rules, seeded rotation, planner (per-person 7 d, human-replied pause, hide only when enabled)",
+    "F3 T4/T7: Anthropic triage client (messages.parse + zod, refusal/error → flag, key never logged), fake client, DM 24 h window + read-only drafts"
+  ],
+  "notDone": [
+    "F2 T7 approval UI (in progress when the window closed)",
+    "F3 T5 send tick/gate/kill (in progress), T6 comment sources (in progress), T8 worker jobs + PgEngagementStore, T9 inbox UI, T10 simulate-engagement + runbook",
+    "F7 not started"
+  ],
+  "decisions": [
+    "Enrol/revoke CLI lives in apps/worker (the web image is standalone without pnpm/tsx); root aliases pnpm auth:enroll",
+    "Screenshots use a real session row minted by scripts/dev/dev-session.ts against a local DB only; no bypass code exists in the app",
+    "batch_items.scheduled_for is nullable from 0006 so a clip added from the app can get a time via fill-times; approval blocks without a time",
+    "loadCadence moved from the worker to @autopilot/db so web and worker share it",
+    "Middleware duplicates the cookie name + token pattern (edge bundle can't import pg); a test keeps them equal to session.ts",
+    "Auth alerts use platform 'web' in the alerts table (column is free text)",
+    "comments.author_id is nullable (Meta Development mode may omit from{}); per-person limits apply only when an id exists, caps always",
+    "Market-session phrases (NY/London/Asia session) are stripped before location checks; a blocklisted word elsewhere still flags",
+    "A triage hide_flag on a DM still yields a draft marked 'review before answering' (the creator sends DMs himself)"
+  ],
+  "blocked": [
+    "5-hour usage limit at 01:55 UTC with five implementers running; three were terminated mid-task and resumed at 06:12 UTC"
+  ],
+  "tests": { "passed": 535, "failed": 0, "notes": "at the last green checkpoint (266cdbe); 13 DB tests skip without DATABASE_URL and pass locally; typecheck covers apps/web now; simulate-week OK" },
+  "commits": 14,
+  "prUrl": "",
+  "nextPickup": ["Finish F2 T7 UI, F3 T5/T6, then T8/T10 (T9 if budget)", "Run 3 plan: docs/prep/run-3-plan.md"]
+}

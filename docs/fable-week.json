@@ -22,16 +22,16 @@
       "title": "Batch builder + phone approval UI + single-user passkey login",
       "model": "fable",
       "area": "apps/web",
-      "status": "todo",
-      "notes": "Design ready: docs/design/F2.md + docs/prep/run-2-decisions.md (answers + corrections)."
+      "status": "in-progress",
+      "notes": "Run 2 (2026-11-13): back end done and green (0006, passkey login, requireSession everywhere, batch domain + pg store, worker gate); approval UI in progress."
     },
     {
       "id": "F3",
       "title": "Engagement: comment polling, triage (mocked AI), reply rotation, limits, kill switch, shadow mode, inbox + DM drafts",
       "model": "fable",
       "area": "apps/worker, apps/web/inbox",
-      "status": "todo",
-      "notes": "Design ready: docs/design/F3.md + docs/prep/run-2-decisions.md (answers + corrections)."
+      "status": "in-progress",
+      "notes": "Run 2: 0007, engagement package (rules, pools, rotation, planner, triage clients, DM drafts) done; send tick, sources, worker jobs, simulate-engagement, inbox pending."
     },
     {
       "id": "F4",
@@ -39,7 +39,7 @@
       "model": "fable",
       "area": "packages/adapters",
       "status": "done",
-      "notes": "Done in run A (2026-11-12, PR #9): packages/adapters (IG container flow + trial fallback, YT, Zernio drafts, Snapchat handoff, registry), token-health daily job → alerts, 27 contract tests on fixtures. NOT done: PWA push (no web work this run); YouTube existence check (no documented lookup); first real IG post via the adapter still needs your OK."
+      "notes": "Done in run A (2026-11-12, PR #9): packages/adapters (IG container flow + trial fallback, YT, Zernio drafts, Snapchat handoff, registry), token-health daily job \u2192 alerts, 27 contract tests on fixtures. NOT done: PWA push (no web work this run); YouTube existence check (no documented lookup); first real IG post via the adapter still needs your OK."
     },
     {
       "id": "F5",
