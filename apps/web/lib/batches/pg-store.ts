@@ -84,6 +84,10 @@ export class PgBatchStore implements BatchStore {
     try {
       await client.query("begin");
       for (const c of changes) {
+        // F11 reset/record changes are planned by transitions.ts but not wired here yet (F11 T2: write the
+        // attempts/last_error/next_attempt_at/platform_post_* patch, `platform_post_id is null`, ack the alert).
+        // Fail closed until then, so a half-applied status-only write can never happen.
+        if (c.eventKind === "reset-checked" || c.eventKind === "record-published") throw new Error(`${c.eventKind}: not wired in PgBatchStore yet (F11 T2)`);
         // SET list built from the patch keys present; values always go in as parameters.
         const params: unknown[] = [c.to, now, sessionId, c.itemId, c.from];
         const sets = [

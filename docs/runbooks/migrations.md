@@ -12,6 +12,7 @@
   - It **backfills** `approved_at` on existing approved/queued/publishing/published/unknown/failed rows and marks their batches `approved`, so already-approved posts keep firing under the new gate.
   - After it: enrol the phone ([login.md](login.md)).
 - Earlier: `0003_research.sql` (F6) and `0004_analytics.sql` (F5).
+- `0008_alerts_push.sql` (F8) **pending**: `alerts.pushed_at` + `alerts.acknowledged_session`, the `push_subscriptions` table, an unpushed-alerts index. It **backfills** `pushed_at` on every existing alert so the push job never pages for history. Additive only; apply it before deploying the `/alerts` page (the page reads `acknowledged_session`). The creator applies it on the server.
 
 ## Steps (from the laptop, through the SSH tunnel)
 This is the route proven on 2026-11-11: the laptop's `.env` `DATABASE_URL` points at local port 5433, forwarded to the VPS loopback Postgres.

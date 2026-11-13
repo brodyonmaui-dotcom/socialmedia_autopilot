@@ -1,134 +1,124 @@
-# Codebase map (prep for Fable run 2)
+# Codebase map (prep for Fable run 3)
 
-Snapshot of `origin/main` @ `290d430` (PR #9 merged), surveyed 2026-11-12. Facts only; designs live in `docs/design/F2.md`, `F3.md`, `F7.md`.
+Snapshot of branch `prep/run-3-2026-11-13` @ `e3b1370` (= `main` @ `b455456` + run-3 decisions, F9 T1 probe lines, F10 Snapchat handoff, F11 draft), surveyed 2026-11-13 by Haiku scouts and checked by the prep lead. Facts only; designs live in `docs/design/F8|F9|F10|F11.md`. F8/F9 work added later on this branch is listed in `docs/fable-week.json` notes. Line numbers drift: re-grep before citing.
 
-## Baseline (main as-is, cloud container, Node 22.23, pnpm 10.28)
+## Baseline (cloud container, Node 22.23, pnpm 10.28)
 | Command | Result |
 |---|---|
-| `pnpm install` | exit 0 (2.9 s). Warning: "Ignored build scripts: esbuild" (harmless; tsx still works) |
-| `pnpm typecheck` | exit 0, no errors |
-| `pnpm test` | exit 0: **45 files, 281 tests passed**, 0 skipped (5.8 s) |
-| `pnpm simulate-week` | exit 0: `OK 7d×4 slots · 91 posts · published 72 (1 recovered) · retries 22 · failed 4 · unknown 8 · handoff 7 · alerts 12 · 0 double-posts · 0 cap breaches · DST week · fixture zone Europe/London (TZ_CREATOR not set)` |
+| `pnpm install` | exit 0 (about 3 s). "Ignored build scripts: esbuild" is harmless |
+| `pnpm typecheck` | exit 0 (root `tsconfig.json` + `apps/web/tsconfig.json`) |
+| `pnpm test` with `DATABASE_URL` set | exit 0: **100 files, 940 tests passed** |
+| `pnpm test` without `DATABASE_URL` | DB tests (`*.db.test.ts`) skip; everything else passes |
+| `pnpm simulate-week` | `OK 7d×4 slots · 91 posts · published 70 (3 recovered) · retries 24 · failed 4 · unknown 10 · handoff 7 · alerts 14 · yt-503 2 · ig-normalised 2 · 0 double-posts · 0 cap breaches · DST week · fixture zone Europe/London` |
+| `pnpm simulate-engagement` | shadow and live-fake both `OK` (200 comments, 0 double-replies, 0 limit breaches, 0 location leaks; the live-fake run trips the kill switch as designed) |
+| `node scripts/check-public-leaks.mjs` | `ok (72 files)` |
+| `cd apps/web && pnpm build` | exit 0 |
 
-Nothing is red, so no design doc has a "task 0" fix. CI (`.github/workflows/ci.yml`, the only workflow): PRs + push to main, Node 22, installs ffmpeg, then `pnpm install --frozen-lockfile && pnpm typecheck && pnpm test`.
+Local tools: `bash scripts/dev/local-stack.sh` (Postgres 16, `autopilot_dev`, all migrations, demo seed), `pnpm dev:session` (prints an `ap_session=` cookie for a local DB only), `node scripts/dev/phone-shot.mjs <path> <out.png> [--port 3100] [--full] [--cookie …]`.
 
 ## Layout
 | Path | Package | Purpose |
 |---|---|---|
-| `packages/core` | `@autopilot/core` | Shared types, capability matrix, time/cadence math, scheduler, outbox engine, simulate-week |
-| `packages/adapters` | `@autopilot/adapters` | IG / YT / Zernio-TikTok / Snapchat `PlatformAdapter`s, token health, registry |
-| `packages/db` | `@autopilot/db` | pg pool, SQL migrations + runner, settings KV, row types |
-| `packages/media` | `@autopilot/media` | ffprobe QA, touch-up (metadata strip, loudness), hashing, dedupe |
-| `packages/research` | `@autopilot/research` | Creators, idea backlog, hooks, research brief, voice/privacy lint |
-| `packages/analytics` | `@autopilot/analytics` | Metrics sources + snapshots, weekly report, trial-share recs, Snapchat daily pick |
-| `apps/web` | Next.js App Router + Tailwind, `basePath: "/app"`, `output: standalone` | Phone dashboard (read-mostly today) |
-| `apps/worker` | Node + pg-boss | Cron jobs: health, outbox tick, token health |
-| `tools/ingest-agent` | | Laptop ingest of clips → `media` rows + R2 (uses `@autopilot/media`) |
-| `scripts/` | | Probes, skills CLIs, simulate-week, schedule-batch, seed, night report |
-| `infra/` | | docker compose (caddy, web, worker, db, backup), Caddyfile, bootstrap/backup/restore |
+| `packages/core` | `@autopilot/core` | Types, capability matrix, time/cadence, scheduler, outbox engine, log sanitiser, simulate-week |
+| `packages/adapters` | `@autopilot/adapters` | IG / YT / Zernio-TikTok / Snapchat adapters, token health, registry, comment + DM sources |
+| `packages/db` | `@autopilot/db` | pg pool, SQL migrations + runner, settings KV, row types, auth admin |
+| `packages/media` | `@autopilot/media` | ffprobe QA, metadata strip, location-tag detection, hashing/dedupe |
+| `packages/research` | `@autopilot/research` | Creators, ideas, hooks, research brief, voice/privacy lint, Business Discovery |
+| `packages/analytics` | `@autopilot/analytics` | Metric sources, snapshots, weekly report, trial-share recs, Snapchat daily pick |
+| `packages/engagement` | `@autopilot/engagement` | Comment rules, triage, reply rotation, planner, send gate/tick, kill switch, DM drafts |
+| `apps/web` | Next.js 15 App Router + Tailwind 4, `basePath: "/app"`, `output: "standalone"` | Phone dashboard |
+| `apps/worker` | Node + pg-boss | Cron jobs (outbox, token health, engagement) |
+| `tools/ingest-agent` | | Laptop ingest: scans `INGEST_ROOTS`, uploads clean files to R2, writes `media` rows |
+| `scripts/`, `infra/` | | Probes, skill CLIs, simulations, dev tools, night report; docker compose, Caddyfile, backup |
 
-Every `src/index.ts` is an `export *` barrel.
+Every package `src/index.ts` is an `export *` barrel.
 
-## Public API (key exports)
-**core**
-- `types.ts`: `Platform` :1, `PlatformRoute` :4, `PostStatus` :15 (draft|approved|queued|publishing|published|failed|unknown), `OutboxPost` :24, `PublishResult` :51, `PublishOptions{signal}` :60, `PlatformAdapter{publish, findExisting?}` :66, `AlertKind` :77 (incl. `token-health`), `OutboxAlert` :80, `PostingWindow` :94
-- `capabilities.ts:4` `CAPABILITIES`: route / scheduling (IG `server-fires`, YT+TikTok `native`, Snapchat `none`) / commentHandling per platform
-- `time.ts`: `localParts`, `localDate`, `localHHMM`, `localToUtc`, `zonedTimeToUtc`, `addCalendarDays`, `diffCalendarDays`, `offsetMinutes`, `hasOffsetChange`, `assertTimeZone` :145
-- `cadence.ts`: `CadenceSettings` :27, `DEFAULT_CADENCE` :57, `PLATFORMS` :76, `normalizeCadence` :86, `daySlotTimes` :155, `isWithinAnyWindow[At]` :5/:11
-- `scheduler.ts`: `assignSlots(input): ScheduleResult` :106 (unplaced reasons cap/no-slot/buffer/duplicate/pinned-*), `findCapBreaches` :74; `catchup.ts:20` `generateCatchUpSlots`
-- `outbox/engine.ts`: `runOutboxTick(store, adapters, cfg): TickResult` :100, `isDueNow` :86, `OutboxStore`, `EngineConfig`
-- `outbox/policy.ts`: `DEFAULT_RETRY_POLICY` :21 (4 attempts, 5→15→45 min capped 60, publish timeout 5 min, lookup 60 s), `backoffMs` :31, `classifyFailure` :58, `decideAfterAttempt` :82, `NonRetryableError`, `PublishTimeoutError`, `DUE_STATUSES=["approved","queued"]` :96
-- Not exported: `sim/simulate-week.ts`, `testing/fakes.ts` (fake adapters/store for tests)
+## packages/core
+- `types.ts`: `Platform` (instagram|youtube|tiktok|snapchat), `PostStatus` (draft|approved|queued|publishing|published|failed|unknown), `OutboxPost` (incl. `idempotencyKey`), `PublishResult`, `PlatformAdapter {publish, findExisting?}`, `AlertKind` (final-failure, unknown-outcome, cap-breach, duplicate, token-health, auth, engagement-kill, engagement-failure, engagement-unknown, engagement-mode), `OutboxAlert`.
+- `capabilities.ts`: `CAPABILITIES`: IG direct/server-fires, YT direct/native, TikTok middleman/native, Snapchat assisted/none.
+- `outbox/policy.ts`: `DEFAULT_RETRY_POLICY` (4 attempts, backoff 5 min ×3, cap 60 min, publish timeout 5 min, lookup timeout 60 s), `classifyFailure` (timeout|rejected|permanent), `decideAfterAttempt`, `NonRetryableError`, `PublishTimeoutError`.
+- `outbox/engine.ts`: `runOutboxTick(store, cfg)`. Order: stale `publishing` rows → `findExisting` → published or `unknown` + alert; due rows → daily-cap check (`cap-breach`) → claim → if `attempts > 0`, `findExisting` first → `captionGuard` (refusal = permanent failure, throwing guard fails closed) → publish under timeout. Timeout/network errors → `unknown` (never retried); rejections → backoff, `failed` after max attempts. Dry run: no writes, no adapter calls. Adapters missing (Snapchat) → skipped.
+- `log/sanitize.ts`: `sanitizeForLog`, `sanitizeError` (bearer/basic, key=value secrets, EAA/ya29/sk-ant/sk_ token shapes, long hex/base64; truncates errors to 300).
+- `scheduler.ts` `assignSlots`, `findCapBreaches`; `cadence.ts` `DEFAULT_CADENCE` (4 windows, 4 slots/day, caps IG/YT/TikTok 4 and Snapchat 1, stagger YT +1 slot, TikTok +1 day, Snapchat +2 days, 30-min gap); `catchup.ts`; `time.ts` (`localDate`, `localToUtc`, `zonedTimeToUtc`, `addCalendarDays`, `assertTimeZone`, …, all DST-safe).
+- `sim/simulate-week.ts` (not exported), `testing/fakes.ts` (FakeClock, FakePlatform, MemoryOutboxStore).
+- Tests: 11 files.
 
-**adapters**
-- `http.ts`: `FetchLike` :4, `PlatformRequestError` :7, `getJson` :29, `assertNoLocationFields` :43, `countHashtags` :57, `redactToken` :61
-- `createInstagramAdapter` instagram.ts:55 (container → poll → publish; trial refusal `IG_TRIAL_REFUSED` :33 → plain reel + `trialFellBack`; `findExisting` :128 = last 25 media, exact trimmed caption, ±36 h)
-- `createYouTubeAdapter` youtube.ts:40 (`refreshAccessToken` :13; private + `publishAt`; resumable upload; **no `findExisting`**)
-- `createTikTokAdapter` tiktok.ts:37 (Zernio `POST /posts`, `Idempotency-Key` header :74, `draft:true` when `tiktokDraft`; **no `findExisting`**)
-- `createSnapchatAdapter` / `buildSnapchatHandoff` / `snapchatCaption` / `SNAPCHAT_CHECKLIST` (snapchat.ts; `publish` always throws NonRetryable; never registered)
-- `token-health.ts`: `checkMetaToken` :48, `checkYouTubeToken` :87, `checkZernioAccount` :100, `checkTokenHealth` :115, `formatTokenHealth` :134
-- `registry.ts`: `buildAdapters(creds)` :15 (only platforms with creds; drops scheduling `none`), `credentialsFromEnv(env)` :27
+## packages/adapters
+- `http.ts`: `PlatformRequestError`, `UploadAmbiguousError` (classified as timeout → `unknown`), `getJson`, `assertNoLocationFields` (`LOCATION_FIELDS`: location_id, location, recordingDetails, locationDescription, locationTags, place/placeId, geo, geolocation, coordinates, latitude/longitude/lat/lng/lon, gps, poi_id, venue; nested, case-insensitive).
+- `instagram.ts`: container → poll (1/min, max 5) → publish; trial fallback; ≤5 hashtags. `findExisting`: normalised caption match on the last 25 media within ±36 h of `scheduled_for`.
+- `youtube.ts`: resumable upload, private + `publishAt`; no `findExisting`; upload failures after start → `UploadAmbiguousError`.
+- `tiktok.ts`: Zernio `POST /posts` with `Idempotency-Key = idempotencyKey`, `scheduledFor`, `draft` for sound-dependent posts; permanent Zernio errors → `NonRetryableError`; no `findExisting`.
+- `snapchat.ts`: `publish` always throws; `SNAPCHAT_CHECKLIST`, `snapchatCaption`, `buildSnapchatHandoff`. Not registered.
+- `registry.ts` (`buildAdapters`, `credentialsFromEnv`), `token-health.ts` (`checkTokenHealth`; services meta|youtube|zernio; warn at 7 days).
+- `comments/`: IG list/reply/hide; YouTube read-only, reply/hide only when `YT_COMMENT_REPLIES=1`; TikTok stub; IG DM read-only (`dm-instagram.ts`).
+- Tests: 10 files + JSON fixtures.
 
-**db**: `createPool` client.ts:3, `migrate(pool, dir)` migrate.ts:13, `getSetting<T>` / `setSetting` settings.ts:6/:11; row types `MediaRow`, `BatchRow`, `BatchItemRow`, `AlertRow`, `BatchStatus`, `AlertKind` (types.ts; **lacks `token-health`**, unlike core).
-
-**media**: `probe` probe.ts:31, `findLocationTagKeys` probe.ts:23, `runQa` qa.ts:19, `touchUp` touchup.ts:13 (always `-map_metadata -1 -map_chapters -1`), `sha256File`, `findDuplicateSets`, `run`, ffmpeg log parsers.
-
-**research**: `PILLARS`, `IDEA_STAGES`, `Creator`/`Idea`/`Hook`; `moveIdea`, `allowedMoves`, `stageCounts`, `filmNext` (backlog.ts); `buildResearchBrief`, `classifyHook`, `firstLine` (brief.ts); `fetchCreatorSnapshot` discovery.ts:76; store CRUD store.ts:130-191 with `assertNoPlace` :29; `lintText(input): LintResult` voice-lint.ts:71, `HASHTAG_LIMITS` :34, `YOUTUBE_TITLE_MAX=60` :40, `blocklistFromEnv` :127.
-
-**analytics**: `ingestOnce` ingest.ts:55, `SNAPSHOT_AGES_H=[24,72,168,672]`, `createInstagramMetricsSource` / `createYouTubeMetricsSource` / `createZernioTikTokMetricsSource` (sources.ts), `buildWeeklyReport` report.ts:92, `recommendTrialShares` trials.ts:37, `pickSnapchatDaily` snapchat.ts:40, `loadPostRecords` / `loadPublishedForIngest` / `writeSnapshot` (store.ts), `syntheticPosts` seed.ts:21.
-
-## DB schema (`packages/db/migrations`, runner `pnpm --filter @autopilot/db migrate`)
-| Migration | Tables / changes |
+## packages/db: migrations (`packages/db/migrations`, runner `pnpm --filter @autopilot/db migrate`)
+| File | Adds |
 |---|---|
-| `0001_init.sql` | `pgcrypto`. `media(id uuid PK, content_hash UNIQUE, source_path, r2_key, duration_s, width, height, pillar, status default 'ingested', qa jsonb, captured_at)`. `batches(id, week_start date, status default 'draft')`. `batch_items(id, batch_id→batches CASCADE, media_id→media, platform, caption, title, trial jsonb, scheduled_for, idempotency_key uuid UNIQUE default gen_random_uuid(), status default 'draft', attempts, last_error, platform_post_id, platform_post_url)`, index `(status, scheduled_for)` |
-| `0002_settings.sql` | `settings(key PK, value jsonb, updated_at)`; seeds `posting_windows` |
-| `0003_research.sql` | `creators` (unique `(platform, handle)`), `ideas` (CHECK stage idea/scripted/filmed/posted/dropped; FKs creator/media SET NULL; `batch_item_ids uuid[]`), `hooks` (CHECK source own/creator) |
-| `0004_analytics.sql` | `post_metrics(batch_item_id→batch_items CASCADE, age_hours, metrics jsonb, UNIQUE(batch_item_id, age_hours))` |
-| `0005_outbox.sql` | `batch_items.next_attempt_at` + index `(status, next_attempt_at)`; `alerts(id, kind, batch_item_id→batch_items CASCADE, platform, message, created_at, acknowledged_at, UNIQUE(kind, batch_item_id))` + partial open index; seeds `settings.cadence='{}'` |
+| 0001_init | `media` (content_hash unique, r2_key), `batches`, `batch_items` (idempotency_key `uuid default gen_random_uuid()` unique, status, attempts, last_error, platform_post_id/url) |
+| 0002_settings | `settings` KV, seeds `posting_windows` |
+| 0003_research | `creators`, `ideas` (stage CHECK), `hooks` |
+| 0004_analytics | `post_metrics` unique(batch_item_id, age_hours) |
+| 0005_outbox | `batch_items.next_attempt_at`, `alerts` (kind, batch_item_id, platform, message, acknowledged_at, unique(kind, batch_item_id)), seeds `cadence` |
+| 0006_auth_approval | auth tables (credentials, sessions, challenges, enroll codes, failures), `approved_at`/`approved_session`, nullable `scheduled_for`, `batch_item_events`, status CHECK (draft…rejected), backfill |
+| 0007_engagement | comments, triage, engagement_actions, cursors, blocklist, DM threads/messages/drafts, seeds `engagement` |
 
-Notes: status enums on `media`, `batches`, `batch_items`, `alerts.kind` are **comments only** (no CHECK). `tiktokDraft` lives inside `batch_items.trial` jsonb (worker outbox.ts:42,89); there is no column. Runner: `schema_migrations`, one transaction per file, no down-migrations, nothing auto-migrates (`docs/runbooks/migrations.md`). Next free number: **0006**.
+Next free number: **0008** (F8). Row types in `src/types.ts`: `AlertRow.platform` is typed `Platform`, but rows also hold `web`, `meta`, `youtube`, `zernio` (F8 T1 widens it). `BatchItemStatus = PostStatus | "rejected"`. Settings: `getSetting`/`setSetting`, `loadCadence`. Tests: 4 files.
 
-## Outbox (F1) in one paragraph
-Worker cron `* * * * *` → `runOutboxOnce` (apps/worker/src/jobs/outbox.ts:186) → `runOutboxTick` (core engine.ts:100) over `PgOutboxStore` (outbox.ts:66). Picks `batch_items.status in ('approved','queued')` with due backoff (outbox.ts:94-101); **does not look at `batches.status`**. Stale `publishing` rows (> publish timeout) get `findExisting` → published (recovered) or `unknown` + alert (engine.ts:115-136). Native platforms hand off up to `nativeLeadMs` (24 h) early (engine.ts:92). Daily cap via `countSentOn` per creator-local day (outbox.ts:148). Dry-run logs "would publish" and writes nothing (engine.ts:162). Atomic `claim` (outbox.ts:108). Retry with `attempts>0` calls `findExisting` first (engine.ts:174-191). Timeout → `unknown`, never auto-retried (policy.ts:90). Alerts deduped by `UNIQUE(kind, batch_item_id)`. `mediaUrl = PUBLIC_MEDIA_BASE + "/" + (r2_key ?? "")` (outbox.ts:77).
+## packages/analytics, research, media, engagement
+- **analytics:** `sources.ts` IG (insights per metric + like/comments counts), YouTube (`videos?part=statistics`), Zernio TikTok; shapes from docs, **not yet verified against live responses** (F9 T1 probe lines exist; output pending). `ingest.ts` `ingestOnce`, `SNAPSHOT_AGES_H = [24, 72, 168, 672]`, Snapchat source throws. `store.ts` `loadPostRecords`, `loadPublishedForIngest`, `writeSnapshot` (on conflict do nothing). `report.ts` weekly report; `trials.ts`; `snapchat.ts` `pickSnapchatDaily`. No worker job runs ingest on `main` (F9 T4). 5 test files.
+- **research:** `lintText` privacy rules (always error): `privacy.realtime|place|coords|pin|postcode|address|blocklist`; market-session allowlist (`stripMarketTerms`) runs first; tone/number/hashtag rules; `blocklistFromEnv` (`PRIVACY_BLOCKLIST`). Store for creators/ideas/hooks; Business Discovery wired into the research-brief skill, not run live. 5 test files.
+- **media:** `probe`, `findLocationTagKeys`, `runQa`, `touchUp` (always strips metadata), `sha256File`, `findDuplicateSets`. 5 test files.
+- **engagement:** pre/post rules, pools + rotation, planner (7-day per person, 10-min veto), Anthropic + fake triage, DM drafts (no send path), `sendGate`, `runSendTick` (stale sending → unknown, pre-flight, cancel if the creator replied), kill switch (`ENGAGEMENT_KILL`, 3 failures or kill pattern), defaults: IG/YT shadow, TikTok off, 10/h and 40/day per platform, 80/day global. 14 test files.
 
-## Worker jobs (`apps/worker`)
-| Queue (queue.ts) | Cron | File | Does |
-|---|---|---|---|
-| `health-check` | `*/5 * * * *` | jobs/health.ts | logs `[health] ok` |
-| `outbox-tick` | `* * * * *` | jobs/register-outbox.ts → outbox.ts | outbox tick (above) |
-| `token-health` | `17 6 * * *` | jobs/token-health.ts | read-only token checks → replaces open `token-health` alert per service |
+## apps/worker
+- `src/index.ts` starts pg-boss; `run-mode.ts` `resolveRunMode`: live only when `DRY_RUN=false` **and** (`--live` or `WORKER_LIVE=1`); live mode also needs `TZ_CREATOR`.
+- Jobs (`src/queue.ts`): `health-check` `*/5`, `outbox-tick` every minute (`PgOutboxStore`, `jobs/outbox.ts`), `token-health` `17 6 * * *` (one `token-health` alert per service), `engagement-poll` `*/5`, `engagement-triage` and `engagement-send` every minute (`PgEngagementStore`), `dm-poll` `*/5` (skips unless `dmPollVerified`).
+- CLI `src/cli/auth.ts`: `auth:enroll`, `auth:revoke-all`.
 
-Startup (index.ts): loads `.env` outside production, exits without `DATABASE_URL`, `dryRun = DRY_RUN !== "false"` (:25), exits on a live run without `TZ_CREATOR` (:28-32). **No `--live` flag in the worker**: only probes enforce the two-key rule (`scripts/probes/lib.ts:15`). Not wired yet: analytics ingest, comment polling, PWA push.
+## apps/web
+Middleware (`middleware.ts`) checks only the `ap_session` cookie shape; every DB page, action and route calls `requireSession()` (redirects to `/login`). Static guard test `lib/auth/__tests__/guarded-pages.test.ts`: any `route.ts` or file using `getPool` must call `requireSession()`; in `actions.ts`/`route.ts` the first `await` of every exported async function is `requireSession()`; route handlers must be `export async function`. Exempt: `app/login/{page,actions}.ts`.
 
-## Web routes (all under `/app`, `dynamic = "force-dynamic"` where DB is read)
-| Route | File | Purpose |
+| URL (under `/app`) | File | Purpose |
 |---|---|---|
-| `/` | app/page.tsx | Static skeleton, links + `CAPABILITIES` list (no DB) |
-| `/library` | app/library/page.tsx (+ file-status.ts) | `media` list (≤500), QA, missing-file badge |
-| `/touch-up` | app/touch-up/page.tsx | `ready` media with QA warnings |
-| `/research`, `/research/{creators,hooks,ideas}` | app/research/** | Backlog overview, creators CRUD, hook bank + lint, idea kanban |
-| `/analytics` | app/analytics/page.tsx | Weekly report (`?week=`, `?demo=1`), uses `TZ_CREATOR` |
+| `/` | `app/page.tsx` | Home: capabilities, alerts count, "Snapchat · N to share today" |
+| `/login` | `app/login/page.tsx` + `actions.ts` | Passkey register/login/logout (server actions, no API routes) |
+| `/batches`, `/batches/[id]` | `app/batches/**` | Batch list; week grid, chips, approve bar/confirm sheet, per-item approve/reject/pull back/edit, fill times, add item |
+| `/inbox`, `/inbox/dms` | `app/inbox/**` | Flagged/shadow/sent comments, kill switch, modes; DM threads + drafts |
+| `/handoff` | `app/handoff/page.tsx` | Snapchat items due today + missed; caption copy, checklist, privacy blocks; Prepare → Share; Mark posted / Skip today / Drop; read-only daily pick when nothing is due |
+| `/handoff/media/[itemId]` | `app/handoff/media/[itemId]/route.ts` → `lib/handoff/media.ts` | Session-guarded same-origin proxy of the clean file (`video/mp4`, `private, no-store`; 503 without media base or zone, 404 unless due+approved+snapchat+r2_key, 502 fixed body) |
+| `/library`, `/touch-up` | | Media list + QA; touch-up queue |
+| `/research/*`, `/analytics` | | Research backlog/creators/ideas/hooks; weekly report |
 
-Server actions: only `app/research/actions.ts` (`addCreatorAction` :37, `toggleCreatorAction` :54, `addIdeaAction` :58, `moveIdeaAction` :68, `addHookAction` :89), each wrapped in `run(path, fn)` → revalidate / redirect `?error=`. DB access: `lib/db.ts` `getPool()` singleton (direct pg). **No batch, approval, alerts or inbox pages exist.** PWA: `public/manifest.json` (scope `/app`, `icons: []`), no service worker.
+- Actions: `batches/[id]/actions.ts` (approve, approveAll, reject, unapprove, edit, fillTimes, addItem); `inbox/actions.ts` (markHandled, blockAuthor, sendManual, promoteShadow, setKill, setMode, copyDraft); `handoff/actions.ts` (markPosted, skip, drop); `research/actions.ts`; `login/actions.ts`.
+- `lib/auth`: sessions 30-day sliding / 90-day cap, WebAuthn (max 5 credentials), rate limit (10 failures / 15 min), `writeAuthAlert` (kind `auth`, platform `web`).
+- `lib/batches`: `planTransition` (approve | approve-all | reject | unapprove | edit; every handed-off row is refused, so nothing resets `failed`/`unknown`: F11), `computeWarnings`, view model, `PgBatchStore` (conditional updates, `batch_item_events`).
+- `lib/handoff`: `handoffContext` (no UTC fallback), `listHandoff`, `loadShareable`, `markPosted` (conditional, link kept only for https `*.snapchat.com`), `skipToNextDay` (advisory lock + `for update`, 1/day, rolls forward from today), `dropItem` (F2 reject semantics); events `snap-posted|snap-skip|snap-drop`.
+- PWA: `public/manifest.json` with `icons: []`; no service worker on `main` (F8).
+- Tests: 26 files (auth 10, batches 6, handoff 5 + 1 UI, engagement 1, actions 2, library 1).
+- Runtime deps: next ^15.1, react ^19, pg ^8.13, `@simplewebauthn/server` 14.0.3, `@simplewebauthn/browser` 14.0.0, workspace packages.
 
 ## Scripts
-| Script | Purpose / flags |
-|---|---|
-| `scripts/simulate-week.ts` | `[--tz] [--week] [--days 7] [--slots 4]`; fakes only; exit 1 on double-post or cap breach; log `logs/simulate-week.json` |
-| `scripts/schedule-batch.ts` | `<draft.json> [--write] [--week] [--no-db]`; fills `scheduledFor` in the **draft file**; reads cadence + existing items if DB; never writes DB or approves |
-| `scripts/schedule-catchup.mjs` | one-off backlog scheduler; `--create` inserts a draft batch; **`--approve <batchId>` (:44-46) is the only approval write path today** |
-| `scripts/dev/seed.ts` | demo rows for a LOCAL DB only (`assertLocalDatabaseUrl`); inserts an `approved` batch (:48) |
-| `scripts/skills/weekly-batch.ts` | `check` / `review [--force]` / `create` a draft JSON (`lib/batch-draft.ts`: `BatchDraft{weekStart, items[{mediaId, pillar, label?, posts{platform: {caption, title?, scheduledFor?, tiktokDraft?}}}]}`; `createDraftBatch` :118 inserts `batches` + `batch_items` as `draft` in one transaction) |
-| `scripts/skills/{research-brief,weekly-report,platform-check}.ts` | skill CLIs (read-only; research-brief may call IG Business Discovery) |
-| `scripts/probes/{ig,yt,zernio,anthropic,connect-meta}.ts` | M0 probes; live only with `--live` + `DRY_RUN=false`; `anthropic.ts` = triage smoke test (buckets `simple_positive|negative|hide_flag|flag`, :14) |
-| `scripts/check-exposure.sh` | `DOMAIN=… sh`: status codes for public vs `/app*` paths |
-| `scripts/find-duplicates.mjs`, `scripts/night/report.mjs` | duplicate report (never moves); night HTML report |
+- Root `package.json`: `probe:ig|yt|tiktok|ai|connect-meta`, `skill:*`, `typecheck`, `test`, `auth:enroll|revoke-all`, `dev:seed`, `dev:session`, `simulate-week`, `simulate-engagement`, `schedule-batch`.
+- Probe lines (`PASS|FAIL <probe>.<line>`): **ig** token_type, account, scopes, publish_quota, media_and_comments_poll, comment_fields, dm_read, reel_insights, **reel_insight_shape**, **media_fields_shape**, business_discovery, trial/publish lines (live only). **yt** oauth (`--auth`), token_refresh, scopes, channel, comment_threads, **video_stats_shape**, upload lines (live only). **tiktok** (zernio.ts) accounts, creator_info, dry_run, publish, verify_public. **ai** one line per triage case. Shape lines print key paths + types only (`shapeOf` in `scripts/probes/lib.ts`).
+- `check-public-leaks.mjs` (CI), `check-exposure.sh` (status codes only), `schedule-batch.ts`, `schedule-catchup.mjs` (`--create`, `--approve <id>`), `find-duplicates.mjs`, `night/report.mjs`, `dev/{seed,dev-session,local-stack.sh,phone-shot.mjs}`.
 
-## Tests
-Vitest defaults (no root config). 45 files / 281 tests. Per area (it/test count): core 61, analytics 44, research 37, adapters 28, scripts 27, tools/ingest-agent 23, media 21 (4 need real ffmpeg), worker 19, web 6 (file-status only), db 4. Tests sit in `src/__tests__/` (fixtures under `__tests__/fixtures/`). No web component/route tests, no DB integration tests (stores are tested with fakes).
+## Infra and CI
+- Compose: caddy (80/443), web, worker (no ports), db (postgres 17, loopback only), backup (daily).
+- Caddyfile: `/app*` behind basic auth (`DASH_USER`/`DASH_HASH`) → web; public `/`, `/privacy*`, `/terms*`, `/snap-test*`, `/healthz`; everything else 404. Domain from env.
+- CI (`.github/workflows/ci.yml`): install (frozen lockfile), typecheck, test, `simulate-week && simulate-engagement`, `check-public-leaks.mjs`.
 
-## Config / env (names only; values live in `.env`, never in git)
-- web: `DATABASE_URL`, `NODE_ENV`, `TZ_CREATOR` (analytics)
-- worker: `DATABASE_URL`, `DRY_RUN`, `NODE_ENV`, `PUBLIC_MEDIA_BASE`, `TZ_CREATOR`; token health + registry: `META_APP_ID`, `META_APP_SECRET`, `META_ACCESS_TOKEN`, `META_GRAPH_VERSION`, `IG_USER_ID`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `YT_REFRESH_TOKEN`, `ZERNIO_API_KEY`, `ZERNIO_TIKTOK_ACCOUNT_ID`
-- research lint: `PRIVACY_BLOCKLIST` (**missing from `.env.example`**)
-- probes: `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `DRY_RUN`, plus the platform names above
-- ingest: `INGEST_ROOTS`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_MEDIA`; backups: `R2_BUCKET_BACKUPS`, `POSTGRES_PASSWORD`
-- seed: `DEV_DATABASE_URL`; infra: `DOMAIN`, `DASH_USER`, `DASH_HASH`; find-duplicates: `USERPROFILE`
-- Compose passes `env_file: ../.env` to web, worker, backup.
+## Config / env (names only)
+General `TZ_CREATOR`, `DRY_RUN`, `WORKER_LIVE`, `PUBLIC_MEDIA_BASE`, `PRIVACY_BLOCKLIST`; Meta `META_APP_ID`, `META_APP_SECRET`, `META_ACCESS_TOKEN`, `META_USER_TOKEN`, `META_GRAPH_VERSION`, `IG_USER_ID`; Google `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `YT_REFRESH_TOKEN`, `YT_CHANNEL_ID`, `YT_COMMENT_REPLIES`; Zernio `ZERNIO_API_KEY`, `ZERNIO_TIKTOK_ACCOUNT_ID`; Anthropic `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`; R2 `R2_*`; infra `POSTGRES_PASSWORD`, `DATABASE_URL`, `DOMAIN`, `WEB_ORIGIN`, `DASH_USER`, `DASH_HASH`; ingest `INGEST_ROOTS`. Compose passes `env_file: ../.env` to web, worker and backup.
 
-## Auth today
-- **Caddy basic auth** on `handle /app*` (`infra/Caddyfile`, `{$DASH_USER} {$DASH_HASH}` bcrypt) → `reverse_proxy web:3000`. Since `basePath` is `/app`, every page, asset and server action is behind it. Fails closed (unset → 401). Public: `/` (static), `/privacy*`, `/terms*`, `/snap-test*`, `/healthz`; everything else 404. Headers: HSTS, nosniff, Referrer-Policy.
-- Runbook: `docs/runbooks/dashboard-password.md` (creator generates the hash on the VPS; `docker compose up -d caddy` to apply). It calls the gate a stopgap until passkey login.
-- **Inside the app: no auth at all** (no `middleware.ts`, no session). The worker has no HTTP surface.
+## Runbooks (`docs/runbooks/`)
+deploy, migrations, token-renewal, failed-or-unknown-post (no app button yet: F11), restore, dashboard-password, login, engagement, snapchat-handoff.
 
-## Known stubs and TODOs
-- `apps/web/app/research/actions.ts:18`: `TODO(F2)` every server action must check the session once login lands
-- `apps/web/app/page.tsx:11`: skeleton; login, weekly batch and approval UI "land later"
-- `scripts/skills/lib/batch-draft.ts:73-76`: `tiktokDraft` is rejected as an error ("no column yet"), although the worker already reads `trial.tiktokDraft` (outbox.ts:42,89) and the TikTok adapter supports drafts → reconcile in F2
-- `apps/worker/src/jobs/outbox.ts:175`: alerts go to console + table only; "PWA push arrives with F4" (not done)
-- `apps/worker/src/jobs/health.ts:4`: placeholder health job
-- `packages/analytics/src/ingest.ts:105-112`: `createUnverifiedSource()` throws "metrics source not implemented" (Snapchat)
-- analytics ingest job is not registered in the worker; Business Discovery and metrics parsers are unrun live
-- YouTube and TikTok adapters have no `findExisting` (documented gap; runbook `failed-or-unknown-post.md`)
-- `packages/db/src/types.ts` `AlertKind` lacks `token-health` (core has it)
-- `public/manifest.json`: `icons: []`, no service worker
+## Known gaps (facts)
+- No reset for `failed`/`unknown` items (F11 design); the runbook says "3 attempts" (code: 4) and points at a YouTube note in `outbox.ts` that lives in `youtube.ts:37`.
+- `AlertRow.platform` typing (F8 T1). Alerts have no page and no push (F8).
+- Metric parsers unverified; no ingest job on `main` (F9).
+- YouTube and TikTok have no `findExisting`.
+- `pickSnapchatDaily` suggestion is read-only; there's no "add Snapchat item from pick" path.
+- The YouTube adapter's doc comment mentions 3 hashtags; the code default is 5.

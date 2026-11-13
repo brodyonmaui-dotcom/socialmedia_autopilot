@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@autopilot/adapters": "workspace:*",
     "@autopilot/analytics": "workspace:*",
     "@autopilot/core": "workspace:*",
     "@autopilot/db": "workspace:*",
