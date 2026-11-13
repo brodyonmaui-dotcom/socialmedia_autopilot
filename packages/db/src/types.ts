@@ -76,7 +76,8 @@ export interface BatchItemEventRow {
   at: string;
 }
 
-export type AlertKind = "final-failure" | "unknown-outcome" | "cap-breach" | "duplicate" | "token-health" | "auth";
+import type { AlertKind } from "@autopilot/core";
+export type { AlertKind };
 
 /** Outbox alerts a human must look at (migration 0005). One row per (kind, item). */
 export interface AlertRow {

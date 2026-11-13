@@ -74,7 +74,9 @@ export interface PlatformAdapter {
   findExisting?(post: OutboxPost, opts?: PublishOptions): Promise<PublishResult | null>;
 }
 
-export type AlertKind = "final-failure" | "unknown-outcome" | "cap-breach" | "duplicate" | "token-health";
+export type AlertKind =
+  | "final-failure" | "unknown-outcome" | "cap-breach" | "duplicate" | "token-health"
+  | "auth" | "engagement-kill" | "engagement-failure" | "engagement-unknown";
 
 /** Raised by the outbox for anything a human must look at. Delivered by an AlertSink (log, DB, push). */
 export interface OutboxAlert {
