@@ -1,31 +1,48 @@
 {
   "date": "2026-11-13",
   "startedAt": "2026-11-13T01:14:00Z",
-  "endedAt": "2026-11-13T06:20:00Z",
+  "endedAt": "2026-11-13T07:20:00Z",
   "model": "claude-fable-5-1",
-  "session": "cloud · autopilot-overnight · Fable run 2 (lead + implementer subagents)",
-  "backlogItem": "F2 · Batch builder + phone approval UI + passkey login, then F3 · Engagement",
-  "summary": "Checkpoint in progress. F2 back end is done and green (migration 0006, passkey login, middleware + requireSession on every page, batch domain + pg store, worker approval gate); the approval UI is being finished. F3 foundations are in (migration 0007, engagement package: rules, pools, rotation, planner, triage clients, DM drafts); send tick and platform comment sources in progress.",
+  "session": "cloud \u00b7 autopilot-overnight \u00b7 Fable run 2 (lead + implementer subagents)",
+  "backlogItem": "F2 \u00b7 Batch builder + phone approval UI + passkey login, then F3 \u00b7 Engagement",
+  "summary": "F2 done and green (migration 0006, passkey login, requireSession on every page, batch domain + pg store, worker approval gate, phone approval UI). F3 done on fakes (migration 0007, engagement package, IG/YT comment sources, worker jobs, inbox, simulate-engagement in CI); everything ships in shadow mode. F7 red-team in progress.",
   "needsAttention": [
-    { "priority": 1, "title": "Review the PR when it opens; apply migrations 0006 + 0007 on the VPS after merge", "detail": "0006 backfills approved_at on existing approved/published rows so the new worker gate keeps firing them. Order: merge → backup → migrate → docker compose up -d --build (docs/runbooks/migrations.md)." },
-    { "priority": 2, "title": "Enrol your phone's passkey after deploy", "detail": "docker compose run --rm worker pnpm auth:enroll prints a 15-min code; /app/login → Add this device (docs/runbooks/login.md). The Caddy prompt stays as the first layer." },
-    { "priority": 3, "title": "Usage: the 5-hour window closed 41 minutes into the run", "detail": "Five Opus implementers in parallel plus the lead burned the window by 01:55 UTC; the run resumed at 06:12 UTC when it reset. Run 3 should cap parallel implementers at 2–3." }
+    {
+      "priority": 1,
+      "title": "Review the PR when it opens; apply migrations 0006 + 0007 on the VPS after merge",
+      "detail": "0006 backfills approved_at on existing approved/published rows so the new worker gate keeps firing them. Order: merge \u2192 backup \u2192 migrate \u2192 docker compose up -d --build (docs/runbooks/migrations.md)."
+    },
+    {
+      "priority": 2,
+      "title": "Enrol your phone's passkey after deploy",
+      "detail": "docker compose run --rm worker pnpm auth:enroll prints a 15-min code; /app/login \u2192 Add this device (docs/runbooks/login.md). The Caddy prompt stays as the first layer."
+    },
+    {
+      "priority": 3,
+      "title": "Usage: the 5-hour window closed 41 minutes into the run",
+      "detail": "Five Opus implementers in parallel plus the lead burned the window by 01:55 UTC; the run resumed at 06:12 UTC when it reset. Run 3 should cap parallel implementers at 2\u20133."
+    }
   ],
   "done": [
-    "F2 T1 migration 0006: auth tables, approved_at/approved_session, batch_item_events, status CHECK (NOT VALID → VALIDATE), backfill, scheduled_for nullable; applied and verified on the local Postgres",
-    "F2 T2 auth core: 32-byte tokens stored as sha256 only, 30-day sliding / 90-day hard cap, single-use enrol codes + challenges, 10-per-15-min rate limit → 'auth' alert; worker CLI auth:enroll / auth:revoke-all (runs in the worker image)",
+    "F2 T1 migration 0006: auth tables, approved_at/approved_session, batch_item_events, status CHECK (NOT VALID \u2192 VALIDATE), backfill, scheduled_for nullable; applied and verified on the local Postgres",
+    "F2 T2 auth core: 32-byte tokens stored as sha256 only, 30-day sliding / 90-day hard cap, single-use enrol codes + challenges, 10-per-15-min rate limit \u2192 'auth' alert; worker CLI auth:enroll / auth:revoke-all (runs in the worker image)",
     "F2 T3/T4: @simplewebauthn 14 register/login, /login page, edge middleware (cookie shape) + requireSession() (DB) on every DB page and server action, static test enforcing it; dev:session for local screenshots (local DB + non-production only)",
-    "F2 T5/T6: pure warnings (placeholder, past/missing time, lint incl. location, cap breach, no clean file block; duplicates/QA/TikTok draft/>60 s warn) + transitions (approve/approve-all/edit→draft/unapprove/reject with handed-off guards); PgBatchStore apply = one transaction, conditional on from-status, audit events; fill-times via assignSlots",
+    "F2 T5/T6: pure warnings (placeholder, past/missing time, lint incl. location, cap breach, no clean file block; duplicates/QA/TikTok draft/>60 s warn) + transitions (approve/approve-all/edit\u2192draft/unapprove/reject with handed-off guards); PgBatchStore apply = one transaction, conditional on from-status, audit events; fill-times via assignSlots",
     "F2 T8/T9: worker listDue requires approved_at + batch approved; tiktokDraft stored in trial and accepted by the weekly-batch skill; schedule-catchup --approve stamps + audits; seed adds a draft week",
     "F2 T10: docs/runbooks/login.md, migrations.md (0005/0006 pending), dashboard-password.md updated",
     "F3 T1: migration 0007 (comments, comment_triage, engagement_actions unique(comment, kind), cursors, blocklist, dm_*), @autopilot/engagement package + shared types, AlertKind unified in core",
     "F3 T2/T3: pools from voice.md, settings merge (shadow/shadow/off defaults), pre/post rules, seeded rotation, planner (per-person 7 d, human-replied pause, hide only when enabled)",
-    "F3 T4/T7: Anthropic triage client (messages.parse + zod, refusal/error → flag, key never logged), fake client, DM 24 h window + read-only drafts"
+    "F3 T4/T7: Anthropic triage client (messages.parse + zod, refusal/error \u2192 flag, key never logged), fake client, DM 24 h window + read-only drafts",
+    "F2 T7: /batches + /batches/[id] phone UI (week grid, warning chips, inline edit, approve/approve-all confirm sheet with counts, pull back, reject, fill times, add clip), home page with logout; verified with Playwright against the seed",
+    "F3 T5: send tick (gate order dry-run \u2192 killed \u2192 mode \u2192 veto delay \u2192 limits \u2192 capability; thread re-check before retries/manual sends; conditional claim; timeout \u2192 unknown; bounded backoff; auto kill-trip on 3 fails or block signals) + in-memory fakes",
+    "F3 T6: IG comment source (list/thread/reply/hide per research.md), YouTube read-only + gated insert/moderation, TikTok stub, read-only IG DM source, fixtures marked unverified",
+    "F3 T8: worker jobs engagement-poll/triage/send + dm-poll, PgEngagementStore (conditional claim, idempotent upsert), startup line with modes and keys",
+    "F3 T9: /inbox (flagged / shadow / sent / DMs), kill switch, per-platform mode with live confirm + audit alert, mark done, block author, manual send, promote shadow reply, DM countdown + copy",
+    "F3 T10: simulate-engagement (200 synthetic comments, shadow + live-fake, invariants) + CI step + docs/runbooks/engagement.md"
   ],
   "notDone": [
-    "F2 T7 approval UI (in progress when the window closed)",
-    "F3 T5 send tick/gate/kill (in progress), T6 comment sources (in progress), T8 worker jobs + PgEngagementStore, T9 inbox UI, T10 simulate-engagement + runbook",
-    "F7 not started"
+    "F7 in progress: engagement red-team (A15/B6/C6), engine-side sanitiser + publish-time lint + recovery tests, adapter/media/lint fixes + public-leak scanner, worker live key (R2), auth re-review (R6)",
+    "Creator day tasks: probes for comment from-fields / DM read / YouTube force-ssl; check-exposure after deploy"
   ],
   "decisions": [
     "Enrol/revoke CLI lives in apps/worker (the web image is standalone without pnpm/tsx); root aliases pnpm auth:enroll",
@@ -41,8 +58,15 @@
   "blocked": [
     "5-hour usage limit at 01:55 UTC with five implementers running; three were terminated mid-task and resumed at 06:12 UTC"
   ],
-  "tests": { "passed": 535, "failed": 0, "notes": "at the last green checkpoint (266cdbe); 13 DB tests skip without DATABASE_URL and pass locally; typecheck covers apps/web now; simulate-week OK" },
+  "tests": {
+    "passed": 535,
+    "failed": 0,
+    "notes": "at the last green checkpoint (266cdbe); 13 DB tests skip without DATABASE_URL and pass locally; typecheck covers apps/web now; simulate-week OK"
+  },
   "commits": 14,
   "prUrl": "",
-  "nextPickup": ["Finish F2 T7 UI, F3 T5/T6, then T8/T10 (T9 if budget)", "Run 3 plan: docs/prep/run-3-plan.md"]
+  "nextPickup": [
+    "Finish F2 T7 UI, F3 T5/T6, then T8/T10 (T9 if budget)",
+    "Run 3 plan: docs/prep/run-3-plan.md"
+  ]
 }
