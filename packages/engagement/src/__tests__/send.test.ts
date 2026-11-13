@@ -135,22 +135,59 @@ describe("runSendTick", () => {
     expect(src.calls).toEqual([]);
   });
 
-  it("an auto retry where a human already replied with different text → skipped human-replied, stays planned", async () => {
+  it("an auto retry where a human already replied with different text → cancelled, never listed again", async () => {
     const { store, src, sources, cfg } = setup({ threads: { "pc-a1": fakeThread("instagram", "pc-a1", [{ id: "r-1", text: "so glad you liked it" }]) } });
     store.addAction({ id: "a1", notBefore: BEFORE, attempts: 1 });
     const r = await runSendTick(store, sources, cfg());
-    expect(r.skipped).toEqual({ "human-replied": 1 });
+    expect(r).toMatchObject({ cancelled: 1, skipped: {}, sent: 0 });
     expect(src.calls).toEqual([]);
-    expect(store.get("a1").status).toBe("planned");
+    expect(store.get("a1")).toMatchObject({ status: "cancelled", lastError: "creator replied first" });
+    const r2 = await runSendTick(store, sources, cfg({}, new Date(NOW.getTime() + 60_000)));
+    expect(r2.considered).toBe(0);
+    expect(src.threadCalls).toEqual(["pc-a1"]); // not re-read every tick
   });
 
-  it("a first-attempt auto reply where the creator replied during the veto window → human-replied, nothing sent (F7 A15)", async () => {
+  it("a manual reply on a thread with an own reply is not cancelled: it sends", async () => {
+    const { store, src, sources, cfg } = setup({ threads: { "pc-a1": fakeThread("instagram", "pc-a1", [{ id: "r-1", text: "so glad you liked it" }]) } });
+    store.addAction({ id: "a1", notBefore: BEFORE, origin: "manual", text: "and thanks again" });
+    const r = await runSendTick(store, sources, cfg());
+    expect(r).toMatchObject({ cancelled: 0, sent: 1 });
+    expect(src.calls).toHaveLength(1);
+  });
+
+  it("a row stuck in sending past 2× the send deadline → unknown + alert, never resent; a fresh claim is left alone", async () => {
+    const { store, src, sources, cfg } = setup();
+    const old = new Date(NOW.getTime() - 2 * DEFAULT_RETRY_POLICY.publishTimeoutMs - 1000).toISOString();
+    const fresh = new Date(NOW.getTime() - 60_000).toISOString();
+    store.addAction({ id: "stale", status: "sending", sentAt: old, notBefore: BEFORE });
+    store.addAction({ id: "fresh", status: "sending", sentAt: fresh, notBefore: BEFORE });
+    const r = await runSendTick(store, sources, cfg());
+    expect(r.staleSettled).toBe(1);
+    expect(r.alerts.map((a) => [a.kind, a.actionId])).toEqual([["engagement-unknown", "stale"]]);
+    expect(store.get("stale")).toMatchObject({ status: "unknown", lastError: "crashed send: settled as unknown" });
+    expect(store.get("fresh").status).toBe("sending");
+    expect(src.calls).toEqual([]);
+    const r2 = await runSendTick(store, sources, cfg({}, new Date(NOW.getTime() + 3_600_000)));
+    expect(r2.staleSettled).toBe(1); // "fresh" is stale by now; "stale" is never settled twice
+    expect(r2.alerts.map((a) => a.actionId)).toEqual(["fresh"]);
+    expect(src.calls).toEqual([]);
+  });
+
+  it("dry-run settles nothing", async () => {
+    const { store, sources, cfg } = setup();
+    store.addAction({ id: "stale", status: "sending", sentAt: new Date(0).toISOString(), notBefore: BEFORE });
+    const r = await runSendTick(store, sources, cfg({ dryRun: true }));
+    expect(r.staleSettled).toBe(0);
+    expect(store.get("stale").status).toBe("sending");
+  });
+
+  it("a first-attempt auto reply where the creator replied during the veto window → cancelled, nothing sent (F7 A15)", async () => {
     const { store, src, sources, cfg } = setup({ threads: { "pc-a1": fakeThread("instagram", "pc-a1", [{ id: "r-1", text: "haha thanks" }]) } });
     store.addAction({ id: "a1", notBefore: BEFORE });
     const r = await runSendTick(store, sources, cfg());
-    expect(r.skipped).toEqual({ "human-replied": 1 });
+    expect(r.cancelled).toBe(1);
     expect(src.calls).toEqual([]);
-    expect(store.get("a1").status).toBe("planned");
+    expect(store.get("a1").status).toBe("cancelled");
   });
 
   it("manual actions always pre-flight the thread, then send", async () => {

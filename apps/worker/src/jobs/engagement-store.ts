@@ -76,6 +76,25 @@ interface ActionDbRow {
   created_at: string | Date;
 }
 
+function toActionRow(r: ActionDbRow): EngagementActionRow {
+  return {
+    id: r.id,
+    commentId: r.comment_id,
+    platform: r.platform,
+    platformCommentId: r.platform_comment_id,
+    authorId: r.author_id,
+    kind: r.kind,
+    text: r.text,
+    idempotencyKey: r.idempotency_key,
+    status: r.status,
+    notBefore: iso(r.not_before)!,
+    attempts: r.attempts,
+    nextAttemptAt: iso(r.next_attempt_at),
+    origin: r.origin,
+    createdAt: iso(r.created_at)!,
+  };
+}
+
 /** sent rows carry sent_at; a row still "sending" is timed by its claim (updated_at). */
 const SENT_AT = "coalesce(a.sent_at, a.updated_at)";
 const FROM_ACTIONS = "from engagement_actions a join comments c on c.id = a.comment_id";
@@ -108,22 +127,7 @@ export class PgEngagementStore implements EngagementJobStore {
         order by a.not_before limit $2`,
       [now, limit],
     );
-    return (rows as ActionDbRow[]).map((r) => ({
-      id: r.id,
-      commentId: r.comment_id,
-      platform: r.platform,
-      platformCommentId: r.platform_comment_id,
-      authorId: r.author_id,
-      kind: r.kind,
-      text: r.text,
-      idempotencyKey: r.idempotency_key,
-      status: r.status,
-      notBefore: iso(r.not_before)!,
-      attempts: r.attempts,
-      nextAttemptAt: iso(r.next_attempt_at),
-      origin: r.origin,
-      createdAt: iso(r.created_at)!,
-    }));
+    return (rows as ActionDbRow[]).map(toActionRow);
   }
 
   async claimAction(id: string, now: Date): Promise<boolean> {
@@ -162,6 +166,26 @@ export class PgEngagementStore implements EngagementJobStore {
       `update engagement_actions set status = 'unknown', attempts = attempts + 1, last_error = $2, updated_at = $3 where id = $1`,
       [id, error, now],
     );
+  }
+
+  async markCancelled(id: string, reason: string, now: Date): Promise<void> {
+    await this.pool.query(
+      `update engagement_actions set status = 'cancelled', last_error = $2, updated_at = $3 where id = $1 and status = 'planned'`,
+      [id, reason, now],
+    );
+  }
+
+  /** Rows still 'sending' whose claim (updated_at) is older than `olderThan`: a crashed send. */
+  async listStaleSending(olderThan: Date, limit = 20): Promise<EngagementActionRow[]> {
+    const { rows } = await this.pool.query(
+      `select a.id, a.comment_id, c.platform, c.platform_comment_id, c.author_id, a.kind, a.text, a.idempotency_key, a.status,
+              a.not_before, a.attempts, a.next_attempt_at, a.origin, a.created_at
+         ${FROM_ACTIONS}
+        where a.status = 'sending' and a.updated_at < $1
+        order by a.updated_at limit $2`,
+      [olderThan, limit],
+    );
+    return (rows as ActionDbRow[]).map(toActionRow);
   }
 
   async limitCounts(platform: EngagementPlatform, authorId: string | null, limits: EngagementLimits, now: Date): Promise<LimitCounts> {

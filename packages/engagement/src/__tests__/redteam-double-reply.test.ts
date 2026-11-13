@@ -77,6 +77,11 @@ class CrashingStore extends MemoryEngagementStore {
     if (ok && this.rng() < 0.03) this.crashNext.add(id);
     return ok;
   }
+  unknownCalls = new Map<string, number>();
+  override async markUnknown(id: string, error: string, now: Date) {
+    this.unknownCalls.set(id, (this.unknownCalls.get(id) ?? 0) + 1);
+    return super.markUnknown(id, error, now);
+  }
   override async markSent(id: string, platformActionId: string | null, now: Date) {
     if (this.crashNext.delete(id)) {
       this.crashed.add(id);
@@ -156,7 +161,7 @@ describe("A15: no double replies under random failure (property, 1,000 comments)
           crashes++;
         }
         now = new Date(now.getTime() + 60_000);
-        if (comments.length >= 1000 && (await store.listDueActions(now, 1)).length === 0) break;
+        if (comments.length >= 1000 && (await store.listDueActions(now, 1)).length === 0 && !store.actions.some((a) => a.status === "sending")) break;
       }
 
       expect(comments.length).toBe(1000);
@@ -175,13 +180,16 @@ describe("A15: no double replies under random failure (property, 1,000 comments)
       const sent = new Map<string, number>();
       for (const a of store.actions.filter((x) => x.status === "sent")) sent.set(`${a.commentId}|${a.kind}`, (sent.get(`${a.commentId}|${a.kind}`) ?? 0) + 1);
       expect([...sent.values()].every((n) => n === 1)).toBe(true);
-      // a crashed row stays `sending`: never listed again, never resent
+      // a crashed row is settled as unknown exactly once (stale-sending pass) and never resent
       for (const id of store.crashed) {
         const a = store.get(id);
-        expect(a.status).toBe("sending");
-        // earlier rejected attempts each bumped `attempts`; the crashed call is the last one ever made
-        expect(platforms.get(a.platform)!.calls.filter((c) => c.id === a.platformCommentId)).toHaveLength(a.attempts + 1);
+        expect(a.status).toBe("unknown");
+        expect(a.lastError).toBe("crashed send: settled as unknown");
+        expect(store.unknownCalls.get(id)).toBe(1);
+        // earlier rejected attempts and the settle each bumped `attempts`; the crashed call is the last one ever made
+        expect(platforms.get(a.platform)!.calls.filter((c) => c.id === a.platformCommentId)).toHaveLength(a.attempts);
       }
+      expect(store.actions.some((a) => a.status === "sending")).toBe(false);
     }, 30_000);
   }
 });

@@ -84,7 +84,7 @@ export async function runSendTick(
   const log = cfg.log ?? (() => {});
   const dryRun = cfg.dryRun ?? true;
   const timeoutMs = cfg.timeoutMs ?? policy.publishTimeoutMs;
-  const result: SendTickResult = { considered: 0, sent: 0, skipped: {}, retried: 0, failed: 0, unknown: 0, killedNow: null, alerts: [] };
+  const result: SendTickResult = { considered: 0, sent: 0, skipped: {}, retried: 0, failed: 0, unknown: 0, cancelled: 0, staleSettled: 0, killedNow: null, alerts: [] };
 
   const skip = (a: EngagementActionRow, reason: SendGateReason, detail?: string): void => {
     result.skipped[reason] = (result.skipped[reason] ?? 0) + 1;
@@ -95,6 +95,19 @@ export async function runSendTick(
     result.alerts.push(alert);
     if (cfg.alerts) await cfg.alerts.send(alert);
   };
+
+  // Crashed sends first: a row still "sending" well past the send deadline may or may not have reached the
+  // platform. It is settled as unknown (+ alert) and never resent. Dry-run persists nothing.
+  if (!dryRun) {
+    const stale = await store.listStaleSending(new Date(now.getTime() - policy.publishTimeoutMs * 2), DUE_BATCH);
+    for (const a of stale) {
+      const message = "crashed send: settled as unknown";
+      await store.markUnknown(a.id, message, now);
+      result.staleSettled++;
+      log(`[engage] UNKNOWN ${a.platform} ${a.id}: ${message}`);
+      await raise({ kind: "engagement-unknown", platform: a.platform, actionId: a.id, message: `${a.kind} ${message} (not retried; check the thread)`, at: now.toISOString() });
+    }
+  }
 
   const due = await store.listDueActions(now, DUE_BATCH);
   result.considered = due.length;
@@ -146,8 +159,12 @@ export async function runSendTick(
         }
         // Someone (the human) already answered in this thread: automation steps back. Manual actions are
         // the human, so they are not paused by their own earlier replies.
+        // The row is cancelled (not left planned): a planned row would be re-read every tick and, once 20
+        // pile up, starve the due list.
         if (a.origin === "auto" && thread.ownRepliesInThread.length > 0) {
-          skip(a, "human-replied", `${thread.ownRepliesInThread.length} own repl${thread.ownRepliesInThread.length === 1 ? "y" : "ies"} in thread`);
+          await store.markCancelled(a.id, "creator replied first", now);
+          result.cancelled++;
+          log(`[engage] cancelled ${a.platform} ${a.id}: creator replied first (${thread.ownRepliesInThread.length} own repl${thread.ownRepliesInThread.length === 1 ? "y" : "ies"} in thread)`);
           continue;
         }
       }

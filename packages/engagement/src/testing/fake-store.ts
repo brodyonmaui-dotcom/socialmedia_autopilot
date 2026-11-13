@@ -146,6 +146,19 @@ export class MemoryEngagementStore implements EngagementStore {
     r.status = "unknown";
     r.lastError = error;
   }
+  async markCancelled(id: string, reason: string, _now: Date): Promise<void> {
+    const r = this.get(id);
+    if (r.status !== "planned") return; // conditional, like the pg store
+    r.status = "cancelled";
+    r.lastError = reason;
+  }
+  /** Rows in `sending` whose claim (`sentAt`, set by claimAction) is older than `olderThan`. */
+  async listStaleSending(olderThan: Date, limit = 20): Promise<EngagementActionRow[]> {
+    return this.actions
+      .filter((r) => r.status === "sending" && r.sentAt !== null && Date.parse(r.sentAt) < olderThan.getTime())
+      .slice(0, limit)
+      .map(({ sentAt: _s, lastError: _e, platformActionId: _p, ...row }) => ({ ...row }));
+  }
   async limitCounts(platform: EngagementPlatform, authorId: string | null, limits: EngagementLimits, now: Date): Promise<LimitCounts> {
     const t = now.getTime();
     const all = this.sentAll();

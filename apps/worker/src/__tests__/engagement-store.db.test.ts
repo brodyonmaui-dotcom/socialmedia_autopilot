@@ -85,6 +85,32 @@ describe.skipIf(!url)("PgEngagementStore (db)", () => {
     expect(await store.isBlockedAuthor("youtube", author)).toBe(false);
   });
 
+  it("markCancelled only cancels planned rows; listStaleSending finds old claims only", async () => {
+    await store.upsertComments([comment("d"), comment("e")], now);
+    const d = await idOf("d");
+    const e = await idOf("e");
+    const nb = new Date(now.getTime() - 1000);
+    expect(await store.insertAction(d, "reply", "Thanks, means a lot", "planned", nb, now)).toBe(true);
+    expect(await store.insertAction(e, "reply", "Glad you liked it", "planned", nb, now)).toBe(true);
+    const due = await store.listDueActions(new Date(now.getTime() + 1000), 500);
+    const rowD = due.find((r) => r.commentId === d)!;
+    const rowE = due.find((r) => r.commentId === e)!;
+
+    await store.markCancelled(rowD.id, "creator replied first", now);
+    const { rows } = await pool.query("select status, last_error from engagement_actions where id = $1", [rowD.id]);
+    expect(rows[0]).toEqual({ status: "cancelled", last_error: "creator replied first" });
+    expect((await store.listDueActions(new Date(now.getTime() + 1000), 500)).some((r) => r.id === rowD.id)).toBe(false);
+
+    const claimedAt = new Date(now.getTime() - 20 * 60_000);
+    expect(await store.claimAction(rowE.id, claimedAt)).toBe(true);
+    await store.markCancelled(rowE.id, "creator replied first", now); // not planned → no-op
+    const stale = await store.listStaleSending(new Date(now.getTime() - 10 * 60_000), 500);
+    expect(stale.find((r) => r.id === rowE.id)).toMatchObject({ status: "sending", commentId: e, platformCommentId: `test-${run}-e` });
+    expect((await store.listStaleSending(new Date(now.getTime() - 30 * 60_000), 500)).some((r) => r.id === rowE.id)).toBe(false);
+    await store.markUnknown(rowE.id, "crashed send: settled as unknown", now);
+    expect((await store.listStaleSending(now, 500)).some((r) => r.id === rowE.id)).toBe(false);
+  });
+
   it("shadow rows are never due", async () => {
     await store.upsertComments([comment("c")], now);
     const id = await idOf("c");
