@@ -76,7 +76,7 @@
     "notes": "pnpm test 113 files / 1099 tests with DATABASE_URL (twice); typecheck; frozen install; simulate-week OK 0 double-posts; simulate-engagement OK; leak scanner ok; web build OK; local-stack re-seed ok"
   },
   "commits": 20,
-  "prUrl": null,
+  "prUrl": "https://github.com/brodyonmaui-dotcom/socialmedia_autopilot/pull/16",
   "nextPickup": [
     "Fable run 3: follow docs/prep/run-3-fable-brief.md"
   ]
