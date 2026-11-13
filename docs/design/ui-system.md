@@ -2,7 +2,7 @@
 
 The look for the creator's dashboard: calm, dark, serif, one light-blue accent, numbers first.
 Tokens: `apps/web/app/globals.css` (the `design system v1` block). Components: `apps/web/components/ui/`.
-Live style guide: `/app/design`. Screenshots: `docs/design/ui-shots/`. UI work goes through the `designer` agent (`.claude/agents/designer.md`).
+Live style guide: `/app/design` (`?view=home|batch|components`). Screenshots: `docs/design/ui-shots/` (home-phone, batch-card-phone, approve-sheet-phone, home-desktop). UI work goes through the `designer` agent (`.claude/agents/designer.md`).
 
 ## Principles
 1. **One accent.** Light blue (#29ABE2) marks the one thing to do or the one thing that's on. Everything else is gray.
@@ -93,6 +93,11 @@ Usage rules:
 - **Lists are card-backed.** Rows separate with `ds-line` hairlines, inset to the text start.
 - **Truncation:** one line for titles in rows, two lines for captions; full text always in the detail view.
 - **Every interactive element is a real `<button>`/`<a>`/`<input>`** with a visible or `sr-only` label and ≥ 44 px target.
+
+Implementation notes:
+- **Barrel:** `components/ui/index.ts` exports everything. Client islands are Toggle, TabsClient (re-exported by `Tabs.tsx`), Stepper, Slider and Sheet; everything else is server-safe.
+- **Tests:** view logic is in pure modules (`chart-math.ts`, `toggle-state.ts`, `stepper-math.ts`, `buttonClasses`), plus `renderToStaticMarkup` smoke tests. The root `vitest.config.ts` only sets the automatic JSX runtime.
+- **Button labels:** all variants use caps (`ds-caps`), so labels have one voice, as in reference 2.
 
 ## Layout rules
 **Phone (< 1024 px, designed at 390):**
