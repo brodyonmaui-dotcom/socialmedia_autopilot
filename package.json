@@ -23,6 +23,7 @@
     "dev:seed": "tsx scripts/dev/seed.ts",
     "dev:session": "tsx scripts/dev/dev-session.ts",
     "simulate-week": "tsx scripts/simulate-week.ts",
+    "simulate-engagement": "tsx scripts/simulate-engagement.ts",
     "schedule-batch": "tsx scripts/schedule-batch.ts"
   },
   "devDependencies": {
