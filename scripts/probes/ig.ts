@@ -1,7 +1,7 @@
 // Instagram probe (Facebook Login token, graph.facebook.com; falls back to Instagram Login on graph.instagram.com).
 // Read-only by default. Real trial-reel post only with:  DRY_RUN=false pnpm probe:ig --live --video-url=https://... --caption="..."
 // Optional: --creator=<public pro username> to test Business Discovery.
-import { LIVE, argValue, getJson, need, record, sleep, startLog, summary } from "./lib.js";
+import { LIVE, argValue, getJson, need, record, shapeNote, sleep, startLog, summary } from "./lib.js";
 
 startLog("ig");
 const { META_ACCESS_TOKEN } = need("META_ACCESS_TOKEN");
@@ -68,12 +68,24 @@ if (reel) {
   const metrics = ["views", "reach", "saved", "shares", "ig_reels_avg_watch_time", "ig_reels_video_view_total_time", "reels_skip_rate", "reposts", "follows", "profile_visits"];
   const ok: string[] = [];
   const bad: string[] = [];
+  let firstOk: { status: number; body: unknown } | undefined;
   for (const metric of metrics) {
     const r = await getJson(api(`/${reel.id}/insights?metric=${metric}`), auth);
     (r.status === 200 ? ok : bad).push(metric);
+    if (r.status === 200) firstOk ??= r;
   }
   record("reel_insights", ok.length > 0, `ok: ${ok.join(",")} | rejected: ${bad.join(",") || "none"}`);
-} else record("reel_insights", true, "no reel in last 5 posts — skipped");
+  // 4b. Response shapes for analytics ingest (F9): key paths + JSON types only, never values or ids. Read-only.
+  const is = firstOk ? shapeNote(firstOk.status, firstOk.body) : { ok: false, note: "no accepted metric to shape" };
+  record("reel_insight_shape", is.ok, firstOk ? `${ok[0]}: ${is.note}` : is.note);
+  const mf = await getJson(api(`/${reel.id}?fields=like_count,comments_count`), auth);
+  const ms = shapeNote(mf.status, mf.body);
+  record("media_fields_shape", ms.ok, ms.note);
+} else {
+  record("reel_insights", true, "no reel in last 5 posts — skipped");
+  record("reel_insight_shape", true, "no reel in last 5 posts — skipped");
+  record("media_fields_shape", true, "no reel in last 5 posts — skipped");
+}
 
 // 5. Business Discovery (Facebook Login only)
 const creator = argValue("creator");
