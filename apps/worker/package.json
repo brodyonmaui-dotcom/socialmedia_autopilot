@@ -13,6 +13,7 @@
     "@autopilot/adapters": "workspace:*",
     "@autopilot/core": "workspace:*",
     "@autopilot/db": "workspace:*",
+    "@autopilot/engagement": "workspace:*",
     "pg": "^8.13.0",
     "pg-boss": "^10.1.0"
   },
