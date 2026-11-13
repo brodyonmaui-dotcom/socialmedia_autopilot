@@ -76,7 +76,7 @@ export interface PlatformAdapter {
 
 export type AlertKind =
   | "final-failure" | "unknown-outcome" | "cap-breach" | "duplicate" | "token-health"
-  | "auth" | "engagement-kill" | "engagement-failure" | "engagement-unknown";
+  | "auth" | "engagement-kill" | "engagement-failure" | "engagement-unknown" | "engagement-mode";
 
 /** Raised by the outbox for anything a human must look at. Delivered by an AlertSink (log, DB, push). */
 export interface OutboxAlert {

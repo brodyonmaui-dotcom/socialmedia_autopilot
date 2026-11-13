@@ -122,6 +122,9 @@ importers:
       '@autopilot/core':
         specifier: workspace:*
         version: link:../core
+      '@autopilot/engagement':
+        specifier: workspace:*
+        version: link:../engagement
     devDependencies:
       '@types/node':
         specifier: ^22.10.0

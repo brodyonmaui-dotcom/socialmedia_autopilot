@@ -5,3 +5,4 @@ export * from "./tiktok.js";
 export * from "./snapchat.js";
 export * from "./token-health.js";
 export * from "./registry.js";
+export * from "./comments/index.js";
