@@ -2,6 +2,7 @@ import { allowedMoves, listIdeas, IDEA_STAGES, type Idea, type IdeaStage } from 
 import { getPool } from "../../../lib/db.js";
 import { addIdeaAction, moveIdeaAction } from "../actions.js";
 import { button, ErrorBanner, errorFrom, input, PillarSelect, ResearchHeader, smallButton, type SearchParams } from "../ui.js";
+import { requireSession } from "../../../lib/auth/require.js";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ function MoveForm({ idea, to }: { idea: Idea; to: IdeaStage }) {
 }
 
 export default async function IdeasPage({ searchParams }: { searchParams: SearchParams }) {
+  await requireSession();
   const error = await errorFrom(searchParams);
   const ideas = await listIdeas(getPool());
 

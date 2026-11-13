@@ -14,9 +14,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getPool } from "../../lib/db.js";
-
-// TODO(F2): every action below must check the single-user session once login lands.
-// Until then the dashboard is only reachable behind Caddy on the private host (decisions.md).
+import { requireSession } from "../../lib/auth/require.js";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "");
 
@@ -35,6 +33,7 @@ async function run(path: string, fn: () => Promise<unknown>): Promise<void> {
 }
 
 export async function addCreatorAction(fd: FormData): Promise<void> {
+  await requireSession();
   const followersRaw = str(fd, "followers").replace(/[,\s]/g, "");
   await run("/research/creators", () =>
     addCreator(
@@ -52,10 +51,12 @@ export async function addCreatorAction(fd: FormData): Promise<void> {
 }
 
 export async function toggleCreatorAction(fd: FormData): Promise<void> {
+  await requireSession();
   await run("/research/creators", () => setCreatorActive(getPool(), str(fd, "id"), str(fd, "active") === "true"));
 }
 
 export async function addIdeaAction(fd: FormData): Promise<void> {
+  await requireSession();
   await run("/research/ideas", () =>
     addIdea(
       getPool(),
@@ -66,6 +67,7 @@ export async function addIdeaAction(fd: FormData): Promise<void> {
 }
 
 export async function moveIdeaAction(fd: FormData): Promise<void> {
+  await requireSession();
   const to = str(fd, "to");
   await run("/research/ideas", async () => {
     if (!(IDEA_STAGES as readonly string[]).includes(to)) throw Object.assign(new Error("unknown stage"), { name: "ValidationError" });
@@ -87,6 +89,7 @@ export async function moveIdeaAction(fd: FormData): Promise<void> {
 }
 
 export async function addHookAction(fd: FormData): Promise<void> {
+  await requireSession();
   const pillar = str(fd, "pillar");
   await run("/research/hooks", () =>
     addHook(

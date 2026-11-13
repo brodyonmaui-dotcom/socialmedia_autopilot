@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getPool } from "../../lib/db.js";
+import { requireSession } from "../../lib/auth/require.js";
 
 interface MediaRow {
   id: string;
@@ -17,6 +18,7 @@ export const dynamic = "force-dynamic";
 
 /** Media with ed-qa warnings — flagged for a human look before it goes into a batch, not auto-fixed. */
 export default async function TouchUpQueuePage() {
+  await requireSession();
   const pool = getPool();
   const { rows } = (await pool.query(
     `select id, pillar, duration_s, qa, source_path from media

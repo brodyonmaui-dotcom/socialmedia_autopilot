@@ -21,6 +21,7 @@
     "auth:revoke-all": "pnpm --filter @autopilot/worker auth:revoke-all",
     "test": "vitest run",
     "dev:seed": "tsx scripts/dev/seed.ts",
+    "dev:session": "tsx scripts/dev/dev-session.ts",
     "simulate-week": "tsx scripts/simulate-week.ts",
     "schedule-batch": "tsx scripts/schedule-batch.ts"
   },

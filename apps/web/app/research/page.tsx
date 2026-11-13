@@ -2,10 +2,12 @@ import Link from "next/link";
 import { filmNext, listCreators, listHooks, listIdeas, stageCounts, IDEA_STAGES } from "@autopilot/research";
 import { getPool } from "../../lib/db.js";
 import { ResearchHeader } from "./ui.js";
+import { requireSession } from "../../lib/auth/require.js";
 
 export const dynamic = "force-dynamic";
 
 export default async function ResearchPage() {
+  await requireSession();
   const pool = getPool();
   const [ideas, hooks, creators] = await Promise.all([listIdeas(pool), listHooks(pool), listCreators(pool)]);
   const counts = stageCounts(ideas);

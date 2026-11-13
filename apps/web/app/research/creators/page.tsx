@@ -2,10 +2,12 @@ import { listCreators } from "@autopilot/research";
 import { getPool } from "../../../lib/db.js";
 import { addCreatorAction, toggleCreatorAction } from "../actions.js";
 import { button, ErrorBanner, errorFrom, input, PillarSelect, ResearchHeader, smallButton, type SearchParams } from "../ui.js";
+import { requireSession } from "../../../lib/auth/require.js";
 
 export const dynamic = "force-dynamic";
 
 export default async function CreatorsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requireSession();
   const error = await errorFrom(searchParams);
   const creators = await listCreators(getPool());
 
