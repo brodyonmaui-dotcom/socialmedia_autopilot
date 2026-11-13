@@ -1,5 +1,6 @@
 import {
   runOutboxTick,
+  sanitizeForLog,
   type AlertSink,
   type OutboxAlert,
   type OutboxPost,
@@ -12,6 +13,7 @@ import {
 } from "@autopilot/core";
 import { buildAdapters, type AdapterCredentials } from "@autopilot/adapters";
 import { loadCadence } from "@autopilot/db";
+import { blocklistFromEnv, lintText } from "@autopilot/research";
 
 /** Only what the store needs from pg.Pool, so tests pass a recording fake (same pattern as db/settings.ts). */
 export interface OutboxPool {
@@ -28,6 +30,8 @@ export interface OutboxConfig {
   policy?: RetryPolicy;
   alerts?: AlertSink;
   log?: (line: string) => void;
+  /** PRIVACY_BLOCKLIST terms for the publish-time privacy lint (default: blocklistFromEnv()). */
+  blocklist?: string[];
 }
 
 interface Row {
@@ -60,13 +64,27 @@ const SELECT = `select bi.id, bi.idempotency_key, bi.media_id, bi.platform, bi.c
  *  - listDue() only returns items with approved_at set whose batch has status 'approved';
  *  - claim() is a conditional update (status in approved/queued), so two ticks can't both fire a row;
  *  - every status write bumps updated_at, which is how a crashed "publishing" row gets noticed;
- *  - alerts are unique per (kind, item), so recordAlert() reports whether the alert is new.
+ *  - alerts are unique per (kind, item), so recordAlert() reports whether the alert is new;
+ *  - (F7 A11) an item whose media has no r2_key (no clean file) is never fired: listDue excludes it in
+ *    SQL, and the mapping drops such a row with a log line as a second guard, instead of publishing
+ *    the bare PUBLIC_MEDIA_BASE URL. A stale "publishing" row still maps (recovery only looks it up);
+ *  - (F7 B2/B3) last_error and alert messages are written through sanitizeForLog.
  */
 export class PgOutboxStore implements OutboxStore {
   constructor(
     private readonly pool: OutboxPool,
     private readonly publicMediaBase: string,
+    private readonly log: (line: string) => void = (line) => console.log(line),
   ) {}
+
+  /** Null when the row has no media file to send (A11): such a row must never reach an adapter. */
+  toDuePost(r: Row): OutboxPost | null {
+    if (!r.r2_key) {
+      this.log(`[outbox] skipping item ${r.id}: its media has no clean file (r2_key is null); not fired`);
+      return null;
+    }
+    return this.toPost(r);
+  }
 
   private toPost(r: Row): OutboxPost {
     return {
@@ -94,12 +112,12 @@ export class PgOutboxStore implements OutboxStore {
     const { rows } = await this.pool.query(
       // Approval gate (F2): only items stamped approved, in a batch that is itself approved, ever fire.
       `${SELECT} join batches b on b.id = bi.batch_id
-       where b.status = 'approved' and bi.approved_at is not null
+       where b.status = 'approved' and bi.approved_at is not null and m.r2_key is not null
          and (bi.status = 'approved' or (bi.status = 'queued' and (bi.next_attempt_at is null or bi.next_attempt_at <= $1)))
        order by bi.scheduled_for asc`,
       [now.toISOString()],
     );
-    return (rows as Row[]).map((r) => this.toPost(r));
+    return (rows as Row[]).map((r) => this.toDuePost(r)).filter((p): p is OutboxPost => p !== null);
   }
 
   async listStale(before: Date): Promise<OutboxPost[]> {
@@ -134,17 +152,17 @@ export class PgOutboxStore implements OutboxStore {
       postId,
       attempts,
       nextAttemptAt,
-      error,
+      sanitizeForLog(error),
       now.toISOString(),
     ]);
   }
 
   async markFailed(postId: string, attempts: number, error: string, now: Date): Promise<void> {
-    await this.pool.query(`update batch_items set status = 'failed', attempts = $2, next_attempt_at = null, last_error = $3, updated_at = $4 where id = $1`, [postId, attempts, error, now.toISOString()]);
+    await this.pool.query(`update batch_items set status = 'failed', attempts = $2, next_attempt_at = null, last_error = $3, updated_at = $4 where id = $1`, [postId, attempts, sanitizeForLog(error), now.toISOString()]);
   }
 
   async markUnknown(postId: string, attempts: number, error: string, now: Date): Promise<void> {
-    await this.pool.query(`update batch_items set status = 'unknown', attempts = $2, next_attempt_at = null, last_error = $3, updated_at = $4 where id = $1`, [postId, attempts, error, now.toISOString()]);
+    await this.pool.query(`update batch_items set status = 'unknown', attempts = $2, next_attempt_at = null, last_error = $3, updated_at = $4 where id = $1`, [postId, attempts, sanitizeForLog(error), now.toISOString()]);
   }
 
   async countSentOn(platform: Platform, localDay: string, timeZone: string): Promise<number> {
@@ -161,7 +179,7 @@ export class PgOutboxStore implements OutboxStore {
     const { rows } = await this.pool.query(
       `insert into alerts (kind, batch_item_id, platform, message, created_at) values ($1, $2, $3, $4, $5)
        on conflict (kind, batch_item_id) do nothing returning id`,
-      [alert.kind, alert.postId, alert.platform, alert.message, alert.at],
+      [alert.kind, alert.postId, alert.platform, sanitizeForLog(alert.message), alert.at],
     );
     return rows.length === 1;
   }
@@ -173,9 +191,28 @@ export { loadCadence } from "@autopilot/db";
 /** Console sink; the alert is already in the alerts table for the dashboard. PWA push arrives with F4. */
 export const consoleAlertSink: AlertSink = {
   async send(alert) {
-    console.log(`[alert] ${alert.kind} ${alert.platform} item ${alert.postId}: ${alert.message}`);
+    console.log(sanitizeForLog(`[alert] ${alert.kind} ${alert.platform} item ${alert.postId}: ${alert.message}`));
   },
 };
+
+/**
+ * F7 C5: last-line privacy check on what is about to go public (caption, and the YouTube title).
+ * Only the privacy.* error rules apply here: tone/hashtag rules were the skill's and approval's job,
+ * and a style nit must not block a scheduled post. Returns the refusal reason, or null.
+ */
+export function privacyCaptionGuard(blocklist: string[]): (post: OutboxPost) => string | null {
+  return (post) => {
+    const texts: Array<[string, "caption" | "title"]> = [[post.caption ?? "", "caption"]];
+    if (post.title) texts.push([post.title, "title"]);
+    const rules = new Set<string>();
+    for (const [text, kind] of texts) {
+      for (const i of lintText({ text, kind, platform: post.platform, blocklist }).issues) {
+        if (i.severity === "error" && i.rule.startsWith("privacy.")) rules.add(i.rule);
+      }
+    }
+    return rules.size ? `caption failed privacy lint: ${[...rules].join(", ")}` : null;
+  };
+}
 
 /**
  * One outbox tick against Postgres with the real adapters (only those configured). YouTube and TikTok
@@ -187,10 +224,11 @@ export async function runOutboxOnce(pool: OutboxPool, cfg: OutboxConfig): Promis
 
 /** Separated from runOutboxOnce so tests can inject fake adapters instead of hitting real APIs. */
 export async function runOutboxWith(pool: OutboxPool, adapters: Partial<Record<Platform, PlatformAdapter>>, cfg: OutboxConfig): Promise<TickResult> {
-  const log = cfg.log ?? ((line: string) => console.log(line));
+  const log = cfg.log ?? ((line: string) => console.log(sanitizeForLog(line)));
   if (!cfg.timeZone && !cfg.dryRun) throw new Error("TZ_CREATOR is required for a live outbox run (daily caps are per creator-local day)");
   const timeZone = cfg.timeZone ?? "UTC";
   const cadence = await loadCadence(pool);
-  const store = new PgOutboxStore(pool, cfg.publicMediaBase);
-  return runOutboxTick(store, { adapters, dryRun: cfg.dryRun, policy: cfg.policy, cadence, timeZone, alerts: cfg.alerts ?? consoleAlertSink, log });
+  const store = new PgOutboxStore(pool, cfg.publicMediaBase, log);
+  const captionGuard = privacyCaptionGuard(cfg.blocklist ?? blocklistFromEnv());
+  return runOutboxTick(store, { adapters, dryRun: cfg.dryRun, policy: cfg.policy, cadence, timeZone, alerts: cfg.alerts ?? consoleAlertSink, log, captionGuard });
 }

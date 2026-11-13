@@ -1,3 +1,4 @@
+import { sanitizeError, sanitizeForLog } from "@autopilot/core";
 import { getJson, type FetchLike } from "./http.js";
 
 /**
@@ -111,15 +112,36 @@ export async function checkZernioAccount(cfg: NonNullable<TokenHealthConfig["zer
   return { service: "zernio", level: needsReauth ? "fail" : "ok", summary: `tiktok @${tt.username ?? tt.displayName ?? "?"} ${needsReauth ? `needs reconnecting (${status})` : "connected"}`, checkedAt };
 }
 
+/**
+ * F7 B1: summaries end up in alerts.message and on the console. The debug_token URL carries both Meta
+ * tokens in its query string, so a fetch error that echoes the URL must not leak them: the configured
+ * secret values are cut out literally (they may be too short for a shape rule), then sanitizeForLog.
+ */
+function scrub(text: string, cfg: TokenHealthConfig): string {
+  const secrets = [
+    cfg.meta?.accessToken,
+    cfg.meta?.appSecret,
+    cfg.meta ? `${cfg.meta.appId}|${cfg.meta.appSecret}` : undefined,
+    cfg.youtube?.refreshToken,
+    cfg.youtube?.clientSecret,
+    cfg.zernio?.apiKey,
+  ].filter((s): s is string => !!s && s.length >= 4);
+  let out = text;
+  // Longest first, and the URL-encoded form too (debug_token encodes the app token's "|").
+  for (const s of [...new Set(secrets.flatMap((x) => [x, encodeURIComponent(x)]))].sort((a, b) => b.length - a.length)) out = out.split(s).join("…[redacted]");
+  return sanitizeForLog(out);
+}
+
 /** Runs every configured check; unconfigured services are "skipped" (dry-run / cloud sessions have no tokens). */
 export async function checkTokenHealth(cfg: TokenHealthConfig): Promise<TokenHealth[]> {
   const checkedAt = (cfg.now?.() ?? new Date()).toISOString();
   const out: TokenHealth[] = [];
   const guard = async (service: TokenHealth["service"], run: () => Promise<TokenHealth>): Promise<void> => {
     try {
-      out.push(await run());
+      const r = await run();
+      out.push({ ...r, summary: scrub(r.summary, cfg) });
     } catch (err) {
-      out.push({ service, level: "fail", summary: `check errored: ${(err as Error).message}`, checkedAt });
+      out.push({ service, level: "fail", summary: scrub(`check errored: ${sanitizeError(err)}`, cfg), checkedAt });
     }
   };
   if (cfg.meta) await guard("meta", () => checkMetaToken(cfg.meta!, cfg));

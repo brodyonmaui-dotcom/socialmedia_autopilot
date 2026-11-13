@@ -61,4 +61,35 @@ describe("checkTokenHealth", () => {
     expect(report[0]).toMatchObject({ service: "meta", level: "fail" });
     expect(report[0]!.summary).toMatch(/fetch failed/);
   });
+  it("F7 B1: a failing debug_token fetch whose error echoes the URL leaks neither token into the summary", async () => {
+    const realish = { appId: "1234567890123", appSecret: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6", accessToken: "EAAB" + "x7Yq2Lm9Pz3Kd8Rw4Tn6Vb1Hc5Jf0Gs" };
+    for (const m of [meta, realish]) {
+      const report = await checkTokenHealth({
+        fetch: async (url) => {
+          throw new TypeError(`fetch failed: ${url}`);
+        },
+        meta: m,
+      });
+      const s = report[0]!.summary;
+      expect(report[0]!.level).toBe("fail");
+      expect(s).toMatch(/debug_token/); // still says what failed
+      for (const secret of [m.accessToken, m.appSecret, encodeURIComponent(`${m.appId}|${m.appSecret}`)]) expect(s).not.toContain(secret);
+    }
+  });
+
+  it("F7 B1: a platform error message that echoes a token is scrubbed (youtube, zernio)", async () => {
+    const yt = { clientId: "c", clientSecret: "client-secret-value", refreshToken: "1//" + "0gAbCdEfGhIjKlMnOpQrStUvWxYz0123456789" };
+    const r = router([
+      [isGoogle, () => json({ error: "invalid_request", error_description: `bad refresh_token=${yt.refreshToken} client_secret=${yt.clientSecret}` }, 400)],
+      [isAccounts, () => json({ message: `invalid key ${zernio.apiKey}-long-zernio-key-value` }, 401)],
+    ]);
+    const z = { apiKey: "zernio-key-123456", tiktokAccountId: "acct1" };
+    const r2 = router([[isAccounts, () => json({ message: `invalid key ${z.apiKey}` }, 401)]]);
+    const [, y] = await checkTokenHealth({ fetch: r.fetch, youtube: yt });
+    expect(y!.summary).not.toContain(yt.refreshToken.slice(4));
+    expect(y!.summary).not.toContain(yt.clientSecret);
+    const [, , zz] = await checkTokenHealth({ fetch: r2.fetch, zernio: z });
+    expect(zz!.level).toBe("fail");
+    expect(zz!.summary).not.toContain(z.apiKey);
+  });
 });
