@@ -31,7 +31,7 @@ export function guardProblems(file: string, src: string): string[] {
   if (ALLOW.has(file)) return [];
   const problems: string[] = [];
   const isRoute = /(^|\/)route\.ts$/.test(file);
-  const isActions = /(^|\/)actions\.ts$/.test(file);
+  const isActions = /(^|\/)([\w-]+-)?actions\.ts$/.test(file); // actions.ts and e.g. push-actions.ts
   // Route handlers are reachable by URL like pages, so they need a session whether or not they touch the DB.
   if ((isRoute || src.includes("getPool")) && !src.includes("requireSession()")) problems.push("no requireSession()");
   if (isActions || isRoute) {
@@ -50,7 +50,7 @@ export function guardProblems(file: string, src: string): string[] {
 
 describe("every DB page/action/route requires a session", () => {
   const files = walk(appDir)
-    .filter((f) => /(^|\/)(page\.tsx|actions\.ts|route\.ts)$/.test(f))
+    .filter((f) => /(^|\/)(page\.tsx|([\w-]+-)?actions\.ts|route\.ts)$/.test(f))
     .map((f) => relative(webRoot, f));
 
   it("finds the existing pages", () => {
@@ -58,6 +58,7 @@ describe("every DB page/action/route requires a session", () => {
     expect(files).toContain("app/research/actions.ts");
     expect(files).toContain("app/batches/[id]/actions.ts");
     expect(files).toContain("app/inbox/actions.ts");
+    expect(files).toContain("app/alerts/push-actions.ts");
   });
 
   for (const f of files) {

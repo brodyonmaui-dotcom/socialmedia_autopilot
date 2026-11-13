@@ -96,7 +96,7 @@ export default async function DashboardPage() {
         <details>
           <summary className="min-h-11 cursor-pointer py-2 text-sm text-neutral-500">Lost a phone?</summary>
           <p className="mt-1 text-sm text-neutral-500">
-            Signs out every device and revokes every passkey. You&apos;ll need to re-enrol on the server afterwards.
+            Signs out every device, revokes every passkey and turns off push notifications on every device. You&apos;ll need to re-enrol on the server afterwards.
           </p>
           <form action={logoutEverywhereAction} className="mt-2">
             <button className="min-h-11 rounded-lg border border-red-300 px-4 text-base text-red-700 dark:border-red-800 dark:text-red-300">

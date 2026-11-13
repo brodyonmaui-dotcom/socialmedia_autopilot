@@ -5,6 +5,7 @@ import { resolveRunMode } from "./run-mode.js";
 import { registerHealthJob } from "./jobs/health.js";
 import { registerOutboxJob } from "./jobs/register-outbox.js";
 import { registerTokenHealthJob, tokenHealthConfigFromEnv } from "./jobs/token-health.js";
+import { registerAlertPushJob } from "./jobs/alert-push.js";
 import { analyticsSourcesFromEnv, analyticsStartupLine, registerAnalyticsIngestJob } from "./jobs/analytics-ingest.js";
 import { buildCommentSources, commentCredentialsFromEnv, createInstagramDmSource, credentialsFromEnv } from "@autopilot/adapters";
 import { killEnvFromEnv } from "@autopilot/engagement";
@@ -51,6 +52,8 @@ await registerTokenHealthJob(boss, pool, tokenHealthConfigFromEnv(process.env));
 // Analytics ingest (F9): read-only, so it runs regardless of DRY_RUN / the live key.
 const analyticsCfg = analyticsSourcesFromEnv(process.env);
 await registerAnalyticsIngestJob(boss, pool, analyticsCfg);
+// Alert push (F8): private notifications to the creator, so it runs in dry-run too. No VAPID → one log line, not registered.
+await registerAlertPushJob(boss, pool, process.env);
 
 // Engagement (F3): same run mode as the outbox.
 const commentCreds = commentCredentialsFromEnv(process.env);

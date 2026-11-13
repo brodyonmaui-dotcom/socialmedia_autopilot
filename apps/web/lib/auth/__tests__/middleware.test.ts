@@ -16,7 +16,7 @@ describe("middlewareDecision", () => {
     expect(middlewareDecision("/", good)).toBe("pass");
   });
   it("public paths pass without a cookie", () => {
-    for (const p of ["/login", "/_next/static/x", "/_next/image", "/manifest.json", "/favicon.ico", "/icons/a.png"]) {
+    for (const p of ["/login", "/_next/static/x", "/_next/image", "/manifest.json", "/sw.js", "/favicon.ico", "/icons/a.png"]) {
       expect(middlewareDecision(p, undefined)).toBe("pass");
     }
     expect(middlewareDecision("/loginx", undefined)).toBe("redirect");
@@ -31,9 +31,11 @@ describe("middlewareDecision", () => {
   it("matcher excludes login and static assets", () => {
     const re = new RegExp(`^${config.matcher[1]!}$`);
     expect(config.matcher[0]).toBe("/");
-    for (const p of ["/login", "/_next/static/x.js", "/_next/image", "/manifest.json", "/favicon.ico", "/icons/a.png"]) {
+    for (const p of ["/login", "/_next/static/x.js", "/_next/image", "/manifest.json", "/sw.js", "/favicon.ico", "/icons/a.png"]) {
       expect(re.test(p), p).toBe(false);
     }
-    for (const p of ["/", "/library", "/research/ideas"]) expect(re.test(p), p).toBe(true);
+    for (const p of ["/", "/library", "/research/ideas", "/alerts"]) expect(re.test(p), p).toBe(true);
+    expect(middlewareDecision("/alerts", undefined)).toBe("redirect");
+    expect(middlewareDecision("/sw.js", undefined)).toBe("pass");
   });
 });

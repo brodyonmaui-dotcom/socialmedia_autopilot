@@ -188,7 +188,7 @@ export class PgOutboxStore implements OutboxStore {
 /** Moved to @autopilot/db (the web app needs it too); re-exported so scripts/schedule-batch.ts keeps working. */
 export { loadCadence } from "@autopilot/db";
 
-/** Console sink; the alert is already in the alerts table for the dashboard. PWA push arrives with F4. */
+/** Console sink; the alert is already in the alerts table for the dashboard. The alert-push job (F8) pages the phone from that table. */
 export const consoleAlertSink: AlertSink = {
   async send(alert) {
     console.log(sanitizeForLog(`[alert] ${alert.kind} ${alert.platform} item ${alert.postId}: ${alert.message}`));

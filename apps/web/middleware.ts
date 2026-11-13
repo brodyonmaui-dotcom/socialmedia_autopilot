@@ -11,5 +11,5 @@ export function middleware(req: NextRequest) {
 // Relative to basePath (/app). Everything except the login page and static assets.
 export const config = {
   // "/" separately: under a basePath the catch-all alone does not match the bare /app root.
-  matcher: ["/", "/((?!login|_next/static|_next/image|manifest\\.json|favicon\\.ico|icons).*)"],
+  matcher: ["/", "/((?!login|_next/static|_next/image|manifest\\.json|sw\\.js|favicon\\.ico|icons).*)"],
 };

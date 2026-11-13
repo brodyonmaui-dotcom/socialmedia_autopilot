@@ -3,8 +3,11 @@ import { getPool } from "../../lib/db.js";
 import { requireSession } from "../../lib/auth/require.js";
 import { ACK_WINDOW_DAYS, countByKind, kindLabel, listAlerts, parseKind, parseState, type AlertState } from "../../lib/alerts/queries.js";
 import { relativeTime } from "../../lib/engagement/queries.js";
+import { countActiveSubscriptions } from "../../lib/push/subscriptions.js";
 import { AckAllSheet } from "./ui/AckAllSheet.js";
 import { AlertCard } from "./ui/AlertCard.js";
+import { EnablePush } from "./ui/EnablePush.js";
+import { isVapidPublicKey } from "./ui/push-client.js";
 import { KindChips, alertsHref } from "./ui/KindChips.js";
 
 export const dynamic = "force-dynamic";
@@ -38,11 +41,14 @@ export default async function AlertsPage({ searchParams }: { searchParams: Searc
   const kind = parseKind(sp.kind); // unknown value → unfiltered
   const pool = getPool();
   const now = new Date();
-  const [counts, openCounts, alerts] = await Promise.all([
+  const [counts, openCounts, alerts, devices] = await Promise.all([
     countByKind(pool, state, now),
     state === "open" ? null : countByKind(pool, "open", now),
     listAlerts(pool, { state, kind, now }),
+    countActiveSubscriptions(pool),
   ]);
+  // Runtime env (not NEXT_PUBLIC_*): the public key is safe to send; the private key never leaves the worker.
+  const vapid = process.env.VAPID_PUBLIC_KEY?.trim();
   const openTotal = Object.values(openCounts ?? counts).reduce((a, n) => a + (n ?? 0), 0);
 
   return (
@@ -68,6 +74,8 @@ export default async function AlertsPage({ searchParams }: { searchParams: Searc
           ))}
         </ul>
       )}
+
+      <EnablePush vapidPublicKey={isVapidPublicKey(vapid) ? vapid : null} activeCount={devices} />
     </main>
   );
 }
