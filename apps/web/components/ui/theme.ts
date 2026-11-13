@@ -1,12 +1,12 @@
 /** Theme choice for `.ds-root`. Pure helpers, safe on server and client. */
-export type Theme = "dark" | "light";
+export type Theme = "light" | "dark";
 
 /** Cookie the ThemeToggle writes and pages read (via getTheme in theme-server.ts). Not sensitive. */
 export const THEME_COOKIE = "ds-theme";
 
-/** Anything other than an explicit "light" is the primary dark theme. */
+/** Day ("light") is the default; only an explicit "dark" opts into Night. */
 export function parseTheme(value: string | null | undefined): Theme {
-  return value === "light" ? "light" : "dark";
+  return value === "dark" ? "dark" : "light";
 }
 
 export function otherTheme(t: Theme): Theme {
