@@ -10,7 +10,7 @@ export type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" |
 export const CHOICE_BOX =
   "peer size-6 shrink-0 appearance-none rounded-[6px] border border-ds-line-strong bg-ds-raised transition-colors duration-200 ease-ds " +
   "checked:border-ds-accent checked:bg-ds-accent disabled:cursor-not-allowed " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-accent-hi";
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-focus";
 
 export function ChoiceRow({
   input,

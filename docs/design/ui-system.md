@@ -2,7 +2,7 @@
 
 The look for the creator's dashboard: calm, dark, serif, one light-blue accent, numbers first.
 Tokens: `apps/web/app/globals.css` (the `design system v1` block). Components: `apps/web/components/ui/`.
-Live style guide: `/app/design` (`?view=home|batch|components`). Screenshots: `docs/design/ui-shots/` (home-phone, batch-card-phone, approve-sheet-phone, home-desktop). UI work goes through the `designer` agent (`.claude/agents/designer.md`).
+Live style guide: `/app/design` (`?view=home|batch|components`). Screenshots: `docs/design/ui-shots/` (home, batch card and desktop in both themes, plus the approve sheet). UI work goes through the `designer` agent (`.claude/agents/designer.md`).
 
 ## Principles
 1. **One accent.** Light blue (#29ABE2) marks the one thing to do or the one thing that's on. Everything else is gray.
@@ -15,7 +15,7 @@ Live style guide: `/app/design` (`?view=home|batch|components`). Screenshots: `d
 
 ## Tokens
 
-### Colour roles (dark is the only theme in v1)
+### Colour roles: dark (primary theme)
 | Token (Tailwind name) | Hex | Role | Contrast |
 |---|---|---|---|
 | `ds-frame` | #0B0C0E | sidebar, bottom tab bar | — |
@@ -30,13 +30,33 @@ Live style guide: `/app/design` (`?view=home|batch|components`). Screenshots: `d
 | `ds-accent` | #29ABE2 | primary fill, active, on, links | 6.5:1 as text on card, 7.2:1 on bg |
 | `ds-accent-hi` | #5BC0EB | hover, focus ring | 8.2:1 on card |
 | `ds-accent-lo` | #1679B5 | accent text on white | 4.7:1 on white |
+| `ds-accent-fg` | #29ABE2 | accent as **text/icon** (use this, not `ds-accent`, for blue text) | 6.5:1 on card |
+| `ds-focus` | #5BC0EB | focus ring | 8.2:1 on card |
 | `ds-ink` | #0B0D10 | text on accent and white fills | 7.4:1 on accent |
 | `ds-paper` / `ds-paper-2` | #FFFFFF / #ECEEF0 | white tab bar, light alert, menu rows | — |
 | `ds-paper-muted` | #5F6770 | muted text on white | 5.7:1 |
 | `ds-warn` | #F2B544 | warnings (with ⚠ icon) | 9.2:1 on card |
 | `ds-danger` | #F0716B | destructive, failed | 5.9:1 on card |
 
-**Decision: labels on blue fills are ink, not white.** White on #29ABE2 is only 2.6:1, which fails AA even for large bold text. Ink on blue is 7.4:1 and reads crisper in a serif. Platform identity comes from a letter monogram (IG, YT, TT, SC) on a gray avatar, not brand colours, so the screen stays one-accent.
+### Light theme (optional, per device)
+`data-theme="light"` on the `.ds-root` element redefines the same roles, so components need no light-specific classes.
+- `AppShell` takes `theme` (read with `getTheme()` from `components/ui/theme-server.ts`).
+- `ThemeToggle` flips it instantly and stores it in the `ds-theme` cookie; it has an icon variant for the top bar and a row variant for settings.
+- Dark stays the default.
+
+| Role | Light hex | Contrast |
+|---|---|---|
+| frame / bg / card / raised | #E9ECEF / #F2F4F6 / #FFFFFF / #EEF0F3 | — |
+| line / line-strong | #E1E4E8 / #858E98 | line-strong 3.3:1 on white (UI ✓) |
+| text / muted / faint | #15191D / #4E5660 / #5E6670 | 17.7 / 7.4 / 5.8:1 on card; faint 4.9:1 on frame |
+| accent (fills) | #1E9BD6 | ink label 6.2:1; 3.1:1 vs white as a graphic ✓ |
+| accent-hi (hover) | #4FBBEA | ink 8.9:1 |
+| accent-fg / focus | #13649A | 6.3:1 on card, 5.3:1 on frame |
+| warn / danger | #9A6200 / #C0392B | 5.1 / 5.4:1 on card |
+
+Rule: blue **text and icons** use `ds-accent-fg`. Blue **fills, bars, chart lines and rings** use `ds-accent`. Graphics need 3:1 and text needs 4.5:1, and one blue can't do both on white.
+
+**Decision: labels on blue fills are ink, not white.** White on #29ABE2 is only 2.6:1, which fails AA even for large bold text. Ink on blue is 7.4:1 and reads crisper in a serif. Platforms are shown by their **logo glyph in the text colour** (`PlatformLogo`: white in dark, near-black in light). There are no brand colours and no circles behind the logos, so the screen stays one-accent.
 
 ### Type (Times New Roman stack, `font-ds`; `ds-num` = tabular-nums)
 | Role | Size / line | Weight | Tracking |
@@ -85,8 +105,10 @@ Server components unless marked **client**.
 | `PageDots` | carousels/steps | Dots; active = white, wider. |
 | `Sparkline` / `MiniBars` / `AreaChart` | trends | Pure SVG from `components/ui/chart-math.ts`. Area bleeds to card bottom. No axes on phone. |
 | `Donut` | share of total | SVG ring + legend; ≤ 5 segments, accent + grays only. |
-| `MonthCalendar` | scheduled days | 7-col grid, tabular day numbers, small dots under days (accent = scheduled, warn = needs action), today ringed. |
+| `MonthCalendar` | scheduled days | `weekStartsOn` 1 (Monday, default) or 0. 7-col grid, tabular day numbers, small dots under days (accent = scheduled, warn = needs action), today ringed. |
 | `Icon` | everything above | Inline SVG set, 1.5 px stroke, `aria-hidden`. |
+| `PlatformLogo` | anywhere a platform is named | Monochrome Instagram / YouTube / TikTok / Snapchat glyphs in `currentColor`. Shown bare, never in a circle. 26 px in rows, 16–18 px in chips and the sidebar. `title` makes it labelled. `ListRow avatar={{ platform }}`. |
+| `ThemeToggle` **client** | top bar (icon) / settings (row) | Flips `data-theme` on the nearest `.ds-root` and writes the `ds-theme` cookie. |
 
 Usage rules:
 - **One solid button per screen region.** A second action is outline or ghost.

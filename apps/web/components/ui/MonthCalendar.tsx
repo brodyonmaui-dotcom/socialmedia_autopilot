@@ -9,14 +9,14 @@ const MONTHS_LONG = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
-/** Monday-first weekday headers. */
+/** Monday-first weekday headers (rotated for Sunday-first). */
 const WEEKDAYS: Array<[short: string, long: string]> = [
   ["M", "Monday"], ["T", "Tuesday"], ["W", "Wednesday"], ["T", "Thursday"],
   ["F", "Friday"], ["S", "Saturday"], ["S", "Sunday"],
 ];
 
 const DOT: Record<DayMark, string> = { accent: "bg-ds-accent", warn: "bg-ds-warn", muted: "bg-ds-faint" };
-const WORD: Record<DayMark, string> = { accent: "scheduled", warn: "needs action", muted: "other" };
+const WORD: Record<DayMark, string> = { accent: "scheduled", warn: "needs action", muted: "posted" };
 
 function dayLabel(month0: number, day: number, marks: DayMark[], isToday: boolean): string {
   const counts = (["accent", "warn", "muted"] as const)
@@ -27,7 +27,7 @@ function dayLabel(month0: number, day: number, marks: DayMark[], isToday: boolea
 }
 
 /**
- * Compact month grid (Monday first): tabular day numbers, today ringed, up to 3 dots per day
+ * Compact month grid (Monday first by default; weekStartsOn={0} for Sunday): tabular day numbers, today ringed, up to 3 dots per day
  * (accent = scheduled, warn = needs action, muted = other). Days link when `hrefFor` is given.
  */
 export function MonthCalendar({
@@ -37,6 +37,7 @@ export function MonthCalendar({
   marks = {},
   label,
   hrefFor,
+  weekStartsOn = 1,
   className,
 }: {
   year: number;
@@ -45,9 +46,12 @@ export function MonthCalendar({
   marks?: Record<number, DayMark[]>;
   label?: string;
   hrefFor?: (day: number) => string;
+  /** 1 = Monday (default), 0 = Sunday. */
+  weekStartsOn?: 0 | 1;
   className?: string;
 }) {
-  const weeks = monthGrid(year, month0, 1);
+  const weeks = monthGrid(year, month0, weekStartsOn);
+  const weekdays = weekStartsOn === 0 ? [WEEKDAYS[6]!, ...WEEKDAYS.slice(0, 6)] : WEEKDAYS;
   const cell = hrefFor ? "size-11" : "size-10";
   return (
     <table className={cx("w-full table-fixed border-collapse", className)}>
@@ -56,7 +60,7 @@ export function MonthCalendar({
       </caption>
       <thead>
         <tr>
-          {WEEKDAYS.map(([s, l]) => (
+          {weekdays.map(([s, l]) => (
             <th key={l} scope="col" abbr={l} className="pb-1 text-center text-[13px] font-bold text-ds-faint">
               {s}
             </th>
@@ -76,7 +80,7 @@ export function MonthCalendar({
                   <span
                     className={cx(
                       "ds-num inline-flex size-8 items-center justify-center rounded-full text-[15px] leading-none",
-                      isToday && "text-ds-accent ring-1 ring-ds-accent",
+                      isToday && "text-ds-accent-fg ring-1 ring-ds-accent",
                     )}
                   >
                     {day}

@@ -1,4 +1,5 @@
 import { requireSession } from "../../lib/auth/require.js";
+import { getTheme } from "../../components/ui/theme-server.js";
 import {
   AlertCard,
   AppShell,
@@ -21,6 +22,11 @@ import {
   MonthCalendar,
   PageDots,
   PasswordInput,
+  PlatformLogo,
+  PLATFORM_NAME,
+  ThemeToggle,
+  parseTheme,
+  type Platform,
   ProgressBar,
   Radio,
   SearchField,
@@ -48,19 +54,22 @@ const VIEWS: Array<{ id: View; label: string }> = [
   { id: "components", label: "UI kit" },
 ];
 
-export default async function DesignPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+export default async function DesignPage({ searchParams }: { searchParams: Promise<{ view?: string; theme?: string }> }) {
   await requireSession();
   const sp = await searchParams;
   const view: View = VIEWS.some((v) => v.id === sp.view) ? (sp.view as View) : "home";
+  // ?theme= overrides the cookie (handy for screenshots); otherwise the viewer's saved choice.
+  const theme = sp.theme ? parseTheme(sp.theme) : await getTheme();
   const navActive = view === "home" ? "home" : view === "batch" ? "batches" : "more";
 
   return (
-    <AppShell nav={F.NAV} active={navActive} accounts={F.ACCOUNTS} primaryAction={{ href: "/design?view=batch", label: "New batch" }}>
+    <AppShell theme={theme} nav={F.NAV} active={navActive} accounts={F.ACCOUNTS} primaryAction={{ href: "/design?view=batch", label: "New batch" }}>
       <TopBar
         title={view === "home" ? "Overview" : view === "batch" ? "This week" : "Components"}
         subtitle="Design system v1 · demo data"
         action={{ href: "/design?view=batch", label: "New batch", icon: "plus" }}
         search={{ href: "/design?view=components" }}
+        extra={<ThemeToggle initial={theme} />}
       />
       <div className="mb-5 lg:max-w-md">
         <TabLinks
@@ -70,7 +79,7 @@ export default async function DesignPage({ searchParams }: { searchParams: Promi
       </div>
       {view === "home" && <HomeProposed />}
       {view === "batch" && <BatchProposed />}
-      {view === "components" && <Components />}
+      {view === "components" && <Components theme={theme} />}
     </AppShell>
   );
 }
@@ -116,7 +125,7 @@ function HomeProposed() {
           {F.NEXT_POSTS.map((p) => (
             <ListRow
               key={p.title}
-              avatar={{ monogram: p.monogram, tone: p.monogram === "IG" ? "accent" : "neutral" }}
+              avatar={{ platform: p.platform }}
               title={p.title}
               subtitle={p.subtitle}
               trailing={p.time}
@@ -201,7 +210,10 @@ function BatchProposed() {
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {p.platforms.map((pl) => (
-            <Chip key={pl}>{pl}</Chip>
+            <Chip key={pl}>
+              <PlatformLogo platform={pl} size={16} />
+              {PLATFORM_NAME[pl]}
+            </Chip>
           ))}
           <Chip>
             <span className="ds-num">{p.hashtags}</span>&nbsp;hashtags
@@ -249,7 +261,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Components() {
+function Components({ theme }: { theme: "dark" | "light" }) {
   return (
     <CardGrid>
       <Section title="Buttons">
@@ -266,6 +278,22 @@ function Components() {
           <Button size="sm">Small button</Button>
           <Button size="sm" disabled>Disabled</Button>
         </div>
+      </Section>
+
+      <Section title="Platform logos">
+        <p className="text-[15px] text-ds-muted">One colour, the text colour. No brand colours, no circles.</p>
+        <div className="flex items-center justify-between px-1 text-ds-text">
+          {(["instagram", "youtube", "tiktok", "snapchat"] as Platform[]).map((pl) => (
+            <span key={pl} className="flex flex-col items-center gap-2">
+              <PlatformLogo platform={pl} size={30} title={PLATFORM_NAME[pl]} />
+              <span className="text-[13px] text-ds-muted">{PLATFORM_NAME[pl]}</span>
+            </span>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Appearance">
+        <ThemeToggle initial={theme} variant="row" />
       </Section>
 
       <Section title="Toggles">
@@ -350,8 +378,8 @@ function Components() {
 
       <Section title="Rows & stats">
         <ListRows label="Accounts">
-          <ListRow avatar={{ monogram: "IG", tone: "accent" }} title="Instagram" subtitle="Graph API · direct" trailing="3" trailingSub="today" href="/design?view=home" />
-          <ListRow avatar={{ monogram: "SC" }} title="Snapchat" subtitle="Assisted · tap to share" trailing="1" trailingSub="to share" />
+          <ListRow avatar={{ platform: "instagram" }} title="Instagram" subtitle="Graph API · direct" trailing="3" trailingSub="today" href="/design?view=home" />
+          <ListRow avatar={{ platform: "snapchat" }} title="Snapchat" subtitle="Assisted · tap to share" trailing="1" trailingSub="to share" />
         </ListRows>
         <StatPair>
           <StatTile icon="eye" value="8.7k" caption="views yesterday" tone="accent" />

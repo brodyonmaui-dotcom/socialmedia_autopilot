@@ -6,7 +6,7 @@ export type BadgeTone = "neutral" | "accent" | "warn" | "danger" | "solid";
 
 const BADGE_TONE: Record<BadgeTone, string> = {
   neutral: "bg-ds-raised text-ds-muted",
-  accent: "bg-ds-accent/15 text-ds-accent",
+  accent: "bg-ds-accent/15 text-ds-accent-fg",
   warn: "bg-ds-warn/15 text-ds-warn",
   danger: "bg-ds-danger/15 text-ds-danger",
   solid: "bg-ds-accent text-ds-ink",
@@ -36,7 +36,7 @@ export type ChipTone = "neutral" | "accent" | "warn" | "danger";
 
 const CHIP_TONE: Record<ChipTone, string> = {
   neutral: "bg-ds-raised text-ds-text",
-  accent: "bg-ds-raised text-ds-accent",
+  accent: "bg-ds-raised text-ds-accent-fg",
   warn: "bg-ds-raised text-ds-warn",
   danger: "bg-ds-raised text-ds-danger",
 };

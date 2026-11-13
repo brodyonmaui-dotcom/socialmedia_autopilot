@@ -3,7 +3,7 @@ import { cx } from "./cx.js";
 import { Icon, type IconName } from "./Icon.js";
 
 const TONE = {
-  accent: "text-ds-accent",
+  accent: "text-ds-accent-fg",
   neutral: "text-ds-text",
   warn: "text-ds-warn",
 } as const;

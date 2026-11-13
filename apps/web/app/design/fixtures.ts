@@ -9,19 +9,19 @@ export const NAV = [
 ];
 
 export const ACCOUNTS = [
-  { label: "Instagram", value: "3 today", tone: "accent" as const },
-  { label: "YouTube", value: "2 today", tone: "accent" as const },
-  { label: "TikTok", value: "1 draft", tone: "warn" as const },
-  { label: "Snapchat", value: "1 to share", tone: "muted" as const },
+  { label: "Instagram", value: "3 today", tone: "accent" as const, platform: "instagram" as const },
+  { label: "YouTube", value: "2 today", tone: "accent" as const, platform: "youtube" as const },
+  { label: "TikTok", value: "1 draft", tone: "warn" as const, platform: "tiktok" as const },
+  { label: "Snapchat", value: "1 to share", tone: "muted" as const, platform: "snapchat" as const },
 ];
 
 export const WEEK = { label: "Week of Nov 16", approved: 18, total: 24, pending: 6, warnings: 2 };
 
 export const NEXT_POSTS = [
-  { monogram: "IG", title: "Three-minute morning stretch", subtitle: "Instagram · Reel", time: "9:00", sub: "in 2 h" },
-  { monogram: "YT", title: "What I eat on a rest day", subtitle: "YouTube · Short", time: "12:30", sub: "scheduled" },
-  { monogram: "TT", title: "One-pan dinner, no recipe", subtitle: "TikTok · inbox draft", time: "17:15", sub: "needs sound" },
-  { monogram: "SC", title: "Desk setup, before & after", subtitle: "Snapchat · Spotlight", time: "19:00", sub: "tap to share" },
+  { platform: "instagram" as const, title: "Three-minute morning stretch", subtitle: "Instagram · Reel", time: "9:00", sub: "in 2 h" },
+  { platform: "youtube" as const, title: "What I eat on a rest day", subtitle: "YouTube · Short", time: "12:30", sub: "scheduled" },
+  { platform: "tiktok" as const, title: "One-pan dinner, no recipe", subtitle: "TikTok · inbox draft", time: "17:15", sub: "needs sound" },
+  { platform: "snapchat" as const, title: "Desk setup, before & after", subtitle: "Snapchat · Spotlight", time: "19:00", sub: "tap to share" },
 ];
 
 export const ALERTS = { open: 2, latest: "TikTok draft is waiting for a sound before it can go out." };
@@ -62,7 +62,7 @@ export const BATCH_POST = {
   title: "Three-minute morning stretch",
   caption:
     "Three minutes, no equipment, and your back will thank you by lunch. Save this for tomorrow morning and tell me which move felt best.",
-  platforms: ["Instagram", "YouTube", "TikTok"],
+  platforms: ["instagram", "youtube", "tiktok"] as const,
   duration: "0:42",
   hashtags: 4,
   warning: "TikTok: sound-dependent → goes as inbox draft",

@@ -21,6 +21,8 @@
   --color-ds-accent: #29abe2;     /* fills, indicators; 6.5:1 as text on card */
   --color-ds-accent-hi: #5bc0eb;  /* hover/pressed-light, focus ring */
   --color-ds-accent-lo: #1679b5;  /* accent text on white (4.7:1) */
+  --color-ds-accent-fg: #29abe2;  /* accent as text/icon on the theme's surfaces */
+  --color-ds-focus: #5bc0eb;      /* focus ring */
   /* Status (sparingly; never as the only signal) */
   --color-ds-warn: #f2b544;       /* 9.2:1 on card */
   --color-ds-danger: #f0716b;     /* 5.9:1 on card */
@@ -62,7 +64,7 @@
     color-scheme: dark;
   }
   .ds-root :focus-visible {
-    outline: 2px solid var(--color-ds-accent-hi);
+    outline: 2px solid var(--color-ds-focus);
     outline-offset: 2px;
   }
   .ds-root * {
@@ -73,6 +75,32 @@
   .ds-root ::-webkit-scrollbar-thumb { background: var(--color-ds-accent); border-radius: 999px; }
   .ds-root ::-webkit-scrollbar-track { background: transparent; }
 }
+
+/* Light theme: same roles, re-valued. Set data-theme="light" on the .ds-root element (AppShell does). */
+.ds-root[data-theme="light"] {
+  color-scheme: light;
+  --color-ds-frame: #e9ecef;      /* sidebar, tab bar */
+  --color-ds-bg: #f2f4f6;
+  --color-ds-card: #ffffff;
+  --color-ds-raised: #eef0f3;
+  --color-ds-line: #e1e4e8;
+  --color-ds-line-strong: #858e98;/* 3.3:1 on white */
+  --color-ds-text: #15191d;       /* 17.7:1 on card */
+  --color-ds-muted: #4e5660;      /* 7.4:1 on card */
+  --color-ds-faint: #5e6670;      /* 5.8:1 on card, 4.9:1 on frame */
+  --color-ds-paper-2: #eceef0;
+  --color-ds-accent: #1e9bd6;     /* fills: ink label 6.2:1; 3.1:1 vs white as UI */
+  --color-ds-accent-hi: #4fbbea;  /* hover fill: ink 8.9:1 */
+  --color-ds-accent-fg: #13649a;  /* accent text: 6.3:1 on card, 5.3:1 on frame */
+  --color-ds-focus: #13649a;
+  --color-ds-warn: #9a6200;       /* 5.1:1 on card */
+  --color-ds-danger: #c0392b;     /* 5.4:1 on card */
+  --shadow-ds-card: 0 1px 2px rgb(16 24 32 / 0.06), 0 8px 24px -14px rgb(16 24 32 / 0.18);
+  --shadow-ds-pop: 0 18px 48px -12px rgb(16 24 32 / 0.25), 0 0 0 1px rgb(16 24 32 / 0.06);
+  --shadow-ds-glow: 0 6px 20px -8px rgb(30 155 214 / 0.55);
+}
+/* Nested roots (e.g. Sheet panels in the top layer) inherit the values above; match native controls too. */
+.ds-root[data-theme="light"] .ds-root { color-scheme: light; }
 
 @utility ds-num {
   font-variant-numeric: tabular-nums lining-nums;

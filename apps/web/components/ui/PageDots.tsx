@@ -15,7 +15,7 @@ export interface PageDotsProps {
 function dot(on: boolean) {
   return cx(
     "block h-2 rounded-full transition-all duration-200 ease-ds",
-    on ? "w-5 bg-ds-paper" : "w-2 bg-ds-line-strong",
+    on ? "w-5 bg-ds-text" : "w-2 bg-ds-line-strong",
   );
 }
 

@@ -1,7 +1,7 @@
 import { cx } from "./cx.js";
 
 /** White segmented bar; equal-width segments split by thin light-gray dividers. */
-export const TAB_BAR = "flex h-11 w-full overflow-hidden rounded-ds-md bg-ds-paper divide-x divide-ds-paper-2";
+export const TAB_BAR = "flex h-11 w-full overflow-hidden rounded-ds-md bg-ds-paper ring-1 ring-ds-line divide-x divide-ds-paper-2";
 
 export function tabSegment(active: boolean): string {
   return cx(

@@ -21,8 +21,8 @@ const BASE =
 const VARIANT: Record<ButtonVariant, string> = {
   solid: "bg-ds-accent text-ds-ink ds-caps font-bold rounded-ds-md hover:bg-ds-accent-hi",
   outline: "border border-ds-line-strong text-ds-text ds-caps rounded-ds-md font-bold hover:bg-ds-raised",
-  white: "bg-ds-paper text-ds-ink ds-caps font-bold rounded-ds-md hover:bg-ds-paper-2",
-  ghost: "text-ds-accent ds-caps rounded-ds-md font-bold hover:bg-ds-raised",
+  white: "bg-ds-paper text-ds-ink ds-caps font-bold rounded-ds-md ring-1 ring-inset ring-ds-line hover:bg-ds-paper-2",
+  ghost: "text-ds-accent-fg ds-caps rounded-ds-md font-bold hover:bg-ds-raised",
   icon: "size-11 shrink-0 rounded-ds-md bg-ds-raised text-ds-text hover:bg-ds-line",
 };
 

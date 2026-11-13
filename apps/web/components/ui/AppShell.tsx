@@ -2,12 +2,14 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { cx, FOCUS } from "./cx.js";
 import { Icon, type IconName } from "./Icon.js";
+import { PlatformLogo, type Platform } from "./PlatformLogo.js";
+import type { Theme } from "./theme.js";
 
 export type NavItem = { id: string; label: string; href: string; icon: IconName; badge?: number };
-export type AccountRow = { label: string; value: string; tone?: "accent" | "warn" | "muted"; href?: string };
+export type AccountRow = { label: string; value: string; tone?: "accent" | "warn" | "muted"; href?: string; platform?: Platform };
 
 const ACCOUNT_TONE: Record<NonNullable<AccountRow["tone"]>, string> = {
-  accent: "text-ds-accent",
+  accent: "text-ds-accent-fg",
   warn: "text-ds-warn",
   muted: "text-ds-muted",
 };
@@ -22,6 +24,7 @@ export function AppShell({
   accounts,
   primaryAction,
   brand = "runmysocials",
+  theme = "dark",
   children,
 }: {
   nav: NavItem[];
@@ -29,10 +32,12 @@ export function AppShell({
   accounts?: AccountRow[];
   primaryAction?: { href: string; label: string };
   brand?: string;
+  /** From getTheme() (theme-server.ts); ThemeToggle flips it client-side. */
+  theme?: Theme;
   children: ReactNode;
 }) {
   return (
-    <div className="ds-root min-h-dvh">
+    <div className="ds-root min-h-dvh" data-theme={theme}>
       <a
         href="#main"
         className={cx(
@@ -93,6 +98,7 @@ export function AppShell({
               {accounts.map((a) => {
                 const inner = (
                   <>
+                    {a.platform && <PlatformLogo platform={a.platform} size={18} className="shrink-0 text-ds-muted" />}
                     <span className="min-w-0 truncate text-ds-muted">{a.label}</span>
                     <span className={cx("ds-num shrink-0 text-[14px]", ACCOUNT_TONE[a.tone ?? "muted"])}>{a.value}</span>
                   </>
@@ -162,7 +168,7 @@ export function AppShell({
                   aria-current={isActive ? "page" : undefined}
                   className={cx(
                     "relative flex h-full min-h-11 flex-col items-center justify-center gap-0.5 text-[13px] leading-tight",
-                    isActive ? "font-bold text-ds-accent" : "text-ds-faint hover:text-ds-muted",
+                    isActive ? "font-bold text-ds-accent-fg" : "text-ds-faint hover:text-ds-muted",
                     FOCUS,
                   )}
                 >

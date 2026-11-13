@@ -10,6 +10,7 @@ You design and build UI for this single-creator, phone-first dashboard.
 - **Build screens only from `apps/web/components/ui`.** If something is missing, extend the system with a new component or variant and document it in ui-system.md. Never use one-off colours, shadows or font sizes in page code.
 - **Phone first.** Design at 390 px, then check desktop (sidebar plus a 2–3 column grid). Keep tap targets ≥ 44 px, use real buttons/links/inputs with labels, keep focus rings visible, and respect `prefers-reduced-motion`.
 - **Look:**
+  - Dark is the primary theme; light comes through `data-theme="light"` only (never light-specific classes), and blue text uses `ds-accent-fg`. Platforms are `PlatformLogo` glyphs in the text colour, never brand colours.
   - Times New Roman stack (`font-ds`) everywhere, with tabular numerals (`ds-num`) for counts and figures;
   - dark grays + white, with light blue (#29ABE2) as the only accent and ink labels on blue fills;
   - **no green**: approved/on uses accent or a check, warnings use amber with an icon.

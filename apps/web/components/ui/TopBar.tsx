@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { cx, FOCUS } from "./cx.js";
 import { Icon, type IconName } from "./Icon.js";
 
@@ -30,11 +31,14 @@ export function TopBar({
   subtitle,
   action,
   search,
+  extra,
 }: {
   title: string;
   subtitle?: string;
   action?: TopBarAction;
   search?: { href: string };
+  /** Small secondary control(s) left of the action on all sizes, e.g. <ThemeToggle />. */
+  extra?: ReactNode;
 }) {
   return (
     <header className="sticky top-0 z-20 -mx-4 flex h-14 items-center gap-3 bg-ds-bg/90 px-4 backdrop-blur lg:static lg:mx-0 lg:h-auto lg:bg-transparent lg:px-0 lg:pb-6 lg:pt-8 lg:backdrop-blur-none">
@@ -43,6 +47,7 @@ export function TopBar({
         {subtitle && <p className="mt-1 hidden truncate text-[15px] text-ds-muted lg:block">{subtitle}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-3">
+        {extra}
         {search && (
           <Link
             href={search.href}

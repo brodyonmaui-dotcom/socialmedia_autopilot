@@ -4,4 +4,4 @@ export function cx(...parts: Array<string | false | null | undefined>): string {
 }
 
 /** Shared focus ring for interactive elements (globals.css also sets :focus-visible under .ds-root). */
-export const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-accent-hi";
+export const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-focus";

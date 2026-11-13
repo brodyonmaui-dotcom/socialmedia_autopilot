@@ -1,8 +1,16 @@
 import Link from "next/link";
 import { isValidElement, type ReactNode } from "react";
 import { cx, FOCUS } from "./cx.js";
+import { PlatformLogo, type Platform } from "./PlatformLogo.js";
 
 export type Monogram = { monogram: string; tone?: "accent" | "neutral" };
+
+/** A platform logo on its own (no circle), in the text colour. */
+export type PlatformAvatar = { platform: Platform };
+
+function isPlatform(a: unknown): a is PlatformAvatar {
+  return typeof a === "object" && a !== null && !isValidElement(a) && "platform" in a;
+}
 
 function isMonogram(a: unknown): a is Monogram {
   return typeof a === "object" && a !== null && !isValidElement(a) && "monogram" in a;
@@ -17,19 +25,23 @@ export function ListRow({
   trailingSub,
   href,
 }: {
-  avatar?: Monogram | ReactNode;
+  avatar?: PlatformAvatar | Monogram | ReactNode;
   title: string;
   subtitle?: string;
   trailing?: ReactNode | string;
   trailingSub?: string;
   href?: string;
 }) {
-  const avatarEl = isMonogram(avatar) ? (
+  const avatarEl = isPlatform(avatar) ? (
+    <span aria-hidden="true" className="inline-flex size-10 shrink-0 items-center justify-center text-ds-text">
+      <PlatformLogo platform={avatar.platform} size={26} />
+    </span>
+  ) : isMonogram(avatar) ? (
     <span
       aria-hidden="true"
       className={cx(
         "inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-ds-raised text-[13px] font-bold uppercase tracking-[0.06em]",
-        avatar.tone === "accent" ? "text-ds-accent ring-1 ring-ds-accent/60" : "text-ds-text",
+        avatar.tone === "accent" ? "text-ds-accent-fg ring-1 ring-ds-accent/60" : "text-ds-text",
       )}
     >
       {avatar.monogram}

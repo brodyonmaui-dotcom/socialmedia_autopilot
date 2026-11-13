@@ -79,7 +79,7 @@ export function Slider({
         style={{ "--pct": `${pct}%` } as CSSProperties}
         className={cx(
           "h-11 w-full cursor-pointer appearance-none bg-transparent disabled:cursor-not-allowed",
-          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-accent-hi",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-focus",
           TRACK_WEBKIT,
           THUMB_WEBKIT,
           MOZ,

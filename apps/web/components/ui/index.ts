@@ -1,6 +1,10 @@
 // Design system v1 — see docs/design/ui-system.md. Pages import from here.
 export * from "./cx.js";
 export * from "./Icon.js";
+export * from "./PlatformLogo.js";
+export * from "./theme.js";
+export * from "./ThemeToggle.js";
+// getTheme() lives in ./theme-server.js (server-only, not re-exported here).
 // Layout
 export * from "./AppShell.js";
 export * from "./TopBar.js";

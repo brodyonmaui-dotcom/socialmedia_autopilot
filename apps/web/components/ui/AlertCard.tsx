@@ -21,7 +21,7 @@ export function AlertCard({ tone = "dark", title, children, action, live = false
       role={live ? "alert" : undefined}
       className={cx(
         "flex flex-col gap-3 rounded-ds-lg p-5 sm:flex-row sm:items-center sm:justify-between",
-        light ? "bg-ds-paper text-ds-ink" : "bg-ds-card ring-1 ring-ds-warn/30 shadow-ds-card",
+        light ? "bg-ds-paper text-ds-ink ring-1 ring-ds-line" : "bg-ds-card ring-1 ring-ds-warn/30 shadow-ds-card",
         className,
       )}
     >
