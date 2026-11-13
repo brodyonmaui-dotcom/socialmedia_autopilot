@@ -22,6 +22,12 @@ describe("engagement queries (static)", () => {
     });
   }
 
+  it("promoteShadow is conditional on status = 'shadow'", () => {
+    const src = read("queries.ts");
+    const fn = src.slice(src.indexOf("export async function promoteShadow("));
+    expect(fn).toMatch(/where id = \$1 and status = 'shadow' returning id/);
+  });
+
   it("createManualAction relies on the unique (comment_id, kind) guard", () => {
     expect(read("queries.ts")).toMatch(/on conflict \(comment_id, kind\) do nothing/);
   });

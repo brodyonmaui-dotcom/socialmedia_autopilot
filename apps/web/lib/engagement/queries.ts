@@ -206,3 +206,13 @@ export function relativeTime(at: string, now: Date): string {
   if (h < 48) return `${h} h ago`;
   return `${Math.floor(h / 24)} d ago`;
 }
+
+/** Shadow → planned (manual) in one conditional update; false when it was already promoted or went out. */
+export async function promoteShadow(pool: Pool, actionId: string, now: Date): Promise<boolean> {
+  const { rows } = await pool.query(
+    `update engagement_actions set status = 'planned', origin = 'manual', not_before = $2, updated_at = $2
+      where id = $1 and status = 'shadow' returning id`,
+    [actionId, now],
+  );
+  return rows.length === 1;
+}

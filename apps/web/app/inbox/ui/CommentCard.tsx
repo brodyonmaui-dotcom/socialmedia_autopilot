@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { InboxRow } from "../../../lib/engagement/queries.js";
 import { BTN_DANGER, BTN_GHOST, BTN_PRIMARY, PlatformBadge } from "../../batches/ui/WarningChip.js";
-import { blockAuthorAction, markHandledAction, sendManualAction } from "../actions.js";
+import { blockAuthorAction, markHandledAction, promoteShadowAction, sendManualAction } from "../actions.js";
 
 const BUCKET_TONE: Record<string, string> = {
   flag: "bg-red-600 text-white",
@@ -46,6 +46,8 @@ export function CommentCard({ row, tab, when }: { row: InboxRow; tab: "flagged" 
   const tabField = <input type="hidden" name="tab" value={tab} />;
   // One reply per comment, ever (unique comment_id + kind): a stored shadow reply can't get a manual twin.
   const canReply = !!row.draft && !row.isOwn && tab === "flagged";
+  // Shadow tab: promote the stored shadow reply instead (one conditional update).
+  const canPromote = tab === "shadow" && !!row.actionId && row.actionKind === "reply" && row.actionStatus === "shadow" && !!row.draft && !row.isOwn;
   const canHide = tab !== "sent" && row.bucket === "hide_flag" && row.platform === "instagram" && !row.isOwn;
 
   return (
@@ -118,7 +120,14 @@ export function CommentCard({ row, tab, when }: { row: InboxRow; tab: "flagged" 
         </form>
       ) : null}
 
-      {tab === "shadow" ? <p className="mt-2 text-sm text-neutral-500">shadow mode: stored only, nothing went out</p> : null}
+      {tab === "shadow" ? <p className="mt-2 text-sm text-neutral-500">shadow mode: stored only</p> : null}
+      {canPromote ? (
+        <form action={promoteShadowAction.bind(null, row.actionId!)} className="mt-2">
+          {tabField}
+          <button className={`${BTN_PRIMARY} w-full`}>Send this reply</button>
+          <p className="mt-1 text-sm text-neutral-500">goes out on the next worker tick if the worker is live and not killed</p>
+        </form>
+      ) : null}
 
       {row.authorId && tab !== "sent" ? (
         <form action={blockAuthorAction.bind(null, row.platform, row.authorId)} className="mt-2">

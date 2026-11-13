@@ -12,6 +12,7 @@ import {
   INBOX_TABS,
   markDraftCopied,
   markHandled,
+  promoteShadow,
   writeEngagementAlert,
 } from "../../lib/engagement/queries.js";
 import { setKilled, setMode } from "../../lib/engagement/settings.js";
@@ -87,6 +88,17 @@ export async function sendManualAction(commentId: string, kind: "reply" | "hide"
     const r = await createManualAction(pool, commentId, kind, kind === "reply" ? c.draft!.trim() : null, new Date());
     if (!r.ok) throw new UserError(r.reason);
     return kind === "reply" ? "reply queued for the worker" : "hide queued for the worker";
+  });
+}
+
+/** Shadow tab: turns the stored shadow reply into a planned manual one (the worker picks it up on its next tick). */
+export async function promoteShadowAction(actionId: string, fd?: FormData): Promise<void> {
+  const session = await requireSession();
+  await run(pathFrom(fd), async () => {
+    if (!UUID.test(actionId)) throw new UserError("unknown reply");
+    const ok = await promoteShadow(getPool(), actionId, new Date());
+    if (!ok) throw new UserError("already promoted or sent");
+    return "reply queued for the worker";
   });
 }
 
