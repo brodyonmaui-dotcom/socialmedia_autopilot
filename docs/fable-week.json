@@ -99,11 +99,11 @@
     },
     {
       "id": "F12",
-      "title": "UI restyle onto the design system (Fable art-direction, Opus designer agents)",
+      "title": "F12 \u00b7 UI restyle onto the design system (Fable art direction + designer agents)",
       "model": "fable",
       "area": "apps/web",
       "status": "todo",
-      "notes": "Design system comes from the separate design session (branch design/ui-system-2026-11-13: tokens in globals.css, apps/web/components/ui/*, /app/design). F8/F10 pages use plain Tailwind cards/lists/buttons so the restyle is mechanical."
+      "notes": "Spec + per-page task list: docs/design/ui-system.md (Restyle plan). Components: apps/web/components/ui; live guide: /app/design; agent: .claude/agents/designer.md. Run after the F8/F10 pages land."
     }
   ]
 }
