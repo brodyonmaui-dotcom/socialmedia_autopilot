@@ -29,6 +29,11 @@ interface MediaList extends GraphError {
   data?: Array<{ id: string; caption?: string; permalink?: string; timestamp?: string; media_product_type?: string }>;
 }
 
+/** Caption key for the existence check: NFC, whitespace runs collapsed to one space, trimmed, lower-cased. */
+export function normaliseCaption(caption: string): string {
+  return caption.normalize("NFC").replace(/\s+/gu, " ").trim().toLowerCase();
+}
+
 /** The M1 day-1 refusal (research.md): "Application does not have permission for this action" when a trial isn't allowed. */
 export const IG_TRIAL_REFUSED = { code: 10, error_subcode: 2207081 } as const;
 
@@ -128,9 +133,11 @@ export function createInstagramAdapter(cfg: InstagramAdapterConfig): PlatformAda
     async findExisting(post: OutboxPost, opts: PublishOptions = {}): Promise<PublishResult | null> {
       const r = await getJson<MediaList>(fetchImpl, `${base}/${cfg.igUserId}/media?fields=id,caption,permalink,timestamp,media_product_type&limit=25`, { headers: auth }, opts.signal);
       if (!r.body.data) return null;
-      const target = post.caption.trim();
+      // IG may rewrite whitespace / Unicode form / case, so compare normalised captions (F7 A3).
+      // OutboxPost carries no first-attempt time, so the window stays ±36 h of scheduled_for.
+      const target = normaliseCaption(post.caption);
       const at = Date.parse(post.scheduledFor);
-      const hit = r.body.data.find((m) => (m.caption ?? "").trim() === target && target.length > 0 && (!m.timestamp || Math.abs(Date.parse(m.timestamp) - at) <= 36 * 3_600_000));
+      const hit = r.body.data.find((m) => target.length > 0 && normaliseCaption(m.caption ?? "") === target && (!m.timestamp || Math.abs(Date.parse(m.timestamp) - at) <= 36 * 3_600_000));
       return hit ? { platformPostId: hit.id, platformPostUrl: hit.permalink } : null;
     },
   };

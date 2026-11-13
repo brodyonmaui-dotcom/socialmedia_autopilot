@@ -16,6 +16,24 @@ export class PlatformRequestError extends Error {
   }
 }
 
+/**
+ * The platform may have acted but we can't tell (e.g. an error after the upload bytes started flowing).
+ * Named "TimeoutError" so the outbox's classifyFailure treats it as timeout-class → "unknown" + alert,
+ * never retried (non-negotiable #3: a timeout is "unknown", not "failed").
+ */
+export class UploadAmbiguousError extends Error {
+  override readonly name = "TimeoutError";
+  constructor(
+    readonly platform: string,
+    message: string,
+    readonly status?: number,
+    readonly body?: unknown,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
+  }
+}
+
 export interface JsonResult<T> {
   status: number;
   body: T;
@@ -39,13 +57,18 @@ export async function getJson<T = any>(fetchImpl: FetchLike, url: string, init: 
 }
 
 /** Non-negotiable #5: adapters never send a location field. Checked on every outgoing body. */
-const LOCATION_FIELDS = ["location_id", "location", "recordingDetails", "locationTags", "location_tags", "placeId", "place_id"];
+const LOCATION_FIELDS = [
+  "location_id", "location", "recordingDetails", "locationDescription", "locationTags", "location_tags", "placeId", "place_id", "place",
+  "geo", "geolocation", "coordinates", "latitude", "longitude", "lat", "lng", "lon", "gps", "poi_id", "venue",
+];
+/** Exact key match (never substring: `allocation` is fine), case-insensitive. */
+const LOCATION_KEYS = new Set(LOCATION_FIELDS.map((k) => k.toLowerCase()));
 export function assertNoLocationFields(platform: string, body: Record<string, unknown>): void {
   const seen: string[] = [];
   const walk = (v: unknown, path: string): void => {
     if (!v || typeof v !== "object") return;
     for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
-      if (LOCATION_FIELDS.includes(k)) seen.push(path ? `${path}.${k}` : k);
+      if (LOCATION_KEYS.has(k.toLowerCase())) seen.push(path ? `${path}.${k}` : k);
       walk(val, path ? `${path}.${k}` : k);
     }
   };

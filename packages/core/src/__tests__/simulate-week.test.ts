@@ -16,6 +16,24 @@ describe("simulate-week", () => {
     expect(r.summary).toMatch(/^simulate-week: OK 7d×4 slots/);
   }, 60_000);
 
+  // F7 E6: the two fault types the first sim didn't inject.
+  it("injects YouTube 503-after-upload (→ unknown, never resent) and IG caption normalisation (→ found, not resent)", async () => {
+    const r = await simulateWeek({ timeZone: "UTC", weekStart: "2026-11-09" });
+    const byName = (n: string) => r.checks.find((c) => c.name === n);
+    expect(byName("youtube error after upload started → unknown, never resent")).toMatchObject({ ok: true });
+    expect(byName("instagram existence check finds a caption IG rewrote → no resend")).toMatchObject({ ok: true });
+    expect(r.faults.youtubeUploadAmbiguous).toBeGreaterThanOrEqual(2);
+    expect(r.faults.instagramNormalisedCaption).toBeGreaterThanOrEqual(2);
+    expect(r.doublePosts).toBe(0);
+    expect(r.summary).toMatch(/yt-503 \d+ · ig-normalised \d+/);
+  }, 60_000);
+
+  it("the IG fault bites: an exact-caption lookup would double-post (so the check is meaningful)", async () => {
+    const r = await simulateWeek({ timeZone: "UTC", weekStart: "2026-11-09", exactCaptionLookup: true });
+    expect(r.doublePosts).toBeGreaterThan(0);
+    expect(r.ok).toBe(false);
+  }, 60_000);
+
   it("also passes in a zone without DST and with 3 slots", async () => {
     const r = await simulateWeek({ timeZone: "UTC", weekStart: "2026-11-09", cadence: { slotsPerDay: 3 } });
     expect(r.checks.filter((c) => !c.ok)).toEqual([]);

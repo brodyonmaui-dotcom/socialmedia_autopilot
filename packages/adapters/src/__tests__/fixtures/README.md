@@ -11,3 +11,4 @@ probes. Ids are fake. When a live call shows a different shape, update the fixtu
 | `ig-comments-list.json`, `ig-comment-replies.json`, `ig-comment-reply-ok.json`, `ig-comment-hide-ok.json` | IG comments list / replies / reply / hide (research.md:192-194). Shape from docs 2026-11-12, unverified by a live probe |
 | `ig-conversations.json`, `ig-conversation-messages.json` | IG Conversations API, read only (research.md:195). Shape from docs 2026-11-12, unverified by a live probe |
 | `yt-comment-threads.json`, `yt-comment-insert-ok.json` | YouTube `commentThreads.list` + `comments.insert` (research.md:196). Shape from docs 2026-11-12, unverified by a live probe |
+| `ig-media-list-normalised.json` | Same media list shape; caption with IG-style rewritten whitespace, case and NFD accents (F7 A3 normalisation test). Hand-made |

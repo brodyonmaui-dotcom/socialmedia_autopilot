@@ -26,7 +26,27 @@ export type FakeOutcome =
   | "ok"
   | "reject" // deliberate 4xx-style rejection: nothing created
   | "timeout-not-created" // the call hung and the platform did NOT act
-  | "timeout-created"; // the call hung but the platform DID create the post (the dangerous case)
+  | "timeout-created" // the call hung but the platform DID create the post (the dangerous case)
+  // F7 E6 (YouTube): the resumable PUT started, then a 503 / unparseable reply. The adapter throws
+  // UploadAmbiguousError (name "TimeoutError"), so the engine must mark it unknown, never retry.
+  | "upload-5xx-created"
+  | "upload-5xx-not-created"
+  // F7 E6 (Instagram): media_publish created the reel but the reply was a plain error (classified
+  // "rejected" → retry). The retry's existence check must find it despite IG rewriting the caption.
+  | "reject-created";
+
+/**
+ * Mirrors the Instagram adapter's `normaliseCaption` (packages/adapters/src/instagram.ts; core can't
+ * import adapters): NFC, whitespace runs → one space, trim, lower-case.
+ */
+export function normaliseCaption(caption: string): string {
+  return caption.normalize("NFC").replace(/\s+/gu, " ").trim().toLowerCase();
+}
+
+/** How IG may store a caption: extra/odd whitespace and decomposed (NFD) characters. */
+export function igRewriteCaption(caption: string): string {
+  return `  ${caption.replace(/ /g, "  ").replace(/\n/g, " \n\n ")} `.normalize("NFD");
+}
 
 export interface FakePlatformOptions {
   platform: Platform;
@@ -36,6 +56,12 @@ export interface FakePlatformOptions {
   honorsIdempotencyKey?: boolean;
   /** Whether the adapter can look a post up (findExisting); YouTube can't today. */
   canLookup?: boolean;
+  /**
+   * "caption" = Instagram-style: no idempotency key on the platform, so findExisting matches the
+   * caption the platform stored (rewritten by igRewriteCaption) within ±36 h of scheduledFor.
+   * "caption-exact" = the pre-F7 A3 matcher (trimmed exact compare), kept to prove the fault bites.
+   */
+  lookupBy?: "idempotencyKey" | "caption" | "caption-exact";
 }
 
 export interface FakeCreated {
@@ -43,6 +69,8 @@ export interface FakeCreated {
   postId: string;
   platformPostId: string;
   at: string;
+  /** The caption as the platform stored it. */
+  caption: string;
 }
 
 export class FakePlatform {
@@ -68,7 +96,8 @@ export class FakePlatform {
 
   private create(post: OutboxPost): PublishResult {
     const platformPostId = `${this.platform}-${++this.seq}`;
-    this.created.push({ idempotencyKey: post.idempotencyKey, postId: post.id, platformPostId, at: this.clock.now().toISOString() });
+    const caption = this.opts.lookupBy === "caption" || this.opts.lookupBy === "caption-exact" ? igRewriteCaption(post.caption) : post.caption;
+    this.created.push({ idempotencyKey: post.idempotencyKey, postId: post.id, platformPostId, at: this.clock.now().toISOString(), caption });
     return { platformPostId, platformPostUrl: `https://fake.${this.platform}/${platformPostId}` };
   }
 
@@ -101,12 +130,29 @@ export class FakePlatform {
             e.name = "TimeoutError";
             throw e;
           }
+          case "upload-5xx-created":
+          case "upload-5xx-not-created": {
+            if (outcome === "upload-5xx-created") self.create(post);
+            const e = new Error(`fake ${self.platform}: HTTP 503 after the upload started — outcome unknown`);
+            e.name = "TimeoutError"; // what UploadAmbiguousError carries
+            throw e;
+          }
+          case "reject-created":
+            self.create(post);
+            throw new Error(`fake ${self.platform}: media_publish HTTP 500 (but the reel went live)`);
         }
       },
     };
     if (this.opts.canLookup !== false) {
       adapter.findExisting = async (post: OutboxPost): Promise<PublishResult | null> => {
-        const existing = self.created.find((c) => c.idempotencyKey === post.idempotencyKey);
+        const at = Date.parse(post.scheduledFor);
+        const near = (c: FakeCreated) => Math.abs(Date.parse(c.at) - at) <= 36 * 3_600_000;
+        const existing =
+          self.opts.lookupBy === "caption"
+            ? self.created.find((c) => near(c) && normaliseCaption(c.caption) === normaliseCaption(post.caption))
+            : self.opts.lookupBy === "caption-exact"
+              ? self.created.find((c) => near(c) && c.caption.trim() === post.caption.trim())
+              : self.created.find((c) => c.idempotencyKey === post.idempotencyKey);
         return existing ? { platformPostId: existing.platformPostId, platformPostUrl: `https://fake.${self.platform}/${existing.platformPostId}` } : null;
       };
     }

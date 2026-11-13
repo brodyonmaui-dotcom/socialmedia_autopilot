@@ -99,4 +99,14 @@ describe("createInstagramAdapter", () => {
     // Same caption but far from scheduled_for: not ours.
     expect(await adapter.findExisting!({ ...samplePost, scheduledFor: "2026-12-10T09:00:00Z" })).toBeNull();
   });
+
+  it("findExisting matches after IG normalises the caption (whitespace, case, NFD emoji/accents) → no resend", async () => {
+    const r = router([[isList, () => json(fixture("ig-media-list-normalised"))]]);
+    const adapter = createInstagramAdapter({ ...cfg, fetch: r.fetch });
+    const ours = { ...samplePost, caption: "Café pull day \u{1F642}\u200D\u2195\uFE0F\n#gym #gymbro".normalize("NFC") };
+    expect(await adapter.findExisting!(ours)).toEqual({ platformPostId: "17944070922377399", platformPostUrl: "https://www.instagram.com/reel/NRM789/" });
+    // Normalisation doesn't make different words match, and whitespace-only captions never match.
+    expect(await adapter.findExisting!({ ...ours, caption: "Cafe pull day #gym #gymbro" })).toBeNull();
+    expect(await adapter.findExisting!({ ...ours, caption: "   \n " })).toBeNull();
+  });
 });

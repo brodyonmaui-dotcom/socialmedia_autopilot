@@ -28,7 +28,7 @@ export function findLocationTagKeys(ffprobeJson: { format?: { tags?: Record<stri
   return [...new Set(keys.filter((k) => LOCATION_KEY.test(k)))];
 }
 
-export async function probe(filePath: string): Promise<ProbeResult> {
+async function ffprobeJson(filePath: string) {
   const { stdout } = await run("ffprobe", [
     "-v",
     "error",
@@ -38,7 +38,16 @@ export async function probe(filePath: string): Promise<ProbeResult> {
     "-show_streams",
     filePath,
   ]);
-  const data = JSON.parse(stdout);
+  return JSON.parse(stdout);
+}
+
+/** Post-strip verification (F7 C1): the location-capable tag keys still present in a file. Keys only, never values. */
+export async function probeLocationTagKeys(filePath: string): Promise<string[]> {
+  return findLocationTagKeys(await ffprobeJson(filePath));
+}
+
+export async function probe(filePath: string): Promise<ProbeResult> {
+  const data = await ffprobeJson(filePath);
   const video = (data.streams as Array<Record<string, unknown>>).find((s) => s.codec_type === "video");
   const audio = (data.streams as Array<Record<string, unknown>>).find((s) => s.codec_type === "audio");
   if (!video) throw new Error(`no video stream in ${filePath}`);

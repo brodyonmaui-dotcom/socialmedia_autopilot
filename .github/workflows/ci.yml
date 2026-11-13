@@ -30,3 +30,4 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm simulate-week && pnpm simulate-engagement
+      - run: node scripts/check-public-leaks.mjs

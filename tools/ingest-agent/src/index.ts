@@ -1,5 +1,5 @@
 // Windows ingest agent. Scans the configured "ready to post" folders, dedupes by content hash,
-// strips metadata + normalizes loudness, uploads the clean copy to R2, and records it in the
+// strips metadata + normalizes loudness, re-checks the clean copy for location tags, uploads it to R2, and records it in the
 // media library (Postgres). Requires DATABASE_URL to reach the VPS (see docs for the SSH tunnel).
 //
 //   pnpm --filter @autopilot/ingest-agent ingest            # real run
@@ -10,8 +10,9 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createPool } from "@autopilot/db";
-import { runQa, sha256File, touchUp } from "@autopilot/media";
+import { probeLocationTagKeys, runQa, sha256File, touchUp } from "@autopilot/media";
 import { parseIngestRoots } from "./config.js";
+import { createIngestFile } from "./ingest-file.js";
 import { createR2Client, uploadToR2 } from "./r2.js";
 import { withRetry } from "./retry.js";
 import { runIngest, summaryLine } from "./run.js";
@@ -59,28 +60,24 @@ const summary = await runIngest({
     await pool.query("select 1");
   },
   log: (line) => console.log(line),
-  ingest: async (file, hash) => {
-    const base = file.path.split(/[\\/]/).pop();
-    const qa = await runQa(file.path, "reels");
-    const tmp = mkdtempSync(join(tmpdir(), "autopilot-ingest-"));
-    const cleanPath = join(tmp, "clean.mp4");
-    try {
-      await touchUp(file.path, { outPath: cleanPath });
-      const key = `library/${hash}.mp4`;
-      // Key = content hash, so a retried upload overwrites the same object (idempotent).
-      await withRetry(() => uploadToR2(r2!, bucket, key, cleanPath), {
-        onRetry: (n, err) => console.log(`RETRY ${base} upload attempt ${n + 1} — ${(err as Error).message}`),
-      });
+  ingest: createIngestFile({
+    runQa,
+    touchUp,
+    locationTagKeys: probeLocationTagKeys,
+    upload: (key, cleanPath) =>
+      withRetry(() => uploadToR2(r2!, bucket, key, cleanPath), {
+        onRetry: (n, err) => console.log(`RETRY ${key} upload attempt ${n + 1} — ${(err as Error).message}`),
+      }),
+    insert: async (params) => {
       await pool.query(
         `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, qa, captured_at)
          values ($1, $2, $3, $4, $5, $6, $7, 'ready', $8, $9)`,
-        [hash, file.path, key, qa.probe.durationS, qa.probe.width, qa.probe.height, file.pillar, JSON.stringify(qa), qa.probe.capturedAt ?? null],
+        params,
       );
-      return `INGESTED ${base} · ${file.pillar} · ${qa.probe.durationS.toFixed(1)}s · ${qa.warnings.length} warning(s)`;
-    } finally {
-      rmSync(tmp, { recursive: true, force: true });
-    }
-  },
+    },
+    tmpDir: () => mkdtempSync(join(tmpdir(), "autopilot-ingest-")),
+    cleanup: (dir) => rmSync(dir, { recursive: true, force: true }),
+  }),
 });
 
 console.log(summaryLine(summary, dryRun));
