@@ -11,5 +11,6 @@ Short, step-by-step procedures built from facts already in the repo (`CLAUDE.md`
 | [restore.md](restore.md) | Backup drill, or the database is lost or corrupted |
 | [dashboard-password.md](dashboard-password.md) | Set or change the /app basic-auth password (first layer) |
 | [login.md](login.md) | Add a device (passkey), lost phone, how batch approval gates the worker |
+| [engagement.md](engagement.md) | Comment replies / DM drafts: shadow vs live modes, kill switch, inbox, limits |
 
 Conventions: `ssh autopilot` is the server alias (the IP is never in git). The repo lives in `/opt/autopilot` and tracks `main`. Secrets live in `.env` only.
