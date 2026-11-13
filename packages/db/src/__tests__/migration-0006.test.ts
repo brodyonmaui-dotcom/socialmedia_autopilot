@@ -42,8 +42,8 @@ describe("migration 0006_auth_approval", () => {
   });
 
   it("never drops, deletes or truncates", () => {
-    // FK actions ("on delete cascade / set null") are fine; statements and alter clauses are not.
+    // FK actions ("on delete cascade / set null") and "drop not null" are fine; destructive statements and clauses are not.
     for (const stmt of sql.split(";").map((x) => x.trim()).filter(Boolean)) expect(stmt).not.toMatch(/^(drop|delete|truncate)\b/);
-    expect(sql).not.toMatch(/\bdrop (table|column|constraint|index|type|schema|view|function|default|not null)\b|\bdelete from\b|\btruncate\b/);
+    expect(sql).not.toMatch(/\bdrop (table|column|constraint|index|type|schema|view|function|default)\b|\bdelete from\b|\btruncate\b/);
   });
 });

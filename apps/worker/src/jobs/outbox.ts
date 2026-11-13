@@ -1,8 +1,6 @@
 import {
-  normalizeCadence,
   runOutboxTick,
   type AlertSink,
-  type CadenceSettings,
   type OutboxAlert,
   type OutboxPost,
   type OutboxStore,
@@ -13,7 +11,7 @@ import {
   type TickResult,
 } from "@autopilot/core";
 import { buildAdapters, type AdapterCredentials } from "@autopilot/adapters";
-import { getSetting } from "@autopilot/db";
+import { loadCadence } from "@autopilot/db";
 
 /** Only what the store needs from pg.Pool, so tests pass a recording fake (same pattern as db/settings.ts). */
 export interface OutboxPool {
@@ -169,12 +167,8 @@ export class PgOutboxStore implements OutboxStore {
   }
 }
 
-/** Cadence = posting_windows (0002) + the cadence overrides (0005), validated against the core defaults. */
-export async function loadCadence(pool: OutboxPool): Promise<CadenceSettings> {
-  const windows = await getSetting<CadenceSettings["windows"]>(pool, "posting_windows");
-  const overrides = (await getSetting<Partial<CadenceSettings>>(pool, "cadence")) ?? {};
-  return normalizeCadence({ ...overrides, ...(windows?.length ? { windows } : {}) });
-}
+/** Moved to @autopilot/db (the web app needs it too); re-exported so scripts/schedule-batch.ts keeps working. */
+export { loadCadence } from "@autopilot/db";
 
 /** Console sink; the alert is already in the alerts table for the dashboard. PWA push arrives with F4. */
 export const consoleAlertSink: AlertSink = {
