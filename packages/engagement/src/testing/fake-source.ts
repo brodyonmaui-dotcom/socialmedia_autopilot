@@ -16,8 +16,10 @@ export type FakeBehaviour = "ok" | "reject" | "permanent" | "timeout" | "block";
 export interface FakeSourceOptions {
   /** Script per platformCommentId: a single behaviour, or a list consumed one per call (the last one repeats). Default "ok". */
   behaviours?: Record<string, FakeBehaviour | FakeBehaviour[]>;
-  /** fetchThread results per platformCommentId; missing → null (comment gone). */
+  /** fetchThread results per platformCommentId (an explicit null = comment gone). */
   threads?: Record<string, InboundComment | null>;
+  /** What fetchThread returns for ids not in `threads`: "gone" (null, default) or "empty" (a thread with no own replies). */
+  missingThread?: "gone" | "empty";
   /** Omit a capability to test "no-capability" (both default true). */
   canReply?: boolean;
   canHide?: boolean;
@@ -36,6 +38,7 @@ export class FakeCommentSource implements CommentSource {
   calls: Array<{ op: "reply" | "hide"; platformCommentId: string; text?: string; idempotencyKey?: string }> = [];
   threadCalls: string[] = [];
   rejectMessage: string;
+  missingThread: "gone" | "empty";
   reply?: CommentSource["reply"];
   hide?: CommentSource["hide"];
   private n = 0;
@@ -45,6 +48,7 @@ export class FakeCommentSource implements CommentSource {
     this.behaviours = new Map(Object.entries(opts.behaviours ?? {}));
     this.threads = new Map(Object.entries(opts.threads ?? {}));
     this.rejectMessage = opts.rejectMessage ?? "bad request";
+    this.missingThread = opts.missingThread ?? "gone";
     if (opts.canReply !== false) {
       this.reply = async (platformCommentId, text, o) => {
         this.calls.push({ op: "reply", platformCommentId, text, idempotencyKey: o.idempotencyKey });
@@ -66,7 +70,8 @@ export class FakeCommentSource implements CommentSource {
 
   async fetchThread(platformCommentId: string): Promise<InboundComment | null> {
     this.threadCalls.push(platformCommentId);
-    return this.threads.get(platformCommentId) ?? null;
+    if (this.threads.has(platformCommentId)) return this.threads.get(platformCommentId) ?? null;
+    return this.missingThread === "empty" ? fakeThread(this.platform, platformCommentId) : null;
   }
 
   private next(id: string): FakeBehaviour {

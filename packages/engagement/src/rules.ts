@@ -21,7 +21,12 @@ const LINK = /http|www\.|\.com|t\.me|wa\.me|linktr/i;
 const LOCATION = words([
   "where", "location", "address", "gym", "trail", "park", "beach", "city", "town", "near",
   "what time", "when do you", "schedule", "tomorrow", "tonight", "meet", "meet up", "visit",
+  // F7 C6 red-team: whereabouts phrasings without "where"/"?"
+  "live in", "living in", "based in", "located", "train in", "train at", "train with", "come train", "lift at", "work out at",
 ]);
+/** Street-address shapes ("12 Oak Ridge St", "600 main rd") and US ZIP codes (F7 C6). A false flag only costs a manual look. */
+const ADDRESS = /\b\d{1,5}\s+(?:[a-z]+\s+){1,2}(?:st|street|ave|avenue|rd|road|blvd|boulevard|ln|lane|dr|drive|ct|court|hwy|highway|pl|place)\b/i;
+const ZIP = /\b\d{5}(?:-\d{4})?\b/;
 const BUSINESS = words([
   "collab", "collaboration", "sponsor", "brand", "partnership", "ambassador", "promo", "dm me", "dm us",
   "business", "rate card", "pricing", "coaching", "mentorship", "signals", "join my", "telegram", "whatsapp",
@@ -63,7 +68,7 @@ export function preRules(c: InboundComment, blocklist: string[] = []): RuleHit |
   const reasons: string[] = [];
   if (text.includes("?")) reasons.push("question");
   if (LINK.test(text)) reasons.push("link");
-  if (LOCATION.test(text)) reasons.push("location/schedule");
+  if (LOCATION.test(text) || ADDRESS.test(text) || ZIP.test(text)) reasons.push("location/schedule");
   if (BUSINESS.test(text)) reasons.push("brand/business");
   if (hitsBlocklist(text, blocklist)) reasons.push("blocklist");
   return reasons.length ? { bucket: "flag", reason: reasons.join(", ") } : null;

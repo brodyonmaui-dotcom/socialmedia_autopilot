@@ -16,7 +16,8 @@ const BEFORE = "2026-11-13T11:00:00Z";
 
 function setup(opts: FakeSourceOptions = {}) {
   const store = new MemoryEngagementStore();
-  const src = new FakeCommentSource("instagram", opts);
+  // Threads exist (no own replies) unless a test scripts them: the tick re-reads the thread before every send.
+  const src = new FakeCommentSource("instagram", { missingThread: "empty", ...opts });
   const sources = new Map<EngagementPlatform, FakeCommentSource>([["instagram", src]]);
   const lines: string[] = [];
   const cfg = (over: Partial<SendTickConfig> = {}, at: Date = NOW): SendTickConfig => ({
@@ -127,7 +128,7 @@ describe("runSendTick", () => {
   });
 
   it("a retry whose comment is gone → failed, nothing sent", async () => {
-    const { store, src, sources, cfg } = setup();
+    const { store, src, sources, cfg } = setup({ threads: { "pc-a1": null } });
     store.addAction({ id: "a1", notBefore: BEFORE, attempts: 1 });
     await runSendTick(store, sources, cfg());
     expect(store.get("a1")).toMatchObject({ status: "failed", lastError: "comment gone" });
@@ -137,6 +138,15 @@ describe("runSendTick", () => {
   it("an auto retry where a human already replied with different text → skipped human-replied, stays planned", async () => {
     const { store, src, sources, cfg } = setup({ threads: { "pc-a1": fakeThread("instagram", "pc-a1", [{ id: "r-1", text: "so glad you liked it" }]) } });
     store.addAction({ id: "a1", notBefore: BEFORE, attempts: 1 });
+    const r = await runSendTick(store, sources, cfg());
+    expect(r.skipped).toEqual({ "human-replied": 1 });
+    expect(src.calls).toEqual([]);
+    expect(store.get("a1").status).toBe("planned");
+  });
+
+  it("a first-attempt auto reply where the creator replied during the veto window → human-replied, nothing sent (F7 A15)", async () => {
+    const { store, src, sources, cfg } = setup({ threads: { "pc-a1": fakeThread("instagram", "pc-a1", [{ id: "r-1", text: "haha thanks" }]) } });
+    store.addAction({ id: "a1", notBefore: BEFORE });
     const r = await runSendTick(store, sources, cfg());
     expect(r.skipped).toEqual({ "human-replied": 1 });
     expect(src.calls).toEqual([]);
@@ -173,7 +183,7 @@ describe("runSendTick", () => {
     expect((await runSendTick(store, sources, cfg({}, new Date(NOW.getTime() + 60_000)))).considered).toBe(0);
     const r2 = await runSendTick(store, sources, cfg({}, new Date(Date.parse(row.nextAttemptAt!))));
     expect(r2.sent).toBe(1);
-    expect(src.threadCalls).toEqual(["pc-a1"]); // existence check before the retry
+    expect(src.threadCalls).toEqual(["pc-a1", "pc-a1"]); // thread re-read before the first send and before the retry
     expect(src.calls).toHaveLength(2);
     expect(store.get("a1")).toMatchObject({ status: "sent", attempts: 2 });
   });

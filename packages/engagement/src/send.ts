@@ -50,7 +50,11 @@ function withTimeout<T>(fn: (signal: AbortSignal) => Promise<T>, ms: number): Pr
 export function redactSecrets(s: string): string {
   return s
     .replace(/\b(access_token|refresh_token|client_secret|token|key|api_key|apikey|secret)=([^&\s"']+)/gi, "$1=[redacted]")
-    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/g, "Bearer [redacted]");
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/g, "Bearer [redacted]")
+    // Bare keys/tokens with no `key=` in front (F7 B6): Anthropic keys, and any long run that mixes
+    // letters and digits (Meta/Google tokens). Numeric platform ids (≤ 20 digits) are left alone.
+    .replace(/\bsk-ant-[A-Za-z0-9_-]+/g, "[redacted]")
+    .replace(/\b(?=[A-Za-z0-9_-]*[A-Za-z])(?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{32,}\b/g, "[redacted]");
 }
 
 /** Compare reply texts loosely: case, whitespace, Unicode form and a leading @mention (platforms may prefix one). */
@@ -115,8 +119,10 @@ export async function runSendTick(
       continue;
     }
 
-    // Pre-flight: before a retry, and for every manual action, re-read the thread.
-    if (a.attempts > 0 || a.origin === "manual") {
+    // Pre-flight: re-read the thread before EVERY send (first attempts too), not only before retries:
+    // the creator may have replied by hand during the veto window (F7 A15 red-team found this).
+    // Cost: one read per send (IG 1 GET, YouTube 1 unit).
+    {
       let thread: InboundComment | null;
       try {
         thread = await withTimeout((signal) => source.fetchThread(a.platformCommentId, { signal }), policy.lookupTimeoutMs);
