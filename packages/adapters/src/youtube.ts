@@ -1,5 +1,5 @@
 import { NonRetryableError, type OutboxPost, type PlatformAdapter, type PublishOptions, type PublishResult } from "@autopilot/core";
-import { assertNoLocationFields, countHashtags, getJson, PlatformRequestError, type FetchLike } from "./http.js";
+import { assertNoLocationFields, countHashtags, getJson, PlatformRequestError, UploadAmbiguousError, type FetchLike } from "./http.js";
 
 export interface YouTubeAdapterConfig {
   clientId: string;
@@ -72,19 +72,35 @@ export function createYouTubeAdapter(cfg: YouTubeAdapterConfig): PlatformAdapter
       if (!source.ok || !source.body) throw new Error(`could not fetch media for upload: HTTP ${source.status}`);
       const contentLength = source.headers.get("content-length");
 
-      const up = await fetchImpl(location, {
-        method: "PUT",
-        headers: { "Content-Type": "video/*", ...(contentLength ? { "Content-Length": contentLength } : {}) },
-        body: source.body,
-        duplex: "half",
-        ...(signal ? { signal } : {}),
-      } as RequestInit & { duplex: "half" });
-      const upBody = (await up.json()) as { id?: string; error?: { message?: string; errors?: Array<{ reason?: string }> } };
+      // F7 A4: from here on the bytes may have landed. YouTube has no lookup by our key, so anything other
+      // than a clear validation refusal is ambiguous → UploadAmbiguousError (timeout-class → "unknown").
+      let up: Response;
+      let upBody: { id?: string; error?: { message?: string; errors?: Array<{ reason?: string }> } };
+      try {
+        up = await fetchImpl(location, {
+          method: "PUT",
+          headers: { "Content-Type": "video/*", ...(contentLength ? { "Content-Length": contentLength } : {}) },
+          body: source.body,
+          duplex: "half",
+          ...(signal ? { signal } : {}),
+        } as RequestInit & { duplex: "half" });
+      } catch (e) {
+        const name = (e as { name?: string } | undefined)?.name;
+        if (e instanceof TypeError || name === "TimeoutError" || name === "AbortError") throw e; // already timeout-class
+        throw new UploadAmbiguousError("youtube", `youtube upload outcome unknown: ${(e as Error)?.message ?? String(e)}`, undefined, undefined, { cause: e });
+      }
+      const text = await up.text().catch(() => "");
+      try {
+        upBody = (text ? JSON.parse(text) : {}) as typeof upBody;
+      } catch {
+        throw new UploadAmbiguousError("youtube", `youtube upload outcome unknown: HTTP ${up.status}, unparseable response`, up.status, text.slice(0, 200));
+      }
       if (up.status !== 200 || !upBody.id) {
         const reason = upBody.error?.errors?.[0]?.reason ?? upBody.error?.message;
         const msg = `youtube upload failed: HTTP ${up.status} ${JSON.stringify(reason)}`;
+        // Explicit validation refusals: nothing was created, and a retry can't fix them.
         if (reason === "invalidPublishAt" || reason === "invalidTitle" || reason === "invalidDescription") throw new NonRetryableError(msg);
-        throw new PlatformRequestError("youtube", up.status, upBody, msg);
+        throw new UploadAmbiguousError("youtube", `${msg} — outcome unknown, check YouTube Studio`, up.status, upBody);
       }
 
       return { platformPostId: upBody.id, platformPostUrl: `https://www.youtube.com/watch?v=${upBody.id}` };

@@ -2,10 +2,12 @@ import { blocklistFromEnv, classifyHook, lintText, listHooks } from "@autopilot/
 import { getPool } from "../../../lib/db.js";
 import { addHookAction } from "../actions.js";
 import { button, ErrorBanner, errorFrom, input, PillarSelect, ResearchHeader, type SearchParams } from "../ui.js";
+import { requireSession } from "../../../lib/auth/require.js";
 
 export const dynamic = "force-dynamic";
 
 export default async function HooksPage({ searchParams }: { searchParams: SearchParams }) {
+  await requireSession();
   const error = await errorFrom(searchParams);
   const hooks = await listHooks(getPool());
   const blocklist = blocklistFromEnv();

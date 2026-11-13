@@ -2,6 +2,7 @@ import type { OutboxAlert, OutboxPost, Platform, PlatformAdapter, PublishResult 
 import { CAPABILITIES } from "../capabilities.js";
 import type { CadenceSettings } from "../cadence.js";
 import { localDate } from "../time.js";
+import { sanitizeError, sanitizeForLog } from "../log/sanitize.js";
 import { classifyFailure, decideAfterAttempt, DEFAULT_RETRY_POLICY, PublishTimeoutError, type Decision, type RetryPolicy } from "./policy.js";
 
 /**
@@ -47,6 +48,13 @@ export interface EngineConfig {
   now?: () => Date;
   /** Native-scheduling platforms (YouTube, TikTok) are handed off this long before scheduled_for. Default 24 h. */
   nativeLeadMs?: number;
+  /**
+   * Last-line check right before a post is handed to its adapter (F7 C5: a caption edited after the
+   * skill's lint must not slip out). Returns a reason to refuse, or null. A refusal (or a guard that
+   * throws: fail closed) marks the post failed with that reason and raises a final-failure alert;
+   * the adapter is never called. Core stays lint-free: the worker supplies the privacy lint.
+   */
+  captionGuard?: (post: OutboxPost) => string | null;
 }
 
 export interface TickResult {
@@ -100,11 +108,23 @@ export function isDueNow(post: OutboxPost, now: Date, nativeLeadMs: number): boo
 export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Promise<TickResult> {
   const policy = cfg.policy ?? DEFAULT_RETRY_POLICY;
   const now = cfg.now?.() ?? new Date();
-  const log = cfg.log ?? (() => {});
+  // F7 B2/B3: every log line, last_error and alert message goes through one sanitiser.
+  const rawLog = cfg.log ?? (() => {});
+  const log = (line: string): void => rawLog(sanitizeForLog(line));
+  const guardRefusal = (post: OutboxPost): string | null => {
+    if (!cfg.captionGuard) return null;
+    try {
+      const reason = cfg.captionGuard(post);
+      return reason ? sanitizeForLog(reason) : null;
+    } catch (err) {
+      return `caption guard errored (refusing to publish): ${sanitizeError(err)}`;
+    }
+  };
   const nativeLeadMs = cfg.nativeLeadMs ?? 24 * 3_600_000;
   const result: TickResult = { considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, dryRun: cfg.dryRun, alerts: [] };
 
-  const raise = async (alert: OutboxAlert): Promise<void> => {
+  const raise = async (raw: OutboxAlert): Promise<void> => {
+    const alert: OutboxAlert = { ...raw, message: sanitizeForLog(raw.message) };
     const isNew = await store.recordAlert(alert);
     if (!isNew) return;
     result.alerts.push(alert);
@@ -123,14 +143,17 @@ export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Prom
         found = null;
       }
     }
+    // The crashed attempt counts (claim doesn't bump attempts): a row left at 0 would skip the
+    // existence check if a human re-queued it later (F7 A8).
+    const attempts = post.attempts + 1;
     if (found) {
-      await store.markPublished(post.id, found, post.attempts, now);
+      await store.markPublished(post.id, found, attempts, now);
       result.recovered++;
       result.published++;
       log(`[outbox] recovered ${post.platform} ${post.id} after a crashed attempt: on the platform as ${found.platformPostId}; not resent`);
     } else if (!cfg.dryRun) {
       const message = "worker stopped mid-publish; platform lookup found nothing (or isn't available)";
-      await store.markUnknown(post.id, post.attempts, message, now);
+      await store.markUnknown(post.id, attempts, message, now);
       result.unknown++;
       log(`[outbox] UNKNOWN ${post.platform} ${post.id}: ${message}`);
       await raise({ kind: "unknown-outcome", platform: post.platform, postId: post.id, idempotencyKey: post.idempotencyKey, message, at: now.toISOString() });
@@ -160,6 +183,12 @@ export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Prom
     }
 
     if (cfg.dryRun) {
+      const refusal = guardRefusal(post);
+      if (refusal) {
+        result.skipped++;
+        log(`[outbox] dry-run: would refuse ${post.platform} ${post.id}: ${refusal}`);
+        continue;
+      }
       log(`[outbox] dry-run: would publish ${post.platform} ${post.id} (scheduled_for ${post.scheduledFor}, attempt ${post.attempts + 1})`);
       sentThisTick.set(capKey, (sentThisTick.get(capKey) ?? 0) + 1);
       continue;
@@ -177,7 +206,7 @@ export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Prom
         found = await withTimeout((signal) => adapter.findExisting!(post, { signal }), policy.lookupTimeoutMs);
       } catch (err) {
         // The lookup sends nothing, so waiting and looking again is always safe. It still counts as an attempt (bounded).
-        const message = `existence check failed: ${(err as Error).message ?? String(err)}`;
+        const message = `existence check failed: ${sanitizeError(err)}`;
         const d = decideAfterAttempt({ kind: "failure", cls: "rejected" }, post.attempts, now, policy);
         await applyDecision(store, post, d, message, now, raise, result, log);
         continue;
@@ -191,6 +220,14 @@ export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Prom
       }
     }
 
+    // C5: the caption is checked again right before it leaves; a refusal is permanent (no retry fixes it).
+    const refusal = guardRefusal(post);
+    if (refusal) {
+      const d = decideAfterAttempt({ kind: "failure", cls: "permanent" }, post.attempts, now, policy);
+      await applyDecision(store, post, d, refusal, now, raise, result, log);
+      continue;
+    }
+
     // Only the platform call is inside the try: a store failure after a successful publish must NOT
     // look like a rejection (that would queue a resend). It propagates, the row stays "publishing",
     // and the stale-row path above settles it through the existence check.
@@ -201,7 +238,7 @@ export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Prom
       published = await withTimeout((signal) => adapter.publish(post, { signal }), policy.publishTimeoutMs);
       decision = decideAfterAttempt({ kind: "success" }, post.attempts, now, policy);
     } catch (err) {
-      message = (err as Error).message ?? String(err);
+      message = sanitizeError(err);
       decision = decideAfterAttempt({ kind: "failure", cls: classifyFailure(err) }, post.attempts, now, policy);
     }
     if (published) {
@@ -225,6 +262,7 @@ async function applyDecision(
   result: TickResult,
   log: (line: string) => void,
 ): Promise<void> {
+  message = sanitizeForLog(message);
   const base = { platform: post.platform, postId: post.id, idempotencyKey: post.idempotencyKey, at: now.toISOString() };
   switch (d.status) {
     case "queued":

@@ -1,0 +1,76 @@
+{
+  "date": "2026-11-13",
+  "startedAt": "2026-11-13T01:14:00Z",
+  "endedAt": "2026-11-13T11:50:00Z",
+  "model": "claude-fable-5-1",
+  "session": "cloud · autopilot-overnight · Fable run 2 (lead + implementer subagents)",
+  "backlogItem": "F2 · Batch builder + phone approval UI + passkey login; F3 · Engagement; F7 · Red-team hardening",
+  "summary": "F2, F3 and F7 done and green in one PR: passkey login plus approval that gates the worker, engagement in shadow mode end to end (poll → triage → plan → send tick, inbox, DM drafts), and a red-team pass that fixed real double-reply, secret-leak and location gaps. 870 tests (was 281); both simulations and the public-leak scanner run in CI. Two 5-hour usage windows closed mid-run; everything resumed from checkpoints.",
+  "needsAttention": [
+    { "priority": 1, "title": "Review + merge the PR, then apply migrations 0006 and 0007 on the VPS", "detail": "Order: merge → backup → migrate → docker compose up -d --build (docs/runbooks/migrations.md). 0006 backfills approved_at on existing approved/published rows so the worker gate keeps firing them; 0007 adds the engagement tables. Nothing goes live: engagement defaults to shadow, and the worker now needs both the dry-run key off and the worker live key for any real action." },
+    { "priority": 2, "title": "Enrol your phone's passkey after deploy", "detail": "On the VPS: cd /opt/autopilot/infra && docker compose run --rm worker pnpm auth:enroll prints a 15-min code → https://<domain>/app/login → Add this device (docs/runbooks/login.md). The Caddy prompt stays as the first layer." },
+    { "priority": 3, "title": "Decide: WORKER_LIVE in the server .env", "detail": "The worker refuses live without it and logs why. Add WORKER_LIVE=1 next to the dry-run key only when you want the always-on worker to post for real; your one-shot container run with the flag keeps working." },
+    { "priority": 4, "title": "Run four read-only probe lines and paste the one-liners", "detail": "./infra/probe.sh ig → comment_fields, dm_read · ./infra/probe.sh yt → scopes, comment_threads. They answer: are comment author ids present in Development mode, does DM read work (dm-poll stays off until then), is youtube.force-ssl granted (YouTube replies stay read-only until then)." },
+    { "priority": 5, "title": "Check .env.example line 5: the example time zone", "detail": "It says 'e.g. America/New_York'. If that is your real zone, change the example to Europe/London (the fixture zone). The leak scanner lets 'e.g.' examples through on purpose." },
+    { "priority": 6, "title": "OK to remove one extra test batch in the LOCAL dev DB?", "detail": "apps/web's DB test used to create a 2099-01-05 batch per run; it now reuses one. The second one is harmless; removing rows needs your OK (non-negotiable 6), so it stays until you say so." },
+    { "priority": 7, "title": "Lead cost share is above target", "detail": "See the report KPI (target < 25%). Run-3 plan: cap at 3 parallel implementers, fewer lead reads; see docs/prep/run-3-plan.md lessons." }
+  ],
+  "done": [
+    "F2 T1 migration 0006: auth tables, approved_at/approved_session, batch_item_events, status CHECK (NOT VALID → VALIDATE), backfill, scheduled_for nullable; applied and verified on the local Postgres",
+    "F2 T2 auth core: 32-byte tokens stored as sha256 only, 30-day sliding / 90-day hard cap, single-use enrol codes + challenges, 10-per-15-min rate limit → 'auth' alert; worker CLI auth:enroll / auth:revoke-all (runs in the worker image)",
+    "F2 T3/T4: @simplewebauthn 14 register/login, /login page, edge middleware (cookie shape) + requireSession() (DB) on every DB page and server action, static test enforcing it; dev:session for local screenshots (local DB + non-production only)",
+    "F2 T5/T6: pure warnings (placeholder, past/missing time, lint incl. location, cap breach, no clean file block; duplicates/QA/TikTok draft/>60 s warn) + transitions (approve/approve-all/edit→draft/unapprove/reject with handed-off guards); PgBatchStore apply = one transaction, conditional on from-status, audit events; fill-times via assignSlots",
+    "F2 T7: /batches + /batches/[id] phone UI (week grid, warning chips, inline edit, approve/approve-all confirm sheet with counts, pull back, reject, fill times, add clip), home page with logout; verified with Playwright against the seed",
+    "F2 T8/T9: worker listDue requires approved_at + batch approved; tiktokDraft stored in trial and accepted by the weekly-batch skill; schedule-catchup --approve stamps + audits; seed adds a draft week",
+    "F2 T10: docs/runbooks/login.md, migrations.md (0005/0006 pending), dashboard-password.md updated",
+    "F3 T1: migration 0007 (comments, comment_triage, engagement_actions unique(comment, kind), cursors, blocklist, dm_*), @autopilot/engagement package + shared types, AlertKind unified in core",
+    "F3 T2/T3: pools from voice.md, settings merge (shadow/shadow/off defaults), pre/post rules, seeded rotation, planner (per-person 7 d, human-replied pause, hide only when enabled)",
+    "F3 T4/T7: Anthropic triage client (messages.parse + zod, refusal/error → flag, key never logged), fake client, DM 24 h window + read-only drafts",
+    "F3 T5: send tick (gate order dry-run → killed → mode → veto delay → limits → capability; thread re-read before every send; conditional claim; timeout → unknown; bounded backoff; auto kill-trip on 3 fails or block signals) + in-memory fakes",
+    "F3 T6: IG comment source (list/thread/reply/hide per research.md), YouTube read-only + gated insert/moderation, TikTok stub, read-only IG DM source, fixtures marked unverified",
+    "F3 T8: worker jobs engagement-poll/triage/send + dm-poll, PgEngagementStore (conditional claim, idempotent upsert, cancel, stale sweep), startup line with modes and keys",
+    "F3 T9: /inbox (flagged / shadow / sent / DMs), kill switch, per-platform mode with live confirm + audit alert, mark done, block author, manual send, promote shadow reply, DM countdown + copy",
+    "F3 T10: simulate-engagement (200 synthetic comments, shadow + live-fake, invariants) + CI step + docs/runbooks/engagement.md",
+    "F7 R2: worker run mode needs both keys for any real action; one-line refusal naming the missing key",
+    "F7 R6: route/action static rules (first await = requireSession), action tests without a session never touch the pool, /snap-test static check",
+    "F7 R7: engagement red-team (3 seeds × 1,000 comments) found and fixed: auto reply after the creator replied in the veto window, bare-token redaction, missed whereabouts phrasings; cancel-on-human-reply + stale 'sending' sweep added",
+    "F7 engine-side: one sanitiser for alerts/last_error/logs/probes, publish-time privacy lint (captionGuard), null r2_key never fires, stale recovery counts the crashed attempt",
+    "F7 adapters/media/lint: IG existence check normalises captions, YouTube errors after upload start → unknown, location key list, lint rules for pins/addresses/postcodes with a market-session allowlist, post-strip location verify in ingest, sim fault types, public-leak scanner in CI",
+    "Run-3 plan + draft designs F8 (alerts page + push), F9 (analytics ingest wiring), F10 (Snapchat handoff)"
+  ],
+  "notDone": [
+    "F7 rows that need the creator or the server: D3 check-exposure after deploy, D4 db bound to loopback (looks right in compose), D7 /snap-test served static; the four probe lines",
+    "A9 caveat: two overlapping outbox ticks could exceed a daily cap by one (publish itself is claim-guarded); pg-boss overlap unconfirmed",
+    "No retry/reset button for failed/unknown batch items (the runbook says so); planned as its own small design in run 3",
+    "AlertRow.platform typing is narrower than the rows written ('web', 'meta', 'zernio'); F8 T1 widens it",
+    "YouTube comment replies and IG DM polling stay off until the probes confirm scopes/access"
+  ],
+  "decisions": [
+    "Enrol/revoke CLI lives in apps/worker (the web image is standalone without pnpm/tsx); root aliases pnpm auth:enroll",
+    "Screenshots use a real session row minted by scripts/dev/dev-session.ts against a local DB only; no bypass code exists in the app",
+    "batch_items.scheduled_for is nullable from 0006 so a clip added from the app can get a time via fill-times; approval blocks without a time",
+    "loadCadence moved from the worker to @autopilot/db so web and worker share it",
+    "Middleware duplicates the cookie name + token pattern (edge bundle can't import pg); a test keeps them equal to session.ts",
+    "Auth alerts use platform 'web' in the alerts table (column is free text)",
+    "comments.author_id is nullable (Meta Development mode may omit from{}); per-person limits apply only when an id exists, caps always",
+    "Market-session phrases (NY/London/Asia session) are blanked before location checks in both the caption lint and the engagement rules; a blocklisted word elsewhere still flags",
+    "A triage hide_flag on a DM still yields a draft marked 'review before answering' (the creator sends DMs himself)",
+    "Worker: both keys (dry-run off + live key) gate the outbox and engagement alike; a key alone logs a refusal and runs dry",
+    "Engagement: the thread is re-read before every send (one extra read per reply) so a creator reply during the veto window cancels the auto reply",
+    "Crashed engagement sends (stuck 'sending' > 2× publish timeout) are settled as unknown with an alert, never resent",
+    "YouTube: any error after the upload PUT started (incl. 403 quotaExceeded) is ambiguous → unknown, per run-2-decisions F7 #4",
+    "Publish-time lint lives in the worker (research dependency) via an EngineConfig.captionGuard hook; core stays free of research",
+    "Shadow reply → 'Send this reply' promotes the row to a manual planned action with a conditional update"
+  ],
+  "blocked": [
+    "5-hour usage limit closed twice: at 01:55 UTC (five implementers running) and about 07:50 UTC (six running); both resumed from checkpoints at 06:12 and 11:12 UTC with nothing lost",
+    "Guard hook blocks Bash text containing the live flag string, the dry-run-off assignment, the word truncate (a Tailwind class) and words about removing data; implementers and the lead used Write/Edit for those files"
+  ],
+  "tests": { "passed": 870, "failed": 0, "notes": "93 files; was 281 on main. DB suites ran against the local Postgres (0 skipped with DATABASE_URL). typecheck (root + web) green; simulate-week OK (yt-503 + ig-normalised faults, 0 double-posts); simulate-engagement OK in shadow and live-fake; check-public-leaks ok; apps/web build green" },
+  "commits": 34,
+  "prUrl": "https://github.com/brodyonmaui-dotcom/socialmedia_autopilot/pull/14",
+  "nextPickup": [
+    "Day session: merge, migrate 0006+0007, redeploy, enrol passkey, run the 4 probe lines",
+    "Run 3: F8 alerts + push first (docs/prep/run-3-plan.md), then F10 Snapchat handoff, then F9 ingest wiring"
+  ]
+}

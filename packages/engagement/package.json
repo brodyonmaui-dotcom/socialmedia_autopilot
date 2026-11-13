@@ -1,0 +1,22 @@
+{
+  "name": "@autopilot/engagement",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@autopilot/core": "workspace:*",
+    "@autopilot/research": "workspace:*",
+    "@anthropic-ai/sdk": "^1.6.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

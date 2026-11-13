@@ -1,6 +1,8 @@
 # A post shows `failed` or `unknown`
 
-Statuses (`packages/core/src/types.ts`): `draft → approved → queued → publishing → published`, plus `failed` and `unknown`.
+Statuses (`packages/core/src/types.ts`): `draft → approved → queued → publishing → published`, plus `failed`, `unknown` and `rejected` (migration 0006).
+
+Since F2 ([login.md](login.md#how-approval-works)), the app approves only `draft` items and treats `failed`/`unknown` as already handed to the platform: they can't be approved, edited or rejected from the phone. "Re-approve" below has no app button yet; ask in chat before changing such a row by hand.
 
 - **`failed`**: the platform rejected it on every attempt (outbox default: 3 attempts, `last_error` holds the reason). It's safe to fix and re-approve.
 - **`unknown`**: a timeout or network error **after** sending. The post may exist. The worker never retries an `unknown` on its own and never downgrades it to `failed` (non-negotiable 3).

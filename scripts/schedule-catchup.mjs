@@ -42,9 +42,42 @@ async function main() {
 
   if (args.has("--approve")) {
     const batchId = process.argv[process.argv.indexOf("--approve") + 1];
-    await pool.query("update batches set status = 'approved', updated_at = now() where id = $1", [batchId]);
-    await pool.query("update batch_items set status = 'approved', updated_at = now() where batch_id = $1 and status = 'draft'", [batchId]);
-    console.log(`batch ${batchId} approved`);
+    if (!batchId || batchId.startsWith("--")) {
+      console.error("usage: --approve <batchId>");
+      process.exit(1);
+    }
+    // One connection, one transaction: batch stamp + item stamps + audit rows land together or not at all.
+    // The worker gate needs batches.status='approved' AND batch_items.approved_at (migration 0006).
+    const client = await pool.connect();
+    let approved = 0;
+    try {
+      await client.query("begin");
+      const b = await client.query(
+        "update batches set status = 'approved', approved_at = coalesce(approved_at, now()), updated_at = now() where id = $1 returning id",
+        [batchId],
+      );
+      if (b.rows.length !== 1) throw new Error(`batch ${batchId} not found`);
+      const items = await client.query(
+        "update batch_items set status = 'approved', approved_at = now(), updated_at = now() where batch_id = $1 and status = 'draft' returning id",
+        [batchId],
+      );
+      for (const row of items.rows) {
+        await client.query(
+          `insert into batch_item_events (batch_item_id, kind, from_status, to_status, detail)
+           values ($1, 'approve-cli', 'draft', 'approved', $2::jsonb)`,
+          [row.id, JSON.stringify({ via: "schedule-catchup" })],
+        );
+      }
+      await client.query("commit");
+      approved = items.rows.length;
+    } catch (err) {
+      await client.query("rollback");
+      console.error(`approve failed, nothing changed: ${err instanceof Error ? err.message : err}`);
+      process.exitCode = 1;
+    } finally {
+      client.release();
+    }
+    if (!process.exitCode) console.log(`batch ${batchId} approved: ${approved} item(s) approved`);
     await pool.end();
     return;
   }

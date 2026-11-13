@@ -71,9 +71,8 @@ export function checkDraft(draft: BatchDraft, opts: { blocklist?: string[]; now?
         else for (const i of lintText({ text: post.title, kind: "title", platform, pillar, blocklist: opts.blocklist }).issues) add("title", i);
       }
       if (platform === "tiktok" && post.tiktokDraft) {
-        // batch_items has no column for Zernio's draft flag yet, so creating this would post it publicly
-        // without the sound. Block until the adapter work (F4) stores it.
-        add("caption", { rule: "tiktok.draft-unsupported", severity: "error", message: "TikTok inbox drafts aren't stored by batches yet; finish this one in the TikTok app" });
+        // Stored as batch_items.trial.tiktokDraft; the worker sends it to Zernio as draft: true (TikTok inbox).
+        add("caption", { rule: "tiktok.draft", severity: "warn", message: "goes to the TikTok inbox as a draft: finish the sound in the TikTok app; max 5 pending drafts per 24 h" });
       }
       if (!post.caption.trim()) add("caption", { rule: "caption.empty", severity: "error", message: "empty caption" });
       const key = `${platform}|${post.caption.trim().toLowerCase()}`;
@@ -135,9 +134,17 @@ export async function createDraftBatch(pool: InsertClient, draft: BatchDraft, op
         const post = it.posts[platform];
         if (!post) continue;
         await pool.query(
-          `insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, status)
-           values ($1, $2, $3, $4, $5, $6, 'draft')`,
-          [batchId, it.mediaId, platform, post.caption, platform === "youtube" ? (post.title ?? null) : null, post.scheduledFor],
+          `insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, trial, status)
+           values ($1, $2, $3, $4, $5, $6, $7::jsonb, 'draft')`,
+          [
+            batchId,
+            it.mediaId,
+            platform,
+            post.caption,
+            platform === "youtube" ? (post.title ?? null) : null,
+            post.scheduledFor,
+            platform === "tiktok" && post.tiktokDraft ? JSON.stringify({ tiktokDraft: true }) : null,
+          ],
         );
         items++;
       }

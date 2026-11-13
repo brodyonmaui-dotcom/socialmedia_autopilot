@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { blocklistFromEnv, hashtags, lintText } from "../voice-lint.js";
 
@@ -91,5 +93,94 @@ describe("lintText: tone, numbers, trading, platform", () => {
     expect(lintText({ text: "damn this pump…", kind: "caption" }).ok).toBe(true);
     expect(rules(lintText({ text: "damn thanks man", kind: "reply" }))).toContain("tone.swear");
     expect(rules(lintText({ text: "Appreciate you man, really means a lot to me", kind: "reply" }))).toContain("reply.length");
+  });
+});
+
+// F7 C4: fuzzed privacy phrasings, plus the market-session allowlist (run-2-decisions F7 #2).
+const privacyRules = (r: ReturnType<typeof lintText>) => rules(r).filter((x) => x.startsWith("privacy."));
+
+describe("lintText: privacy hardening (F7 C4)", () => {
+  it.each([
+    ["📍 Riverside", "privacy.pin"],
+    ["Leg day 📍downtown", "privacy.pin"],
+    ["🗺️ my running loop", "privacy.pin"],
+    ["🧭 north side spot", "privacy.pin"],
+    ["Springfield, IL 62701", "privacy.postcode"],
+    ["zip 62701-1234 if you want to send stuff", "privacy.postcode"],
+    ["new place, Illinois 62701", "privacy.postcode"],
+    ["Ended up near SW1A 1AA after the run", "privacy.postcode"],
+    ["post run M1 1AE", "privacy.postcode"],
+    ["Lifting at 123 Main St today", "privacy.address"],
+    ["moved to 42 Elm Drive", "privacy.address"],
+    ["850 Cedar Ln is the spot", "privacy.address"],
+    ["at the Riverside gym rn", "privacy.place"],
+    ["Hit the Oak Ridge trail again…", "privacy.place"],
+    ["hit the trail by the River again", "privacy.place"],
+    ["Pull day @ Riverside…", "privacy.place"],
+  ])("%s → %s", (text, rule) => {
+    const r = lintText({ text, kind: "caption" });
+    expect(r.ok).toBe(false);
+    expect(rules(r)).toContain(rule);
+  });
+
+  it.each([
+    "Scalped the NY session open, BOS then FVG fill. Not financial advice.",
+    "Right now in the NY session, CHoCH on the 5m",
+    "London session was choppy, sat on my hands",
+    "currently in the London session, waiting",
+    "Asia session range held overnight",
+    "Tokyo session did nothing again…",
+    "NYSE closed early today",
+    "Nasdaq ripped at the open #nasdaq",
+    "Took one trade at the London open, BE",
+    "New York open was a mess",
+    "Flat into the New York close",
+    "Only trade the killzone now…",
+    "rn in the killzone, waiting on a sweep",
+    "Pull day @ NY open lol",
+    "NQ 21500 tapped, CHoCH + FVG, entry on M5 1PM",
+    "SMT + BOS on H1 4PM candle",
+  ])("market-session / trading terms are not places: %s", (text) => {
+    expect(privacyRules(lintText({ text, kind: "caption", pillar: "trading" }))).toEqual([]);
+  });
+
+  it("pins without text, ordinary numbers and the campus gym stay fine", () => {
+    for (const text of ["Rest day 🧭", "Ran 10000 steps, 12345 total this week", "Hit the campus gym after class…", "New PR at the gym 🗺️", "Week 3 of the 5x5 program"]) {
+      expect(privacyRules(lintText({ text, kind: "caption" }))).toEqual([]);
+    }
+  });
+
+  // Every example caption/reply quoted in docs/voice.md (the file quotes ~25 lines, not 20 full captions).
+  const VOICE_EXAMPLES = [
+    "My lats are not a fan of this pull day…",
+    "Definitely due for a bull again…",
+    "Just stacking days is all 🙂‍↕️…",
+    "November 2nd P/L +$806, SMT + BOS towards data high for a 1:1R. Happy to take profits before price reversed and dumped the rest of the day",
+    "Welp, I was the liquidity today 🥀",
+    "Great learning experience today, psychology needs some work.",
+    "Keeping it simple, high protein, and consistent.",
+    "Another day of eating while balancing college, training, and everything in between.",
+    "Most people don't need more back days. They need better reps.",
+    "Get shredded, not stiff",
+    "Got absolutely wrecked by blisters on both feet post run 😔",
+    "What's your go-to back exercise? 👇",
+    "I was the liquidity today 🥀",
+    "BOS (break of structure)",
+    "revenge traded and took an L",
+    "stops set too tight",
+    "Appreciate you man",
+    "Thanks, means a lot",
+    "Appreciate it 🙏",
+    "Haha appreciate that",
+    "Thank you, more coming",
+    "Have a great day 😊👍",
+    "Appreciate you watching 😊",
+    "Hope your day's going well 👍",
+    "Thanks for stopping by 😊",
+  ];
+  const voiceMd = readFileSync(fileURLToPath(new URL("../../../../docs/voice.md", import.meta.url)), "utf8");
+  it.each(VOICE_EXAMPLES)("voice.md example has no privacy issues: %s", (text) => {
+    expect(voiceMd).toContain(text);
+    expect(privacyRules(lintText({ text, kind: "caption" }))).toEqual([]);
   });
 });

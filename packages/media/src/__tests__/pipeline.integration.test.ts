@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { run } from "../exec.js";
 import { sha256File } from "../hash.js";
-import { probe } from "../probe.js";
+import { probe, probeLocationTagKeys } from "../probe.js";
 import { runQa } from "../qa.js";
 import { touchUp } from "../touchup.js";
 
@@ -56,6 +56,12 @@ describe("media pipeline (integration, needs ffmpeg)", () => {
     await touchUp(src, { outPath: clean });
     const result = await probe(clean);
     expect(result.hasLocationTags).toBe(false);
+  }, 15_000);
+
+  it("probeLocationTagKeys (post-strip verification, F7 C1): keys on the source, none on the clean copy", async () => {
+    expect(await probeLocationTagKeys(src)).toContain("location");
+    await touchUp(src, { outPath: clean });
+    expect(await probeLocationTagKeys(clean)).toEqual([]);
   }, 15_000);
 
   it("sha256File is deterministic for the same bytes", async () => {

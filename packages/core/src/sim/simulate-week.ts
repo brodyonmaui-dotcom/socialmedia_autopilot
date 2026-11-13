@@ -25,6 +25,8 @@ export interface SimulateOptions {
   tickMinutes?: number;
   /** Ticks logged into `report.log` (kept short: engine lines only). */
   keepLog?: boolean;
+  /** Test-only: use the pre-F7 A3 exact caption matcher for Instagram (shows the normalisation fault bites). */
+  exactCaptionLookup?: boolean;
 }
 
 export interface SimCheck {
@@ -52,6 +54,8 @@ export interface SimReport {
   alerts: number;
   doublePosts: number;
   capBreaches: number;
+  /** F7 E6 fault injections: how many posts got each. */
+  faults: { youtubeUploadAmbiguous: number; instagramNormalisedCaption: number };
   ticks: number;
   checks: SimCheck[];
   scheduleWarnings: string[];
@@ -178,15 +182,34 @@ export async function simulateWeek(opts: SimulateOptions): Promise<SimReport> {
       script[idempotencyKey] = s;
       expect[id] = s;
     }
-    store.add({ id, idempotencyKey, platform: a.platform, mediaUrl: `https://media.example/${a.key}.mp4`, caption: `${a.key} caption…`, title: a.platform === "youtube" ? a.key : undefined, scheduledFor: a.scheduledFor, status: "approved", attempts: 0, mediaId: a.key, updatedAt: clock.now().toISOString() });
+    store.add({ id, idempotencyKey, platform: a.platform, mediaUrl: `https://media.example/${a.key}.mp4`, caption: `${a.key} café caption…`, title: a.platform === "youtube" ? a.key : undefined, scheduledFor: a.scheduledFor, status: "approved", attempts: 0, mediaId: a.key, updatedAt: clock.now().toISOString() });
   });
   for (const p of PLATFORMS) {
     if (CAPABILITIES[p].scheduling === "none") continue;
-    fakes[p] = new FakePlatform({ platform: p, script, honorsIdempotencyKey: p === "tiktok", canLookup: p !== "youtube" }, clock);
+    fakes[p] = new FakePlatform(
+      { platform: p, script, honorsIdempotencyKey: p === "tiktok", canLookup: p !== "youtube", lookupBy: p === "instagram" ? (opts.exactCaptionLookup ? "caption-exact" : "caption") : "idempotencyKey" },
+      clock,
+    );
   }
   // Also simulate a worker crash right after one successful create, before the DB write: must recover, not resend.
   const crashId = schedule.assignments.map((a) => `${a.key}-${a.platform}`).find((id, i) => i % 24 === 23 && id.endsWith("-instagram") && !expect[id]);
   if (crashId) store.crashBeforeMarkPublished.add(crashId);
+
+  // F7 E6: two YouTube posts get a 503 after the upload started (one created, one not), two Instagram
+  // posts get "published but the reply was an error" with IG rewriting the stored caption.
+  const free = (platform: Platform) => schedule.assignments.map((a) => `${a.key}-${a.platform}`).filter((id) => id.endsWith(`-${platform}`) && !expect[id] && id !== crashId);
+  const ytFault = free("youtube").slice(0, 2);
+  const igFault = free("instagram").filter((_, i) => i % 5 === 2).slice(0, 2);
+  ytFault.forEach((id, i) => {
+    const s: FakeOutcome[] = [i === 0 ? "upload-5xx-created" : "upload-5xx-not-created"];
+    script[`idem-${id}`] = s;
+    expect[id] = s;
+  });
+  for (const id of igFault) {
+    const s: FakeOutcome[] = ["reject-created"];
+    script[`idem-${id}`] = s;
+    expect[id] = s;
+  }
 
   const adapters = Object.fromEntries(Object.entries(fakes).map(([p, f]) => [p, f.adapter()])) as Partial<Record<Platform, ReturnType<FakePlatform["adapter"]>>>;
 
@@ -261,6 +284,11 @@ export async function simulateWeek(opts: SimulateOptions): Promise<SimReport> {
   const crashed = crashId ? store.posts.get(crashId) : undefined;
   check("crash after create recovered without a resend", !crashId || (crashes === 1 && crashed?.status === "published" && (fakes.instagram?.calls.filter((c) => c.postId === crashId).length ?? 0) === 1 && totals.recovered >= 1), crashId ? `${crashId}: ${crashed?.status}, ${crashes} crash(es), recovered ${totals.recovered}` : "no crash scheduled");
 
+  const ytBad = ytFault.filter((id) => store.posts.get(id)?.status !== "unknown" || (fakes.youtube?.calls.filter((c) => c.postId === id).length ?? 0) !== 1);
+  check("youtube error after upload started → unknown, never resent", ytBad.length === 0 && ytFault.length > 0, ytBad.length ? ytBad.map((id) => `${id}:${store.posts.get(id)?.status}`).join(", ") : `${ytFault.length} injected, all unknown after one call`);
+  const igBad = igFault.filter((id) => store.posts.get(id)?.status !== "published" || (fakes.instagram?.calls.filter((c) => c.postId === id).length ?? 0) !== 1 || (fakes.instagram?.created.filter((c) => c.postId === id).length ?? 0) !== 1);
+  check("instagram existence check finds a caption IG rewrote → no resend", igBad.length === 0 && igFault.length > 0, igBad.length ? igBad.map((id) => `${id}:${store.posts.get(id)?.status}`).join(", ") : `${igFault.length} injected, each found by caption and published once`);
+
   const alertKinds = totals.alerts.reduce<Record<string, number>>((m, a) => ((m[a.kind] = (m[a.kind] ?? 0) + 1), m), {});
   check("one alert per final failure / unknown, none duplicated", (alertKinds["final-failure"] ?? 0) === failedPosts.length && (alertKinds["unknown-outcome"] ?? 0) === unknownPosts.length && store.alerts.length === totals.alerts.length, JSON.stringify(alertKinds));
 
@@ -287,6 +315,7 @@ export async function simulateWeek(opts: SimulateOptions): Promise<SimReport> {
     alerts: totals.alerts.length,
     doublePosts: doublePosts.length,
     capBreaches: breaches.length + liveBreaches,
+    faults: { youtubeUploadAmbiguous: ytFault.length, instagramNormalisedCaption: igFault.length },
     ticks,
     checks,
     scheduleWarnings: schedule.warnings,
@@ -297,7 +326,7 @@ export async function simulateWeek(opts: SimulateOptions): Promise<SimReport> {
   };
   const failing = checks.filter((c) => !c.ok).map((c) => c.name);
   report.summary =
-    `simulate-week: ${ok ? "OK" : "FAIL"} ${days}d×${cadence.slotsPerDay} slots · ${report.posts} posts · published ${report.published} (${report.recovered} recovered) · retries ${report.queuedRetries} · failed ${report.failed} · unknown ${report.unknown} · handoff ${report.handoff} · alerts ${report.alerts} · ${report.doublePosts} double-posts · ${report.capBreaches} cap breaches` +
+    `simulate-week: ${ok ? "OK" : "FAIL"} ${days}d×${cadence.slotsPerDay} slots · ${report.posts} posts · published ${report.published} (${report.recovered} recovered) · retries ${report.queuedRetries} · failed ${report.failed} · unknown ${report.unknown} · handoff ${report.handoff} · alerts ${report.alerts} · yt-503 ${ytFault.length} · ig-normalised ${igFault.length} · ${report.doublePosts} double-posts · ${report.capBreaches} cap breaches` +
     (crossesDst ? " · DST week" : "") +
     (failing.length ? ` · FAILED: ${failing.join("; ")}` : "");
   return report;

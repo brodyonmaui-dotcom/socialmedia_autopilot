@@ -27,12 +27,16 @@ const files = [];
 if (existsSync(projRoot)) {
   for (const d of readdirSync(projRoot)) {
     if (!/socialmedia/i.test(d)) continue;
-    const dir = join(projRoot, d);
-    for (const f of readdirSync(dir)) {
-      if (!f.endsWith(".jsonl")) continue;
-      const p = join(dir, f);
-      if (statSync(p).mtimeMs >= since) files.push(p);
-    }
+    // Recursive: subagent transcripts (implementer/scout) live in <session>/subagents/*.jsonl, not at the top level.
+    const walk = (dir) => {
+      for (const f of readdirSync(dir)) {
+        const p = join(dir, f);
+        const st = statSync(p);
+        if (st.isDirectory()) walk(p);
+        else if (f.endsWith(".jsonl") && st.mtimeMs >= since) files.push(p);
+      }
+    };
+    walk(join(projRoot, d));
   }
 }
 const seen = new Set();
@@ -54,6 +58,9 @@ for (const f of files) {
 }
 const tot = Object.values(byModel).reduce((a, b) => ({ in: a.in + b.in, out: a.out + b.out, cr: a.cr + b.cr, cw: a.cw + b.cw, calls: a.calls + b.calls }), { in: 0, out: 0, cr: 0, cw: 0, calls: 0 });
 const cost = Object.entries(byModel).reduce((s, [mod, b]) => { const p = PRICES[mod] ?? PRICES["claude-opus-5-5"]; return s + (b.in * p.in + b.out * p.out + b.cr * p.cr + b.cw * p.cw) / 1e6; }, 0);
+const costOf = (mod, b) => { const p = PRICES[mod] ?? PRICES["claude-opus-5-5"]; return (b.in * p.in + b.out * p.out + b.cr * p.cr + b.cw * p.cw) / 1e6; };
+const leadCost = Object.entries(byModel).filter(([m]) => /fable/.test(m)).reduce((s, [m, b]) => s + costOf(m, b), 0);
+const leadShare = cost ? Math.round((100 * leadCost) / cost) : 0;
 const hours = first < Infinity ? (last - first) / 36e5 : 0;
 
 // ---- render ----
@@ -95,6 +102,7 @@ a{color:var(--strong)}footer{color:var(--mute);font-size:12px;margin-top:18px}
 <div class="kpi"><div class="v">${fmt(tot.out)}</div><div class="l">output tokens</div></div>
 <div class="kpi"><div class="v">${fmt(tot.cr)}</div><div class="l">cache reads</div></div>
 <div class="kpi"><div class="v">$${cost.toFixed(2)}</div><div class="l">API-equivalent (not your plan bill)</div></div>
+<div class="kpi"><div class="v">${leadShare}%</div><div class="l">lead (Fable) share of cost · target &lt; 25%</div></div>
 <div class="kpi"><div class="v">${hours.toFixed(1)}h</div><div class="l">first→last activity · ${tot.calls} model calls</div></div>
 <div class="kpi"><div class="v">${esc(log.tests?.passed ?? "–")}/${esc((log.tests?.passed ?? 0) + (log.tests?.failed ?? 0) || "–")}</div><div class="l">tests passing</div></div>
 </div>

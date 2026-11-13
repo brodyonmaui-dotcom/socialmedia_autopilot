@@ -13,3 +13,4 @@ logs/*
 /media/
 *.mp4
 *.mov
+apps/web/tsconfig.tsbuildinfo

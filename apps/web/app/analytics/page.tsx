@@ -2,6 +2,7 @@ import Link from "next/link";
 import { buildWeeklyReport, fmtInt, fmtPct, fmtX, loadPostRecords, syntheticPosts, type PostRecord } from "@autopilot/analytics";
 import { firstLine } from "@autopilot/research";
 import { getPool } from "../../lib/db.js";
+import { requireSession } from "../../lib/auth/require.js";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ const VERDICT = {
 } as const;
 
 export default async function AnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requireSession();
   const sp = await searchParams;
   const weekParam = typeof sp.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.week) ? sp.week : undefined;
   const week = weekParam ?? lastCompleteWeek(new Date());

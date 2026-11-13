@@ -2,6 +2,7 @@
 // secrets never printed, nothing public without --live (and DRY_RUN=false).
 import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { sanitizeForLog } from "../../packages/core/src/log/sanitize.js";
 
 if (existsSync(".env")) process.loadEnvFile(".env");
 
@@ -19,10 +20,12 @@ const secretValues = Object.entries(process.env)
   .filter(([k, v]) => SECRET_KEYS.test(k) && v && v.length > 8)
   .map(([, v]) => v as string);
 
+/** Env secret values cut out literally first, then the shared shape rules (Bearer, *_token=, EAA…, ya29., 1//…, sk_…, long runs). */
 export function redact(text: string): string {
   let out = text;
   for (const s of secretValues) out = out.split(s).join("[REDACTED]");
-  return out.replace(/(access_token=)[^&\s"]+/g, "$1[REDACTED]");
+  out = out.replace(/(access_token=)[^&\s"]+/g, "$1[REDACTED]");
+  return sanitizeForLog(out);
 }
 
 const logDir = "logs";

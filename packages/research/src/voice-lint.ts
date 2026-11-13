@@ -54,6 +54,36 @@ const NAMED_PLACE =
   /\b[A-Z][\w'&.-]*(?:\s+[A-Z][\w'&.-]*)*\s+(Gym|Fitness|Athletic Club|Park|Trail|Trailhead|Beach|University|College|Campus|High School|Mall|Stadium|Lake|Mountain|Street|Avenue|Ave|Road|Rd|Boulevard|Blvd)\b/;
 const UNIVERSITY_OF = /\bUniversity of [A-Z]/;
 const COORDS = /-?\d{1,3}\.\d{3,}\s*,\s*-?\d{1,3}\.\d{3,}/;
+/** F7 C4: "at the X gym", "the Y trail", "trail/run by the Z", "@ Place". X/Y/Z must be capitalised ("the campus gym" is fine). */
+const AT_THE_NAMED = /\b(?:at|the)\s+(?:the\s+)?[A-Z][\w'&.-]*(?:\s+[A-Z][\w'&.-]*)*\s+(?:[Gg]ym|[Tt]rail|[Pp]ark|[Tt]rack)\b/;
+const NEAR_THE_NAMED = /\b(?:trail|run|walk|gym|lift|ride)\s+(?:by|near|past|behind)\s+the\s+[A-Z][a-z]/i;
+const AT_SIGN_PLACE = /(?:^|\s)@\s+[A-Z][a-z]/;
+/** 📍 / 🗺️ / 🧭 followed by text. */
+const PIN = /[\u{1F4CD}\u{1F5FA}\u{1F9ED}]️?\s*[\p{L}\p{N}]/u;
+const US_STATES =
+  "AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC";
+const US_STATE_NAMES =
+  "Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming";
+/** A US ZIP only after "zip", ", ST", a state name or a street suffix, so prices like "NQ 21500" stay fine. */
+const US_ZIP = new RegExp(
+  String.raw`(?:\bzip(?:\s*code)?\s*:?\s*|,\s*(?:${US_STATES})\s+|\b(?:${US_STATE_NAMES}),?\s+|\b(?:St|Street|Ave|Avenue|Rd|Road|Blvd|Dr|Drive|Lane|Ln|Way)\.?,?\s+)\d{5}(?:-\d{4})?\b`,
+  "i",
+);
+/** UK postcode shape; the inward unit never uses C I K M O V, so "M5 1PM" / "H1 4PM" (timeframes) don't match. */
+const UK_POSTCODE = /\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[ABD-HJLNP-UW-Z]{2}\b/;
+const STREET_ADDRESS = /\b\d+ [A-Z][a-z]+ (?:St|Street|Ave|Avenue|Rd|Road|Blvd|Dr|Drive|Lane|Ln|Way)\b/;
+/**
+ * Market sessions/venues are not places (run-2-decisions F7 #2). They're blanked out before the
+ * privacy checks so "currently in the London session" or "@ NY open" don't trip the place rules.
+ */
+const MARKET_TERMS = [
+  /\b(?:the\s+)?(?:NY|New York|London|Asia|Asian|Tokyo|Sydney|Frankfurt)\s+(?:AM\s+|PM\s+)?(?:session|open|close|kill ?zone)s?\b/gi,
+  /\b(?:the\s+)?(?:NYSE|Nasdaq)\b/gi,
+  /\b(?:the\s+)?kill ?zones?\b/gi,
+];
+export function stripMarketTerms(text: string): string {
+  return MARKET_TERMS.reduce((t, re) => t.replace(re, "§"), text); // a non-letter, so no place/realtime pattern can latch onto it
+}
 /** Acronyms he really uses (voice.md trading rules), so the all-caps check leaves them alone. */
 const CAPS_OK = new Set(["ICT", "SMT", "BOS", "NASDAQ", "NQ", "ES", "FOMC", "CPI", "NFP", "PA", "BE", "RR", "PT", "PR", "AM", "PM", "OK", "USA"]);
 
@@ -74,12 +104,16 @@ export function lintText(input: LintInput): LintResult {
   const add = (rule: string, severity: LintSeverity, message: string) => issues.push({ rule, severity, message });
 
   // ---- privacy (CLAUDE.md non-negotiable 5) — always errors ----
-  if (REALTIME.test(text)) add("privacy.realtime", "error", "pairs a place or movement with right now");
-  if (NAMED_PLACE.test(text) || UNIVERSITY_OF.test(text)) add("privacy.place", "error", "names an identifiable place");
-  if (COORDS.test(text)) add("privacy.coords", "error", "contains coordinates");
+  const p = stripMarketTerms(text);
+  if (REALTIME.test(p)) add("privacy.realtime", "error", "pairs a place or movement with right now");
+  if (NAMED_PLACE.test(p) || UNIVERSITY_OF.test(p) || AT_THE_NAMED.test(p) || NEAR_THE_NAMED.test(p) || AT_SIGN_PLACE.test(p)) add("privacy.place", "error", "names an identifiable place");
+  if (COORDS.test(p)) add("privacy.coords", "error", "contains coordinates");
+  if (PIN.test(p)) add("privacy.pin", "error", "location pin/map emoji followed by a place");
+  if (US_ZIP.test(p) || UK_POSTCODE.test(p)) add("privacy.postcode", "error", "contains a postcode");
+  if (STREET_ADDRESS.test(p)) add("privacy.address", "error", "contains a street address");
   for (const term of input.blocklist ?? []) {
     const t = term.trim();
-    if (t && text.toLowerCase().includes(t.toLowerCase())) add("privacy.blocklist", "error", "contains a blocklisted private term");
+    if (t && p.toLowerCase().includes(t.toLowerCase())) add("privacy.blocklist", "error", "contains a blocklisted private term");
   }
 
   // ---- numbers (voice.md: never invent) ----

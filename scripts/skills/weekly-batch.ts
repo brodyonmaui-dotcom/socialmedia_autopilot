@@ -21,6 +21,7 @@ if ((mode !== "check" && mode !== "create" && mode !== "review") || !file) {
 try {
   const draft = JSON.parse(readFileSync(file, "utf8")) as BatchDraft;
   const blocklist = blocklistFromEnv();
+  console.log(`blocklist: ${blocklist.length} terms`); // F7 B8: count only, never the terms
   const check = checkDraft(draft, { blocklist });
   const log = writeLog("weekly-batch", `# weekly-batch ${mode} ${draft.weekStart}\n\n${formatFindings(check) || "no findings"}\n`);
   const summary = `${check.posts} post(s), ${check.errors} error(s), ${check.warnings} warning(s)`;

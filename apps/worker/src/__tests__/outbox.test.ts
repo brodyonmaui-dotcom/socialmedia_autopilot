@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OutboxAlert, PlatformAdapter } from "@autopilot/core";
-import { loadCadence, PgOutboxStore, runOutboxWith } from "../jobs/outbox.js";
+import { consoleAlertSink, loadCadence, PgOutboxStore, privacyCaptionGuard, runOutboxWith } from "../jobs/outbox.js";
 
 interface FakeRow {
   id: string;
@@ -18,17 +18,20 @@ interface FakeRow {
   platform_post_id: string | null;
   platform_post_url: string | null;
   updated_at: string;
-  r2_key: string;
+  r2_key: string | null;
 }
 
 /** Routes the store's SQL by shape and records every write, so a test can assert exact params. */
 function fakePool(rows: FakeRow[], opts: { sentToday?: number; settings?: Record<string, unknown>; claimFails?: boolean } = {}) {
   const writes: Array<{ sql: string; params: unknown[] }> = [];
+  const reads: string[] = [];
   const settings: Record<string, unknown> = { posting_windows: [{ start: "09:00", end: "21:00" }], cadence: {}, ...opts.settings };
   return {
     writes,
+    reads,
     query: async (sql: string, params: unknown[] = []) => {
       const s = sql.replace(/\s+/g, " ").trim();
+      if (s.startsWith("select")) reads.push(s);
       if (s.startsWith("select value from settings")) return { rows: settings[params[0] as string] === undefined ? [] : [{ value: settings[params[0] as string] }] };
       if (s.startsWith("select count(*)::int as n")) return { rows: [{ n: opts.sentToday ?? 0 }] };
       if (s.startsWith("select bi.id") && s.includes("status = 'publishing'")) return { rows: [] };
@@ -173,10 +176,127 @@ describe("PgOutboxStore", () => {
     const [post] = await new PgOutboxStore(pool, "https://m").listDue(new Date(NOW));
     expect(post).toMatchObject({ id: "item-1", platform: "tiktok", tiktokDraft: true, status: "queued", attempts: 2, nextAttemptAt: "2026-11-01T09:30:00.000Z", mediaId: "media-1", mediaUrl: "https://m/library/abc.mp4" });
   });
+  it("listDue SQL carries the approval gate: approved batch and a stamped item", async () => {
+    const pool = fakePool([base]);
+    await new PgOutboxStore(pool, "https://m").listDue(new Date(NOW));
+    const sql = pool.reads.find((r) => r.startsWith("select bi.id"))!;
+    expect(sql).toContain("join batches b on b.id = bi.batch_id");
+    expect(sql).toContain("b.status = 'approved'");
+    expect(sql).toContain("bi.approved_at is not null");
+  });
+  it("rule: an item fires only if its batch is approved and it carries approved_at (a fake DB that honours the gate)", async () => {
+    // The fake plays Postgres: rows come back only when the query actually asks for the gate,
+    // so dropping either predicate from listDue empties the outbox here and fails the test.
+    const gated = {
+      query: async (sql: string) => {
+        const s = sql.replace(/\s+/g, " ");
+        const hasGate = s.includes("b.status = 'approved'") && s.includes("bi.approved_at is not null");
+        return { rows: hasGate ? [base] : [] };
+      },
+    };
+    const due = await new PgOutboxStore(gated, "https://m").listDue(new Date(NOW));
+    expect(due.map((p) => p.id)).toEqual(["item-1"]);
+  });
   it("countSentOn resolves the day in the given zone inside SQL and never stores it", async () => {
     const pool = fakePool([], { sentToday: 2 });
     const store = new PgOutboxStore(pool, "https://m");
     expect(await store.countSentOn("instagram", "2026-12-01", "Etc/GMT+5")).toBe(2);
     expect(pool.writes).toEqual([]); // a read, not a write
+  });
+});
+
+// ---- F7 red-team rows (B2/B3, C5, A11) ----
+const META = "EAAB" + "x7Yq2Lm9Pz3Kd8Rw4Tn6Vb1Hc5Jf0Gs";
+const ZERNIO = "sk_" + "live_9fA3kLm2Qx7Rt8Vw1Yz4Bc6De0Gh";
+const SECRETS = [META.slice(4), ZERNIO.slice(4)];
+const leaky = `HTTP 400 for /me/media?access_token=${META} (Bearer ${ZERNIO})`;
+
+describe("F7 B2/B3: sanitised writes and console lines", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("last_error, the alerts row and the [alert] console line carry no token", async () => {
+    const lines: string[] = [];
+    const logSpy = vi.spyOn(console, "log").mockImplementation((...a: unknown[]) => void lines.push(a.map(String).join(" ")));
+    const errSpy = vi.spyOn(console, "error").mockImplementation((...a: unknown[]) => void lines.push(a.map(String).join(" ")));
+    const engineLines: string[] = [];
+    const pool = fakePool([{ ...base, status: "queued", attempts: 3, next_attempt_at: NOW }]);
+    const r = await runOutboxWith(pool, { instagram: adapter("instagram", async () => { throw new Error(leaky); }, async () => null) }, { ...cfg, log: (l) => engineLines.push(l), alerts: undefined });
+    expect(r.failed).toBe(1);
+    const failed = pool.writes.find((w) => w.sql.startsWith("update batch_items set status = 'failed'"))!;
+    const alert = pool.writes.find((w) => w.sql.startsWith("insert into alerts"))!;
+    expect(lines.some((l) => l.startsWith("[alert] final-failure"))).toBe(true);
+    for (const text of [String(failed.params[2]), String(alert.params[3]), ...lines, ...engineLines]) for (const s of SECRETS) expect(text).not.toContain(s);
+    expect(logSpy).toHaveBeenCalled();
+    expect(errSpy).not.toHaveBeenCalled();
+  });
+
+  it("the store sanitises even when called directly, and so does the console sink", async () => {
+    const pool = fakePool([]);
+    const store = new PgOutboxStore(pool, "https://m", () => {});
+    await store.markQueued("i", 1, NOW, leaky, new Date(NOW));
+    await store.markUnknown("i", 1, leaky, new Date(NOW));
+    await store.recordAlert({ kind: "unknown-outcome", platform: "instagram", postId: "i", idempotencyKey: "k", message: leaky, at: NOW });
+    const lines: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...a: unknown[]) => void lines.push(a.map(String).join(" ")));
+    await consoleAlertSink.send({ kind: "unknown-outcome", platform: "instagram", postId: "i", idempotencyKey: "k", message: leaky, at: NOW });
+    for (const text of [...pool.writes.flatMap((w) => w.params.map(String)), ...lines]) for (const s of SECRETS) expect(text).not.toContain(s);
+  });
+});
+
+describe("F7 C5: publish-time privacy lint", () => {
+  it("a caption naming a place is refused: never published, failed, alerted", async () => {
+    alerts.length = 0;
+    const pool = fakePool([{ ...base, caption: "Leg day at Riverside Fitness. Same plan as last week." }]);
+    let called = false;
+    const r = await runOutboxWith(pool, { instagram: adapter("instagram", async () => ((called = true), { platformPostId: "x" })) }, { ...cfg, alerts: sink, blocklist: [] });
+    expect(called).toBe(false);
+    expect(r.failed).toBe(1);
+    const failed = pool.writes.find((w) => w.sql.startsWith("update batch_items set status = 'failed'"))!;
+    expect(failed.params[2]).toMatch(/caption failed privacy lint: privacy\.place/);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({ kind: "final-failure", postId: "item-1" });
+  });
+
+  it("a blocklisted term (from PRIVACY_BLOCKLIST) and a YouTube title are checked too", () => {
+    const guard = privacyCaptionGuard(["Quuxville"]);
+    const post = { id: "p", idempotencyKey: "k", platform: "youtube" as const, mediaUrl: "u", caption: "steady week", scheduledFor: NOW, status: "approved" as const, attempts: 0 };
+    expect(guard(post)).toBeNull();
+    expect(guard({ ...post, caption: "back in quuxville" })).toMatch(/privacy\.blocklist/);
+    expect(guard({ ...post, title: "Morning run on Oak Ridge Trail" })).toMatch(/privacy\.place/);
+  });
+
+  it("style-only lint errors don't block a scheduled post (privacy rules only)", () => {
+    const guard = privacyCaptionGuard([]);
+    const post = { id: "p", idempotencyKey: "k", platform: "instagram" as const, mediaUrl: "u", caption: "this is insane 🔥🔥", scheduledFor: NOW, status: "approved" as const, attempts: 0 };
+    expect(guard(post)).toBeNull();
+  });
+
+  it("a clean caption goes through (dry-run logs would publish)", async () => {
+    const pool = fakePool([{ ...base, caption: "Same plan as last week. Slow progress is still progress." }]);
+    const lines: string[] = [];
+    const r = await runOutboxWith(pool, { instagram: adapter("instagram", async () => ({ platformPostId: "x" })) }, { ...cfg, dryRun: true, blocklist: [], log: (l) => lines.push(l) });
+    expect(r.skipped).toBe(0);
+    expect(lines.join("\n")).toMatch(/dry-run: would publish instagram item-1/);
+    expect(pool.writes).toEqual([]);
+  });
+});
+
+describe("F7 A11: an item with no media file is never fired", () => {
+  it("listDue SQL excludes a null r2_key", async () => {
+    const pool = fakePool([base]);
+    await new PgOutboxStore(pool, "https://m", () => {}).listDue(new Date(NOW));
+    expect(pool.reads.find((r) => r.startsWith("select bi.id"))!).toContain("m.r2_key is not null");
+  });
+
+  it("a null r2_key row that still comes back yields no post (logged), and the adapter is never called", async () => {
+    const lines: string[] = [];
+    const pool = fakePool([{ ...base, r2_key: null }]);
+    expect(await new PgOutboxStore(pool, "https://m", (l) => lines.push(l)).listDue(new Date(NOW))).toEqual([]);
+    expect(lines[0]).toMatch(/item-1.*r2_key is null/);
+    let called = false;
+    const r = await runOutboxWith(pool, { instagram: adapter("instagram", async () => ((called = true), { platformPostId: "x" })) }, { ...cfg, log: () => {} });
+    expect(called).toBe(false);
+    expect(r.considered).toBe(0);
+    expect(pool.writes).toEqual([]);
   });
 });

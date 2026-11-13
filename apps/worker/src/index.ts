@@ -1,10 +1,14 @@
 import { CAPABILITIES } from "@autopilot/core";
 import { createPool } from "@autopilot/db";
 import { createQueue } from "./queue.js";
+import { resolveRunMode } from "./run-mode.js";
 import { registerHealthJob } from "./jobs/health.js";
 import { registerOutboxJob } from "./jobs/register-outbox.js";
 import { registerTokenHealthJob, tokenHealthConfigFromEnv } from "./jobs/token-health.js";
-import { credentialsFromEnv } from "@autopilot/adapters";
+import { buildCommentSources, commentCredentialsFromEnv, createInstagramDmSource, credentialsFromEnv } from "@autopilot/adapters";
+import { killEnvFromEnv } from "@autopilot/engagement";
+import { PgEngagementStore } from "./jobs/engagement-store.js";
+import { blocklistFromEnv, engagementStartupLine, registerEngagementJobs, triageClientFromEnv } from "./jobs/register-engagement.js";
 
 if (process.env.NODE_ENV !== "production") {
   const { existsSync } = await import("node:fs");
@@ -22,7 +26,11 @@ const pool = createPool(databaseUrl);
 await boss.start();
 await registerHealthJob(boss);
 
-const dryRun = process.env.DRY_RUN !== "false";
+// One decision for the whole worker: live only with DRY_RUN=false AND the live key (see run-mode.ts).
+const runMode = resolveRunMode(process.env, process.argv);
+if (runMode.reason) console.log(runMode.reason);
+const dryRun = runMode.dryRun;
+const live = runMode.live;
 const credentials = credentialsFromEnv(process.env);
 const timeZone = process.env.TZ_CREATOR; // .env only, never committed; required for a live run
 if (!timeZone) {
@@ -40,8 +48,26 @@ await registerOutboxJob(boss, pool, {
 });
 await registerTokenHealthJob(boss, pool, tokenHealthConfigFromEnv(process.env));
 
+// Engagement (F3): same run mode as the outbox.
+const commentCreds = commentCredentialsFromEnv(process.env);
+const commentSources = buildCommentSources(commentCreds);
+const dmSource = commentCreds.instagram ? createInstagramDmSource(commentCreds.instagram) : null;
+const triage = triageClientFromEnv(process.env);
+await registerEngagementJobs(boss, pool, {
+  sources: commentSources,
+  dmSource,
+  igUserId: commentCreds.instagram?.igUserId ?? null,
+  triage,
+  dmTriage: process.env.ANTHROPIC_API_KEY?.trim() ? triage : null,
+  blocklist: blocklistFromEnv(process.env),
+  dryRun,
+  live,
+});
+const engagementSettings = await new PgEngagementStore(pool).loadSettings();
+
 const configured = (["instagram", "youtube", "tiktok"] as const).filter((p) => credentials[p]);
 console.log(`worker started · dry_run=${dryRun} · platforms=${Object.keys(CAPABILITIES).join(",")} · adapters=${configured.join(",") || "none"}`);
+console.log(`${engagementStartupLine(engagementSettings, live, killEnvFromEnv(process.env))} · comment sources=${[...commentSources.keys()].join(",") || "none"} · dm=${dmSource ? "read-only" : "none"}`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {

@@ -5,12 +5,16 @@
   "version": "0.0.0",
   "scripts": {
     "start": "tsx src/index.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "auth:enroll": "tsx src/cli/auth.ts enroll",
+    "auth:revoke-all": "tsx src/cli/auth.ts revoke-all"
   },
   "dependencies": {
     "@autopilot/adapters": "workspace:*",
     "@autopilot/core": "workspace:*",
     "@autopilot/db": "workspace:*",
+    "@autopilot/engagement": "workspace:*",
+    "@autopilot/research": "workspace:*",
     "pg": "^8.13.0",
     "pg-boss": "^10.1.0"
   },

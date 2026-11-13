@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getPool } from "../../lib/db.js";
 import { sourceFileStatus } from "./file-status.js";
+import { requireSession } from "../../lib/auth/require.js";
 
 interface MediaRow {
   id: string;
@@ -21,6 +22,7 @@ function basename(path: string): string {
 export const dynamic = "force-dynamic"; // always reflect the latest ingest, never cache stale library state
 
 export default async function LibraryPage() {
+  await requireSession();
   const pool = getPool();
   const { rows } = (await pool.query(
     "select id, pillar, duration_s, width, height, status, qa, source_path, created_at from media order by created_at desc limit 500",

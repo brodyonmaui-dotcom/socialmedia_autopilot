@@ -22,16 +22,16 @@
       "title": "Batch builder + phone approval UI + single-user passkey login",
       "model": "fable",
       "area": "apps/web",
-      "status": "todo",
-      "notes": "Design ready: docs/design/F2.md + docs/prep/run-2-decisions.md (answers + corrections)."
+      "status": "done",
+      "notes": "Done in run 2 (2026-11-13): 0006 (auth, approval stamps, events, status CHECK, backfill), passkey login + middleware + requireSession everywhere (static test), batch domain + PgBatchStore, approval UI (/batches), worker approval gate, tiktokDraft, runbooks. Needs: 0006 on the VPS + passkey enrol."
     },
     {
       "id": "F3",
       "title": "Engagement: comment polling, triage (mocked AI), reply rotation, limits, kill switch, shadow mode, inbox + DM drafts",
       "model": "fable",
       "area": "apps/worker, apps/web/inbox",
-      "status": "todo",
-      "notes": "Design ready: docs/design/F3.md + docs/prep/run-2-decisions.md (answers + corrections)."
+      "status": "done",
+      "notes": "Done on fakes in run 2 (2026-11-13), shadow mode everywhere: 0007, @autopilot/engagement (rules, pools, rotation, planner, triage, DM drafts, send tick, kill), comment sources (IG, YT read-only, TikTok stub, IG DM read-only), worker jobs + PgEngagementStore, /inbox, simulate-engagement in CI, runbook. Open: dm_read / comment_fields / YT force-ssl probe lines (creator); going live is a day-session call."
     },
     {
       "id": "F4",
@@ -39,7 +39,7 @@
       "model": "fable",
       "area": "packages/adapters",
       "status": "done",
-      "notes": "Done in run A (2026-11-12, PR #9): packages/adapters (IG container flow + trial fallback, YT, Zernio drafts, Snapchat handoff, registry), token-health daily job → alerts, 27 contract tests on fixtures. NOT done: PWA push (no web work this run); YouTube existence check (no documented lookup); first real IG post via the adapter still needs your OK."
+      "notes": "Done in run A (2026-11-12, PR #9): packages/adapters (IG container flow + trial fallback, YT, Zernio drafts, Snapchat handoff, registry), token-health daily job \u2192 alerts, 27 contract tests on fixtures. NOT done: PWA push (no web work this run); YouTube existence check (no documented lookup); first real IG post via the adapter still needs your OK."
     },
     {
       "id": "F5",
@@ -62,8 +62,32 @@
       "title": "Red-team review + hardening (double-post paths, secret/location leaks, missing tests)",
       "model": "fable",
       "area": "repo-wide, fixes only",
+      "status": "done",
+      "notes": "Done in run 2 (2026-11-13): sanitiser, publish-time lint, null r2_key guard, IG caption normalisation, YT ambiguous errors \u2192 unknown, lint hardening + market-session allowlist, ingest post-strip verify, leak scanner in CI, run-mode keys, auth re-review, engagement red-team (3 real fixes). Creator items: D3/D4/D7 after deploy + 4 probe lines."
+    },
+    {
+      "id": "F8",
+      "title": "Alerts page + acknowledge audit + PWA push (VAPID, service worker, icons, alert-push job)",
+      "model": "fable",
+      "area": "apps/web/alerts, apps/worker, packages/db (0008)",
       "status": "todo",
-      "notes": "Design ready: docs/design/F7.md + docs/prep/run-2-decisions.md (answers + corrections)."
+      "notes": "Design draft: docs/design/F8.md. Next after F7 leftovers (docs/prep/run-3-plan.md)."
+    },
+    {
+      "id": "F9",
+      "title": "Analytics ingest wiring: hourly worker job, probe-verified metric sources, metrics-health alert",
+      "model": "fable",
+      "area": "packages/analytics, apps/worker, scripts/probes",
+      "status": "todo",
+      "notes": "Design draft: docs/design/F9.md. Needs creator probe output for T3; T1 probe lines can ship early."
+    },
+    {
+      "id": "F10",
+      "title": "Snapchat handoff page (assisted: Web Share API, mark posted, skip)",
+      "model": "fable",
+      "area": "apps/web/handoff",
+      "status": "todo",
+      "notes": "Design draft: docs/design/F10.md. Order: F8, F10, F9."
     }
   ]
 }

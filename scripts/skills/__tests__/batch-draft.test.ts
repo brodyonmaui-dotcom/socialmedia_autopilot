@@ -23,7 +23,7 @@ describe("checkDraft", () => {
     expect(checkDraft(d, { now })).toMatchObject({ ok: true, creatable: false });
   });
 
-  it("flags location, past/offsetless times, missing YT title, unknown pillar, IG hashtag overflow, TikTok draft route", () => {
+  it("flags location, past/offsetless times, missing YT title, unknown pillar, IG hashtag overflow", () => {
     const d = clone();
     d.items[1]!.posts.instagram!.caption = "Recap +$1. Not financial advice.";
     const ig = d.items[0]!.posts.instagram!;
@@ -35,8 +35,21 @@ describe("checkDraft", () => {
     d.items[1]!.pillar = "crypto";
     const rules = checkDraft(d, { now }).findings.map((f) => f.rule);
     expect(rules).toEqual(
-      expect.arrayContaining(["privacy.place", "hashtags.max", "youtube.title-missing", "time.past", "tiktok.draft-unsupported", "time.invalid", "item.pillar"]),
+      expect.arrayContaining(["privacy.place", "hashtags.max", "youtube.title-missing", "time.past", "time.invalid", "item.pillar"]),
     );
+  });
+
+  it("a TikTok inbox draft is a warning, not an error, and names the 5-pending cap", () => {
+    const d = clone();
+    d.items[1]!.posts.instagram!.caption = d.items[1]!.posts.instagram!.caption.replace("{{P/L}}", "+$120");
+    d.items[0]!.posts.tiktok!.tiktokDraft = true;
+    const c = checkDraft(d, { now });
+    expect(c).toMatchObject({ ok: true, creatable: true, errors: 0 });
+    const f = c.findings.find((x) => x.rule === "tiktok.draft")!;
+    expect(f).toMatchObject({ severity: "warn", platform: "tiktok" });
+    expect(f.message).toMatch(/inbox/);
+    expect(f.message).toMatch(/max 5 pending drafts per 24 h/);
+    expect(c.findings.map((x) => x.rule)).not.toContain("tiktok.draft-unsupported");
   });
 
   it("warns on a copy-pasted caption within the week", () => {
@@ -84,6 +97,19 @@ describe("createDraftBatch", () => {
     expect(sqls.some((s) => /approved/.test(s))).toBe(false);
     // the title is only stored for YouTube
     expect(inserts.find((i) => i.params?.[2] === "instagram")!.params?.[4]).toBeNull();
+  });
+
+  it("stores the TikTok draft flag in trial for that row only", async () => {
+    const c = fakeClient(sample.items.map((i) => i.mediaId));
+    const d = ready();
+    d.items[0]!.posts.tiktok!.tiktokDraft = true;
+    await createDraftBatch(c, d, { now });
+    const inserts = c.calls.filter((x) => x.sql.includes("insert into batch_items"));
+    expect(inserts[0]!.sql).toContain("trial");
+    const tiktok = inserts.filter((i) => i.params?.[2] === "tiktok");
+    expect(tiktok).toHaveLength(1);
+    expect(tiktok[0]!.params?.[6]).toBe('{"tiktokDraft":true}');
+    for (const i of inserts.filter((x) => x.params?.[2] !== "tiktok")) expect(i.params?.[6]).toBeNull();
   });
 
   it("refuses when media is missing from the library or the draft isn't creatable", async () => {

@@ -1,6 +1,6 @@
 # Dashboard password (Caddy basic auth on /app*)
 
-Until the M2 passkey login lands, Caddy asks for a username + password before anything under `/app` (every dashboard page and its assets). `/`, `/healthz`, `/privacy`, `/terms` and `/snap-test` stay public.
+Caddy asks for a username + password before anything under `/app` (every dashboard page and its assets). `/`, `/healthz`, `/privacy`, `/terms` and `/snap-test` stay public.
 
 - Config: `infra/Caddyfile` (`basic_auth` inside `handle /app*`), with values from `.env`: `DASH_USER` and `DASH_HASH` (a bcrypt hash, never the password itself).
 - **You pick the password.** Nobody else (and no agent) generates or sees it. Use a long one from your password manager.
@@ -37,4 +37,4 @@ Repeat steps 2–4 with a new password. The old one stops working as soon as cad
 
 ## Notes
 - Basic auth sends credentials on every request, which is fine over HTTPS only (Caddy forces HTTPS for the domain).
-- This is a stopgap. The M2 single-user passkey (or password + 2FA) login replaces it (CLAUDE.md non-negotiable 4).
+- This gate stays as the **first layer**. The passkey app login is the second layer (CLAUDE.md non-negotiable 4); see [login.md](login.md).
