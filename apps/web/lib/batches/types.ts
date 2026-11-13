@@ -47,6 +47,10 @@ export interface BatchItemView {
   tiktokDraft: boolean;
   platformPostId: string | null;
   approvedAt: string | null;
+  /** Outbox send attempts (batch_items.attempts). Optional until loadBatch selects it (F11 T2). */
+  attempts?: number;
+  /** Sanitised last outbox error (batch_items.last_error; sanitised at write time). Optional until loaded (F11 T2). */
+  lastError?: string | null;
   media: { label: string; durationS: number | null; pillar: string | null; hasCleanFile: boolean; qaWarnings: string[] };
   /** Filled by computeWarnings. */
   warnings: Warning[];
