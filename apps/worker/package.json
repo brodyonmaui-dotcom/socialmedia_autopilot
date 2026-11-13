@@ -5,7 +5,9 @@
   "version": "0.0.0",
   "scripts": {
     "start": "tsx src/index.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "auth:enroll": "tsx src/cli/auth.ts enroll",
+    "auth:revoke-all": "tsx src/cli/auth.ts revoke-all"
   },
   "dependencies": {
     "@autopilot/adapters": "workspace:*",
