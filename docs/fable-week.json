@@ -39,7 +39,7 @@
       "model": "fable",
       "area": "packages/adapters",
       "status": "done",
-      "notes": "Done in run A (2026-11-12, PR #9): packages/adapters (IG container flow + trial fallback, YT, Zernio drafts, Snapchat handoff, registry), token-health daily job \u2192 alerts, 27 contract tests on fixtures. NOT done: PWA push (no web work this run); YouTube existence check (no documented lookup); first real IG post via the adapter still needs your OK."
+      "notes": "Done in run A (2026-11-12, PR #9): packages/adapters (IG container flow + trial fallback, YT, Zernio drafts, Snapchat handoff, registry), token-health daily job → alerts, 27 contract tests on fixtures. NOT done: PWA push (no web work this run); YouTube existence check (no documented lookup); first real IG post via the adapter still needs your OK."
     },
     {
       "id": "F5",
@@ -63,7 +63,7 @@
       "model": "fable",
       "area": "repo-wide, fixes only",
       "status": "done",
-      "notes": "Done in run 2 (2026-11-13): sanitiser, publish-time lint, null r2_key guard, IG caption normalisation, YT ambiguous errors \u2192 unknown, lint hardening + market-session allowlist, ingest post-strip verify, leak scanner in CI, run-mode keys, auth re-review, engagement red-team (3 real fixes). Creator items: D3/D4/D7 after deploy + 4 probe lines."
+      "notes": "Done in run 2 (2026-11-13): sanitiser, publish-time lint, null r2_key guard, IG caption normalisation, YT ambiguous errors → unknown, lint hardening + market-session allowlist, ingest post-strip verify, leak scanner in CI, run-mode keys, auth re-review, engagement red-team (3 real fixes). Creator items: D3/D4/D7 after deploy + 4 probe lines."
     },
     {
       "id": "F8",
@@ -79,15 +79,23 @@
       "model": "fable",
       "area": "packages/analytics, apps/worker, scripts/probes",
       "status": "todo",
-      "notes": "Design draft: docs/design/F9.md. Needs creator probe output for T3; T1 probe lines can ship early."
+      "notes": "Design draft: docs/design/F9.md. T1 built in the prep run (probe lines ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape + shapeOf). Left: T2 (ingest reporting + health), T3 (verify parsers, needs the creator to paste the probe lines), T4 (worker job), T5 (runbook)."
     },
     {
       "id": "F10",
       "title": "Snapchat handoff page (assisted: Web Share API, mark posted, skip)",
       "model": "fable",
       "area": "apps/web/handoff",
+      "status": "done",
+      "notes": "Done in the Opus prep run (2026-11-13, branch prep/run-3-2026-11-13): /handoff page (today + missed, caption copy, checklist, privacy blocks), two-tap Prepare→Share (Web Share API), same-origin session-guarded media proxy, Mark posted (confirm, optional snapchat.com link), Skip today (advisory lock + for update, 1/day), Drop (F2 reject), audit events snap-posted/skip/drop, home link, runbook docs/runbooks/snapchat-handoff.md. Fable run 3: review. Creator: first real share needs an OK in chat; confirm location/Snap Map off on the posting screen."
+    },
+    {
+      "id": "F11",
+      "title": "Reset failed/unknown items after a platform check (\"I checked, it is not there\" → draft, same idempotency_key; or record as published)",
+      "model": "fable",
+      "area": "apps/web/batches, apps/web/lib/batches",
       "status": "todo",
-      "notes": "Design draft: docs/design/F10.md. Order: F8, F10, F9."
+      "notes": "Design draft: docs/design/F11.md (safety-critical; Fable finalizes and builds). Order in run 3: after F8."
     }
   ]
 }

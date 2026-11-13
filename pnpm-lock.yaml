@@ -30,6 +30,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@autopilot/adapters':
+        specifier: workspace:*
+        version: link:../../packages/adapters
       '@autopilot/analytics':
         specifier: workspace:*
         version: link:../../packages/analytics

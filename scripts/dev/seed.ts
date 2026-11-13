@@ -63,6 +63,32 @@ async function seedDraftBatch(client: PoolClient, seededWeek: string): Promise<n
   return items.length;
 }
 
+/**
+ * F10: one approved Snapchat item due "now" in the approved demo batch (approved_at on item + batch, clean
+ * file set), so /handoff shows a card. Scheduled a minute ago so it lands on today in any zone. Skipped
+ * when the batch already holds an approved Snapchat item. Returns 1 when added, 0 when skipped.
+ */
+async function seedSnapchatToday(client: PoolClient, seededWeek: string): Promise<number> {
+  const batch = (await client.query("select id from batches where week_start = $1 and status = 'approved' order by created_at limit 1", [seededWeek])).rows[0]?.id as
+    | string
+    | undefined;
+  if (!batch) return 0;
+  const exists = await client.query("select 1 from batch_items where batch_id = $1 and platform = 'snapchat' and status = 'approved' limit 1", [batch]);
+  if (exists.rows.length) return 0;
+  const m = (await client.query("select id, content_hash from media where content_hash like $1 order by content_hash limit 1", [`${DEMO_HASH_PREFIX}%`])).rows[0] as
+    | { id: string; content_hash: string }
+    | undefined;
+  if (!m) return 0;
+  await client.query("update media set r2_key = coalesce(r2_key, $2) where id = $1", [m.id, `demo/${m.content_hash}.mp4`]);
+  await client.query("update batches set approved_at = coalesce(approved_at, now()) where id = $1", [batch]);
+  await client.query(
+    `insert into batch_items (batch_id, media_id, platform, caption, scheduled_for, status, approved_at)
+     values ($1, $2, 'snapchat', $3, now() - interval '1 minute', 'approved', now())`,
+    [batch, m.id, "Back day check-in, slow and steady #gym #backday"],
+  );
+  return 1;
+}
+
 const url = process.env.DEV_DATABASE_URL ?? process.env.DATABASE_URL;
 try {
   assertLocalDatabaseUrl(url);
@@ -91,11 +117,13 @@ try {
       )
     ).rows[0]?.w as string | undefined;
     let drafts = 0;
+    let snaps = 0;
     if (seeded) {
       const client = await pool.connect();
       try {
         await client.query("begin");
         drafts = await seedDraftBatch(client, seeded);
+        snaps = await seedSnapchatToday(client, seeded);
         await client.query("commit");
       } catch (e) {
         await client.query("rollback");
@@ -104,7 +132,7 @@ try {
         client.release();
       }
     }
-    console.log(`dev:seed: OK already seeded (${already} demo clips${drafts ? `, added ${drafts} draft items` : ""}); migrations applied: ${applied.length}`);
+    console.log(`dev:seed: OK already seeded (${already} demo clips${drafts ? `, added ${drafts} draft items` : ""}${snaps ? ", added 1 snapchat item due now" : ""}); migrations applied: ${applied.length}`);
   } else {
     const rows = buildSeedRows(week);
     const client = await pool.connect();
@@ -136,9 +164,10 @@ try {
       for (const i of rows.ideas) await client.query("insert into ideas (title, pillar, stage, hook) values ($1, $2, $3, $4)", [i.title, i.pillar, i.stage, i.hook]);
       for (const h of rows.hooks) await client.query("insert into hooks (text, pillar, source) values ($1, $2, $3)", [h.text, h.pillar, h.source]);
       const drafts = await seedDraftBatch(client, week);
+      const snaps = await seedSnapchatToday(client, week);
       await client.query("commit");
       console.log(
-        `dev:seed: OK week ${week}: ${rows.media.length} demo clips, ${rows.items.length} published items + snapshots, ${drafts} draft items, ` +
+        `dev:seed: OK week ${week}: ${rows.media.length} demo clips, ${rows.items.length} published items + snapshots, ${drafts} draft items, ${snaps} snapchat due now, ` +
           `${rows.creators.length} creators, ${rows.ideas.length} ideas, ${rows.hooks.length} hooks; migrations applied: ${applied.length}`,
       );
     } catch (e) {
