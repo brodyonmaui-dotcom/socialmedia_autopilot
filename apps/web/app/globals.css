@@ -1,1 +1,92 @@
 @import "tailwindcss";
+
+/* === design system v1 === (docs/design/ui-system.md) — edit tokens here only */
+@theme {
+  /* Surfaces: darkest → lightest. No green anywhere. */
+  --color-ds-frame: #0b0c0e;      /* sidebar, bottom tab bar */
+  --color-ds-bg: #0f1113;         /* page background */
+  --color-ds-card: #1a1d21;       /* cards */
+  --color-ds-raised: #23272c;     /* inputs, wells, hover rows inside cards */
+  --color-ds-line: #2e3338;       /* hairlines, tracks */
+  --color-ds-line-strong: #3d434a;/* control borders, off-toggle track edge */
+  /* Text */
+  --color-ds-text: #f5f6f7;       /* 15.6:1 on card */
+  --color-ds-muted: #a7aeb6;      /* 7.5:1 on card */
+  --color-ds-faint: #8e959d;      /* 5.0:1 on raised, 5.6:1 on card */
+  --color-ds-ink: #0b0d10;        /* text on accent / white fills */
+  --color-ds-paper: #ffffff;      /* white surfaces (tabs, light alert) */
+  --color-ds-paper-2: #eceef0;    /* light-gray rows on white */
+  --color-ds-paper-muted: #5f6770;/* 5.7:1 on white */
+  /* The one accent */
+  --color-ds-accent: #29abe2;     /* fills, indicators; 6.5:1 as text on card */
+  --color-ds-accent-hi: #5bc0eb;  /* hover/pressed-light, focus ring */
+  --color-ds-accent-lo: #1679b5;  /* accent text on white (4.7:1) */
+  /* Status (sparingly; never as the only signal) */
+  --color-ds-warn: #f2b544;       /* 9.2:1 on card */
+  --color-ds-danger: #f0716b;     /* 5.9:1 on card */
+
+  --font-ds: "Times New Roman", Times, "Liberation Serif", serif;
+
+  --radius-ds-sm: 8px;
+  --radius-ds-md: 12px;
+  --radius-ds-lg: 16px;
+  --radius-ds-xl: 22px;
+
+  --shadow-ds-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  --shadow-ds-pop: 0 18px 48px -12px rgb(0 0 0 / 0.75), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --shadow-ds-glow: 0 6px 22px -6px rgb(41 171 226 / 0.55);
+
+  --ease-ds: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:root {
+  --ds-dur-fast: 120ms;
+  --ds-dur: 200ms;
+  --ds-dur-slow: 320ms;
+  --ds-sidebar-w: 260px;
+  --ds-tabbar-h: 64px;
+}
+
+@layer base {
+  .ds-root {
+    font-family: var(--font-ds);
+    background: var(--color-ds-bg);
+    color: var(--color-ds-text);
+    font-size: 17px;
+    line-height: 1.45;
+    letter-spacing: 0.005em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-kerning: normal;
+    color-scheme: dark;
+  }
+  .ds-root :focus-visible {
+    outline: 2px solid var(--color-ds-accent-hi);
+    outline-offset: 2px;
+  }
+  .ds-root * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-ds-accent) transparent;
+  }
+  .ds-root ::-webkit-scrollbar { width: 6px; height: 6px; }
+  .ds-root ::-webkit-scrollbar-thumb { background: var(--color-ds-accent); border-radius: 999px; }
+  .ds-root ::-webkit-scrollbar-track { background: transparent; }
+}
+
+@utility ds-num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+@utility ds-caps {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.8125rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-root *, .ds-root *::before, .ds-root *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+/* === end design system v1 === */
