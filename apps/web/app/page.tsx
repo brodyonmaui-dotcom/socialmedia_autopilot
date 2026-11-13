@@ -52,9 +52,19 @@ export default async function DashboardPage() {
           {snapToday === null ? "TZ_CREATOR not set" : `${snapToday} to share today`}
         </span>
       </Link>
-      <p className={`mt-2 text-sm ${openAlerts ? "font-medium text-red-700 dark:text-red-300" : "text-neutral-500"}`}>
-        {openAlerts} open alert{openAlerts === 1 ? "" : "s"}
-      </p>
+      <Link
+        href="/alerts"
+        className="mt-2 flex min-h-11 items-center justify-between rounded-xl border border-neutral-200 p-3 text-base dark:border-neutral-800"
+      >
+        <span className="font-semibold">Alerts</span>
+        {openAlerts ? (
+          <span className="inline-flex min-w-7 items-center justify-center rounded-full bg-red-600 px-2 py-0.5 text-sm font-semibold text-white">
+            {openAlerts} open
+          </span>
+        ) : (
+          <span className="text-neutral-500">0 open</span>
+        )}
+      </Link>
 
       <div className="mt-3 flex flex-wrap gap-4 text-sm">
         <Link href="/library" className="underline">

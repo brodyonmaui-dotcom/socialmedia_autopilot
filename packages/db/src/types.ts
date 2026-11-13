@@ -76,16 +76,36 @@ export interface BatchItemEventRow {
   at: string;
 }
 
-import type { AlertKind } from "@autopilot/core";
-export type { AlertKind };
+import type { AlertKind, AlertSource } from "@autopilot/core";
+export type { AlertKind, AlertSource };
+export { ALERT_KINDS, PUSH_KINDS_DEFAULT, isAlertKind } from "@autopilot/core";
 
-/** Outbox alerts a human must look at (migration 0005). One row per (kind, item). */
+/** Alerts a human must look at (migration 0005; push + audit columns from 0008). */
 export interface AlertRow {
   id: string;
   kind: AlertKind;
   batch_item_id: string | null;
-  platform: Platform;
+  /** Free text in the DB; a platform or a service ("web", "meta", "zernio", "all"). */
+  platform: AlertSource;
   message: string;
   created_at: string;
+  /** Acknowledge is a timestamp, never a delete. */
   acknowledged_at: string | null;
+  /** The app session that acknowledged it (0008). */
+  acknowledged_session: string | null;
+  /** Set when the alert-push job claimed it (at-most-once); 0008 backfilled existing rows. */
+  pushed_at: string | null;
+}
+
+/** One Web Push subscription per installed PWA (migration 0008). Endpoint and keys are never logged. */
+export interface PushSubscriptionRow {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  session_id: string | null;
+  label: string | null;
+  created_at: string;
+  last_success_at: string | null;
+  revoked_at: string | null;
 }

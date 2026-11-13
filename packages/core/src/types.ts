@@ -74,9 +74,28 @@ export interface PlatformAdapter {
   findExisting?(post: OutboxPost, opts?: PublishOptions): Promise<PublishResult | null>;
 }
 
-export type AlertKind =
-  | "final-failure" | "unknown-outcome" | "cap-breach" | "duplicate" | "token-health"
-  | "auth" | "engagement-kill" | "engagement-failure" | "engagement-unknown" | "engagement-mode";
+/** Every alerts.kind the code writes: the single source for AlertKind (db re-exports it) and for runtime validation. */
+export const ALERT_KINDS = [
+  "final-failure", "unknown-outcome", "cap-breach", "duplicate", "token-health",
+  "auth", "engagement-kill", "engagement-failure", "engagement-unknown", "engagement-mode",
+  "metrics-health", // F9 analytics ingest (page-only)
+] as const;
+export type AlertKind = (typeof ALERT_KINDS)[number];
+
+export function isAlertKind(x: unknown): x is AlertKind {
+  return typeof x === "string" && (ALERT_KINDS as readonly string[]).includes(x);
+}
+
+/**
+ * What alerts.platform actually holds: a platform (outbox, engagement, token-health "youtube"),
+ * "web" (auth), "meta" / "zernio" (token-health services), or "all" (the inbox kill switch).
+ */
+export type AlertSource = Platform | "web" | "meta" | "zernio" | "all";
+
+/** Kinds the alert-push job sends by default (F8 OQ1); the rest are page-only. Override: settings 'alert_push'. */
+export const PUSH_KINDS_DEFAULT: readonly AlertKind[] = [
+  "engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth",
+];
 
 /** Raised by the outbox for anything a human must look at. Delivered by an AlertSink (log, DB, push). */
 export interface OutboxAlert {
