@@ -9,6 +9,8 @@ export const QUEUES = {
   engagementTriage: "engagement-triage",
   engagementSend: "engagement-send",
   dmPoll: "dm-poll",
+  analyticsIngest: "analytics-ingest",
+  alertPush: "alert-push",
 } as const;
 
 export function createQueue(databaseUrl: string): PgBoss {

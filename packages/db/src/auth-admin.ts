@@ -37,11 +37,22 @@ export async function createEnrollCode(db: Queryable, now = new Date()): Promise
   return { code, expiresAt };
 }
 
-/** Revokes every session and passkey, and burns unused enrol codes and challenges. Never deletes rows. */
-export async function revokeAllAuth(db: Queryable, now = new Date()): Promise<{ sessions: number; credentials: number }> {
+/**
+ * Revokes every session and passkey, burns unused enrol codes and challenges, and (lost phone) revokes
+ * every Web Push subscription so a lost device stops getting alert notifications. Never deletes rows.
+ * The push step runs last and tolerates a DB without migration 0008 (the auth part must always work).
+ */
+export async function revokeAllAuth(db: Queryable, now = new Date()): Promise<{ sessions: number; credentials: number; pushSubscriptions: number }> {
   const s = await db.query("update auth_sessions set revoked_at = $1 where revoked_at is null", [now]);
   const c = await db.query("update auth_credentials set revoked_at = $1 where revoked_at is null", [now]);
   await db.query("update auth_enroll_codes set used_at = $1 where used_at is null", [now]);
   await db.query("update auth_challenges set used_at = $1 where used_at is null", [now]);
-  return { sessions: s.rowCount ?? 0, credentials: c.rowCount ?? 0 };
+  let pushSubscriptions = 0;
+  try {
+    const p = await db.query("update push_subscriptions set revoked_at = $1 where revoked_at is null", [now]);
+    pushSubscriptions = p.rowCount ?? 0;
+  } catch (err) {
+    if ((err as { code?: string }).code !== "42P01") throw err; // undefined_table: 0008 not applied yet
+  }
+  return { sessions: s.rowCount ?? 0, credentials: c.rowCount ?? 0, pushSubscriptions };
 }

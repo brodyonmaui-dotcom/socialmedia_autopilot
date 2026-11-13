@@ -39,7 +39,7 @@
       "model": "fable",
       "area": "packages/adapters",
       "status": "done",
-      "notes": "Done in run A (2026-11-12, PR #9): packages/adapters (IG container flow + trial fallback, YT, Zernio drafts, Snapchat handoff, registry), token-health daily job \u2192 alerts, 27 contract tests on fixtures. NOT done: PWA push (no web work this run); YouTube existence check (no documented lookup); first real IG post via the adapter still needs your OK."
+      "notes": "Done in run A (2026-11-12, PR #9): packages/adapters (IG container flow + trial fallback, YT, Zernio drafts, Snapchat handoff, registry), token-health daily job → alerts, 27 contract tests on fixtures. NOT done: PWA push (no web work this run); YouTube existence check (no documented lookup); first real IG post via the adapter still needs your OK."
     },
     {
       "id": "F5",
@@ -63,15 +63,15 @@
       "model": "fable",
       "area": "repo-wide, fixes only",
       "status": "done",
-      "notes": "Done in run 2 (2026-11-13): sanitiser, publish-time lint, null r2_key guard, IG caption normalisation, YT ambiguous errors \u2192 unknown, lint hardening + market-session allowlist, ingest post-strip verify, leak scanner in CI, run-mode keys, auth re-review, engagement red-team (3 real fixes). Creator items: D3/D4/D7 after deploy + 4 probe lines."
+      "notes": "Done in run 2 (2026-11-13): sanitiser, publish-time lint, null r2_key guard, IG caption normalisation, YT ambiguous errors → unknown, lint hardening + market-session allowlist, ingest post-strip verify, leak scanner in CI, run-mode keys, auth re-review, engagement red-team (3 real fixes). Creator items: D3/D4/D7 after deploy + 4 probe lines."
     },
     {
       "id": "F8",
       "title": "Alerts page + acknowledge audit + PWA push (VAPID, service worker, icons, alert-push job)",
       "model": "fable",
       "area": "apps/web/alerts, apps/worker, packages/db (0008)",
-      "status": "todo",
-      "notes": "Design draft: docs/design/F8.md. Next after F7 leftovers (docs/prep/run-3-plan.md)."
+      "status": "review",
+      "notes": "Built in full in the Opus prep run (2026-11-13): T1 migration 0008 + AlertSource/ALERT_KINDS (incl. metrics-health); T2 /alerts + acknowledge (shown ids, no delete) + home badge; T3 alert-push job (alert-push-core.ts: kinds/age gating, claim-before-send, 404/410 revoke; web-push 3.6.7 worker-only); T4 service worker, Enable button, test send via worker, icons, push subs revoked on log-out-everywhere; T5 runbook alerts-push.md with the VAPID keygen command. Fable run 3: adversarial review (docs/prep/run-3-fable-brief.md). Creator: apply 0008, generate VAPID keys, enable on the iPhone."
     },
     {
       "id": "F9",
@@ -79,15 +79,23 @@
       "model": "fable",
       "area": "packages/analytics, apps/worker, scripts/probes",
       "status": "todo",
-      "notes": "Design draft: docs/design/F9.md. Needs creator probe output for T3; T1 probe lines can ship early."
+      "notes": "Prep run (2026-11-13): T1 probe shape lines, T2 per-platform ingest reporting + nextHealth (3 all-fail runs → one metrics-health alert, page-only), T4 hourly read-only analytics-ingest job (23 * * * *), T5 runbook docs/runbooks/analytics.md done. Left: T3 (verify parsers against the creator's probe output: ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape)."
     },
     {
       "id": "F10",
       "title": "Snapchat handoff page (assisted: Web Share API, mark posted, skip)",
       "model": "fable",
       "area": "apps/web/handoff",
+      "status": "done",
+      "notes": "Done in the Opus prep run (2026-11-13, branch prep/run-3-2026-11-13): /handoff page (today + missed, caption copy, checklist, privacy blocks), two-tap Prepare→Share (Web Share API), same-origin session-guarded media proxy, Mark posted (confirm, optional snapchat.com link), Skip today (advisory lock + for update, 1/day), Drop (F2 reject), audit events snap-posted/skip/drop, home link, runbook docs/runbooks/snapchat-handoff.md. Fable run 3: review. Creator: first real share needs an OK in chat; confirm location/Snap Map off on the posting screen."
+    },
+    {
+      "id": "F11",
+      "title": "Reset failed/unknown items after a platform check (\"I checked, it is not there\" → draft, same idempotency_key; or record as published)",
+      "model": "fable",
+      "area": "apps/web/batches, apps/web/lib/batches",
       "status": "todo",
-      "notes": "Design draft: docs/design/F10.md. Order: F8, F10, F9."
+      "notes": "Design docs/design/F11.md + T1 pure logic (transitions reset-checked / record-published, RESET_CHECKLIST, validatePostUrl; 52 tests) built in the prep run. PgBatchStore refuses both until T2. Left for Fable run 3: T2 (store + actions + IG auto-check) under Fable review, T3 (UI + runbook)."
     },
     {
       "id": "F12",

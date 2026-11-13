@@ -1,5 +1,5 @@
 // Server-side auth admin: `pnpm auth:enroll` mints a one-time enrol code; `pnpm auth:revoke-all`
-// signs out every device and revokes every passkey. Run on the VPS via
+// signs out every device, revokes every passkey and every push subscription. Run on the VPS via
 // `docker compose run --rm worker pnpm auth:enroll`.
 import { createEnrollCode, createPool, revokeAllAuth } from "@autopilot/db";
 
@@ -34,8 +34,8 @@ try {
     console.log(`Enrol code (valid 15 min, single use): ${code}`);
     console.log(`Open /app/login on the phone → "Add this device".`);
   } else {
-    const { sessions, credentials } = await revokeAllAuth(pool);
-    console.log(`Revoked ${sessions} session(s) and ${credentials} passkey(s). Run auth:enroll to add a device again.`);
+    const { sessions, credentials, pushSubscriptions } = await revokeAllAuth(pool);
+    console.log(`Revoked ${sessions} session(s), ${credentials} passkey(s) and ${pushSubscriptions} push subscription(s). Run auth:enroll to add a device again.`);
   }
 } catch (err) {
   exitCode = 1;

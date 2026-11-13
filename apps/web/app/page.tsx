@@ -3,6 +3,7 @@ import { CAPABILITIES } from "@autopilot/core";
 import { getPool } from "../lib/db.js";
 import { requireSession } from "../lib/auth/require.js";
 import { logoutAction, logoutEverywhereAction } from "./login/actions.js";
+import { handoffContext, listHandoff } from "../lib/handoff/store.js";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,9 @@ export default async function DashboardPage() {
   const batchCount = (s: string) => (batchRows.rows as Array<{ status: string; n: number }>).find((r) => r.status === s)?.n ?? 0;
   const openAlerts = (alertRows.rows[0]?.n as number | undefined) ?? 0;
   const platforms = Object.entries(CAPABILITIES);
+  // F10: Snapchat items due today (null when TZ_CREATOR is unset: no guessing "today").
+  const snapCtx = handoffContext();
+  const snapToday = snapCtx.timeZone ? (await listHandoff(pool, new Date(), snapCtx.timeZone, snapCtx.blocklist)).today.length : null;
 
   return (
     <main className="mx-auto max-w-md p-4">
@@ -39,9 +43,28 @@ export default async function DashboardPage() {
         <span className="font-semibold">Inbox</span>
         <span className={flagged ? "font-medium text-red-700 dark:text-red-300" : "text-neutral-500"}>{flagged} flagged</span>
       </Link>
-      <p className={`mt-2 text-sm ${openAlerts ? "font-medium text-red-700 dark:text-red-300" : "text-neutral-500"}`}>
-        {openAlerts} open alert{openAlerts === 1 ? "" : "s"}
-      </p>
+      <Link
+        href="/handoff"
+        className="mt-2 flex min-h-11 items-center justify-between rounded-xl border border-neutral-200 p-3 text-base dark:border-neutral-800"
+      >
+        <span className="font-semibold">Snapchat</span>
+        <span className={snapToday ? "font-medium text-amber-800 dark:text-amber-300" : "text-neutral-500"}>
+          {snapToday === null ? "TZ_CREATOR not set" : `${snapToday} to share today`}
+        </span>
+      </Link>
+      <Link
+        href="/alerts"
+        className="mt-2 flex min-h-11 items-center justify-between rounded-xl border border-neutral-200 p-3 text-base dark:border-neutral-800"
+      >
+        <span className="font-semibold">Alerts</span>
+        {openAlerts ? (
+          <span className="inline-flex min-w-7 items-center justify-center rounded-full bg-red-600 px-2 py-0.5 text-sm font-semibold text-white">
+            {openAlerts} open
+          </span>
+        ) : (
+          <span className="text-neutral-500">0 open</span>
+        )}
+      </Link>
 
       <div className="mt-3 flex flex-wrap gap-4 text-sm">
         <Link href="/library" className="underline">
@@ -73,7 +96,7 @@ export default async function DashboardPage() {
         <details>
           <summary className="min-h-11 cursor-pointer py-2 text-sm text-neutral-500">Lost a phone?</summary>
           <p className="mt-1 text-sm text-neutral-500">
-            Signs out every device and revokes every passkey. You&apos;ll need to re-enrol on the server afterwards.
+            Signs out every device, revokes every passkey and turns off push notifications on every device. You&apos;ll need to re-enrol on the server afterwards.
           </p>
           <form action={logoutEverywhereAction} className="mt-2">
             <button className="min-h-11 rounded-lg border border-red-300 px-4 text-base text-red-700 dark:border-red-800 dark:text-red-300">

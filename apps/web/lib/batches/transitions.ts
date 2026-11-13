@@ -1,20 +1,39 @@
 import type { BatchItemEventKind } from "@autopilot/db";
 import { deriveFlags, type BatchItemView, type BatchView, type ItemStatus } from "./types.js";
+import { AUTO_CHECKS, isResettablePlatform, POST_ID_RE, RESET_CHECKLIST, validatePostUrl, type AutoCheck, type ResetEventKind } from "./reset.js";
 
 export type BatchAction =
   | { kind: "approve"; itemIds: string[] }
   | { kind: "approve-all" }
   | { kind: "reject"; itemIds: string[] }
   | { kind: "unapprove"; itemIds: string[] }
-  | { kind: "edit"; itemId: string; patch: { caption?: string; title?: string | null; scheduledFor?: string | null } };
+  | { kind: "edit"; itemId: string; patch: { caption?: string; title?: string | null; scheduledFor?: string | null } }
+  /** F11: "I checked, it's not on the platform" → back to draft (never approves). */
+  | { kind: "reset-checked"; itemId: string; checked: string[]; autoCheck: AutoCheck }
+  /** F11: "I checked, it IS there" → published, with the URL as evidence. */
+  | { kind: "record-published"; itemId: string; url: string; platformPostId?: string };
 
 export interface ItemChange {
   itemId: string;
   from: ItemStatus;
   to: ItemStatus;
-  eventKind: BatchItemEventKind;
-  /** Column names as stored (snake case). */
-  patch?: { caption?: string; title?: string | null; scheduled_for?: string | null };
+  eventKind: BatchItemEventKind | ResetEventKind;
+  /**
+   * Column names as stored (snake case). The outbox fields are set only by reset-checked /
+   * record-published. There is deliberately no idempotency_key field: nothing here may change it.
+   */
+  patch?: {
+    caption?: string;
+    title?: string | null;
+    scheduled_for?: string | null;
+    attempts?: number;
+    last_error?: string | null;
+    next_attempt_at?: string | null;
+    platform_post_url?: string;
+    platform_post_id?: string;
+  };
+  /** Event detail for batch_item_events.detail when it isn't just the patch (reset-checked / record-published). */
+  detail?: Record<string, unknown>;
 }
 
 export type TransitionResult =
@@ -58,6 +77,30 @@ function approveBlocker(item: BatchItemView, now: Date): string | null {
   const ms = new Date(item.scheduledFor).getTime();
   if (Number.isNaN(ms)) return "time is not a valid date";
   if (ms <= now.getTime()) return "time is in the past";
+  return null;
+}
+
+const OUTBOX_DONE: ReadonlySet<ItemStatus> = new Set<ItemStatus>(["failed", "unknown"]);
+
+function findItem(batch: BatchView, itemId: string): BatchItemView | Fail {
+  return batch.items.find((i) => i.id === itemId) ?? { ok: false, reason: `item ${itemId} is not in this batch`, itemId };
+}
+
+/** Why `item` can't be reset to draft with these ticks, or null. */
+function resetBlocker(item: BatchItemView, checked: string[], autoCheck: AutoCheck): string | null {
+  if (!OUTBOX_DONE.has(item.status)) return `can't reset: item is ${item.status}, not failed or unknown`;
+  if (item.platformPostId != null) return "can't reset: the platform already has an id for this post; record it as published";
+  if (!isResettablePlatform(item.platform)) return `can't reset: ${item.platform} posts never go through the outbox`;
+  const list = RESET_CHECKLIST[item.platform];
+  const ticked = new Set(Array.isArray(checked) ? checked : []);
+  for (const c of ticked) if (!list.includes(c)) return "can't reset: unexpected checklist entry, reload";
+  if (list.some((c) => !ticked.has(c))) return "can't reset: tick every checklist box first";
+  if (!AUTO_CHECKS.includes(autoCheck)) return "can't reset: unknown automatic-check result";
+  if (item.platform === "instagram") {
+    if (autoCheck === "n/a") return "can't reset: the Instagram automatic check didn't run";
+  } else if (autoCheck !== "n/a") {
+    return `can't reset: ${item.platform} has no automatic check`;
+  }
   return null;
 }
 
@@ -139,6 +182,46 @@ export function planTransition(batch: BatchView, action: BatchAction, now: Date)
       }
       if (Object.keys(patch).length === 0) return { ok: false, reason: "nothing changed", itemId: item.id };
       return done([{ itemId: item.id, from: item.status, to: "draft", eventKind: "edit", patch }]);
+    }
+
+    case "reset-checked": {
+      const item = findItem(batch, action.itemId);
+      if ("ok" in item) return item;
+      const why = resetBlocker(item, action.checked, action.autoCheck);
+      if (why) return { ok: false, reason: why, itemId: item.id };
+      const list = RESET_CHECKLIST[item.platform as keyof typeof RESET_CHECKLIST];
+      // approved_at / approved_session are cleared by the store on any → draft, as for unapprove/edit.
+      return done([{
+        itemId: item.id,
+        from: item.status,
+        to: "draft",
+        eventKind: "reset-checked",
+        patch: { attempts: 1, last_error: null, next_attempt_at: null },
+        detail: { attemptsBefore: item.attempts ?? null, lastError: item.lastError ?? null, checked: [...list], autoCheck: action.autoCheck },
+      }]);
+    }
+
+    case "record-published": {
+      const item = findItem(batch, action.itemId);
+      if ("ok" in item) return item;
+      if (!OUTBOX_DONE.has(item.status)) return { ok: false, reason: `can't record: item is ${item.status}, not failed or unknown`, itemId: item.id };
+      const url = validatePostUrl(item.platform, action.url);
+      if (url == null) return { ok: false, reason: `can't record: not an https link to a ${item.platform} post`, itemId: item.id };
+      const id = typeof action.platformPostId === "string" ? action.platformPostId.trim() : "";
+      if (id !== "" && !POST_ID_RE.test(id)) return { ok: false, reason: "can't record: the post id has unexpected characters", itemId: item.id };
+      if (id !== "" && item.platformPostId != null && id !== item.platformPostId) {
+        return { ok: false, reason: "can't record: the item already has a different platform post id", itemId: item.id };
+      }
+      const patch: NonNullable<ItemChange["patch"]> = { platform_post_url: url, next_attempt_at: null };
+      if (id !== "") patch.platform_post_id = id;
+      return done([{
+        itemId: item.id,
+        from: item.status,
+        to: "published",
+        eventKind: "record-published",
+        patch,
+        detail: { url, platformPostId: id !== "" ? id : item.platformPostId, attemptsBefore: item.attempts ?? null, lastError: item.lastError ?? null },
+      }]);
     }
   }
 }

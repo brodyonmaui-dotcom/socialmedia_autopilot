@@ -6,7 +6,7 @@
 import { createServer } from "node:http";
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
-import { LIVE, args, argValue, getJson, need, record, startLog, summary } from "./lib.js";
+import { LIVE, args, argValue, getJson, need, record, shapeNote, startLog, summary } from "./lib.js";
 
 startLog("yt");
 const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = need("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET");
@@ -61,7 +61,7 @@ if (access) record("scopes", granted.includes("youtube.force-ssl"), `granted: ${
 if (!access) summary("yt");
 const auth = { Authorization: `Bearer ${access}` };
 
-const ch = await getJson("https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,status&mine=true", { headers: auth });
+const ch = await getJson("https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,status,contentDetails&mine=true", { headers: auth });
 const c = ch.body?.items?.[0];
 record("channel", !!c, c ? `${c.snippet.title} · ${c.statistics.subscriberCount} subs · ${c.statistics.videoCount} videos` : JSON.stringify(ch.body?.error?.message));
 if (c) {
@@ -69,6 +69,18 @@ if (c) {
   const ct = await getJson(`https://www.googleapis.com/youtube/v3/commentThreads?part=snippet&allThreadsRelatedToChannelId=${c.id}&maxResults=20`, { headers: auth });
   const threads: any[] = ct.body?.items ?? [];
   record("comment_threads", ct.status === 200, ct.status === 200 ? `${threads.length} recent threads · authorChannelId on ${threads.filter((t) => t.snippet?.topLevelComment?.snippet?.authorChannelId?.value).length}/${threads.length}` : `HTTP ${ct.status} ${JSON.stringify(ct.body?.error?.errors?.[0]?.reason ?? ct.body?.error?.message)}`);
+
+  // Statistics shape for analytics ingest (F9): newest upload via the uploads playlist (1 unit) + videos.list (1 unit).
+  // Read-only; prints key paths + JSON types only, never values, ids or titles.
+  const uploads = c.contentDetails?.relatedPlaylists?.uploads;
+  const pl = uploads ? await getJson(`https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${encodeURIComponent(uploads)}&maxResults=1`, { headers: auth }) : undefined;
+  const newest = pl?.body?.items?.[0]?.contentDetails?.videoId;
+  if (newest) {
+    const vs = await getJson(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${encodeURIComponent(newest)}`, { headers: auth });
+    const s = shapeNote(vs.status, vs.body);
+    record("video_stats_shape", s.ok, s.note);
+  } else if (pl && pl.status !== 200) record("video_stats_shape", false, `uploads list: ${shapeNote(pl.status, pl.body).note}`);
+  else record("video_stats_shape", true, uploads ? "no uploads on the channel — skipped" : "no uploads playlist in channel contentDetails — skipped");
 }
 
 const file = argValue("file");

@@ -55,12 +55,35 @@ describe("auth-admin", () => {
   it("revokeAllAuth updates sessions, credentials, codes, challenges and never deletes", async () => {
     const db = recorder(2);
     const res = await revokeAllAuth(db, new Date());
-    expect(res).toEqual({ sessions: 2, credentials: 2 });
+    expect(res).toEqual({ sessions: 2, credentials: 2, pushSubscriptions: 2 });
     const sqls = db.calls.map((c) => c.sql);
     expect(sqls.every((s) => s.startsWith("update "))).toBe(true);
-    for (const t of ["auth_sessions", "auth_credentials", "auth_enroll_codes", "auth_challenges"]) {
+    for (const t of ["auth_sessions", "auth_credentials", "auth_enroll_codes", "auth_challenges", "push_subscriptions"]) {
       expect(sqls.some((s) => s.includes(t))).toBe(true);
     }
     expect(JSON.stringify(db.calls)).not.toMatch(/delete/i);
+  });
+
+  it("revokeAllAuth still revokes auth when push_subscriptions doesn't exist yet (0008 not applied)", async () => {
+    const calls: string[] = [];
+    const db: Queryable = {
+      async query(sql) {
+        calls.push(sql);
+        if (sql.includes("push_subscriptions")) throw Object.assign(new Error("relation does not exist"), { code: "42P01" });
+        return { rows: [], rowCount: 1 };
+      },
+    };
+    expect(await revokeAllAuth(db)).toEqual({ sessions: 1, credentials: 1, pushSubscriptions: 0 });
+    expect(calls[calls.length - 1]).toMatch(/push_subscriptions/);
+  });
+
+  it("revokeAllAuth rethrows any other push error", async () => {
+    const db: Queryable = {
+      async query(sql) {
+        if (sql.includes("push_subscriptions")) throw Object.assign(new Error("x"), { code: "57014" });
+        return { rows: [], rowCount: 1 };
+      },
+    };
+    await expect(revokeAllAuth(db)).rejects.toThrow();
   });
 });
