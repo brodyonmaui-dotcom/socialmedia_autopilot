@@ -1,12 +1,38 @@
 {
   "date": "2026-11-13",
   "startedAt": "2026-11-13T16:26:00Z",
-  "endedAt": null,
+  "endedAt": "2026-11-13T17:06:49.319Z",
   "model": "claude-opus-5-5",
   "session": "cloud · prep run for Fable run 3",
   "backlogItem": "Prep for run 3: decisions, F10, F9 T1, F11 design, codebase map, F8 T1/T2",
-  "summary": "Tasks 1–5 done (decisions, F10 complete, F9 T1, F11 draft, codebase map) plus F8 T1/T2 and F9 T2/T4/T5. Scope widened mid-run by a relayed creator update (F8 T3–T5, F11 pure logic, run-3 Fable brief, F12 tracker item); 20:00 UTC hard stop kept.",
-  "needsAttention": [],
+  "summary": "Prep for Fable run 3 complete: decisions + Fable brief, F10 done, F8 built in full (T1–T5, needs Fable review), F9 T1/T2/T4/T5 done (T3 waits for probe output), F11 design + pure logic, codebase map refreshed, Dockerfile gap fixed. All green: 113 files / 1099 tests.",
+  "needsAttention": [
+    {
+      "priority": 1,
+      "title": "Review and merge the PR, then deploy carefully",
+      "detail": "Dockerfiles were missing workspace packages (the worker on main already imports @autopilot/engagement, so the current image may already be broken). Fixed here but not built with Docker; watch docker compose up -d --build."
+    },
+    {
+      "priority": 2,
+      "title": "Apply migrations 0006, 0007, 0008",
+      "detail": "Back up first (docs/runbooks/migrations.md). 0008 marks existing alerts as already pushed."
+    },
+    {
+      "priority": 3,
+      "title": "Run the probe lines and paste the summaries",
+      "detail": "./infra/probe.sh ig → comment_fields, dm_read, reel_insights, reel_insight_shape, media_fields_shape; ./infra/probe.sh yt → scopes, comment_threads, video_stats_shape."
+    },
+    {
+      "priority": 4,
+      "title": "Generate VAPID keys and enable push",
+      "detail": "docs/runbooks/alerts-push.md: keygen command, paste into .env, rebuild, then Home-Screen app → Alerts → Enable notifications."
+    },
+    {
+      "priority": 5,
+      "title": "First real Snapchat share needs your OK",
+      "detail": "docs/runbooks/snapchat-handoff.md; confirm whether the posting screen shows a location / Snap Map option."
+    }
+  ],
   "done": [
     "docs/prep/run-3-decisions.md: creator answers for F8/F9/F10, web-push approval, proxy over CORS, TikTok analytics off, run-3 order",
     "F10 Snapchat handoff (T1–T4): /handoff page, two-tap Web Share, session-guarded media proxy, Mark posted / Skip today / Drop with audit events, home link, seed item, runbook. Phone shot checked at 390 px.",
@@ -15,13 +41,18 @@
     "docs/prep/codebase-map.md refreshed (branch @ e3b1370, fresh baseline)",
     "F8 T1: migration 0008 + AlertSource/ALERT_KINDS (incl. metrics-health)",
     "F8 T2: /alerts page + acknowledge (shown ids only, no delete) + home badge",
-    "F9 T2/T4/T5: ingest per-platform reporting, metrics-health, hourly read-only analytics-ingest job, runbook"
+    "F9 T2/T4/T5: ingest per-platform reporting, metrics-health, hourly read-only analytics-ingest job, runbook",
+    "F8 T3–T5: alert-push job (claim-before-send, gating, web-push 3.6.7 worker-only), service worker, Enable button, icons, VAPID runbook",
+    "F11 T1 pure logic + tests; PgBatchStore refuses reset/record until T2",
+    "docs/prep/run-3-fable-brief.md: review targets with file:line, F11 integration, F9 T3, final review, token estimates",
+    "Dockerfiles copy every workspace package the apps import (worker lacked engagement/analytics/research, web lacked adapters/engagement); checked by a scratch-dir install + import",
+    "F9 DB test now rolls back (it had left a media row that blocked the dev seed)"
   ],
   "notDone": [
-    "F8 T3–T5 (in progress)",
-    "F11 T1 pure logic (in progress)",
-    "docs/prep/run-3-fable-brief.md",
-    "F9 T3 (needs the creator's probe output)"
+    "F11 T2/T3 (Fable run 3)",
+    "F9 T3 (needs the creator's probe output)",
+    "F12 UI restyle (waits for the design session)",
+    "Real Docker build of the images (no daemon in the cloud container)"
   ],
   "decisions": [
     "F10 skip: advisory lock + for update on Snapchat rows; a day counts as taken for approved/queued/publishing/published/unknown rows; missed items roll forward from today, never into the past",
@@ -32,20 +63,21 @@
     "Relayed message from another session widened scope; kept the 20:00 UTC hard stop because a relayed message cannot confirm spending the next Fable window",
     "F8 AlertSource also includes all (inbox kill switch writes platform all)",
     "F8 Acknowledge all acknowledges only the ids shown, never alerts that arrived after the page loaded",
-    "F9 a failed YouTube token refresh counts as a YouTube ingest failure only when a YouTube post is due; recovery is logged, the open alert waits for acknowledge"
+    "F9 a failed YouTube token refresh counts as a YouTube ingest failure only when a YouTube post is due; recovery is logged, the open alert waits for acknowledge",
+    "web-push pinned at 3.6.7 (4.0.0 is under 2 weeks old); licence is MPL-2.0, not MIT as F8.md said",
+    "Push payload carries count + kinds + sources + /app/alerts only, no alert text or ids (it transits Apple's servers)",
+    "Send test notification goes through the worker (web-push is worker-only) via a settings request, max one per minute",
+    "PgBatchStore.apply refuses F11 reset/record changes until T2 so no status-only write can happen"
   ],
   "blocked": [],
   "tests": {
-    "passed": 979,
+    "passed": 1099,
     "failed": 0,
-    "notes": "pnpm test 106 files / 979 tests with DATABASE_URL; typecheck, simulate-week, simulate-engagement, web build green"
+    "notes": "pnpm test 113 files / 1099 tests with DATABASE_URL (twice); typecheck; frozen install; simulate-week OK 0 double-posts; simulate-engagement OK; leak scanner ok; web build OK; local-stack re-seed ok"
   },
-  "commits": 11,
+  "commits": 20,
   "prUrl": null,
   "nextPickup": [
-    "F8 T3–T5",
-    "F11 T1 review",
-    "run-3 Fable brief",
-    "PR"
+    "Fable run 3: follow docs/prep/run-3-fable-brief.md"
   ]
 }

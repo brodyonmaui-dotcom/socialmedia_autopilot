@@ -70,8 +70,8 @@
       "title": "Alerts page + acknowledge audit + PWA push (VAPID, service worker, icons, alert-push job)",
       "model": "fable",
       "area": "apps/web/alerts, apps/worker, packages/db (0008)",
-      "status": "todo",
-      "notes": "Prep run (2026-11-13): T1 (migration 0008: alerts.pushed_at + backfill, acknowledged_session, push_subscriptions; AlertSource incl. web/meta/zernio/all; ALERT_KINDS single source incl. metrics-health) and T2 (/alerts page, kind chips, acknowledge shown ids, home badge) done. T3–T5 (push job, service worker, Enable button, icons, VAPID runbook) in progress on the same branch; see the PR. Creator: apply 0008, generate VAPID keys."
+      "status": "review",
+      "notes": "Built in full in the Opus prep run (2026-11-13): T1 migration 0008 + AlertSource/ALERT_KINDS (incl. metrics-health); T2 /alerts + acknowledge (shown ids, no delete) + home badge; T3 alert-push job (alert-push-core.ts: kinds/age gating, claim-before-send, 404/410 revoke; web-push 3.6.7 worker-only); T4 service worker, Enable button, test send via worker, icons, push subs revoked on log-out-everywhere; T5 runbook alerts-push.md with the VAPID keygen command. Fable run 3: adversarial review (docs/prep/run-3-fable-brief.md). Creator: apply 0008, generate VAPID keys, enable on the iPhone."
     },
     {
       "id": "F9",
@@ -95,7 +95,7 @@
       "model": "fable",
       "area": "apps/web/batches, apps/web/lib/batches",
       "status": "todo",
-      "notes": "Design draft: docs/design/F11.md (safety-critical; Fable finalizes and builds). Order in run 3: after F8."
+      "notes": "Design docs/design/F11.md + T1 pure logic (transitions reset-checked / record-published, RESET_CHECKLIST, validatePostUrl; 52 tests) built in the prep run. PgBatchStore refuses both until T2. Left for Fable run 3: T2 (store + actions + IG auto-check) under Fable review, T3 (UI + runbook)."
     },
     {
       "id": "F12",
