@@ -4,7 +4,7 @@ v2 replaces v1's dark + Times New Roman look with the creator's chosen direction
 - Tokens: `apps/web/app/globals.css` (the `design system v2` block).
 - Components: `apps/web/components/ui/`.
 - Live guide: `/app/design` (`?view=home|batch|components`, `&theme=dark` for Night).
-- Screenshots: `docs/design/ui-shots/`.
+- Screenshots: `docs/design/ui-shots/`. `*-light.png` = Day (default), unsuffixed = Night; plus `home-phone-full-light.png`, `reveal-hover-desktop.png` and `approve-sheet-phone.png`.
 - Agent: `.claude/agents/designer.md`.
 
 ## Principles

@@ -5,7 +5,10 @@ import { cx } from "./cx.js";
 export const PLACEHOLDER_PATTERN =
   "bg-ds-raised bg-[repeating-linear-gradient(135deg,var(--color-ds-line)_0_1px,transparent_1px_12px)]";
 
-/** Grayscale image (or placeholder) with a 20px inner frame line; `children` are overlays (e.g. GlassCard). */
+/**
+ * Grayscale image (or placeholder) with a 20px inner frame line; `children` are overlays (e.g. GlassCard).
+ * `ratio` sets the aspect ratio via a CSS var, so a page can drop it at a breakpoint (`lg:aspect-auto` + `h-full`).
+ */
 export function FramedImage({
   src,
   alt,
@@ -20,7 +23,10 @@ export function FramedImage({
   className?: string;
 }) {
   return (
-    <div className={cx("relative overflow-hidden bg-ds-raised", className)} style={{ aspectRatio: ratio }}>
+    <div
+      className={cx("relative aspect-[var(--ds-ar)] overflow-hidden bg-ds-raised", className)}
+      style={{ ["--ds-ar" as string]: ratio }}
+    >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element -- local thumbnails, no optimizer needed
         <img src={src} alt={alt} className="absolute inset-0 size-full object-cover grayscale" />

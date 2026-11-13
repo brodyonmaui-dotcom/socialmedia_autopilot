@@ -42,7 +42,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   return (
-    <div className="ds-root relative min-h-dvh" data-theme={theme}>
+    <div className="ds-root relative min-h-dvh overflow-x-clip" data-theme={theme}>
       <a
         href="#main"
         className={cx(

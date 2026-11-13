@@ -1,31 +1,46 @@
-// Static demo data for the /design style guide. Invented, generic content only: no people, places or real accounts.
+// Static demo data for the /design style guide. Invented, generic content only: no people, places, real accounts or photos.
 
 export const NAV = [
   { id: "home", label: "Home", href: "/design?view=home", icon: "home" as const },
   { id: "batches", label: "Batches", href: "/design?view=batch", icon: "batches" as const, badge: 6 },
   { id: "inbox", label: "Inbox", href: "/design?view=components", icon: "inbox" as const, badge: 7 },
-  { id: "analytics", label: "Analytics", href: "/design?view=home", icon: "analytics" as const },
+  { id: "analytics", label: "Analytics", href: "/design?view=home#numbers", icon: "analytics" as const },
   { id: "more", label: "More", href: "/design?view=components", icon: "more" as const },
 ];
 
-export const ACCOUNTS = [
-  { label: "Instagram", value: "3 today", tone: "accent" as const, platform: "instagram" as const },
-  { label: "YouTube", value: "2 today", tone: "accent" as const, platform: "youtube" as const },
-  { label: "TikTok", value: "1 draft", tone: "warn" as const, platform: "tiktok" as const },
-  { label: "Snapchat", value: "1 to share", tone: "muted" as const, platform: "snapchat" as const },
+export const WEEK = { number: 47, label: "Week of Nov 16", approved: 18, total: 24, pending: 6, warnings: 2 };
+
+export const HERO_READOUT = [
+  { k: "Pending", v: "06 posts" },
+  { k: "Next post", v: "09:00 · IG" },
+  { k: "Alerts", v: "02 open" },
+  { k: "Outbox", v: "0 failed" },
 ];
 
-export const WEEK = { label: "Week of Nov 16", approved: 18, total: 24, pending: 6, warnings: 2 };
+export const SYSTEM_STATUS = [
+  { label: "INSTAGRAM", value: 100, note: "graph api" },
+  { label: "YOUTUBE", value: 100, note: "data api v3" },
+  { label: "TIKTOK", value: 67, note: "1 draft waits" },
+  { label: "SNAPCHAT", value: 50, note: "tap to share" },
+];
+
+export const MARQUEE = [
+  { text: "Instagram", style: "stroke" as const },
+  { text: "YouTube", style: "serif" as const },
+  { text: "TikTok", style: "stroke" as const },
+  { text: "Snapchat", style: "serif" as const },
+  { text: "Week 47", style: "stroke" as const },
+  { text: "approved", style: "serif" as const },
+];
 
 export const NEXT_POSTS = [
-  { platform: "instagram" as const, title: "Three-minute morning stretch", subtitle: "Instagram · Reel", time: "9:00", sub: "in 2 h" },
-  { platform: "youtube" as const, title: "What I eat on a rest day", subtitle: "YouTube · Short", time: "12:30", sub: "scheduled" },
-  { platform: "tiktok" as const, title: "One-pan dinner, no recipe", subtitle: "TikTok · inbox draft", time: "17:15", sub: "needs sound" },
-  { platform: "snapchat" as const, title: "Desk setup, before & after", subtitle: "Snapchat · Spotlight", time: "19:00", sub: "tap to share" },
+  { id: "p1", platform: "instagram" as const, title: "Morning stretch", meta: "09:00 · REEL · 0:42", sub: "in 2 h" },
+  { id: "p2", platform: "youtube" as const, title: "Rest-day meals", meta: "12:30 · SHORT · 0:55", sub: "scheduled" },
+  { id: "p3", platform: "tiktok" as const, title: "One-pan dinner", meta: "17:15 · INBOX DRAFT · NEEDS SOUND", sub: "needs sound" },
+  { id: "p4", platform: "snapchat" as const, title: "Desk, before & after", meta: "19:00 · SPOTLIGHT · TAP TO SHARE", sub: "tap to share" },
 ];
 
 export const ALERTS = { open: 2, latest: "TikTok draft is waiting for a sound before it can go out." };
-
 export const INBOX = { flagged: 7, autoReplied: 23 };
 
 /** Views per day, last 14 days (synthetic). */
@@ -43,6 +58,17 @@ export const PER_PLATFORM = [
 export const POSTS_PER_DAY = [3, 4, 2, 4, 3, 5, 3];
 export const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
+export const STATEMENT = {
+  text: "Hooks under two seconds held viewers 31% longer than the slow openers.",
+  source: "Weekly report · W46 · n = 22 posts",
+};
+
+export const JOURNAL = [
+  { date: "NOV 12", tag: "REPORT", text: "Reels posted before 10:00 out-reached evening slots for the third week running." },
+  { date: "NOV 10", tag: "INBOX", text: "Auto-replies paused for 2 h after a burst of off-topic comments; resumed on review." },
+  { date: "NOV 08", tag: "TRIAL", text: "Two trial reels cleared the share bar — recommended for the main feed." },
+];
+
 /** November 2026 posting calendar: day → dot tones. */
 export const CALENDAR = {
   year: 2026,
@@ -57,9 +83,10 @@ export const CALENDAR = {
 };
 
 export const BATCH_POST = {
-  day: "Tue · Nov 17",
-  time: "9:00",
-  title: "Three-minute morning stretch",
+  index: "03",
+  day: "TUE · NOV 17",
+  time: "09:00",
+  title: "Morning stretch",
   caption:
     "Three minutes, no equipment, and your back will thank you by lunch. Save this for tomorrow morning and tell me which move felt best.",
   platforms: ["instagram", "youtube", "tiktok"] as const,

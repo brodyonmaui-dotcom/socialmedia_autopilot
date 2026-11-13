@@ -98,7 +98,7 @@ export function SiteHeader({
           </div>
           {cta && (
             <>
-              <Link href={cta.href} className={cx(PILL_CTA, "hidden lg:inline-flex", FOCUS)}>
+              <Link href={cta.href} className={cx(PILL_CTA.replace("inline-flex ", ""), "hidden lg:inline-flex", FOCUS)}>
                 {cta.label}
               </Link>
               <Link
