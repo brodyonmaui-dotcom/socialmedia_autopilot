@@ -9,10 +9,12 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   await requireSession();
   const pool = getPool();
-  const [batchRows, alertRows] = await Promise.all([
+  const [batchRows, alertRows, flaggedRows] = await Promise.all([
     pool.query("select status, count(*)::int as n from batches group by status"),
     pool.query("select count(*)::int as n from alerts where acknowledged_at is null"),
+    pool.query("select count(*)::int as n from comment_triage where bucket in ('flag', 'hide_flag') and handled_at is null"),
   ]);
+  const flagged = (flaggedRows.rows[0]?.n as number | undefined) ?? 0;
   const batchCount = (s: string) => (batchRows.rows as Array<{ status: string; n: number }>).find((r) => r.status === s)?.n ?? 0;
   const openAlerts = (alertRows.rows[0]?.n as number | undefined) ?? 0;
   const platforms = Object.entries(CAPABILITIES);
@@ -29,6 +31,13 @@ export default async function DashboardPage() {
         <span className="text-neutral-500">
           {batchCount("draft")} draft · {batchCount("approved")} approved
         </span>
+      </Link>
+      <Link
+        href="/inbox"
+        className="mt-2 flex min-h-11 items-center justify-between rounded-xl border border-neutral-200 p-3 text-base dark:border-neutral-800"
+      >
+        <span className="font-semibold">Inbox</span>
+        <span className={flagged ? "font-medium text-red-700 dark:text-red-300" : "text-neutral-500"}>{flagged} flagged</span>
       </Link>
       <p className={`mt-2 text-sm ${openAlerts ? "font-medium text-red-700 dark:text-red-300" : "text-neutral-500"}`}>
         {openAlerts} open alert{openAlerts === 1 ? "" : "s"}
