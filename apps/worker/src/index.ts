@@ -1,6 +1,7 @@
 import { CAPABILITIES } from "@autopilot/core";
 import { createPool } from "@autopilot/db";
 import { createQueue } from "./queue.js";
+import { resolveRunMode } from "./run-mode.js";
 import { registerHealthJob } from "./jobs/health.js";
 import { registerOutboxJob } from "./jobs/register-outbox.js";
 import { registerTokenHealthJob, tokenHealthConfigFromEnv } from "./jobs/token-health.js";
@@ -25,7 +26,11 @@ const pool = createPool(databaseUrl);
 await boss.start();
 await registerHealthJob(boss);
 
-const dryRun = process.env.DRY_RUN !== "false";
+// One decision for the whole worker: live only with DRY_RUN=false AND the live key (see run-mode.ts).
+const runMode = resolveRunMode(process.env, process.argv);
+if (runMode.reason) console.log(runMode.reason);
+const dryRun = runMode.dryRun;
+const live = runMode.live;
 const credentials = credentialsFromEnv(process.env);
 const timeZone = process.env.TZ_CREATOR; // .env only, never committed; required for a live run
 if (!timeZone) {
@@ -43,8 +48,7 @@ await registerOutboxJob(boss, pool, {
 });
 await registerTokenHealthJob(boss, pool, tokenHealthConfigFromEnv(process.env));
 
-// Engagement (F3). `live` is the worker's second key (argv flag or WORKER_LIVE=1); dry-run alone never sends.
-const live = process.argv.includes("--live") || process.env.WORKER_LIVE === "1";
+// Engagement (F3): same run mode as the outbox.
 const commentCreds = commentCredentialsFromEnv(process.env);
 const commentSources = buildCommentSources(commentCreds);
 const dmSource = commentCreds.instagram ? createInstagramDmSource(commentCreds.instagram) : null;
