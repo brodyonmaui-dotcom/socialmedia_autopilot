@@ -5,7 +5,7 @@ import { Icon, type IconName } from "./Icon.js";
 export type TopBarAction = { href?: string; label: string; icon?: IconName };
 
 const ACCENT_BTN =
-  "inline-flex items-center justify-center bg-ds-accent text-ds-ink transition-colors duration-[var(--ds-dur-fast)] ease-ds hover:bg-ds-accent-hi";
+  "items-center justify-center bg-ds-accent text-ds-ink transition-colors duration-[var(--ds-dur-fast)] ease-ds hover:bg-ds-accent-hi";
 
 function ActionEl({ action, className, size }: { action: TopBarAction; className: string; size: number }) {
   const icon = <Icon name={action.icon ?? "plus"} size={size} strokeWidth={2} />;
@@ -58,7 +58,7 @@ export function TopBar({
         )}
         {action && (
           <>
-            <ActionEl action={action} size={22} className={cx(ACCENT_BTN, "size-11 rounded-ds-md lg:hidden", FOCUS)} />
+            <ActionEl action={action} size={22} className={cx(ACCENT_BTN, "inline-flex size-11 rounded-ds-md lg:hidden", FOCUS)} />
             <ActionEl
               action={action}
               size={24}
