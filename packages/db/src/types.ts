@@ -38,7 +38,7 @@ export interface BatchItemRow {
   caption: string;
   title: string | null;
   trial: unknown;
-  scheduled_for: string;
+  scheduled_for: string | null;
   idempotency_key: string;
   /** PostStatus plus 'rejected' (a status, never a delete; migration 0006 CHECK). */
   status: BatchItemStatus;

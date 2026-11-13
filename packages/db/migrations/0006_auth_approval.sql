@@ -56,6 +56,9 @@ alter table batch_items
   add column approved_at timestamptz,
   add column approved_session uuid references auth_sessions(id) on delete set null;
 
+-- A clip added from the app has no time until "fill missing times" runs; approval blocks without one.
+alter table batch_items alter column scheduled_for drop not null;
+
 -- Audit trail for every status change made from the app or a CLI.
 create table batch_item_events (
   id bigserial primary key,
