@@ -68,7 +68,7 @@
   ],
   "tests": { "passed": 870, "failed": 0, "notes": "93 files; was 281 on main. DB suites ran against the local Postgres (0 skipped with DATABASE_URL). typecheck (root + web) green; simulate-week OK (yt-503 + ig-normalised faults, 0 double-posts); simulate-engagement OK in shadow and live-fake; check-public-leaks ok; apps/web build green" },
   "commits": 34,
-  "prUrl": "",
+  "prUrl": "https://github.com/brodyonmaui-dotcom/socialmedia_autopilot/pull/14",
   "nextPickup": [
     "Day session: merge, migrate 0006+0007, redeploy, enrol passkey, run the 4 probe lines",
     "Run 3: F8 alerts + push first (docs/prep/run-3-plan.md), then F10 Snapchat handoff, then F9 ingest wiring"
