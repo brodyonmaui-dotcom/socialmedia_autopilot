@@ -6,10 +6,13 @@ import { ConflictError } from "../store.js";
 
 /**
  * Runs against a real dev DB (DATABASE_URL). apply() opens its own transaction, so the test can't
- * roll back around it: it makes a throwaway batch far in the future (week 2099-01-05) and, at the
- * end, leaves its items rejected and the batch draft. Nothing is ever deleted.
+ * roll back around it: it uses a throwaway batch far in the future (week 2099-01-05) and, at the
+ * end, leaves its items rejected and the batch draft. The batch and session row are found-or-created
+ * (one each, reused every run) and reset at the start. Nothing is ever deleted.
  */
 const url = process.env.DATABASE_URL;
+const WEEK = "2099-01-05";
+const TEST_SESSION_HASH = "test-pg-store-db";
 
 describe.skipIf(!url)("PgBatchStore (db)", () => {
   let pool: pg.Pool;
@@ -30,25 +33,50 @@ describe.skipIf(!url)("PgBatchStore (db)", () => {
   beforeAll(async () => {
     pool = new pg.Pool({ connectionString: url, max: 3 });
     store = new PgBatchStore(pool);
-    const clean = (await pool.query("select id, source_path from media where r2_key is not null order by created_at limit 1")).rows[0];
-    const raw = (await pool.query("select id from media where r2_key is null order by created_at limit 1")).rows[0];
+    const clean = (await pool.query("select id, source_path from media where r2_key is not null order by created_at, id limit 1")).rows[0];
+    const raw = (await pool.query("select id from media where r2_key is null order by created_at, id limit 1")).rows[0];
     if (!clean || !raw) throw new Error("seed the dev DB first (pnpm dev:seed): need media with and without r2_key");
     cleanMedia = clean;
     rawMedia = raw;
+
+    // One reused (already revoked) session row; approved_session must reference a real session.
     sessionId = (
       await pool.query(
-        "insert into auth_sessions (token_hash, expires_at, hard_expires_at, revoked_at) values ($1, now() + interval '1 day', now() + interval '1 day', now()) returning id",
-        [`test-${randomUUID()}`],
+        `insert into auth_sessions (token_hash, expires_at, hard_expires_at, revoked_at)
+         values ($1, now() + interval '1 day', now() + interval '1 day', now())
+         on conflict (token_hash) do update set revoked_at = coalesce(auth_sessions.revoked_at, now()) returning id`,
+        [TEST_SESSION_HASH],
       )
     ).rows[0].id;
-    batchId = (await pool.query("insert into batches (week_start, status) values ('2099-01-05', 'draft') returning id")).rows[0].id;
-    const ins = (media: string, platform: string, at: string, title: string | null) =>
-      pool.query(
-        "insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, trial, status) values ($1, $2, $3, 'test caption', $4, $5, $6, 'draft') returning id",
-        [batchId, media, platform, title, at, platform === "tiktok" ? JSON.stringify({ tiktokDraft: true }) : null],
-      );
-    a = (await ins(cleanMedia.id, "instagram", "2099-01-06T10:00:00Z", null)).rows[0].id;
-    b = (await ins(rawMedia.id, "youtube", "2099-01-06T11:00:00Z", "Test title")).rows[0].id;
+
+    // Find-or-create ONE throwaway batch for the week, so repeated runs don't grow the batch list.
+    const found = (await pool.query("select id from batches where week_start = $1 order by created_at, id limit 1", [WEEK])).rows[0];
+    batchId = found?.id ?? (await pool.query("insert into batches (week_start, status) values ($1, 'draft') returning id", [WEEK])).rows[0].id;
+    await pool.query("update batches set status = 'draft', approved_at = null, updated_at = now() where id = $1", [batchId]);
+    // Leftovers from earlier runs (e.g. addItem's clip) stay rejected; the two fixture items are reset to draft.
+    await pool.query("update batch_items set status = 'rejected', approved_at = null, approved_session = null where batch_id = $1", [batchId]);
+
+    const fixture = async (media: string, platform: string, at: string, title: string | null): Promise<string> => {
+      const hit = (
+        await pool.query("select id from batch_items where batch_id = $1 and media_id = $2 and platform = $3 order by created_at, id limit 1", [batchId, media, platform])
+      ).rows[0];
+      if (hit) {
+        await pool.query(
+          `update batch_items set status = 'draft', caption = 'test caption', title = $2, scheduled_for = $3, trial = null,
+                  approved_at = null, approved_session = null, platform_post_id = null, updated_at = now() where id = $1`,
+          [hit.id, title, at],
+        );
+        return hit.id;
+      }
+      return (
+        await pool.query(
+          "insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, status) values ($1, $2, $3, 'test caption', $4, $5, 'draft') returning id",
+          [batchId, media, platform, title, at],
+        )
+      ).rows[0].id;
+    };
+    a = await fixture(cleanMedia.id, "instagram", "2099-01-06T10:00:00Z", null);
+    b = await fixture(rawMedia.id, "youtube", "2099-01-06T11:00:00Z", "Test title");
   });
 
   afterAll(async () => {
