@@ -1,0 +1,10 @@
+{
+  "id": "aWdfZAG06conv1",
+  "messages": {
+    "data": [
+      { "id": "m_3", "created_time": "2026-11-12T14:00:00+0000", "from": { "username": "brand_x", "id": "7001" }, "to": { "data": [ { "username": "creator", "id": "1784" } ] }, "message": "what is your rate?" },
+      { "id": "m_2", "created_time": "2026-11-12T13:00:00+0000", "from": { "username": "creator", "id": "1784" }, "to": { "data": [ { "username": "brand_x", "id": "7001" } ] }, "message": "hey, thanks for reaching out" },
+      { "id": "m_1", "created_time": "2026-11-12T12:00:00+0000", "from": { "username": "brand_x", "id": "7001" }, "to": { "data": [ { "username": "creator", "id": "1784" } ] }, "message": "hi! interested in a collab" }
+    ]
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "kind": "youtube#commentThreadListResponse",
+  "pageInfo": { "totalResults": 2, "resultsPerPage": 50 },
+  "items": [
+    {
+      "kind": "youtube#commentThread",
+      "id": "UgxThread1",
+      "snippet": {
+        "channelId": "UCours",
+        "videoId": "vid111",
+        "topLevelComment": {
+          "kind": "youtube#comment",
+          "id": "UgxThread1",
+          "snippet": {
+            "channelId": "UCours",
+            "videoId": "vid111",
+            "textDisplay": "great set!",
+            "textOriginal": "great set!",
+            "authorDisplayName": "@viewerone",
+            "authorChannelId": { "value": "UCviewer1" },
+            "publishedAt": "2026-11-12T09:00:00Z"
+          }
+        },
+        "canReply": true,
+        "totalReplyCount": 1,
+        "isPublic": true
+      },
+      "replies": {
+        "comments": [
+          {
+            "kind": "youtube#comment",
+            "id": "UgxThread1.reply1",
+            "snippet": {
+              "channelId": "UCours",
+              "videoId": "vid111",
+              "textDisplay": "thanks!",
+              "textOriginal": "thanks!",
+              "parentId": "UgxThread1",
+              "authorDisplayName": "@creator",
+              "authorChannelId": { "value": "UCours" },
+              "publishedAt": "2026-11-12T09:30:00Z"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "youtube#commentThread",
+      "id": "UgxThread2",
+      "snippet": {
+        "channelId": "UCours",
+        "videoId": "vid222",
+        "topLevelComment": {
+          "kind": "youtube#comment",
+          "id": "UgxThread2",
+          "snippet": {
+            "channelId": "UCours",
+            "videoId": "vid222",
+            "textDisplay": "how many reps?",
+            "authorDisplayName": "@viewertwo",
+            "authorChannelId": { "value": "UCviewer2" },
+            "publishedAt": "2026-11-11T07:00:00Z"
+          }
+        },
+        "canReply": true,
+        "totalReplyCount": 0,
+        "isPublic": true
+      }
+    }
+  ]
+}
