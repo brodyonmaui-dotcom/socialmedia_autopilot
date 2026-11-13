@@ -71,7 +71,7 @@
       "model": "fable",
       "area": "apps/web/alerts, apps/worker, packages/db (0008)",
       "status": "todo",
-      "notes": "Design draft: docs/design/F8.md. Next after F7 leftovers (docs/prep/run-3-plan.md)."
+      "notes": "Prep run (2026-11-13): T1 (migration 0008: alerts.pushed_at + backfill, acknowledged_session, push_subscriptions; AlertSource incl. web/meta/zernio/all; ALERT_KINDS single source incl. metrics-health) and T2 (/alerts page, kind chips, acknowledge shown ids, home badge) done. T3–T5 (push job, service worker, Enable button, icons, VAPID runbook) in progress on the same branch; see the PR. Creator: apply 0008, generate VAPID keys."
     },
     {
       "id": "F9",
@@ -79,7 +79,7 @@
       "model": "fable",
       "area": "packages/analytics, apps/worker, scripts/probes",
       "status": "todo",
-      "notes": "Design draft: docs/design/F9.md. T1 built in the prep run (probe lines ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape + shapeOf). Left: T2 (ingest reporting + health), T3 (verify parsers, needs the creator to paste the probe lines), T4 (worker job), T5 (runbook)."
+      "notes": "Prep run (2026-11-13): T1 probe shape lines, T2 per-platform ingest reporting + nextHealth (3 all-fail runs → one metrics-health alert, page-only), T4 hourly read-only analytics-ingest job (23 * * * *), T5 runbook docs/runbooks/analytics.md done. Left: T3 (verify parsers against the creator's probe output: ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape)."
     },
     {
       "id": "F10",
@@ -96,6 +96,14 @@
       "area": "apps/web/batches, apps/web/lib/batches",
       "status": "todo",
       "notes": "Design draft: docs/design/F11.md (safety-critical; Fable finalizes and builds). Order in run 3: after F8."
+    },
+    {
+      "id": "F12",
+      "title": "UI restyle onto the design system (Fable art-direction, Opus designer agents)",
+      "model": "fable",
+      "area": "apps/web",
+      "status": "todo",
+      "notes": "Design system comes from the separate design session (branch design/ui-system-2026-11-13: tokens in globals.css, apps/web/components/ui/*, /app/design). F8/F10 pages use plain Tailwind cards/lists/buttons so the restyle is mechanical."
     }
   ]
 }

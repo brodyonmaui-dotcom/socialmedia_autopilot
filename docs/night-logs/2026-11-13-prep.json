@@ -5,35 +5,47 @@
   "model": "claude-opus-5-5",
   "session": "cloud · prep run for Fable run 3",
   "backlogItem": "Prep for run 3: decisions, F10, F9 T1, F11 design, codebase map, F8 T1/T2",
-  "summary": "Tasks 1–4 done: run-3 decisions, F10 Snapchat handoff built in full (green), F9 T1 probe shape lines, F11 design draft. Next: codebase map, then F8 T1/T2.",
+  "summary": "Tasks 1–5 done (decisions, F10 complete, F9 T1, F11 draft, codebase map) plus F8 T1/T2 and F9 T2/T4/T5. Scope widened mid-run by a relayed creator update (F8 T3–T5, F11 pure logic, run-3 Fable brief, F12 tracker item); 20:00 UTC hard stop kept.",
   "needsAttention": [],
   "done": [
     "docs/prep/run-3-decisions.md: creator answers for F8/F9/F10, web-push approval, proxy over CORS, TikTok analytics off, run-3 order",
     "F10 Snapchat handoff (T1–T4): /handoff page, two-tap Web Share, session-guarded media proxy, Mark posted / Skip today / Drop with audit events, home link, seed item, runbook. Phone shot checked at 390 px.",
     "F9 T1: read-only shape-only probe lines ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape (+ shapeOf, 9 tests)",
-    "docs/design/F11.md draft: reset failed/unknown → draft with the same idempotency_key (attempts=1 keeps the existence check), record-as-published, per-platform checklist confirm sheet, IG auto-check"
+    "docs/design/F11.md draft: reset failed/unknown → draft with the same idempotency_key (attempts=1 keeps the existence check), record-as-published, per-platform checklist confirm sheet, IG auto-check",
+    "docs/prep/codebase-map.md refreshed (branch @ e3b1370, fresh baseline)",
+    "F8 T1: migration 0008 + AlertSource/ALERT_KINDS (incl. metrics-health)",
+    "F8 T2: /alerts page + acknowledge (shown ids only, no delete) + home badge",
+    "F9 T2/T4/T5: ingest per-platform reporting, metrics-health, hourly read-only analytics-ingest job, runbook"
   ],
   "notDone": [
-    "codebase map refresh",
-    "F8 T1/T2"
+    "F8 T3–T5 (in progress)",
+    "F11 T1 pure logic (in progress)",
+    "docs/prep/run-3-fable-brief.md",
+    "F9 T3 (needs the creator's probe output)"
   ],
   "decisions": [
     "F10 skip: advisory lock + for update on Snapchat rows; a day counts as taken for approved/queued/publishing/published/unknown rows; missed items roll forward from today, never into the past",
     "F10 markPosted refuses a changed row; the optional link is kept only for https *.snapchat.com, else dropped",
     "F10 media proxy fails closed: 503 without PUBLIC_MEDIA_BASE or TZ_CREATOR, 404 unless snapchat+approved+due+r2_key, 502 with a fixed body on upstream errors",
     "F11 (draft): reset sets attempts=1 so the engine still runs findExisting before the resend, with 3 tries left; the key is never regenerated",
-    "Prep-run report written to night-2026-11-13-prep.html so run 2’s report is not overwritten"
+    "Prep-run report written to night-2026-11-13-prep.html so run 2’s report is not overwritten",
+    "Relayed message from another session widened scope; kept the 20:00 UTC hard stop because a relayed message cannot confirm spending the next Fable window",
+    "F8 AlertSource also includes all (inbox kill switch writes platform all)",
+    "F8 Acknowledge all acknowledges only the ids shown, never alerts that arrived after the page loaded",
+    "F9 a failed YouTube token refresh counts as a YouTube ingest failure only when a YouTube post is due; recovery is logged, the open alert waits for acknowledge"
   ],
   "blocked": [],
   "tests": {
-    "passed": 940,
+    "passed": 979,
     "failed": 0,
-    "notes": "pnpm typecheck green; pnpm test 100 files / 940 tests with DATABASE_URL (incl. 8 handoff DB tests); simulate-week OK 0 double-posts; simulate-engagement OK; web build OK; leak scanner ok"
+    "notes": "pnpm test 106 files / 979 tests with DATABASE_URL; typecheck, simulate-week, simulate-engagement, web build green"
   },
-  "commits": 6,
+  "commits": 11,
   "prUrl": null,
   "nextPickup": [
-    "Codebase map refresh",
-    "F8 T1 (0008 + AlertSource) and T2 (/alerts + acknowledge)"
+    "F8 T3–T5",
+    "F11 T1 review",
+    "run-3 Fable brief",
+    "PR"
   ]
 }
