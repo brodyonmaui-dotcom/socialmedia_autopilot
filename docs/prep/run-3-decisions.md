@@ -3,6 +3,8 @@
 Written 2026-11-13 by the Opus prep run, from the creator's answers given today. **Where this file and `docs/design/F8|F9|F10|F11.md` disagree, this file wins.** Every open question in those drafts is answered here, so the run doesn't need to stop and ask. Record any new decision in the night log under "decisions".
 
 ## Order for Fable run 3
+**Superseded by `docs/prep/run-3-fable-brief.md`** (written later in the prep run, after the scope widened: F8 T1–T5, F9 T2/T4/T5 and F11 T1 were built here). The brief's order: adversarial review → F11 T2/T3 → F9 T3 (only with probe output) → final review. The list below is the original order, kept for history.
+
 1. **Review and finish what this prep run built** (branch `prep/run-3-2026-11-13`, see its PR and `docs/night-logs/2026-11-13-prep.json`):
    - F10 Snapchat handoff page (T1–T4, built in full here). Review the store's concurrency (skip lock) and the media proxy; fix anything you'd reject.
    - F9 T1 probe shape lines (read-only). The creator runs them on the server.
