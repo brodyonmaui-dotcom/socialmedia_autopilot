@@ -13,5 +13,6 @@ Short, step-by-step procedures built from facts already in the repo (`CLAUDE.md`
 | [login.md](login.md) | Add a device (passkey), lost phone, how batch approval gates the worker |
 | [snapchat-handoff.md](snapchat-handoff.md) | Sharing the day's Snapchat clip from the phone (assisted route), Skip vs Drop |
 | [engagement.md](engagement.md) | Comment replies / DM drafts: shadow vs live modes, kill switch, inbox, limits |
+| [analytics.md](analytics.md) | A `metrics-health` alert, `/analytics` looks stale, re-running the metrics probes |
 
 Conventions: `ssh autopilot` is the server alias (the IP is never in git). The repo lives in `/opt/autopilot` and tracks `main`. Secrets live in `.env` only.

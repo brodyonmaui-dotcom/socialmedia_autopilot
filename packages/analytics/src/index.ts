@@ -3,6 +3,7 @@ export * from "./stats.js";
 export * from "./trials.js";
 export * from "./report.js";
 export * from "./ingest.js";
+export * from "./health.js";
 export * from "./store.js";
 export * from "./seed.js";
 export * from "./sources.js";

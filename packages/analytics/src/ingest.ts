@@ -1,4 +1,4 @@
-import type { Platform } from "@autopilot/core";
+import { sanitizeError, type Platform } from "@autopilot/core";
 import type { Metrics } from "./types.js";
 
 /**
@@ -46,11 +46,37 @@ export interface IngestResult {
   skippedNoSource: number;
   failed: number;
   writes: SnapshotWrite[];
+  /** Fetches tried per platform this pass (due posts with a source). */
+  attemptedByPlatform: Partial<Record<Platform, number>>;
+  failedByPlatform: Partial<Record<Platform, number>>;
+  /** Last error per platform, sanitised (no tokens) and at most ERROR_MAX_CHARS long. */
+  lastErrorByPlatform: Partial<Record<Platform, string>>;
+}
+
+export const ERROR_MAX_CHARS = 200;
+
+/** One error as a safe, short line for logs and alerts: through the core sanitiser, then cut. */
+export function safeErrorMessage(err: unknown): string {
+  return sanitizeError(err).slice(0, ERROR_MAX_CHARS);
 }
 
 /**
- * One ingestion pass. A failing post is counted and skipped (logged by the caller without
- * tokens); the next pass retries it naturally because nothing was written.
+ * The posts due for a snapshot now, oldest due checkpoint first (postedAt + due age), capped at
+ * `limit` so a backlog can't burst the platform rate limits. The rest wait for the next pass.
+ */
+export function orderForIngest(posts: PublishedPost[], now: Date, limit: number): PublishedPost[] {
+  const due: Array<{ p: PublishedPost; at: number }> = [];
+  for (const p of posts) {
+    const age = dueAge(p, now);
+    if (age !== null) due.push({ p, at: Date.parse(p.postedAt) + age * 3_600_000 });
+  }
+  due.sort((a, b) => a.at - b.at || a.p.batchItemId.localeCompare(b.p.batchItemId));
+  return due.slice(0, Math.max(0, limit)).map((d) => d.p);
+}
+
+/**
+ * One ingestion pass. A failing post is counted per platform and skipped; its error is kept
+ * sanitised for the caller's log line. The next pass retries it naturally because nothing was written.
  */
 export async function ingestOnce(
   posts: PublishedPost[],
@@ -58,7 +84,7 @@ export async function ingestOnce(
   write: (w: SnapshotWrite) => Promise<void>,
   now = new Date(),
 ): Promise<IngestResult> {
-  const res: IngestResult = { captured: 0, skippedNoSource: 0, failed: 0, writes: [] };
+  const res: IngestResult = { captured: 0, skippedNoSource: 0, failed: 0, writes: [], attemptedByPlatform: {}, failedByPlatform: {}, lastErrorByPlatform: {} };
   for (const p of posts) {
     const age = dueAge(p, now);
     if (age === null) continue;
@@ -67,14 +93,17 @@ export async function ingestOnce(
       res.skippedNoSource++;
       continue;
     }
+    res.attemptedByPlatform[p.platform] = (res.attemptedByPlatform[p.platform] ?? 0) + 1;
     try {
       const metrics = await source.fetch(p.platformPostId);
       const w = { batchItemId: p.batchItemId, ageHours: age, metrics };
       await write(w);
       res.writes.push(w);
       res.captured++;
-    } catch {
+    } catch (err) {
       res.failed++;
+      res.failedByPlatform[p.platform] = (res.failedByPlatform[p.platform] ?? 0) + 1;
+      res.lastErrorByPlatform[p.platform] = safeErrorMessage(err);
     }
   }
   return res;

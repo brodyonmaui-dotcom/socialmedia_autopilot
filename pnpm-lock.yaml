@@ -94,6 +94,9 @@ importers:
       '@autopilot/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
+      '@autopilot/analytics':
+        specifier: workspace:*
+        version: link:../../packages/analytics
       '@autopilot/core':
         specifier: workspace:*
         version: link:../../packages/core
