@@ -59,6 +59,7 @@ const SELECT = `select bi.id, bi.idempotency_key, bi.media_id, bi.platform, bi.c
 
 /**
  * OutboxStore over batch_items. Rules the SQL enforces:
+ *  - listDue() only returns items with approved_at set whose batch has status 'approved';
  *  - claim() is a conditional update (status in approved/queued), so two ticks can't both fire a row;
  *  - every status write bumps updated_at, which is how a crashed "publishing" row gets noticed;
  *  - alerts are unique per (kind, item), so recordAlert() reports whether the alert is new.
@@ -93,7 +94,10 @@ export class PgOutboxStore implements OutboxStore {
 
   async listDue(now: Date): Promise<OutboxPost[]> {
     const { rows } = await this.pool.query(
-      `${SELECT} where bi.status = 'approved' or (bi.status = 'queued' and (bi.next_attempt_at is null or bi.next_attempt_at <= $1))
+      // Approval gate (F2): only items stamped approved, in a batch that is itself approved, ever fire.
+      `${SELECT} join batches b on b.id = bi.batch_id
+       where b.status = 'approved' and bi.approved_at is not null
+         and (bi.status = 'approved' or (bi.status = 'queued' and (bi.next_attempt_at is null or bi.next_attempt_at <= $1)))
        order by bi.scheduled_for asc`,
       [now.toISOString()],
     );

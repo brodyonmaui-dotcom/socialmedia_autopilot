@@ -24,11 +24,14 @@ interface FakeRow {
 /** Routes the store's SQL by shape and records every write, so a test can assert exact params. */
 function fakePool(rows: FakeRow[], opts: { sentToday?: number; settings?: Record<string, unknown>; claimFails?: boolean } = {}) {
   const writes: Array<{ sql: string; params: unknown[] }> = [];
+  const reads: string[] = [];
   const settings: Record<string, unknown> = { posting_windows: [{ start: "09:00", end: "21:00" }], cadence: {}, ...opts.settings };
   return {
     writes,
+    reads,
     query: async (sql: string, params: unknown[] = []) => {
       const s = sql.replace(/\s+/g, " ").trim();
+      if (s.startsWith("select")) reads.push(s);
       if (s.startsWith("select value from settings")) return { rows: settings[params[0] as string] === undefined ? [] : [{ value: settings[params[0] as string] }] };
       if (s.startsWith("select count(*)::int as n")) return { rows: [{ n: opts.sentToday ?? 0 }] };
       if (s.startsWith("select bi.id") && s.includes("status = 'publishing'")) return { rows: [] };
@@ -172,6 +175,27 @@ describe("PgOutboxStore", () => {
     const pool = fakePool([{ ...base, platform: "tiktok", trial: { tiktokDraft: true }, status: "queued", attempts: 2, next_attempt_at: NOW }]);
     const [post] = await new PgOutboxStore(pool, "https://m").listDue(new Date(NOW));
     expect(post).toMatchObject({ id: "item-1", platform: "tiktok", tiktokDraft: true, status: "queued", attempts: 2, nextAttemptAt: "2026-11-01T09:30:00.000Z", mediaId: "media-1", mediaUrl: "https://m/library/abc.mp4" });
+  });
+  it("listDue SQL carries the approval gate: approved batch and a stamped item", async () => {
+    const pool = fakePool([base]);
+    await new PgOutboxStore(pool, "https://m").listDue(new Date(NOW));
+    const sql = pool.reads.find((r) => r.startsWith("select bi.id"))!;
+    expect(sql).toContain("join batches b on b.id = bi.batch_id");
+    expect(sql).toContain("b.status = 'approved'");
+    expect(sql).toContain("bi.approved_at is not null");
+  });
+  it("rule: an item fires only if its batch is approved and it carries approved_at (a fake DB that honours the gate)", async () => {
+    // The fake plays Postgres: rows come back only when the query actually asks for the gate,
+    // so dropping either predicate from listDue empties the outbox here and fails the test.
+    const gated = {
+      query: async (sql: string) => {
+        const s = sql.replace(/\s+/g, " ");
+        const hasGate = s.includes("b.status = 'approved'") && s.includes("bi.approved_at is not null");
+        return { rows: hasGate ? [base] : [] };
+      },
+    };
+    const due = await new PgOutboxStore(gated, "https://m").listDue(new Date(NOW));
+    expect(due.map((p) => p.id)).toEqual(["item-1"]);
   });
   it("countSentOn resolves the day in the given zone inside SQL and never stores it", async () => {
     const pool = fakePool([], { sentToday: 2 });
