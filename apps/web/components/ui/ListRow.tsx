@@ -40,8 +40,8 @@ export function ListRow({
     <span
       aria-hidden="true"
       className={cx(
-        "inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-ds-raised text-[13px] font-bold uppercase tracking-[0.06em]",
-        avatar.tone === "accent" ? "text-ds-accent-fg ring-1 ring-ds-accent/60" : "text-ds-text",
+        "inline-flex size-10 shrink-0 items-center justify-center border text-[12px] font-bold uppercase tracking-[0.12em]",
+        avatar.tone === "accent" ? "border-ds-accent text-ds-accent-fg" : "border-ds-line text-ds-text",
       )}
     >
       {avatar.monogram}
@@ -54,13 +54,13 @@ export function ListRow({
     <>
       {avatarEl}
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate">{title}</span>
-        {subtitle && <span className="truncate text-[14px] text-ds-muted">{subtitle}</span>}
+        <span className="truncate text-[16px] font-medium text-ds-text">{title}</span>
+        {subtitle && <span className="mt-0.5 truncate ds-mono text-ds-faint">{subtitle}</span>}
       </span>
       {(trailing != null || trailingSub) && (
         <span className="flex shrink-0 flex-col items-end text-right">
-          {trailing != null && <span className="ds-num text-[17px]">{trailing}</span>}
-          {trailingSub && <span className="ds-num text-[13px] text-ds-muted">{trailingSub}</span>}
+          {trailing != null && <span className="ds-num text-[16px] font-bold">{trailing}</span>}
+          {trailingSub && <span className="mt-0.5 ds-mono text-ds-faint">{trailingSub}</span>}
         </span>
       )}
     </>
@@ -74,7 +74,7 @@ export function ListRow({
           href={href}
           className={cx(
             base,
-            "-mx-2 rounded-ds-md px-2 transition-colors duration-[var(--ds-dur)] ease-ds hover:bg-ds-raised",
+            "-mx-2 px-2 transition-colors duration-300 ease-ds hover:bg-ds-raised",
             FOCUS,
           )}
         >

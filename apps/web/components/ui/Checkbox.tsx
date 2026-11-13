@@ -6,10 +6,10 @@ export type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" |
   description?: ReactNode;
 };
 
-/** Shared box: raised 24px rounded square, accent fill when checked; the mark is the sibling SVG. */
+/** Shared box: sharp 22px square, black (invert) fill when checked; the mark is the sibling SVG. */
 export const CHOICE_BOX =
-  "peer size-6 shrink-0 appearance-none rounded-[6px] border border-ds-line-strong bg-ds-raised transition-colors duration-200 ease-ds " +
-  "checked:border-ds-accent checked:bg-ds-accent disabled:cursor-not-allowed " +
+  "peer size-[22px] shrink-0 appearance-none border border-ds-line-strong bg-ds-bg transition-colors duration-300 ease-ds " +
+  "checked:border-ds-invert checked:bg-ds-invert disabled:cursor-not-allowed " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-focus";
 
 export function ChoiceRow({
@@ -35,13 +35,13 @@ export function ChoiceRow({
         className,
       )}
     >
-      <span className="relative mt-px inline-flex size-6 shrink-0">
+      <span className="relative mt-px inline-flex size-[22px] shrink-0">
         {input}
         {mark}
       </span>
       <span className="min-w-0">
-        <span className="block text-[17px] leading-snug text-ds-text">{label}</span>
-        {description && <span className="block text-[15px] leading-snug text-ds-muted">{description}</span>}
+        <span className="block text-[16px] font-medium leading-snug text-ds-text">{label}</span>
+        {description && <span className="mt-0.5 block ds-mono leading-snug text-ds-faint">{description}</span>}
       </span>
     </label>
   );
@@ -61,12 +61,12 @@ export function Checkbox({ label, description, className, disabled, ...rest }: C
           viewBox="0 0 24 24"
           aria-hidden="true"
           focusable="false"
-          className="pointer-events-none absolute inset-0 m-auto size-4 text-ds-paper opacity-0 transition-opacity duration-200 ease-ds peer-checked:opacity-100"
+          className="pointer-events-none absolute inset-0 m-auto size-4 text-ds-on-invert opacity-0 transition-opacity duration-300 ease-ds peer-checked:opacity-100"
           fill="none"
           stroke="currentColor"
           strokeWidth={3}
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          strokeLinecap="square"
+          strokeLinejoin="miter"
         >
           <path d="M5 12.5 10 17 19 7" />
         </svg>

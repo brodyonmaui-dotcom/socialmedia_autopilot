@@ -11,7 +11,7 @@ export interface ProgressBarProps {
   className?: string;
 }
 
-/** Thick rounded accent fill on a ds-line track; role=progressbar with values. */
+/** v2: 4px square-ended accent fill on a ds-line track; role=progressbar with values. */
 export function ProgressBar({ value, max = 100, label, showLabel = false, valueText, className }: ProgressBarProps) {
   const safeMax = max > 0 ? max : 1;
   const v = Math.min(safeMax, Math.max(0, value));
@@ -20,8 +20,8 @@ export function ProgressBar({ value, max = 100, label, showLabel = false, valueT
   return (
     <div className={cx("flex flex-col gap-2", className)}>
       <div className={cx("flex items-baseline justify-between gap-3", !showLabel && "sr-only")}>
-        <span className="ds-caps font-bold text-ds-muted">{label}</span>
-        <span aria-hidden="true" className="text-[15px] text-ds-text ds-num">
+        <span className="ds-caps text-ds-muted">{label}</span>
+        <span aria-hidden="true" className="ds-mono text-ds-text">
           {text}
         </span>
       </div>
@@ -32,10 +32,10 @@ export function ProgressBar({ value, max = 100, label, showLabel = false, valueT
         aria-valuemax={safeMax}
         aria-valuenow={v}
         aria-valuetext={text}
-        className="h-3 w-full overflow-hidden rounded-full bg-ds-line"
+        className="h-1 w-full overflow-hidden bg-ds-line"
       >
         <div
-          className="h-full rounded-full bg-ds-accent transition-[width] duration-200 ease-ds"
+          className="h-full bg-ds-accent transition-[width] duration-[600ms] ease-ds"
           style={{ width: `${pct}%` }}
         />
       </div>

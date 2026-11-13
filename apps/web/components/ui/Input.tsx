@@ -2,10 +2,10 @@ import { useId, type InputHTMLAttributes, type ReactNode } from "react";
 import { cx, FOCUS } from "./cx.js";
 import { Icon } from "./Icon.js";
 
-/** Shared look for text fields and selects: dark raised rounded rect. */
+/** Shared look for text fields and selects (v2): sharp raised well with a 2px underline that turns accent on focus. */
 export const FIELD =
-  "block h-12 w-full rounded-ds-md bg-ds-raised px-4 text-[17px] text-ds-text placeholder:text-ds-faint " +
-  "border border-transparent transition-colors duration-200 ease-ds hover:border-ds-line-strong " +
+  "block h-12 w-full bg-ds-raised px-4 text-[16px] text-ds-text placeholder:text-ds-faint " +
+  "border-0 border-b-2 border-ds-line-strong transition-colors duration-300 ease-ds hover:border-ds-text focus:border-ds-accent " +
   "disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-ds-danger";
 
 export interface FieldMetaProps {
@@ -48,18 +48,18 @@ export function FieldShell({
 }) {
   return (
     <div className={cx("flex flex-col gap-1.5", className)}>
-      <label htmlFor={fieldId} className={cx("ds-caps font-bold text-ds-muted", hideLabel && "sr-only")}>
+      <label htmlFor={fieldId} className={cx("ds-caps text-ds-muted", hideLabel && "sr-only")}>
         {label}
       </label>
       {children}
       {error && (
-        <p id={errorId} className="flex items-center gap-1.5 text-[13px] text-ds-danger">
+        <p id={errorId} className="flex items-center gap-1.5 text-[14px] text-ds-danger">
           <Icon name="alert" size={14} />
           {error}
         </p>
       )}
       {helper && (
-        <p id={helperId} className="text-[13px] text-ds-faint">
+        <p id={helperId} className="ds-mono text-ds-faint">
           {helper}
         </p>
       )}

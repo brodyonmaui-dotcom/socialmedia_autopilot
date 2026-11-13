@@ -14,8 +14,8 @@ export interface PageDotsProps {
 
 function dot(on: boolean) {
   return cx(
-    "block h-2 rounded-full transition-all duration-200 ease-ds",
-    on ? "w-5 bg-ds-text" : "w-2 bg-ds-line-strong",
+    "block h-0.5 transition-all duration-300 ease-ds",
+    on ? "w-6 bg-ds-text" : "w-3 bg-ds-line-strong",
   );
 }
 
@@ -34,7 +34,7 @@ export function PageDots({ count, active, label, hrefFor, className }: PageDotsP
             href={hrefFor(i)}
             aria-label={`Page ${i + 1} of ${n}`}
             aria-current={i === active ? "page" : undefined}
-            className={cx("inline-flex min-h-11 min-w-11 items-center justify-center rounded-full", FOCUS)}
+            className={cx("inline-flex min-h-11 min-w-11 items-center justify-center", FOCUS)}
           >
             <span aria-hidden="true" className={dot(i === active)} />
           </Link>

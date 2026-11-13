@@ -27,9 +27,9 @@ export function Tooltip({ id, text, children, side = "top", className }: Tooltip
         id={id}
         role="tooltip"
         className={cx(
-          "pointer-events-none absolute left-1/2 z-50 w-max max-w-60 -translate-x-1/2 rounded-ds-sm bg-ds-raised px-3 py-2",
-          "text-[14px] leading-snug text-ds-text shadow-ds-pop",
-          "invisible opacity-0 transition-opacity duration-200 ease-ds",
+          "pointer-events-none absolute left-1/2 z-50 w-max max-w-60 -translate-x-1/2 bg-ds-invert px-3 py-2",
+          "ds-mono leading-snug text-ds-on-invert shadow-ds-pop",
+          "invisible opacity-0 transition-opacity duration-300 ease-ds",
           "group-hover/tt:visible group-hover/tt:opacity-100 group-focus-within/tt:visible group-focus-within/tt:opacity-100",
           top ? "bottom-full mb-2" : "top-full mt-2",
         )}
@@ -38,7 +38,7 @@ export function Tooltip({ id, text, children, side = "top", className }: Tooltip
         <span
           aria-hidden="true"
           className={cx(
-            "absolute left-1/2 size-2.5 -translate-x-1/2 rotate-45 bg-ds-raised",
+            "absolute left-1/2 size-2 -translate-x-1/2 rotate-45 bg-ds-invert",
             top ? "-bottom-1" : "-top-1",
           )}
         />

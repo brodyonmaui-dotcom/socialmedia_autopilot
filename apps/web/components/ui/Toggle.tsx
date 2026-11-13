@@ -50,11 +50,11 @@ export function Toggle({
   return (
     <div className={cx("flex min-h-11 items-center justify-between gap-4", disabled && "opacity-50", className)}>
       <div className={cx("min-w-0", hideLabel && "sr-only")}>
-        <span id={labelId} className="block text-[17px] leading-snug text-ds-text">
+        <span id={labelId} className="block text-[16px] font-medium leading-snug text-ds-text">
           {label}
         </span>
         {description && (
-          <span id={descId} className="block text-[15px] leading-snug text-ds-muted">
+          <span id={descId} className="mt-0.5 block ds-mono leading-snug text-ds-faint">
             {description}
           </span>
         )}
@@ -76,21 +76,21 @@ export function Toggle({
         <span
           aria-hidden="true"
           className={cx(
-            "relative block h-8 w-[52px] rounded-full transition-colors duration-200 ease-ds",
-            on ? "bg-ds-accent" : "bg-ds-raised ring-1 ring-ds-line-strong",
+            "relative block h-7 w-12 rounded-full border transition-colors duration-300 ease-ds",
+            on ? "border-ds-accent bg-ds-accent" : "border-ds-line-strong bg-ds-raised",
           )}
         >
           {variant === "icon" && (
             <>
-              <Icon name="check" size={14} strokeWidth={2.5} className={cx("absolute left-2 top-[9px] text-ds-ink", !on && "opacity-0")} />
-              <Icon name="x" size={14} strokeWidth={2.5} className={cx("absolute right-2 top-[9px] text-ds-faint", on && "opacity-0")} />
+              <Icon name="check" size={12} strokeWidth={2.5} className={cx("absolute left-1.5 top-1/2 -translate-y-1/2 text-ds-ink", !on && "opacity-0")} />
+              <Icon name="x" size={12} strokeWidth={2.5} className={cx("absolute right-1.5 top-1/2 -translate-y-1/2 text-ds-faint", on && "opacity-0")} />
             </>
           )}
           {variant === "text" && (
             <span
               className={cx(
-                "absolute top-1/2 -translate-y-1/2 text-[9px] font-bold uppercase leading-none tracking-wider",
-                on ? "left-2 text-ds-ink" : "right-1.5 text-ds-faint",
+                "absolute top-1/2 -translate-y-1/2 text-[8px] font-bold uppercase leading-none tracking-[0.1em]",
+                on ? "left-1.5 text-ds-ink" : "right-1 text-ds-faint",
               )}
             >
               {on ? "On" : "Off"}
@@ -98,7 +98,7 @@ export function Toggle({
           )}
           <span
             className={cx(
-              "absolute left-1 top-1 size-6 rounded-full bg-ds-paper shadow-sm transition-transform duration-200 ease-ds",
+              "absolute left-[3px] top-1/2 size-5 -translate-y-1/2 rounded-full bg-white transition-transform duration-300 ease-ds",
               on && "translate-x-5",
             )}
           />

@@ -63,7 +63,7 @@ export function Tabs({ items, value, defaultValue, onChange, ariaLabel, classNam
             tabIndex={active ? 0 : -1}
             onClick={() => select(item.id)}
             onKeyDown={(e) => onKeyDown(e, i)}
-            className={cx(tabSegment(active), FOCUS, "focus-visible:-outline-offset-4 focus-visible:outline-ds-ink")}
+            className={cx(tabSegment(active), FOCUS, "focus-visible:-outline-offset-4")}
           >
             {item.label}
             {item.count !== undefined && <TabCount count={item.count} />}
