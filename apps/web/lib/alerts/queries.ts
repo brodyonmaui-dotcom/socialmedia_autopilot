@@ -109,9 +109,10 @@ export async function acknowledge(pool: Pool, ids: string[], sessionId: string, 
   return rowCount ?? 0;
 }
 
-/** Acknowledges every open alert (of one kind, when given and known). Returns how many changed. */
+/** Acknowledges every open alert (of one kind, when given). An unknown kind acknowledges nothing. Returns how many changed. */
 export async function acknowledgeAll(pool: Pool, sessionId: string, kind?: AlertKind, now: Date = new Date()): Promise<number> {
   const k = parseKind(kind);
+  if (kind !== undefined && !k) return 0; // a bad filter must not widen to "all open"
   const { rowCount } = await pool.query(
     `update alerts set acknowledged_at = $1, acknowledged_session = $2
       where acknowledged_at is null and ($3::text is null or kind = $3)`,
