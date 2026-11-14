@@ -23,7 +23,7 @@ Snapchat has no posting API we can use (Zernio returns `PLATFORM_BETA_RESTRICTED
 - **"TZ_CREATOR not set":** the server `.env` is missing the creator zone; the page refuses to guess "today".
 
 ## Skip vs Drop
-- **Skip today** moves the item to the next day that has no other Snapchat item, at the same local time (one Spotlight a day). Status stays approved. Use it when today doesn't suit.
+- **Skip today** moves the item to the next day that has no other Snapchat item, at the same local time (one Spotlight a day). Status stays approved. The button asks you to confirm first. Use it when today doesn't suit.
 - **Drop** (with a confirm) rejects the item for good. Use it when the clip shouldn't go to Snapchat at all.
 - Items from earlier days that weren't shared show under **Missed** with the same buttons.
 

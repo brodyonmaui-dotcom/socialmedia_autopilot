@@ -2,19 +2,26 @@
 
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Button, Readout, Sheet } from "../../../components/ui/index.js";
 import { AddClipSheet, type PickerMedia } from "./AddClipSheet.js";
-import { BTN_GHOST, BTN_PRIMARY } from "./WarningChip.js";
+import { WarningLine } from "./Notice.js";
 
-function Pending({ children, className }: { children: React.ReactNode; className: string }) {
+function Pending({ children, variant, disabled }: { children: React.ReactNode; variant: "solid" | "outline"; disabled?: boolean }) {
   const { pending } = useFormStatus();
+  const off = pending || disabled === true;
   return (
-    <button className={className} disabled={pending}>
+    <Button type="submit" variant={variant} block disabled={off} aria-disabled={off} className="sm:min-w-32">
       {pending ? "Working…" : children}
-    </button>
+    </Button>
   );
 }
 
-/** Sticky bottom bar. Counts come from the server-side approve-all plan, never from client state. */
+const two = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * The batch's actions inside the Approval cell: "Approve all" (solid, opens the confirm Sheet; it never
+ * approves directly), Fill times and Add clip (outline). Counts come from the server-side approve-all plan.
+ */
 export function ApproveBar(props: {
   batchId: string;
   approvable: number;
@@ -28,64 +35,75 @@ export function ApproveBar(props: {
 }) {
   const [confirm, setConfirm] = useState(false);
   const [adding, setAdding] = useState(false);
+  const close = () => setConfirm(false);
+  const n = props.approvable;
 
   return (
     <>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] dark:border-neutral-800 dark:bg-neutral-950/95">
-        <div className="mx-auto flex max-w-2xl gap-2">
-          <button type="button" className={`${BTN_PRIMARY} flex-1`} onClick={() => setConfirm(true)}>
-            Approve all
-          </button>
+      <div className="flex flex-col gap-2">
+        <Button variant="solid" block arrow disabled={n === 0} aria-disabled={n === 0} onClick={() => setConfirm(true)}>
+          {n > 0 ? `Approve all ${n}` : "Nothing to approve"}
+        </Button>
+        <div className="grid grid-cols-2 gap-2">
           <form action={props.fillTimes}>
-            <Pending className={BTN_GHOST}>Fill times{props.untimedCount ? ` (${props.untimedCount})` : ""}</Pending>
+            <Pending variant="outline">Fill times{props.untimedCount ? ` (${props.untimedCount})` : ""}</Pending>
           </form>
-          <button type="button" className={BTN_GHOST} onClick={() => setAdding(true)}>
+          <Button variant="outline" block onClick={() => setAdding(true)}>
             Add clip
-          </button>
+          </Button>
         </div>
       </div>
 
-      {confirm ? (
-        <div className="fixed inset-0 z-40 flex items-end bg-black/40" onClick={() => setConfirm(false)}>
-          <div
-            role="dialog"
-            aria-label="Confirm approve all"
-            onClick={(e) => e.stopPropagation()}
-            className="mx-auto max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white p-4 pb-8 dark:bg-neutral-900"
+      <Sheet
+        open={confirm}
+        onClose={close}
+        title={n === 0 ? "Nothing to approve yet" : `Approve ${n} post${n === 1 ? "" : "s"}?`}
+        footer={
+          <form
+            className="contents"
+            action={async () => {
+              await props.approveAll();
+              close();
+            }}
           >
-            <h2 className="text-lg font-semibold">
-              Approve {props.approvable} · {props.skipped.length} blocked · {props.warnCount} warning{props.warnCount === 1 ? "" : "s"}
-            </h2>
-            <p className="mt-1 text-base text-neutral-600 dark:text-neutral-300">
-              {props.approvable === 0
-                ? "Nothing can be approved yet: fix the blocked posts first."
-                : "Approved posts go out at their times. Blocked ones stay as drafts."}
-            </p>
-            {props.skipped.length > 0 ? (
-              <ul className="mt-3 space-y-2">
-                {props.skipped.map((s) => (
-                  <li key={s.itemId} className="rounded-lg border border-red-200 p-2 text-sm dark:border-red-900">
-                    <div className="font-medium">{s.label}</div>
-                    <ul className="list-disc pl-5 text-red-800 dark:text-red-200">
-                      {s.reasons.map((r, i) => (
-                        <li key={i}>{r}</li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <div className="mt-4 flex gap-2">
-              <form action={props.approveAll} className="flex-1">
-                <Pending className={`${BTN_PRIMARY} w-full`}>Confirm: approve {props.approvable}</Pending>
-              </form>
-              <button type="button" className={BTN_GHOST} onClick={() => setConfirm(false)}>
-                Cancel
-              </button>
-            </div>
-          </div>
+            <Button variant="outline" onClick={close}>
+              Cancel
+            </Button>
+            <Pending variant="solid" disabled={n === 0}>
+              Approve {n}
+            </Pending>
+          </form>
+        }
+      >
+        <div className="flex flex-col gap-5">
+          <p>
+            {n === 0
+              ? "Fix the blocked posts first: they stay as drafts."
+              : "Approved posts go into the outbox for their times. Blocked ones stay as drafts; you can pull any post back until it publishes."}
+          </p>
+          <Readout
+            items={[
+              { k: "Approve", v: two(n) },
+              { k: "Blocked", v: two(props.skipped.length) },
+              { k: "Warnings", v: two(props.warnCount) },
+            ]}
+          />
+          {props.skipped.length > 0 ? (
+            <ul className="flex flex-col gap-3 border-t border-ds-line pt-4">
+              {props.skipped.map((s) => (
+                <li key={s.itemId} className="flex flex-col gap-2">
+                  <p className="ds-caps text-ds-text">{s.label}</p>
+                  {s.reasons.map((r, i) => (
+                    <WarningLine key={i} tone="danger" label="Blocked">
+                      {r}
+                    </WarningLine>
+                  ))}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
-      ) : null}
+      </Sheet>
 
       <AddClipSheet open={adding} onClose={() => setAdding(false)} batchId={props.batchId} media={props.media} action={props.addItem} />
     </>

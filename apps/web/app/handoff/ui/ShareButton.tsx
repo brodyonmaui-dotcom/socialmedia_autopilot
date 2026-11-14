@@ -1,12 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import { BTN_PRIMARY } from "../../batches/ui/WarningChip.js";
-import { buttonFor, initialState, prepare, share, type ShareState } from "./share-machine.js";
+import type { Dispatch, SetStateAction } from "react";
+import { Button, Icon } from "../../../components/ui/index.js";
+import { shareLabel } from "../../../lib/handoff/view.js";
+import { buttonFor, prepare, share, type ShareState } from "./share-machine.js";
 
-/** Two taps: Prepare (download the clip) → Share (iOS share sheet → Snapchat). Never logs the URL. */
-export function ShareButton({ itemId, caption, blocks }: { itemId: string; caption: string; blocks: string[] }) {
-  const [state, setState] = useState<ShareState>(() => initialState(blocks));
+/**
+ * Two taps: Prepare (download the clip) → Share (iOS share sheet → Snapchat). Never logs the URL.
+ * The state lives in HandoffCard so the prepared File can also feed the preview frame.
+ */
+export function ShareButton({
+  itemId,
+  caption,
+  blocks,
+  state,
+  setState,
+}: {
+  itemId: string;
+  caption: string;
+  blocks: string[];
+  state: ShareState;
+  setState: Dispatch<SetStateAction<ShareState>>;
+}) {
   const b = blocks.length > 0 ? buttonFor({ kind: "blocked" }) : buttonFor(state);
 
   async function onTap() {
@@ -23,14 +38,18 @@ export function ShareButton({ itemId, caption, blocks }: { itemId: string; capti
   }
 
   return (
-    <div className="flex-1">
-      <button type="button" className={`${BTN_PRIMARY} w-full`} disabled={b.disabled} onClick={onTap}>
-        {b.label}
-      </button>
-      {state.kind === "ready" ? <p className="mt-1 text-sm text-neutral-500">Ready: {state.sizeMb} MB. Tap Share.</p> : null}
-      {state.kind === "shared" ? <p className="mt-1 text-sm text-neutral-500">Sent to the share sheet. Mark posted once it&apos;s up.</p> : null}
+    <div className="flex flex-col gap-2">
+      <Button variant="solid" block disabled={b.disabled} aria-disabled={b.disabled} onClick={onTap}>
+        {b.action === "share" ? <Icon name="share" size={18} /> : null}
+        {shareLabel(b.label)}
+      </Button>
+      <p aria-live="polite" className="ds-mono min-h-4 text-ds-muted">
+        {state.kind === "ready" ? `Ready: ${state.sizeMb} MB. Tap Share.` : null}
+        {state.kind === "shared" ? "Sent to the share sheet. Mark posted once it's up." : null}
+      </p>
       {state.kind === "error" ? (
-        <p role="alert" className="mt-1 text-sm text-red-700 dark:text-red-300">
+        <p role="alert" className="flex items-start gap-2 text-[15px] leading-snug text-ds-danger">
+          <Icon name="alert" size={16} className="mt-0.5 shrink-0" />
           {state.message}
         </p>
       ) : null}

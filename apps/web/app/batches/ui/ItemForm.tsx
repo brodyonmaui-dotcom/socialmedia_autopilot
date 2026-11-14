@@ -1,19 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
-import { BTN_GHOST, BTN_PRIMARY, INPUT } from "./WarningChip.js";
+import { Button, FIELD, FOCUS, Input, cx } from "../../../components/ui/index.js";
 
 function Save() {
   const { pending } = useFormStatus();
   return (
-    <button className={BTN_PRIMARY} disabled={pending}>
+    <Button type="submit" variant="solid" disabled={pending} arrow>
       {pending ? "Saving…" : "Save"}
-    </button>
+    </Button>
   );
 }
 
-/** Caption/title as text, with an Edit toggle that reveals the form (Save → editAction). */
+/**
+ * The card's action row plus the Edit toggle. Not editing: [primary][Edit][danger] (the primary and
+ * danger slots are server-rendered forms). Editing: the edit form (Save → editAction) replaces the row.
+ * Form fields: batchId, itemId, title (YouTube only), caption, scheduledLocal.
+ */
 export function ItemForm(props: {
   batchId: string;
   itemId: string;
@@ -23,45 +27,45 @@ export function ItemForm(props: {
   scheduledLocal: string;
   editable: boolean;
   action: (fd: FormData) => Promise<void>;
+  primary?: ReactNode;
+  danger?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   if (!open) {
+    if (!props.primary && !props.danger && !props.editable) return null;
     return (
-      <div className="mt-2">
-        {props.isYoutube ? <p className="text-base font-medium">{props.title || <span className="text-neutral-400">no title yet</span>}</p> : null}
-        <p className="whitespace-pre-wrap text-base">{props.caption || <span className="text-neutral-400">no caption yet</span>}</p>
+      <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+        <div className="min-w-0">{props.primary}</div>
         {props.editable ? (
-          <button type="button" className={`${BTN_GHOST} mt-2`} onClick={() => setOpen(true)}>
+          <Button variant="outline" onClick={() => setOpen(true)} aria-label="Edit caption, title and time">
             Edit
-          </button>
-        ) : null}
+          </Button>
+        ) : (
+          <span />
+        )}
+        {props.danger ?? <span />}
       </div>
     );
   }
+  const captionId = `caption-${props.itemId}`;
   return (
-    <form action={props.action} className="mt-2 space-y-2">
+    <form action={props.action} className="flex flex-col gap-4">
       <input type="hidden" name="batchId" value={props.batchId} />
       <input type="hidden" name="itemId" value={props.itemId} />
-      {props.isYoutube ? (
-        <label className="block text-sm text-neutral-500">
-          Title
-          <input name="title" defaultValue={props.title ?? ""} maxLength={100} className={INPUT} />
+      {props.isYoutube ? <Input label="Title" name="title" defaultValue={props.title ?? ""} maxLength={100} /> : null}
+      {/* No Textarea in the kit yet: the shared FIELD look; min-height beats FIELD's fixed h-12. */}
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={captionId} className="ds-caps text-ds-muted">
+          Caption
         </label>
-      ) : null}
-      <label className="block text-sm text-neutral-500">
-        Caption
-        <textarea name="caption" defaultValue={props.caption} rows={5} className={INPUT} />
-      </label>
-      <label className="block text-sm text-neutral-500">
-        Time
-        <input type="datetime-local" name="scheduledLocal" defaultValue={props.scheduledLocal} className={INPUT} />
-      </label>
-      <p className="text-sm text-neutral-500">Saving moves an approved post back to draft; approve it again after.</p>
-      <div className="flex gap-2">
+        <textarea id={captionId} name="caption" defaultValue={props.caption} rows={6} className={cx(FIELD, FOCUS, "min-h-36 py-3 leading-normal")} />
+      </div>
+      <Input label="Time" type="datetime-local" name="scheduledLocal" defaultValue={props.scheduledLocal} helper="Saving moves an approved post back to draft; approve it again after." />
+      <div className="grid grid-cols-2 gap-2">
         <Save />
-        <button type="button" className={BTN_GHOST} onClick={() => setOpen(false)}>
+        <Button variant="outline" onClick={() => setOpen(false)}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );

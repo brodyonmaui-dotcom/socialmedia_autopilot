@@ -24,7 +24,7 @@ export const RESET_CHECKLIST: Readonly<Record<ResettablePlatform, readonly strin
   instagram: [
     "Profile grid and Reels tab (newest first)",
     "Trial reels (Professional dashboard → Trial reels)",
-    "Caption search isn't needed: the app checked the last 25 posts (result below)",
+    "Automatic caption check (result below): not found — or it failed and I searched my recent posts by hand",
   ],
   youtube: [
     "YouTube Studio → Content, including Private and Scheduled",
@@ -36,6 +36,16 @@ export const RESET_CHECKLIST: Readonly<Record<ResettablePlatform, readonly strin
     "More than 24 h since the last try, or the post is confirmed absent in Zernio",
   ],
 };
+
+/**
+ * "Confirm reset" may enable: every string of RESET_CHECKLIST[platform] is in `checked` (exact match;
+ * extra strings don't count). False for Snapchat or an unknown platform. The server re-checks.
+ */
+export function allTicked(platform: Platform | string, checked: readonly string[]): boolean {
+  if (!isResettablePlatform(platform as Platform)) return false;
+  const set = new Set(checked);
+  return RESET_CHECKLIST[platform as ResettablePlatform].every((s) => set.has(s));
+}
 
 /** Exact hosts accepted as evidence per platform (no suffix matching: lookalikes are refused). */
 export const POST_URL_HOSTS: Readonly<Record<ResettablePlatform, readonly string[]>> = {

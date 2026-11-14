@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BTN_GHOST, BTN_PRIMARY } from "../../batches/ui/WarningChip.js";
+import { Button, CONTAINER, Chip, Icon, Readout, StatusPulse, cx } from "../../../components/ui/index.js";
+import { pushPulse } from "../../../lib/alerts/view.js";
 import { sendTestAction, subscribeAction, unsubscribeAction, type PushActionResult } from "../push-actions.js";
 import { SW_SCOPE, SW_URL, deviceLabel, pushSupport, urlBase64ToUint8Array, type PushSupport } from "./push-client.js";
 
@@ -87,36 +88,47 @@ export function EnablePush({ vapidPublicKey, activeCount }: { vapidPublicKey: st
       return "Notifications off for this device.";
     });
 
+  const pulse = pushPulse(support, subscribed);
+
   return (
-    <section className="mt-8 rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
-      <h2 className="font-semibold">Notifications</h2>
-      <p className="mt-1 text-sm text-neutral-500">
-        Urgent alerts are pushed to the phone (count and kind only, never the alert text). {activeCount} device{activeCount === 1 ? "" : "s"} subscribed.
-      </p>
-      {support && support !== "ok" ? <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">{HINT[support]}</p> : null}
-      {support === "ok" ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {subscribed ? (
-            <>
-              <button type="button" className={`${BTN_PRIMARY} flex-1`} disabled={busy} onClick={() => act(() => sendTestAction())}>
-                Send test notification
-              </button>
-              <button type="button" className={BTN_GHOST} disabled={busy} onClick={disable}>
-                Turn off
-              </button>
-            </>
-          ) : (
-            <button type="button" className={`${BTN_PRIMARY} flex-1`} disabled={busy || subscribed === null} onClick={enable}>
-              Enable notifications
-            </button>
-          )}
+    <div className="border-b border-ds-line">
+      <div className={cx(CONTAINER, "grid grid-cols-4 lg:grid-cols-12")}>
+        <div className="col-span-4 flex min-w-0 flex-col gap-4 py-6 lg:col-span-7 lg:py-10 lg:pr-10">
+          <StatusPulse tone={pulse.tone} label={pulse.label} />
+          <p className="text-[18px] font-bold leading-snug tracking-[-0.01em]">Urgent alerts are pushed to the phone.</p>
+          <p className="ds-note">The notification says how many and what kind, never the alert text.</p>
+          {support && support !== "ok" ? (
+            <Chip tone="warn" wrap>
+              {HINT[support]}
+            </Chip>
+          ) : null}
+          <Readout items={[{ k: "Devices", v: `${activeCount} subscribed` }]} />
         </div>
-      ) : null}
-      {msg ? (
-        <p role={msg.ok ? "status" : "alert"} className={`mt-2 text-sm ${msg.ok ? "text-green-800 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}>
-          {msg.text}
-        </p>
-      ) : null}
-    </section>
+        <div className="col-span-4 flex min-w-0 flex-col justify-center gap-2 pb-6 lg:col-span-5 lg:border-l lg:border-ds-line lg:py-10 lg:pl-10">
+          {support === "ok" ? (
+            subscribed ? (
+              <>
+                <Button variant="outline" block disabled={busy} onClick={() => act(() => sendTestAction())}>
+                  Send test notification
+                </Button>
+                <Button variant="ghost" block disabled={busy} onClick={disable}>
+                  Turn off on this device
+                </Button>
+              </>
+            ) : (
+              <Button variant="solid" block arrow disabled={busy || subscribed === null} onClick={enable}>
+                Enable notifications
+              </Button>
+            )
+          ) : null}
+          {msg ? (
+            <p role={msg.ok ? "status" : "alert"} className={cx("flex items-start gap-2 text-[15px] leading-snug", msg.ok ? "text-ds-accent-fg" : "text-ds-danger")}>
+              <Icon name={msg.ok ? "check" : "alert"} size={16} className="mt-0.5 shrink-0" />
+              {msg.text}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </div>
   );
 }

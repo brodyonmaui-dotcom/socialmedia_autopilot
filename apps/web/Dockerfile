@@ -1,7 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 RUN corepack enable
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.json ./
 # Every workspace package the app imports, directly or through another package (F8 review: engagement/analytics/research/adapters were missing).
 COPY packages/core/package.json packages/core/package.json
 COPY packages/db/package.json packages/db/package.json

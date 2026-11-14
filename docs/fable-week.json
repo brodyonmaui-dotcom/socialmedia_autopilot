@@ -71,7 +71,7 @@
       "model": "fable",
       "area": "apps/web/alerts, apps/worker, packages/db (0008)",
       "status": "review",
-      "notes": "Built in full in the Opus prep run (2026-11-13): T1 migration 0008 + AlertSource/ALERT_KINDS (incl. metrics-health); T2 /alerts + acknowledge (shown ids, no delete) + home badge; T3 alert-push job (alert-push-core.ts: kinds/age gating, claim-before-send, 404/410 revoke; web-push 3.6.7 worker-only); T4 service worker, Enable button, test send via worker, icons, push subs revoked on log-out-everywhere; T5 runbook alerts-push.md with the VAPID keygen command. Fable run 3: adversarial review (docs/prep/run-3-fable-brief.md). Creator: apply 0008, generate VAPID keys, enable on the iPhone."
+      "notes": "Built in full in the Opus prep run (2026-11-13): T1 migration 0008 + AlertSource/ALERT_KINDS (incl. metrics-health); T2 /alerts + acknowledge (shown ids, no delete) + home badge; T3 alert-push job (alert-push-core.ts: kinds/age gating, claim-before-send, 404/410 revoke; web-push 3.6.7 worker-only); T4 service worker, Enable button, test send via worker, icons, push subs revoked on log-out-everywhere; T5 runbook alerts-push.md with the VAPID keygen command. Fable run 3: adversarial review (docs/prep/run-3-fable-brief.md). Creator: apply 0008, generate VAPID keys, enable on the iPhone. Fable run 3: review pack rows closed; new page-only 'config' alert kind (ed25c6d)."
     },
     {
       "id": "F9",
@@ -94,16 +94,32 @@
       "title": "Reset failed/unknown items after a platform check (\"I checked, it is not there\" → draft, same idempotency_key; or record as published)",
       "model": "fable",
       "area": "apps/web/batches, apps/web/lib/batches",
-      "status": "in-progress",
-      "notes": "T1 pure logic (prep run). T2 store + actions + IG auto-check built 2026-11-14 day run (19ac4ba), SQL under a Fable to review header; DB tests incl. same key, concurrency and the outbox tick test. Fable run 3: review T2 SQL. T3 UI + runbook unfinished: WIP patch docs/prep/run-3-wip/f11-t3-batches-restyle.wip.patch (fails typecheck: page.tsx props)."
+      "status": "done",
+      "notes": "T1 pure logic (prep run). T2 store + actions + IG auto-check built 2026-11-14 day run (19ac4ba), SQL under a Fable to review header; DB tests incl. same key, concurrency and the outbox tick test. Fable run 3: review T2 SQL. T3 UI + runbook unfinished: WIP patch docs/prep/run-3-wip/f11-t3-batches-restyle.wip.patch (fails typecheck: page.tsx props). Fable run 3 (2026-11-14): T2 SQL approved (reset clears approved_at, attempts=1, same key; worker never touches failed/unknown rows), T3 ResetSheet + stuck cards + runbook done (af4c687)."
     },
     {
       "id": "F12",
       "title": "F12 · UI restyle onto the design system (Fable art direction + designer agents)",
       "model": "fable",
       "area": "apps/web",
+      "status": "done",
+      "notes": "Design system v2 restyle done in Fable run 3 (2026-11-14): all 10 restyle-plan tasks shipped (shell/home/login/site from the design session; batches list+detail, Snapchat handoff, Alerts, Inbox+DMs, Analytics, Library+touch-up, Research in this run). Shots: docs/design/ui-shots/f12/. Cosmetic touch-ups for run 4: alerts kind-filter cell wraps its count on phones; desktop /inbox/dms right column empty; one consistency pass over all pages."
+    },
+    {
+      "id": "F13",
+      "title": "F13 · Go-live readiness (preflight, outbox tick lock, YouTube findExisting, first-real-post runbook)",
+      "model": "fable",
+      "area": "scripts, infra, apps/worker/outbox, packages/adapters/youtube, docs/runbooks",
       "status": "todo",
-      "notes": "Design system v2 (Warm Industrial: #EBEBE8, Inter + Playfair italic, 12-col grid, sharp, one blue). Spec + per-page task list: docs/design/ui-system.md (Restyle plan, 10 tasks). Components: apps/web/components/ui; live guide: /app/design (Day/Night); agent: .claude/agents/designer.md. 2026-11-14 day run: batches list + detail restyle (tasks 2-3) started together with F11 T3, unfinished, in the same WIP patch; the parallel design session owns the other pages."
+      "notes": "Design: docs/design/F13.md. Preflight PASS/FAIL per check with the next command; advisory lock closes the F7 A9 cap overshoot; YT findExisting only after the uploads-playlist docs are verified (open question); runbook for the first IG + YT real post."
+    },
+    {
+      "id": "F14",
+      "title": "F14 · Weekly loop in the worker (Sunday draft batch, Monday report, Up next UI)",
+      "model": "fable",
+      "area": "apps/worker, packages/core/types, apps/web/home+batches",
+      "status": "todo",
+      "notes": "Design: docs/design/F14.md. AI split: no LLM captions in the worker, drafts have empty flagged captions; adds batch-ready (pushed) and report-ready (page-only) alert kinds; the job never approves."
     }
   ]
 }

@@ -2,59 +2,65 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BTN_GHOST, BTN_PRIMARY } from "../../batches/ui/WarningChip.js";
-import { ConfirmSheet } from "../../handoff/ui/ConfirmSheet.js";
+import { ConfirmSheet, Icon, cx } from "../../../components/ui/index.js";
 import { acknowledgeShownAction } from "../actions.js";
 
-/** "Acknowledge all shown" behind a confirm sheet with the count. Sends exactly the ids on screen. */
-export function AckAllSheet({ ids, scope }: { ids: string[]; scope: string }) {
+export interface AckAllCopy {
+  trigger: string;
+  title: string;
+  confirm: string;
+  scope: string;
+}
+
+/**
+ * "Acknowledge all" behind the design-system ConfirmSheet with the count. Sends exactly the ids on screen,
+ * so an alert that arrived after the page loaded is never acknowledged unseen. Grid cell: 9 cols note | 3 cols trigger.
+ */
+export function AckAllSheet({ ids, copy }: { ids: string[]; copy: AckAllCopy }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   if (ids.length === 0) return null;
-  const n = ids.length;
 
   async function confirm() {
-    setBusy(true);
     setMsg(null);
     try {
       const fd = new FormData();
       for (const id of ids) fd.append("id", id);
       const r = await acknowledgeShownAction(fd);
       setMsg(r.ok ? { ok: true, text: `Acknowledged ${r.count}.` } : { ok: false, text: r.reason.slice(0, 160) });
-      setOpen(false);
       if (r.ok) router.refresh();
     } catch {
       setMsg({ ok: false, text: "Something went wrong: reload." });
-    } finally {
-      setBusy(false);
     }
   }
 
   return (
-    <div className="mt-3">
-      <button type="button" className={`${BTN_GHOST} w-full`} disabled={busy} onClick={() => setOpen(true)}>
-        Acknowledge all shown ({n})
-      </button>
-      {msg ? (
-        <p role={msg.ok ? "status" : "alert"} className={`mt-2 text-sm ${msg.ok ? "text-green-800 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}>
-          {msg.text}
-        </p>
-      ) : null}
-      <ConfirmSheet
-        open={open}
-        title={`Acknowledge ${n} alert${n === 1 ? "" : "s"}?`}
-        confirmLabel={`Confirm: acknowledge ${n}`}
-        confirmClass={BTN_PRIMARY}
-        busy={busy}
-        onClose={() => setOpen(false)}
-        onConfirm={confirm}
-      >
-        <p className="mt-1 text-base text-neutral-600 dark:text-neutral-300">
-          {scope}. They move to Acknowledged (kept, not deleted). Alerts that arrived after this page loaded stay open.
-        </p>
-      </ConfirmSheet>
-    </div>
+    <>
+      <div className="col-span-4 flex min-w-0 flex-col justify-center gap-2 pt-6 lg:col-span-9 lg:py-6 lg:pr-10">
+        <p className="ds-caps text-ds-muted">Bulk</p>
+        <p className="ds-note">Clears only the alerts listed below. They move to Acknowledged and are kept.</p>
+        {msg ? (
+          <p role={msg.ok ? "status" : "alert"} className={cx("flex items-start gap-2 text-[15px] leading-snug", msg.ok ? "text-ds-accent-fg" : "text-ds-danger")}>
+            <Icon name={msg.ok ? "check" : "alert"} size={16} className="mt-0.5 shrink-0" />
+            {msg.text}
+          </p>
+        ) : null}
+      </div>
+      <div className="col-span-4 flex items-center py-6 lg:col-span-3 lg:border-l lg:border-ds-line lg:pl-10">
+        <ConfirmSheet
+          triggerLabel={copy.trigger}
+          triggerVariant="outline"
+          triggerClassName="w-full"
+          title={copy.title}
+          confirmLabel={copy.confirm}
+          onConfirm={confirm}
+          body={
+            <p>
+              {copy.scope}. They move to Acknowledged (kept, not deleted). Alerts that arrived after this page loaded stay open.
+            </p>
+          }
+        />
+      </div>
+    </>
   );
 }

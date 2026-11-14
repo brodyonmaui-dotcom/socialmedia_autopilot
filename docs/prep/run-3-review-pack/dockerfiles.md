@@ -36,5 +36,5 @@ COPY apps/web apps/web              (web Dockerfile:20)
 | # | Finding | Status | Test |
 |---|---|---|---|
 | 1 | Each image copies every workspace package it needs, transitively | not-an-issue (both copy core, db, research, engagement, adapters, analytics manifests + source; graph incl. undeclared @autopilot imports matches) | dockerfiles.test.ts › copies the manifest / source of every workspace package it needs (transitively) |
-| 2 | Root tsconfig.json not copied (packages' tsconfigs extend it) | needs Fable judgment (tsx finds no tsconfig from /app/apps/worker and uses defaults; next build uses apps/web's own; only a real build proves it) | - |
-| 3 | An actual image build | needs Fable judgment (no Docker daemon here; the creator's first `docker compose up -d --build` is the real test) | - |
+| 2 | Root tsconfig.json not copied (packages' tsconfigs extend it) | fixed (Fable: tsx reads no tsconfig in the image, which is runtime-harmless since no paths/baseUrl, but both Dockerfiles now copy the root tsconfig.json so the image matches dev) | - |
+| 3 | An actual image build | creator (Fable: no daemon here; first `docker compose up -d --build` after merge is the test; listed under Needs you) | - |

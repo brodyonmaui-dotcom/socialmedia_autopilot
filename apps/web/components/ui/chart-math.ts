@@ -27,6 +27,8 @@ export function scalePoints(
   w: number,
   h: number,
   pad: { top?: number; bottom?: number } = {},
+  /** Optional fixed lower bound of the y domain (e.g. 0 for a zero-based chart); values below it clamp to it. */
+  domainMin?: number,
 ): Point[] {
   const n = values.length;
   if (n === 0) return [];
@@ -34,13 +36,17 @@ export function scalePoints(
   const bottom = pad.bottom ?? 0;
   const inner = Math.max(0, h - top - bottom);
   const mid = top + inner / 2;
-  if (n === 1) return [{ x: w / 2, y: mid }];
-  const min = Math.min(...values);
+  if (n === 1 && domainMin === undefined) return [{ x: w / 2, y: mid }];
+  const min = domainMin ?? Math.min(...values);
+  if (n === 1) {
+    const span1 = values[0]! - min;
+    return [{ x: w / 2, y: span1 > 0 ? top : mid }];
+  }
   const max = Math.max(...values);
   const span = max - min;
   return values.map((v, i) => ({
     x: (i / (n - 1)) * w,
-    y: span === 0 ? mid : top + (1 - (v - min) / span) * inner,
+    y: span <= 0 ? mid : top + (1 - (Math.max(v, min) - min) / span) * inner,
   }));
 }
 

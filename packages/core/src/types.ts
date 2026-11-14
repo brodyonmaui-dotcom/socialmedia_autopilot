@@ -79,6 +79,7 @@ export const ALERT_KINDS = [
   "final-failure", "unknown-outcome", "cap-breach", "duplicate", "token-health",
   "auth", "engagement-kill", "engagement-failure", "engagement-unknown", "engagement-mode",
   "metrics-health", // F9 analytics ingest (page-only)
+  "config", // worker misconfiguration, e.g. PUBLIC_MEDIA_BASE (page-only)
 ] as const;
 export type AlertKind = (typeof ALERT_KINDS)[number];
 

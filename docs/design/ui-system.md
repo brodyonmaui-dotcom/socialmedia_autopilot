@@ -116,7 +116,7 @@ Server components unless marked **client**.
   - the `clip-path` image reveal runs from `inset(0 0 0 100%)` to `inset(0)` over 600 ms, grayscale with a blue 20% multiply;
   - a "View" circle follows the cursor (pointer: fine only) and otherwise sits on the right;
   - phone: 120 px rows with a visible 64 px thumbnail.
-- `FramedImage`: grayscale image or placeholder with a 20 px inner frame line. `GlassCard`: `bg-ds-card/60` + `backdrop-blur-md` + 1 px line, sharp.
+- `FramedImage`: grayscale image or placeholder with a 20 px inner frame line. Variant `video` (F12/10): a same-origin or `blob:` clip as a muted, inline, grayscale `<video controls>` over the placeholder pattern (used by /handoff once the clip is prepared; never autoplays, never a remote URL). `GlassCard`: `bg-ds-card/60` + `backdrop-blur-md` + 1 px line, sharp.
 - `StatusBars`: labelled mono bars (platform → %).
 - `Statement`: big serif line with a small caps source.
 - `FooterBand`: inverted band, big link with an underline grow, background marquee, and a status row.
@@ -133,7 +133,8 @@ Server components unless marked **client**.
   - `Toggle` (pill track allowed);
   - `Checkbox` / `Radio` (sharp squares);
   - `Tabs` (bordered cells, active = black fill);
-  - `Badge` (pill) / `Chip` (sharp, 1 px line);
+  - `SegmentBar` + `SegmentButton` (F12/4): the Tabs strip with real `<button>`s (`aria-pressed`) for a setting such as a mode switch; each button submits its own `formAction` or opens a confirm Sheet; `TabLinks layout="grid"` (F12/9) = the same cells in a wrapping grid for long filter lists (2 columns on phones, an odd last cell spans both; one equal row from lg; 1 px lines drawn by the ds-text gap);
+  - `Badge` (pill) / `Chip` (sharp, 1 px line; `wrap` = sentence-length chip that wraps, min 32 px, icon top-aligned — warnings, the F11 auto-check result, "Past time");
   - `Input` / `SearchField` (sharp, raised fill, 1 px line on focus);
   - `Select`, `Stepper`;
   - `ProgressBar` (4 px, square ends, blue);
@@ -141,8 +142,8 @@ Server components unless marked **client**.
   - `Sheet` (sharp top edge, 1 px top line);
   - `AlertCard` (1 px line, caps title);
   - `EmptyState`, `Tooltip`, `PageDots` (square dashes);
-  - `Card` (a bordered cell, no fill by default), `StatTile`, `ListRow`;
-  - charts (blue line, no fill gradients, mono axis labels), `Donut`, `MonthCalendar` (square today marker);
+  - `Card` (a bordered cell, no fill by default), `StatTile`, `ListRow` (`children` = a full-width body under the one-line head: wrapping text, a reply well, ≥ 44 px actions; F12/4);
+  - charts (blue line, no fill gradients, mono axis labels): `Sparkline`, `MiniBars`, `AreaChart` (variant `zeroBased` (F12/6): y starts at 0 instead of the series minimum, for totals like views per week so a small dip doesn't read as a crash), `Donut` (largest share = accent, the rest text/muted/line-strong grays), `MonthCalendar` (square today marker);
   - `PlatformLogo`, `ThemeToggle` (Day/Night).
 
 Rules:
@@ -179,12 +180,12 @@ Shared acceptance:
 - edges align to the grid lines.
 
 1. **Shell + Home** (`app/layout.tsx` body bg → `ds-bg`, `app/page.tsx`). Uses the Hero, Marquee, Up next RevealList, numbers band, Statement and FooterBand. Accept: it matches `/design?view=home` with real data, and logout moves into the header menu.
-2. **Batches list.** Uses RevealList rows per week (index = week number, meta = counts, Badge status). Accept: the status words are mapped (approved → accent badge).
-3. **Batch detail / approval grid.** Uses "Batch card (proposed)" as a bordered grid cell, Chips, `Button solid` Approve, ProgressBar and ConfirmSheet. Accept: approve-all goes through the Sheet; actions are ≥ 44 px.
-4. **Inbox + DMs.** Uses Tabs, Toggle (kill switch with ConfirmSheet), ListRow cells, StatusPulse for live mode, Readouts for limits.
+2. **Batches list.** Uses RevealList rows per week (index = week number, meta = counts, Badge status). Accept: the status words are mapped (approved → accent badge). **Done (run 3):** `AppFrame` + "This & next" / "Earlier weeks" sections; failed+unknown add a danger "N need you" badge. Mapping in `lib/batches/card-view.ts`.
+3. **Batch detail / approval grid.** Uses "Batch card (proposed)" as a bordered grid cell, Chips, `Button solid` Approve, ProgressBar and ConfirmSheet. Accept: approve-all goes through the Sheet; actions are ≥ 44 px. **Done (run 3):** header band (W-index, "Week of *date*", status badges) → Approval cell (count, ProgressBar, Readout) + Actions cell (solid "Approve all N" → Sheet, Fill times, Add clip) → one caps row per day with post cards as bordered cells. failed/unknown cards carry the F11 panel and ResetSheet; a past-time draft shows a wrapping warn Chip.
+4. **Inbox + DMs.** Uses Tabs, Toggle (kill switch with ConfirmSheet), ListRow cells, StatusPulse for live mode, Readouts for limits. **Done (run 3):** shared hero "Inbox / *needs you* / N" (flagged + open DMs) with the kill-switch Toggle in the right cell (toggle on = killed; it only opens a Sheet, the Sheet's form calls `setKillAction`; resume still needs "resume" typed) → Comments / DMs `TabLinks` → Flagged / Shadow / Sent sub-tabs (same `?tab=` URLs). Comments and DM threads are `ListRow`s with a body; triage = Chip (no green: positive is neutral), sent status = Badge. 8 + 4 split on desktop: list | per-platform mode (`SegmentBar`, live → Sheet, `StatusPulse` live = blue) + limits Readout (used/left in the last 24 h, counted from the Sent list). View logic in `lib/inbox/view.ts`.
 5. **Library + touch-up.** Uses a grid of FramedImage cells (4 / 12 cols), Badge "file missing" (danger) and SearchField.
-6. **Analytics.** Uses SectionHead, a numbers band, AreaChart, Donut, Statement (top insight) and Journal (report items).
-7. **Research.** Uses Tabs (link mode), RevealList for ideas/hooks, Input/Select forms and warn Chips.
+6. **Analytics.** Uses SectionHead, a numbers band, AreaChart, Donut, Statement (top insight) and Journal (report items). **Done (run 3):** hero (stroke `WEEK n` / *in review* / views) + Readout + prev/next → numbers band (views, likes, comments, shares StatTiles) + zero-based AreaChart (views per posting week) + Donut (posts by platform; posts, not views, since views aren't comparable across platforms) → Statement (strongest recommendation, n shown) → per-platform cells with top 3 → recommendation ListRows (n, lift, up/down icon) → trial rows with verdict badge + reason → data gaps as warn Chips. View logic in `lib/analytics/view.ts`.
+7. **Research.** Uses Tabs (link mode), RevealList for ideas/hooks, Input/Select forms and warn Chips. **Done (run 3):** shared `ResearchFrame` (hero "Research / *this week* / N ideas", Overview/Creators/Ideas/Hooks `TabLinks`, ?error= band); overview stage counts + Film next `RevealList`; ideas per stage `RevealList` + "Move forward" ListRows with Input/Button forms; hooks `RevealList` + wrapping warn Chips for voice warnings; creators `ListRow` + `PlatformLogo`. Logic in `lib/research/view.ts`.
 8. **Login.** Centred Display "Sign *in*", one black solid "Use passkey" button, GridLines + Noise, no tab bar.
-9. **Alerts** (F8, merged). Uses AlertCard rows, StatusPulse, and ghost "Acknowledge" buttons; the open count shows on the tab-bar badge.
+9. **Alerts** (F8, merged). Uses AlertCard rows, StatusPulse, and ghost "Acknowledge" buttons; the open count shows on the tab-bar badge. **Done (run 3):** hero "Alerts / *open now* / N" + StatusPulse (danger = urgent open, warn = notices only, blue = all clear) + Readout; state `TabLinks` + kind `TabLinks layout="grid"`; one band per alert (kind 3 | message, platform glyph, age 6 | outline Acknowledge + ghost Open batch 3); "Acknowledge all N" (shown ids only) through the ui `ConfirmSheet`; push block with StatusPulse and the one solid button. Logic in `lib/alerts/view.ts`.
 10. **Snapchat handoff** (F10, merged). Uses FramedImage preview, `Button solid` "Share to Snapchat", ProgressBar (1/day), and ConfirmSheet for posted/skip.

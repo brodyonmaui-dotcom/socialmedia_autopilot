@@ -32,6 +32,8 @@ export interface OutboxConfig {
   log?: (line: string) => void;
   /** PRIVACY_BLOCKLIST terms for the publish-time privacy lint (default: blocklistFromEnv()). */
   blocklist?: string[];
+  /** Injected clock (tests); passed through to the engine. */
+  now?: () => Date;
 }
 
 interface Row {
@@ -235,6 +237,46 @@ export function mediaUrlGuard(publicMediaBase: string): (post: OutboxPost) => st
 }
 
 /**
+ * Is PUBLIC_MEDIA_BASE usable as the root of every media URL? An absolute https URL (http only for
+ * localhost / 127.0.0.1, the local stack), with no query, fragment or credentials. Pure.
+ */
+export function isValidMediaBase(base: string | undefined): boolean {
+  if (typeof base !== "string" || base.trim() === "") return false;
+  let u: URL;
+  try {
+    u = new URL(base);
+  } catch {
+    return false;
+  }
+  const localHttp = u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1");
+  if (u.protocol !== "https:" && !localHttp) return false;
+  if (u.search || u.hash || base.includes("?") || base.includes("#")) return false;
+  if (u.username || u.password) return false;
+  return true;
+}
+
+export const CONFIG_ALERT_KIND = "config" as const;
+export const MEDIA_BASE_INVALID_LOG = "[outbox] PUBLIC_MEDIA_BASE missing or invalid: tick skipped";
+export const MEDIA_BASE_INVALID_MESSAGE =
+  "PUBLIC_MEDIA_BASE is not set or is not an absolute https URL. The outbox tick is skipped until it is fixed; nothing was marked failed.";
+
+/**
+ * One open 'config' alert per message (same not-exists pattern as raiseMetricsHealthAlert: the
+ * unique (kind, batch_item_id) can't dedupe rows with a null item). alerts.platform is NOT NULL, so
+ * the source is "all": the whole outbox (every platform) is held. Returns whether a row was inserted.
+ */
+async function raiseConfigAlert(pool: OutboxPool, message: string, now: Date): Promise<boolean> {
+  const { rows } = await pool.query(
+    `insert into alerts (kind, batch_item_id, platform, message, created_at)
+     select $1, null, 'all', $2, $3
+      where not exists (select 1 from alerts where kind = $1 and acknowledged_at is null and message = $2)
+     returning id`,
+    [CONFIG_ALERT_KIND, message, now.toISOString()],
+  );
+  return rows.length === 1;
+}
+
+/**
  * One outbox tick against Postgres with the real adapters (only those configured). YouTube and TikTok
  * hold their own clock once handed off, so they go out ahead of scheduled_for; Instagram fires at it.
  */
@@ -247,11 +289,19 @@ export async function runOutboxWith(pool: OutboxPool, adapters: Partial<Record<P
   const log = cfg.log ?? ((line: string) => console.log(sanitizeForLog(line)));
   if (!cfg.timeZone && !cfg.dryRun) throw new Error("TZ_CREATOR is required for a live outbox run (daily caps are per creator-local day)");
   const timeZone = cfg.timeZone ?? "UTC";
+  // A missing/invalid base would make the media guard refuse every due post (→ failed + an alert each).
+  // Fail closed with a small blast radius instead: skip the whole tick, touch no batch_items row,
+  // and raise one open 'config' alert. Dry run too. The value itself is never logged.
+  if (!isValidMediaBase(cfg.publicMediaBase)) {
+    log(MEDIA_BASE_INVALID_LOG);
+    await raiseConfigAlert(pool, MEDIA_BASE_INVALID_MESSAGE, cfg.now?.() ?? new Date());
+    return { considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, dryRun: cfg.dryRun, alerts: [] };
+  }
   const cadence = await loadCadence(pool);
   const store = new PgOutboxStore(pool, cfg.publicMediaBase, log);
   const privacy = privacyCaptionGuard(cfg.blocklist ?? blocklistFromEnv());
   const media = mediaUrlGuard(cfg.publicMediaBase);
   // Both refusals are permanent failures (+ final-failure alert); the adapter is never called.
   const captionGuard = (post: OutboxPost): string | null => media(post) ?? privacy(post);
-  return runOutboxTick(store, { adapters, dryRun: cfg.dryRun, policy: cfg.policy, cadence, timeZone, alerts: cfg.alerts ?? consoleAlertSink, log, captionGuard });
+  return runOutboxTick(store, { adapters, dryRun: cfg.dryRun, policy: cfg.policy, cadence, timeZone, alerts: cfg.alerts ?? consoleAlertSink, log, captionGuard, now: cfg.now });
 }

@@ -1,24 +1,28 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AppFrame } from "../../../components/AppFrame.js";
+import { Badge, ButtonLink, CONTAINER, Card, Chip, Icon, ProgressBar, Readout, cx } from "../../../components/ui/index.js";
 import { getPool } from "../../../lib/db.js";
 import { requireSession } from "../../../lib/auth/require.js";
+import { approvalProgress, batchStatusBadge, needsYouCount, weekIndex } from "../../../lib/batches/card-view.js";
 import { loadWarningContext } from "../../../lib/batches/context.js";
 import { PgBatchStore } from "../../../lib/batches/pg-store.js";
 import { planTransition } from "../../../lib/batches/transitions.js";
 import { confirmCounts, weekLabel, groupByLocalDay, summaryCounts } from "../../../lib/batches/view-model.js";
 import { computeWarnings } from "../../../lib/batches/warnings.js";
 import { ApproveBar } from "../ui/ApproveBar.js";
-import { PostCard } from "../ui/PostCard.js";
-import { Banner, StatusPill } from "../ui/WarningChip.js";
-import { WeekGrid } from "../ui/WeekGrid.js";
+import { CELL, CELLS } from "../ui/nav.js";
+import { Notice } from "../ui/Notice.js";
+import { RejectedList, WeekGrid } from "../ui/WeekGrid.js";
 import { addItemAction, approveAllAction, fillTimesAction } from "./actions.js";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Batch · runmysocials" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const param = (v: string | string[] | undefined) => (typeof v === "string" ? v.slice(0, 300) : undefined);
+const two = (n: number) => String(n).padStart(2, "0");
 
 export default async function BatchPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
   await requireSession();
@@ -31,14 +35,12 @@ export default async function BatchPage({ params, searchParams }: { params: Para
   const batch = await store.loadBatch(id);
   if (!batch) notFound();
 
-  const [ctx, media, urlRows] = await Promise.all([
+  const [ctx, media] = await Promise.all([
     loadWarningContext({ pool, weekStart: batch.weekStart, batchId: batch.id }),
     store.listLibraryMedia(60),
-    pool.query("select id, platform_post_url from batch_items where batch_id = $1 and platform_post_url is not null", [batch.id]),
   ]);
   const ws = computeWarnings(batch.items, ctx);
   for (const i of batch.items) i.warnings = ws.get(i.id) ?? [];
-  const urls = new Map<string, string>(urlRows.rows.map((r: { id: string; platform_post_url: string }) => [r.id, r.platform_post_url]));
 
   const now = new Date();
   const confirm = confirmCounts(batch.items, planTransition(batch, { kind: "approve-all" }, now));
@@ -53,47 +55,87 @@ export default async function BatchPage({ params, searchParams }: { params: Para
   const groups = groupByLocalDay(live, ctx.timeZone, batch.weekStart);
   const untimedDrafts = live.filter((i) => i.status === "draft" && i.scheduledFor == null).length;
   const c = summaryCounts(batch.counts);
+  const progress = approvalProgress(batch.counts);
+  const stuck = needsYouCount(batch.counts);
+  const status = batchStatusBadge(batch.status);
+  const openReset = param(sp.reset);
 
   return (
-    <main className="mx-auto max-w-2xl p-4 pb-32 text-base">
-      <div className="flex items-center justify-between">
-        <Link href="/batches" className="inline-flex min-h-11 items-center text-neutral-500 underline">
-          all batches
-        </Link>
-        <StatusPill status={batch.status} />
+    <AppFrame active="batches">
+      <header className="border-b border-ds-line">
+        <div className={cx(CONTAINER, "grid grid-cols-4 gap-y-4 py-8 lg:grid-cols-12 lg:py-12")}>
+          <div className="col-span-4 flex items-center justify-between gap-3 lg:col-span-12">
+            <ButtonLink href="/batches" variant="ghost" className="-ml-4">
+              <Icon name="chevronLeft" size={16} />
+              All batches
+            </ButtonLink>
+            <span className="flex flex-wrap items-center justify-end gap-2">
+              {stuck > 0 ? <Badge tone="danger">{stuck} need you</Badge> : null}
+              <Badge tone={status.tone}>{status.label}</Badge>
+            </span>
+          </div>
+          <p className="ds-mono col-span-1 text-ds-muted lg:self-end">{weekIndex(batch.weekStart)} /</p>
+          <h1 className="col-span-3 text-[40px] font-black leading-[0.95] tracking-[-0.04em] lg:col-span-11 lg:text-[72px]">
+            Week of <span className="ds-serif font-normal">{weekLabel(batch.weekStart, now)}</span>
+          </h1>
+        </div>
+      </header>
+
+      <Notice error={param(sp.error)} note={param(sp.note)} />
+
+      <div className="border-b border-ds-line">
+        <div className={cx(CONTAINER, "py-6 lg:py-10")}>
+          <div className={CELLS}>
+            <Card index="A" title="Approval" className={cx(CELL, "col-span-4 lg:col-span-7")}>
+              <div className="flex items-baseline gap-2">
+                <span className="ds-num text-[64px] font-black leading-none tracking-[-0.05em]">{progress.done}</span>
+                <span className="ds-serif text-[32px] text-ds-muted">of {progress.total}</span>
+              </div>
+              <div className="mt-6">
+                <ProgressBar value={progress.done} max={progress.total} label="Approved or later" showLabel />
+              </div>
+              <Readout
+                className="mt-6"
+                items={[
+                  { k: "Draft", v: two(c.draft) },
+                  { k: "Approved", v: two(c.approved) },
+                  { k: "Published", v: two(c.published) },
+                  { k: "Rejected", v: two(c.rejected) },
+                  ...(c.other ? [{ k: "Other", v: two(c.other) }] : []),
+                ]}
+              />
+              {ctx.timeZoneSource === "fallback" ? (
+                <p className="mt-6 flex">
+                  <Chip wrap tone="warn">
+                    Times shown in UTC: set TZ_CREATOR
+                  </Chip>
+                </p>
+              ) : null}
+            </Card>
+            <Card index="B" title="Actions" className={cx(CELL, "col-span-4 lg:col-span-5")}>
+              <p className="mb-6 text-[15px] leading-snug text-ds-muted">
+                {confirm.approvable > 0
+                  ? `${confirm.approvable} draft${confirm.approvable === 1 ? "" : "s"} ready · ${skipped.length} blocked · ${confirm.warnCount} warning${confirm.warnCount === 1 ? "" : "s"}`
+                  : "No drafts ready to approve."}
+              </p>
+              <ApproveBar
+                batchId={batch.id}
+                approvable={confirm.approvable}
+                warnCount={confirm.warnCount}
+                skipped={skipped}
+                untimedCount={untimedDrafts}
+                media={media}
+                approveAll={approveAllAction.bind(null, batch.id)}
+                fillTimes={fillTimesAction.bind(null, batch.id)}
+                addItem={addItemAction}
+              />
+            </Card>
+          </div>
+        </div>
       </div>
-      <h1 className="text-xl font-semibold">Week of {weekLabel(batch.weekStart, now)}</h1>
-      <p className="text-sm text-neutral-500">
-        {c.draft} draft · {c.approved} approved · {c.published} published · {c.rejected} rejected{c.other ? ` · ${c.other} other` : ""}
-      </p>
-      {ctx.timeZoneSource === "fallback" ? <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">times shown in UTC: set TZ_CREATOR</p> : null}
-      <Banner kind="error" text={param(sp.error)} />
-      <Banner kind="note" text={param(sp.note)} />
 
-      <WeekGrid groups={groups} timeZone={ctx.timeZone} urls={urls} />
-
-      {rejected.length > 0 ? (
-        <details className="mt-6">
-          <summary className="min-h-11 cursor-pointer py-2 text-neutral-500">Rejected ({rejected.length})</summary>
-          <ul className="mt-2 space-y-3 opacity-70">
-            {rejected.map((item) => (
-              <PostCard key={item.id} item={item} time={null} timeZone={ctx.timeZone} postUrl={urls.get(item.id)} />
-            ))}
-          </ul>
-        </details>
-      ) : null}
-
-      <ApproveBar
-        batchId={batch.id}
-        approvable={confirm.approvable}
-        warnCount={confirm.warnCount}
-        skipped={skipped}
-        untimedCount={untimedDrafts}
-        media={media}
-        approveAll={approveAllAction.bind(null, batch.id)}
-        fillTimes={fillTimesAction.bind(null, batch.id)}
-        addItem={addItemAction}
-      />
-    </main>
+      <WeekGrid groups={groups} timeZone={ctx.timeZone} openReset={openReset} />
+      <RejectedList items={rejected} timeZone={ctx.timeZone} />
+    </AppFrame>
   );
 }

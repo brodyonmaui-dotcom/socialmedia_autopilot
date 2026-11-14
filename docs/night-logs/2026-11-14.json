@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-14",
+  "startedAt": "2026-11-14T03:30:00Z",
+  "endedAt": "2026-11-14T09:40:00Z",
+  "model": "claude-fable-5-1 (lead) + haiku scouts + opus designer/implementers",
+  "session": "cloud · Fable run 3 · fable/run-3-2026-11-14",
+  "backlogItem": "F11 review + T3 · F12 batches restyle + art direction · final cross-cutting review · run-4 plan",
+  "summary": "Fable run 3: judged the 7 open review rows, approved the F11 T2 reset SQL, finished F11 (reset sheet + stuck cards + runbook), fixed the media-base fail-closed path (one config alert), restyled every remaining page onto design system v2 (F12 done, 10/10), wrote the run-4 plan with F13/F14 designs. Green: typecheck, 1441 tests, web build, both simulations. PR open.",
+  "needsAttention": [
+    {
+      "priority": 1,
+      "title": "Paste the four F9 probe lines",
+      "detail": "ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape are not in docs/research.md, so F9 T3 did not run this run."
+    },
+    {
+      "priority": 2,
+      "title": "First docker build after merge",
+      "detail": "Both Dockerfiles now copy the root tsconfig.json; no Docker daemon in the cloud container, so `docker compose up -d --build` on the VPS is the real test."
+    }
+  ],
+  "done": [
+    "Item 1: 7 open review-pack rows judged (dockerfiles #2 fixed, #3 creator; f11-pure #8 accepted, #11/#13 folded into T3, #12 approved; handoff-media #7 fixed)",
+    "Item 2: F11 T2 SQL reviewed against the worker's listDue gate and the engine's existence check; approved",
+    "handoff-media #7: empty/invalid PUBLIC_MEDIA_BASE skips the tick with one deduped page-only 'config' alert (ed25c6d)",
+    "F11 T3: ResetSheet (Confirm disabled until allTicked), stuck-item cards, record-it on every failed/unknown row except Snapchat, runbook (af4c687)",
+    "F12: batches list + detail (af4c687), Snapchat handoff (db78060), Alerts + Inbox + Analytics (6bcaa91), Library + touch-up + Research — all 10 restyle tasks done; 30 shots in docs/design/ui-shots/f12/",
+    "Final cross-cutting review (branch diff facts vs non-negotiables 2–6): no new publish path, run-mode untouched, every new write guarded (F11 ones in one tx), only new env name is the build-only NEXT_DIST_DIR, no places/zones in production code, check-public-leaks ok (98 files)",
+    "Run-4 plan + F13 (go-live readiness) + F14 (weekly loop) designs, reviewed; F13/F14 added to the tracker"
+  ],
+  "notDone": [
+    "F9 T3 (no probe output in docs/research.md)",
+    "F12 cosmetic touch-ups (alerts kind-filter wrap, desktop DMs right column) → run 4 item 4",
+    "Codebase map refresh → run 4 item 5",
+    "F7 A9 tick-overlap lock and YouTube findExisting → F13"
+  ],
+  "decisions": [
+    "F11 T2 SQL approved as written: reset keeps the key, sets attempts=1, clears approved_at; record-published allowed from any failed/unknown row",
+    "validatePostUrl keeps 'any path beyond /' (evidence only); hosts stay exact",
+    "IG checklist box 3 reworded to cover the auto-check 'error' case; the result shows as a chip",
+    "Record-published button on every failed/unknown row except Snapchat (handoff note instead); only the reset button is gated on canReset",
+    "Empty/invalid PUBLIC_MEDIA_BASE skips the outbox tick with one deduped 'config' alert (page-only) instead of failing every post",
+    "Both Dockerfiles copy the root tsconfig.json",
+    "Per-card Approve is outline; 'Approve all' is the single solid action on the batch page",
+    "Skip today asks for confirmation on the handoff page",
+    "F14 idempotency uses pg_advisory_xact_lock on the week + an in-tx existence check; no migration 0009",
+    "Library 'file missing' keeps its meaning (source gone), not 'no clean R2 copy'",
+    "Research tabs carry no counts (clipped at 390 px); counts live in the hero"
+  ],
+  "blocked": [],
+  "tests": {
+    "passed": 1441,
+    "failed": 0,
+    "notes": "137 files with DATABASE_URL at the final commit; typecheck 0 errors; web build compiled; simulate-week OK (0 double-posts, 0 cap breaches); simulate-engagement OK (shadow + live-fake, 0 double-replies, 0 location leaks)"
+  },
+  "commits": 9,
+  "prUrl": "https://github.com/brodyonmaui-dotcom/socialmedia_autopilot/pull/20",
+  "nextPickup": [
+    "Creator: review/merge the PR, then migrations 0006–0008, passkey, VAPID, docker build, probe lines (see docs/prep/run-4-plan.md 'Needs you')",
+    "Run 4: start from docs/prep/run-4-plan.md → F13 T1–T4 (preflight, tick lock, YT findExisting, first-real-post runbook)"
+  ]
+}

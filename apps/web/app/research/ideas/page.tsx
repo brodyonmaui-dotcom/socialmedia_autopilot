@@ -1,31 +1,42 @@
 import { allowedMoves, listIdeas, IDEA_STAGES, type Idea, type IdeaStage } from "@autopilot/research";
 import { getPool } from "../../../lib/db.js";
-import { addIdeaAction, moveIdeaAction } from "../actions.js";
-import { button, ErrorBanner, errorFrom, input, PillarSelect, ResearchHeader, smallButton, type SearchParams } from "../ui.js";
 import { requireSession } from "../../../lib/auth/require.js";
+import { addIdeaAction, moveIdeaAction } from "../actions.js";
+import { Badge, Button, CONTAINER, EmptyState, FIELD, FOCUS, Input, ListRow, ListRows, RevealList, SectionHead, cx, type RevealItem } from "../../../components/ui/index.js";
+import { ideaMeta, plural, stageBadge, two } from "../../../lib/research/view.js";
+import { errorFrom, FormBand, PillarSelect, ResearchFrame, type SearchParams } from "../ui.js";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Ideas · runmysocials" };
 
 /** The field a move needs (see moveIdea in packages/research): shown inline next to that move's button. */
-const NEEDS: Partial<Record<IdeaStage, { name: string; placeholder: string }>> = {
-  scripted: { name: "script", placeholder: "shots / talking points" },
-  filmed: { name: "mediaId", placeholder: "library clip id" },
-  posted: { name: "batchItemIds", placeholder: "batch item id(s)" },
+const NEEDS: Partial<Record<IdeaStage, { name: string; label: string; placeholder: string }>> = {
+  scripted: { name: "script", label: "Script", placeholder: "shots / talking points" },
+  filmed: { name: "mediaId", label: "Clip id", placeholder: "library clip id" },
+  posted: { name: "batchItemIds", label: "Batch item ids", placeholder: "batch item id(s)" },
 };
 
 function MoveForm({ idea, to }: { idea: Idea; to: IdeaStage }) {
   const need = NEEDS[to];
+  const fieldId = `move-${idea.id}-${to}`;
   return (
-    <form action={moveIdeaAction} className="flex gap-2">
+    <form action={moveIdeaAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
       <input type="hidden" name="id" value={idea.id} />
       <input type="hidden" name="to" value={to} />
       {need &&
         (need.name === "script" ? (
-          <textarea name="script" defaultValue={idea.script} placeholder={need.placeholder} rows={2} className={input} />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <label htmlFor={fieldId} className="ds-caps text-ds-muted">
+              {need.label}
+            </label>
+            <textarea id={fieldId} name="script" defaultValue={idea.script} placeholder={need.placeholder} rows={3} className={cx(FIELD, FOCUS, "min-h-24 py-3 leading-normal")} />
+          </div>
         ) : (
-          <input name={need.name} placeholder={need.placeholder} className={input} />
+          <Input id={fieldId} label={need.label} name={need.name} placeholder={need.placeholder} className="min-w-0 flex-1" />
         ))}
-      <button className={smallButton}>→ {to}</button>
+      <Button type="submit" variant="outline" size="sm">
+        Move to {to}
+      </Button>
     </form>
   );
 }
@@ -35,48 +46,66 @@ export default async function IdeasPage({ searchParams }: { searchParams: Search
   const error = await errorFrom(searchParams);
   const ideas = await listIdeas(getPool());
 
+  let n = 0;
+  const stages = IDEA_STAGES.map((stage) => {
+    const inStage = ideas.filter((i) => i.stage === stage);
+    const s = stageBadge(stage);
+    const items: RevealItem[] = inStage.map((i) => ({
+      id: i.id,
+      index: two(++n),
+      title: i.title,
+      meta: ideaMeta(i),
+      trailing: <Badge tone={s.tone}>{s.label}</Badge>,
+    }));
+    return { stage, items };
+  }).filter((s) => s.items.length > 0);
+  const movable = ideas.filter((i) => allowedMoves(i.stage).length > 0);
+
   return (
-    <main className="mx-auto max-w-md p-4">
-      <ResearchHeader title="Idea backlog" current="/research/ideas" />
-      <ErrorBanner error={error} />
-
-      <form action={addIdeaAction} className="mt-4 space-y-2 rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
-        <input name="title" required maxLength={140} placeholder="Idea (e.g. pull day form check)" className={input} />
-        <input name="hook" maxLength={200} placeholder="Hook / first line (optional)" className={input} />
-        <div className="flex gap-2">
-          <PillarSelect />
-          <button className={button}>Add</button>
+    <ResearchFrame current="ideas" error={error}>
+      <FormBand title="Add an idea" action={addIdeaAction}>
+        <Input label="Idea" name="title" required maxLength={140} placeholder="e.g. pull day form check" className="sm:col-span-2" />
+        <Input label="Hook (optional)" name="hook" maxLength={200} placeholder="First line" className="sm:col-span-2" />
+        <PillarSelect />
+        <div className="flex items-end">
+          <Button type="submit" variant="solid" arrow>
+            Add idea
+          </Button>
         </div>
-      </form>
+      </FormBand>
 
-      {IDEA_STAGES.map((stage) => {
-        const inStage = ideas.filter((i) => i.stage === stage);
-        if (!inStage.length) return null;
-        return (
-          <section key={stage} className="mt-6">
-            <h2 className="text-sm font-semibold">
-              {stage} ({inStage.length})
-            </h2>
-            <ul className="mt-2 divide-y divide-neutral-200 rounded-lg border border-neutral-200 text-sm dark:divide-neutral-800 dark:border-neutral-800">
-              {inStage.map((idea) => (
-                <li key={idea.id} className="space-y-2 p-3">
-                  <div>
-                    <div className="font-medium">{idea.title}</div>
-                    <div className="text-neutral-500">
-                      {idea.pillar ?? "—"}
-                      {idea.hook ? ` · "${idea.hook}"` : ""}
-                    </div>
-                    {idea.script && <p className="mt-1 whitespace-pre-line text-neutral-600 dark:text-neutral-400">{idea.script}</p>}
-                  </div>
+      {ideas.length === 0 ? (
+        <div className={cx(CONTAINER, "py-10")}>
+          <EmptyState icon="research" title="No ideas yet" body="Add the first one above." className="border border-ds-line" />
+        </div>
+      ) : (
+        stages.map(({ stage, items }, k) => (
+          <section key={stage} aria-label={stage}>
+            <SectionHead index={two(k + 1)} title={stage[0]!.toUpperCase() + stage.slice(1)} meta={plural(items.length, "idea")} />
+            <div className={cx(CONTAINER, "-mt-px pb-10")}>
+              <RevealList label={`${stage} ideas`} items={items} />
+            </div>
+          </section>
+        ))
+      )}
+
+      {movable.length > 0 ? (
+        <section aria-label="Move ideas">
+          <SectionHead index={two(stages.length + 1)} title="Move" serif="forward" meta={plural(movable.length, "idea")} />
+          <div className={cx(CONTAINER, "-mt-px pb-10")}>
+            <ListRows label="Ideas that can move" className="border-t border-ds-line">
+              {movable.map((idea) => (
+                <ListRow key={idea.id} title={idea.title} subtitle={`${idea.stage} · ${idea.pillar ?? "no pillar"}`}>
+                  {idea.script ? <p className="whitespace-pre-line text-[15px] leading-snug text-ds-muted">{idea.script}</p> : null}
                   {allowedMoves(idea.stage).map((to) => (
                     <MoveForm key={to} idea={idea} to={to} />
                   ))}
-                </li>
+                </ListRow>
               ))}
-            </ul>
-          </section>
-        );
-      })}
-    </main>
+            </ListRows>
+          </div>
+        </section>
+      ) : null}
+    </ResearchFrame>
   );
 }

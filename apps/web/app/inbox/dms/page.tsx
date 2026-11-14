@@ -1,40 +1,22 @@
-import Link from "next/link";
+import { AppFrame } from "../../../components/AppFrame.js";
+import { ButtonLink, CONTAINER, EmptyState, ListRow, ListRows, Readout, cx } from "../../../components/ui/index.js";
 import { getPool } from "../../../lib/db.js";
 import { requireSession } from "../../../lib/auth/require.js";
 import { counts, listDmThreads, relativeTime } from "../../../lib/engagement/queries.js";
-import { Banner, PlatformBadge } from "../../batches/ui/WarningChip.js";
+import { handleLabel, lastMessages, plural } from "../../../lib/inbox/view.js";
+import { Notice } from "../../batches/ui/Notice.js";
 import { copyDraftAction } from "../actions.js";
-import { CopyButton } from "../ui/CommentCard.js";
+import { CopyButton, ReplyWell } from "../ui/CommentCard.js";
 import { DmCountdown } from "../ui/DmCountdown.js";
+import { InboxHero, inboxFooter } from "../ui/InboxFrame.js";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "DMs · runmysocials" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const param = (v: string | string[] | undefined) => (typeof v === "string" ? v.slice(0, 300) : undefined);
 /** Instagram handles only: letters, digits, dot, underscore. Anything else gets no deep link. */
 const HANDLE = /^[A-Za-z0-9._]{1,30}$/;
-
-function Tabs({ c }: { c: { flagged: number; shadow: number; dmsOpen: number } }) {
-  const tabs: Array<[string, string, boolean]> = [
-    [`Flagged ${c.flagged}`, "/inbox", false],
-    [`Shadow ${c.shadow}`, "/inbox?tab=shadow", false],
-    ["Sent", "/inbox?tab=sent", false],
-    [`DMs ${c.dmsOpen}`, "/inbox/dms", true],
-  ];
-  return (
-    <nav className="mt-2 grid grid-cols-4 gap-1">
-      {tabs.map(([label, href, current]) => (
-        <Link
-          key={href}
-          href={href}
-          className={`inline-flex min-h-11 items-center justify-center rounded-lg px-1 text-[15px] ${current ? "bg-neutral-900 font-semibold text-white dark:bg-neutral-100 dark:text-neutral-900" : "border border-neutral-300 dark:border-neutral-700"}`}
-        >
-          {label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
 
 export default async function DmsPage({ searchParams }: { searchParams: SearchParams }) {
   await requireSession();
@@ -42,66 +24,74 @@ export default async function DmsPage({ searchParams }: { searchParams: SearchPa
   const pool = getPool();
   const now = new Date();
   const [c, threads] = await Promise.all([counts(pool, now), listDmThreads(pool, now)]);
+  const drafts = threads.filter((t) => t.draft).length;
 
   return (
-    <main className="mx-auto max-w-2xl p-4 pb-16 text-base">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Inbox</h1>
-        <Link href="/" className="inline-flex min-h-11 items-center text-neutral-500 underline">
-          dashboard
-        </Link>
-      </div>
-      <Tabs c={c} />
-      <Banner kind="error" text={param(sp.error)} />
-      <p className="mt-3 text-sm text-neutral-500">Read + draft only. You answer every DM yourself in the Instagram app.</p>
+    <AppFrame active="inbox" footer={inboxFooter}>
+      <InboxHero
+        c={c}
+        onDms
+        pulse={c.dmsOpen > 0 ? { label: `${plural(c.dmsOpen, "window")} open`, tone: "accent" } : { label: "No open windows", tone: "muted" }}
+        aside={
+          <>
+            <p className="ds-caps text-ds-muted">Read + draft only</p>
+            <p className="text-[20px] font-bold leading-tight tracking-[-0.02em]">
+              You answer every DM <span className="ds-serif font-normal">yourself</span> in the Instagram app.
+            </p>
+            <p className="ds-note">The app never messages anyone. Copy a draft, open the thread and reply there inside the 24 h window.</p>
+            <Readout
+              items={[
+                { k: "Threads", v: String(threads.length) },
+                { k: "Open · 24 h", v: String(c.dmsOpen) },
+                { k: "Drafts", v: String(drafts) },
+                { k: "Route", v: "Assisted" },
+              ]}
+            />
+          </>
+        }
+      />
+      <Notice error={param(sp.error)} />
 
-      {threads.length === 0 ? (
-        <p className="mt-6 text-neutral-500">No DM threads yet.</p>
-      ) : (
-        <ul className="mt-4 space-y-3">
-          {threads.map((t) => (
-            <li key={t.id} className="rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
-              <div className="flex flex-wrap items-center gap-2">
-                <PlatformBadge platform="instagram" />
-                <span className="font-semibold">{t.handle ? `@${t.handle}` : "unknown"}</span>
-                {t.lastInboundAt ? <span className="text-sm text-neutral-500">{relativeTime(t.lastInboundAt, now)}</span> : null}
-              </div>
-              <div className="mt-1">
-                <DmCountdown lastInboundAt={t.lastInboundAt} initialNow={now.toISOString()} />
-              </div>
-              <ul className="mt-2 space-y-1">
-                {t.messages.slice(-3).map((m) => (
-                  <li
-                    key={m.id}
-                    className={`max-w-[85%] rounded-2xl px-3 py-2 text-base ${m.dir === "in" ? "bg-neutral-100 dark:bg-neutral-900" : "ml-auto bg-sky-100 dark:bg-sky-950"}`}
-                  >
-                    {m.text}
-                  </li>
-                ))}
-              </ul>
-              {t.draft ? (
-                <div className="mt-3 rounded-lg border border-dashed border-neutral-300 p-2 dark:border-neutral-700">
-                  <p className="text-sm text-neutral-500">draft{t.draft.bucket ? ` · ${t.draft.bucket}` : ""}</p>
-                  <p className="text-base">{t.draft.text}</p>
-                </div>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-2">
-                {t.draft ? <CopyButton text={t.draft.text} onCopied={copyDraftAction.bind(null, t.draft.id)} /> : null}
-                {t.handle && HANDLE.test(t.handle) ? (
-                  <a
-                    href={`https://ig.me/m/${t.handle}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex min-h-11 items-center justify-center rounded-lg border border-neutral-300 px-4 text-base font-medium dark:border-neutral-700"
-                  >
-                    Open Instagram
-                  </a>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+      <section aria-labelledby="threads" className={cx(CONTAINER, "grid grid-cols-4 lg:grid-cols-12")}>
+        <div className="col-span-4 min-w-0 py-6 lg:col-span-8 lg:col-start-1 lg:border-r lg:border-ds-line lg:py-10 lg:pr-10">
+          <h2 id="threads" className="ds-caps text-ds-muted">
+            {plural(threads.length, "thread")}
+          </h2>
+          {threads.length === 0 ? (
+            <EmptyState icon="message" title="No DM threads yet" body="Instagram threads show up here once the read-only DM poll is verified." className="py-16" />
+          ) : (
+            <ListRows label="DM threads" className="mt-2 border-y border-ds-line">
+              {threads.map((t) => (
+                <ListRow
+                  key={t.id}
+                  avatar={{ platform: "instagram" }}
+                  title={handleLabel(t.handle, "unknown")}
+                  subtitle={t.lastInboundAt ? relativeTime(t.lastInboundAt, now) : undefined}
+                >
+                  <DmCountdown lastInboundAt={t.lastInboundAt} initialNow={now.toISOString()} />
+                  <ol aria-label="Last messages" className="flex flex-col divide-y divide-ds-line border-y border-ds-line">
+                    {lastMessages(t.messages).map((m) => (
+                      <li key={m.id} className="grid grid-cols-[56px_1fr] gap-3 py-3">
+                        <span className={cx("ds-caps pt-1", m.dir === "out" ? "text-ds-accent-fg" : "text-ds-faint")}>{m.who}</span>
+                        <span className="text-[16px] leading-normal text-ds-text">{m.text}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  {t.draft ? <ReplyWell label={`Draft${t.draft.bucket ? ` · ${t.draft.bucket}` : ""}`} text={t.draft.text} /> : null}
+                  <div className="flex flex-wrap gap-2">
+                    {t.draft ? <CopyButton text={t.draft.text} label="Copy draft" onCopied={copyDraftAction.bind(null, t.draft.id)} /> : null}
+                    {t.handle && HANDLE.test(t.handle) ? (
+                      <ButtonLink href={`https://ig.me/m/${t.handle}`} target="_blank" rel="noreferrer" variant="outline" size="sm" className="px-4" arrow>
+                        Open Instagram
+                      </ButtonLink>
+                    ) : null}
+                  </div>
+                </ListRow>
+              ))}
+            </ListRows>
+          )}
+        </div>
+      </section>
+    </AppFrame>
   );
 }

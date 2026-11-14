@@ -17,6 +17,7 @@ const KIND_LABELS = {
   "engagement-unknown": "Engagement unknown",
   "engagement-mode": "Engagement mode",
   "metrics-health": "Metrics",
+  config: "Configuration",
 };
 
 function notificationView(data) {
