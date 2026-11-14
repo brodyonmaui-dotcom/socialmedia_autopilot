@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-14",
+  "startedAt": "2026-11-14T00:05:00Z",
+  "endedAt": null,
+  "model": "opus (lead) + haiku scouts + sonnet/opus implementers",
+  "session": "cloud · opus day run before Fable run 3 · core",
+  "backlogItem": "Review pack for Fable · F11 T2/T3 · batches restyle · Fable brief rewrite",
+  "summary": "In progress.",
+  "needsAttention": [],
+  "done": [],
+  "notDone": [],
+  "decisions": [],
+  "blocked": [],
+  "tests": { "passed": 1261, "failed": 0, "notes": "Baseline at start: pnpm typecheck exit 0; pnpm test with DATABASE_URL 121 files / 1261 tests." },
+  "commits": 0,
+  "prUrl": null,
+  "nextPickup": []
+}
