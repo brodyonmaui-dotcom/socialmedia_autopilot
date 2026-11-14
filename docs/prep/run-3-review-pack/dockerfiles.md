@@ -33,4 +33,8 @@ COPY apps/web apps/web              (web Dockerfile:20)
 - First `docker compose up -d --build`: not run in this pass.
 
 ## Findings
-_(red-team pass fills this)_
+| # | Finding | Status | Test |
+|---|---|---|---|
+| 1 | Each image copies every workspace package it needs, transitively | not-an-issue (both copy core, db, research, engagement, adapters, analytics manifests + source; graph incl. undeclared @autopilot imports matches) | dockerfiles.test.ts › copies the manifest / source of every workspace package it needs (transitively) |
+| 2 | Root tsconfig.json not copied (packages' tsconfigs extend it) | needs Fable judgment (tsx finds no tsconfig from /app/apps/worker and uses defaults; next build uses apps/web's own; only a real build proves it) | - |
+| 3 | An actual image build | needs Fable judgment (no Docker daemon here; the creator's first `docker compose up -d --build` is the real test) | - |

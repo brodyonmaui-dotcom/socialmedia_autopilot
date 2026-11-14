@@ -61,4 +61,12 @@ Attack: double push across concurrent ticks (claim-before-send); push of old row
 - Dry-run behaviour: not found (no DRY_RUN reference in the three files). Job runs whenever VAPID is set (alert-push.ts:52, 59-65). Comment at core:14 says it runs in dry-run.
 
 ## Findings
-_(red-team pass fills this)_
+| # | Finding | Status | Test |
+|---|---|---|---|
+| 1 | Double push across concurrent ticks | not-an-issue (one UPDATE with skip-locked subselect + outer `pushed_at is null` re-check, claim before send) | alert-push-store.db.test.ts › two concurrent full ticks (claim + send) never push the same alert twice |
+| 2 | Old rows pushed after deploy | not-an-issue (0008 backfill + 24 h cutoff in SQL and isPushable) | alert-push.test.ts › never pushes rows older than maxAgeH |
+| 3 | Non-push kinds (metrics-health) leaking | not-an-issue (PUSH_KINDS_DEFAULT excludes it; claim filters `kind = any`) | alert-push-store.db.test.ts › two concurrent claims… only push kinds |
+| 4 | Endpoint/p256dh/auth in logs | not-an-issue (logs are counts only; web-push error text dropped) | alert-push.test.ts › logs never contain endpoints, keys or messages (spy) |
+| 5 | Send error un-claiming → re-send | not-an-issue (nothing clears pushed_at) | alert-push.test.ts › a 500 or a throw after the claim leaves pushed_at set |
+| 6 | 404/410 handling | not-an-issue (revoked_at only, revoked subs skipped) | alert-push.test.ts › 404/410 revokes that subscription |
+| 7 | Dry-run behaviour | not-an-issue (runs in dry-run by approved design: private notification) | alert-push.test.ts › runs the same in dry-run |

@@ -52,4 +52,12 @@ Attack: backfill really covers every existing row; FKs `on delete set null`; ind
 - Re-run safety on the VPS: migrations.md:4-5 (applied files skipped; one transaction per file). The statements at 0008:6-7, 12 and 15 have no IF NOT EXISTS. Header 0008:2 says "Applied by hand on the VPS"; migrations.md:3 and 15 say the runner applies it. No down migration (migrations.md:40).
 
 ## Findings
-_(red-team pass fills this)_
+Checked on a scratch DB `autopilot_rr_test` (local server; left in place, not dropped): 0001-0007, then 6 alerts, then 0008.
+| # | Finding | Status | Test |
+|---|---|---|---|
+| 1 | Backfill covers every existing row | not-an-issue (no WHERE; scratch run: 0 of 6 unpushed after 0008, acked row included) | scratch run (not committed) |
+| 2 | Rows written by the old worker between migrate and deploy stay unpushed | not-an-issue (they are new alerts; 24 h cutoff + one bundled notification bound it) | alert-push.test.ts › never pushes rows older than maxAgeH |
+| 3 | FKs on delete set null | not-an-issue (pg_constraint confdeltype = 'n' for alerts.acknowledged_session and push_subscriptions.session_id) | migration-0008.test.ts › adds pushed_at…; scratch run |
+| 4 | Index predicate vs claim query | not-an-issue (indexdef `WHERE pushed_at IS NULL AND acknowledged_at IS NULL` = the claim's two predicates exactly; key created_at = order) | migration-0008.test.ts › indexes unpushed open alerts |
+| 5 | Re-run safety | not-an-issue (runner skips applied files: 2nd migrate applied []; a raw re-apply fails on `pushed_at already exists` and rolls back atomically, data intact) | migrate.test.ts; scratch run |
+| 6 | Header says "applied by hand", runbook says runner | not-an-issue (doc wording only; applied files are never edited) | - |

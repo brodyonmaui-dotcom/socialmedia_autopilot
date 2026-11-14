@@ -43,7 +43,7 @@ Attack: leaking PUBLIC_MEDIA_BASE / r2 key / upstream bodies; serving a non-due/
 |---|---|---|---|
 | 1 | r2_key with `../`, `%2e%2e`, `..\\`, `?`/`#` escaped the base path once fetch normalised `${base}/${key}` | fixed (test media.test.ts › refuses an r2_key that would leave the base path) | media.ts underBase(): same origin, under base path + "/", no query/fragment, else fixed 404, no fetch |
 | 2 | `//host` or absolute-URL r2_key | not-an-issue (joined after base + "/", host can't change; asserted in the same test) | media.test.ts › refuses an r2_key… |
-| 3 | Worker outbox.ts:94 builds mediaUrl the same unchecked way | needs Fable judgment (outside this hunk; keys are ours, but same guard would be cheap) | - |
+| 3 | Worker outbox.ts:94 builds mediaUrl the same unchecked way | fixed (test outbox.test.ts › an r2_key that escapes PUBLIC_MEDIA_BASE fails permanently with a sanitized error; never published) | mediaUrlGuard: permanent failure + final-failure alert, adapter never called, dry run refuses |
 | 4 | Leaking PUBLIC_MEDIA_BASE / key / upstream body in responses or logs | not-an-issue (fixed strings; logs carry status number only) | media.test.ts › maps upstream errors… without echoing |
 | 5 | Serving non-due / non-approved / non-Snapchat / bad-UUID item | not-an-issue (LISTED + due bound + future-bucket check + UUID gate) | store.db.test.ts › loadShareable: only the due item…; media.test.ts › 404s… |
 | 6 | Caching headers | not-an-issue (`private, no-store` on every response, force-dynamic, fetch no-store) | media.test.ts › streams a due item's clean file… |

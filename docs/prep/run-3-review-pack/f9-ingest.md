@@ -36,4 +36,9 @@ Attack: any non-GET call besides the YT token refresh; tokens in logs/alerts; al
 - Alert storm: trip fires only at consecutive === 3 (health.ts:35), so once per streak. Insert guarded by not-exists on unacknowledged rows (analytics-ingest.ts:100). Loop is per trip (:128-132). Recovery does not close the alert: no UPDATE of alerts in hunk (health.ts:37 and :133 log only).
 
 ## Findings
-_(red-team pass fills this)_
+| # | Finding | Status | Test |
+|---|---|---|---|
+| 1 | Health state saved before the trip alert insert: a failed insert lost the alert for good (next run counts 4, never trips) | fixed (test analytics-ingest.test.ts › a failed alert insert on the tripping run is retried next run) | alerts now raised before setSetting |
+| 2 | Non-GET besides the YT token refresh | not-an-issue (FetchLike carries headers only; refreshAccessToken is the only POST) | analytics-ingest.test.ts › writes due snapshots… (method GET check) |
+| 3 | Tokens in logs/alerts | not-an-issue (lastError via safeErrorMessage → sanitizeError; alert re-sanitized + 300 cap; tokens in headers only) | analytics-ingest.test.ts › 3 failing runs raise one metrics-health alert… no token in logs or alerts |
+| 4 | Alert storm | not-an-issue (trip only at consecutive === 3 + not-exists on open rows) | analytics-ingest.test.ts › 3 failing runs raise one… not one per run |
