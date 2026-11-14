@@ -6,10 +6,13 @@ export const MW_SESSION_COOKIE = "ap_session";
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
 
 /** Paths (relative to basePath /app) reachable without a session. sw.js is static and holds no data (F8). */
-const PUBLIC_PREFIXES = ["/login", "/_next/static", "/_next/image", "/manifest.json", "/sw.js", "/favicon.ico", "/icons"];
+/** Single files: exact match only (so /sw.js.map, /sw.jsx, /sw.js/x are not public). */
+const PUBLIC_FILES = ["/manifest.json", "/sw.js", "/favicon.ico"];
+/** Directories: the path itself or anything under it ("/" boundary, so /iconsx is not public). */
+const PUBLIC_PREFIXES = ["/login", "/_next/static", "/_next/image", "/icons"];
 
 export function isPublicPath(path: string): boolean {
-  return PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(p + "/"));
+  return PUBLIC_FILES.includes(path) || PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(p + "/"));
 }
 
 export function middlewareDecision(path: string, cookie: string | undefined): "pass" | "redirect" {

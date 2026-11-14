@@ -38,4 +38,20 @@ describe("middlewareDecision", () => {
     expect(middlewareDecision("/alerts", undefined)).toBe("redirect");
     expect(middlewareDecision("/sw.js", undefined)).toBe("pass");
   });
+
+  // Lookalikes of the public files/dirs: not public, and the matcher must still run middleware on them.
+  const LOOKALIKES = [
+    "/sw.js.map", "/sw.jsx", "/sw.js/anything", "/sw.js/", "/manifest.json.bak", "/manifest.json/x", "/manifest.jsonx",
+    "/favicon.ico.txt", "/favicon.ico/x", "/iconsx", "/icons-private", "/loginx", "/login-admin", "/_next/imagex", "/_next/staticx",
+  ];
+  it("public files are exact and public dirs are bounded (no prefix lookalikes)", () => {
+    for (const p of LOOKALIKES) expect(middlewareDecision(p, undefined), p).toBe("redirect");
+    for (const p of ["/login", "/manifest.json", "/sw.js", "/favicon.ico", "/icons/icon-192.png", "/_next/static/chunks/a.js", "/_next/image"]) {
+      expect(middlewareDecision(p, undefined), p).toBe("pass");
+    }
+  });
+  it("matcher runs middleware on the lookalikes", () => {
+    const re = new RegExp(`^${config.matcher[1]!}$`);
+    for (const p of LOOKALIKES) expect(re.test(p), p).toBe(true);
+  });
 });
