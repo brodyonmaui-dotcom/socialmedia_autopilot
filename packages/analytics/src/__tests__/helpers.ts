@@ -21,6 +21,7 @@ export function post(over: Partial<PostRecord> & { views?: number | null }): Pos
       comments: null,
       saves: null,
       shares: null,
+      reposts: null,
       avgWatchTime: null,
       skipRate: null,
       ...(rest.metrics ?? {}),

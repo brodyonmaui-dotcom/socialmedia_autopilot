@@ -29,6 +29,9 @@ import {
 import { requireSession } from "../lib/auth/require.js";
 import { PgBatchStore } from "../lib/batches/pg-store.js";
 import { getPool } from "../lib/db.js";
+import { loadEditorRenders } from "../lib/editor/queries.js";
+import { EditorSection } from "../components/editor/EditorCard.js";
+import { Notice } from "./batches/ui/Notice.js";
 import { handoffContext, listHandoff } from "../lib/handoff/store.js";
 import {
   batchProgress,
@@ -53,12 +56,16 @@ const CELLS = "grid grid-cols-4 lg:grid-cols-12 pl-px pt-px";
 const CELL = "-ml-px -mt-px";
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-export default async function DashboardPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+const param = (v: string | string[] | undefined) => (typeof v === "string" ? v.slice(0, 300) : undefined);
+
+export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
   await requireSession();
+  const sp = await searchParams;
   const pool = getPool();
   const now = new Date();
   // Read-only, indexed counts. The first three also feed the frame's badges (passed in, not re-queried).
-  const [batchRows, alertRows, flaggedRows, latestAlert, outboxRows, upNext, monthRows, latest] = await Promise.all([
+  const [batchRows, alertRows, flaggedRows, latestAlert, outboxRows, upNext, monthRows, latest, editors] = await Promise.all([
     pool.query("select status, count(*)::int as n from batches group by status"),
     pool.query("select count(*)::int as n from alerts where acknowledged_at is null"),
     pool.query("select count(*)::int as n from comment_triage where bucket in ('flag', 'hide_flag') and handled_at is null"),
@@ -82,7 +89,11 @@ export default async function DashboardPage() {
       [new Date(now.getTime() - 32 * 86_400_000), new Date(now.getTime() + 32 * 86_400_000)],
     ),
     new PgBatchStore(pool).listBatches(1),
+    // F15: editor drafts (read-only; warnings computed per whole batch).
+    loadEditorRenders(pool, now),
   ]);
+  const hasEditors = editors.renders.length > 0;
+  const idx = (n: number) => String(hasEditors ? n + 1 : n).padStart(2, "0");
   const flagged = (flaggedRows.rows[0]?.n as number | undefined) ?? 0;
   const batchCount = (s: string) => (batchRows.rows as Array<{ status: string; n: number }>).find((r) => r.status === s)?.n ?? 0;
   const openAlerts = (alertRows.rows[0]?.n as number | undefined) ?? 0;
@@ -187,8 +198,13 @@ export default async function DashboardPage() {
         label={`Instagram, YouTube, TikTok, Snapchat${week ? ` — week ${week}` : ""}`}
       />
 
-      {/* 02 · Up next */}
-      <SectionHead index="02" title="Up" serif="next" meta={<span>{plural(upcomingTotal, "post")} scheduled</span>} />
+      <Notice error={param(sp.error)} note={param(sp.note)} />
+
+      {/* 02 · From your editors (F15; hidden when there are none) */}
+      <EditorSection renders={editors.renders} index="02" from="home" hideWhenEmpty utcFallback={editors.timeZoneSource === "fallback"} />
+
+      {/* Up next */}
+      <SectionHead index={idx(2)} title="Up" serif="next" meta={<span>{plural(upcomingTotal, "post")} scheduled</span>} />
       <div className={CONTAINER}>
         {next.length > 0 ? (
           <RevealList
@@ -219,7 +235,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* 03 · Numbers */}
-      <SectionHead index="03" title="By the" serif="numbers" meta="Live counts" id="numbers" />
+      <SectionHead index={idx(3)} title="By the" serif="numbers" meta="Live counts" id="numbers" />
       <div className={cx(CONTAINER, "py-10 lg:py-16")}>
         <div className={CELLS}>
           <Card index="A" title="Batches" className={cx(CELL, "col-span-4 lg:col-span-6")}>

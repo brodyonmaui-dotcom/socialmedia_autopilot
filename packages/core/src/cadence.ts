@@ -45,11 +45,10 @@ export interface CadenceSettings {
 /**
  * Defaults, each traceable to docs:
  *  - windows: the 0002_settings.sql seed.
- *  - slotsPerDay 4 and IG cap 4: decisions.md §5 (3 trials + 1 regular reel a day). IG's API quota
- *    is 100/24 h (research.md M0 result), so 4 is a cadence choice, not a platform limit.
- *  - YouTube cap 4: the dedicated 100 uploads/day bucket (research.md) leaves room; 4 matches the grid.
- *  - TikTok cap 4: Zernio's lane allows 15 videos/24 h and 5 pending drafts/24 h (research.md
- *    2026-11-11 entry); 4 keeps drafts under the 5-pending limit even if every post is a draft.
+ *  - slotsPerDay 4: decisions.md §5 (3 trials + 1 regular reel a day).
+ *  - dailyCaps 5 (IG/YT/TikTok): 3 weekly + 2 same-day; a stored cadence row overrides this (F15).
+ *    All well under the platform limits in CAP_LIMITS. Weekly items still use only the 4 grid slots;
+ *    the 5th post a day comes from an editor (sameDay) item on the flex grid.
  *  - Snapchat cap 1: decisions.md §3, 1 Spotlight a day (assisted; the scheduler never fires it).
  *  - stagger: Instagram anchors; YouTube the next slot the same day; TikTok the next day's matching
  *    slot; Snapchat two days later (it's the proven performer per decisions.md §3).
@@ -62,7 +61,7 @@ export const DEFAULT_CADENCE: CadenceSettings = {
     { start: "20:00", end: "21:00" },
   ],
   slotsPerDay: 4,
-  dailyCaps: { instagram: 4, youtube: 4, tiktok: 4, snapchat: 1 },
+  dailyCaps: { instagram: 5, youtube: 5, tiktok: 5, snapchat: 1 }, // 3 weekly + 2 same-day; a stored cadence row overrides this
   stagger: {
     instagram: { days: 0, slots: 0 },
     youtube: { days: 0, slots: 1 },
@@ -74,6 +73,16 @@ export const DEFAULT_CADENCE: CadenceSettings = {
 };
 
 export const PLATFORMS: readonly Platform[] = ["instagram", "youtube", "tiktok", "snapchat"] as const;
+
+/**
+ * Highest daily cap the Settings page (and normalizeCadence) accepts per platform: the platform
+ * limits in docs/research.md, with margin.
+ *  - instagram 25: Graph API content publishing allows 100 API-published posts per 24 h.
+ *  - youtube 10: videos.insert has its own bucket of 100 uploads/day.
+ *  - tiktok 15: Zernio's TikTok lane allows 15 videos/24 h (and 5 pending Creator Inbox drafts/24 h).
+ *  - snapchat 1: 1 Spotlight a day (decisions.md §3; assisted).
+ */
+export const CAP_LIMITS: Record<Platform, number> = { instagram: 25, youtube: 10, tiktok: 15, snapchat: 1 };
 
 function isHHMM(s: unknown): s is string {
   return typeof s === "string" && /^\d{2}:\d{2}$/.test(s) && minutesOfDay(s) < 1440;
@@ -118,6 +127,7 @@ export function normalizeCadence(input: unknown, base: CadenceSettings = DEFAULT
       const v = (raw.dailyCaps as Record<string, unknown>)[p];
       if (v === undefined) continue;
       if (!Number.isInteger(v) || (v as number) < 0) throw new Error(`cadence.dailyCaps.${p}: non-negative integer`);
+      if ((v as number) > CAP_LIMITS[p]) throw new Error(`cadence.dailyCaps.${p}: at most ${CAP_LIMITS[p]} (platform limit, research.md)`);
       out.dailyCaps[p] = v as number;
     }
   }

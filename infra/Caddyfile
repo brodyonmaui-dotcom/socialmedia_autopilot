@@ -4,6 +4,8 @@
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin
+		X-Frame-Options DENY
+		Content-Security-Policy "frame-ancestors 'none'"
 	}
 	# Static pages (privacy policy for Meta/Google branding, Snapchat share test) stay static;
 	# /app is the dashboard (Next.js, basePath /app: pages AND assets live under it). Until the M2

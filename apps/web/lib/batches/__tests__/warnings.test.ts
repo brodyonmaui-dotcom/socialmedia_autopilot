@@ -6,7 +6,7 @@ import { makeItem, NOW } from "./fixtures.js";
 
 const ctx = (over: Partial<WarningContext> = {}): WarningContext => ({
   now: NOW,
-  cadence: DEFAULT_CADENCE,
+  cadence: { ...DEFAULT_CADENCE, dailyCaps: { ...DEFAULT_CADENCE.dailyCaps, instagram: 4, youtube: 4, tiktok: 4 } },
   timeZone: "UTC",
   existing: [],
   blocklist: [],

@@ -26,6 +26,9 @@ export interface GroupStat {
   medianEr: number | null;
   /** group median views / platform median views. */
   lift: number | null;
+  /** Median ig_reels_avg_watch_time (ms) / skip rate (%) over group posts that report them; null = none. */
+  medianAvgWatchTime: number | null;
+  medianSkipRate: number | null;
 }
 export interface Recommendation {
   platform: Platform;
@@ -44,6 +47,12 @@ export interface PlatformWeek {
   prevViews: number | null;
   /** this week's total views / last week's; null when either side has no data. */
   weekOverWeek: number | null;
+  /** Sum of shares and reposts this week (null = no post reported it). */
+  shares?: number | null;
+  reposts?: number | null;
+  /** Mean avg watch time (ms) and skip rate (%) over this week's posts that report them. */
+  avgWatchTime?: number | null;
+  skipRate?: number | null;
   top: Array<{ batchItemId: string; hook: string; views: number | null; er: number | null }>;
 }
 export interface WeeklyReport {
@@ -110,6 +119,14 @@ export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): Wee
       const v = xs.map((p) => p.metrics.views).filter((x): x is number => x !== null);
       return v.length ? v.reduce((a, b) => a + b, 0) : null;
     };
+    const sumOf = (k: "shares" | "reposts") => {
+      const v = week.map((p) => p.metrics[k]).filter((x): x is number => x !== null);
+      return v.length ? v.reduce((a, b) => a + b, 0) : null;
+    };
+    const meanOf = (k: "avgWatchTime" | "skipRate") => {
+      const v = week.map((p) => p.metrics[k]).filter((x): x is number => x !== null);
+      return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    };
     const views = sumViews(week);
     const prevViews = sumViews(prev);
     platforms.push({
@@ -119,6 +136,10 @@ export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): Wee
       views,
       prevViews,
       weekOverWeek: views !== null && prevViews ? views / prevViews : null,
+      shares: sumOf("shares"),
+      reposts: sumOf("reposts"),
+      avgWatchTime: meanOf("avgWatchTime"),
+      skipRate: meanOf("skipRate"),
       top: [...week]
         .filter((p) => p.metrics.views !== null)
         .sort((a, b) => b.metrics.views! - a.metrics.views! || a.postedAt.localeCompare(b.postedAt))
@@ -155,6 +176,8 @@ export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): Wee
         medianViews: mv,
         medianEr: median(xs.map((p) => engagementRate(p.metrics)).filter((x): x is number => x !== null)),
         lift: mv !== null && platformMedian ? mv / platformMedian : null,
+        medianAvgWatchTime: median(xs.map((p) => p.metrics.avgWatchTime).filter((x): x is number => x !== null)),
+        medianSkipRate: median(xs.map((p) => p.metrics.skipRate).filter((x): x is number => x !== null)),
       };
       groups.push(g);
       members.set(g, xs.map((p) => p.batchItemId).sort().join(","));
@@ -211,6 +234,12 @@ export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): Wee
   if (!platforms.length) lines.push("- No posts this week or last.");
   for (const p of platforms) {
     lines.push(`- **${p.platform}**: ${p.posts} post(s), ${fmtInt(p.views)} views (last week ${fmtInt(p.prevViews)}, ${p.weekOverWeek === null ? "no comparison" : fmtX(p.weekOverWeek)})`);
+    const extra = [
+      p.shares != null || p.reposts != null ? `${fmtInt(p.shares ?? null)} shares, ${fmtInt(p.reposts ?? null)} reposts` : null,
+      p.avgWatchTime != null ? `avg watch ${(p.avgWatchTime / 1000).toFixed(1)} s` : null,
+      p.skipRate != null ? `skip rate ${p.skipRate.toFixed(0)}%` : null,
+    ].filter(Boolean);
+    if (extra.length) lines.push(`  - ${extra.join(", ")}`);
     for (const t of p.top) lines.push(`  - "${t.hook}": ${fmtInt(t.views)} views, ER ${fmtPct(t.er)}`);
   }
   lines.push("", `## What worked (last ${COMPARISON_DAYS} days, within each platform)`);

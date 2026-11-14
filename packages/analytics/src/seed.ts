@@ -60,6 +60,7 @@ export function syntheticPosts(opts: { weekStart: string; weeks?: number; seed?:
             comments: Math.round(views * 0.004),
             saves: platform === "instagram" ? Math.round(views * 0.01) : null,
             shares: Math.round(views * 0.005),
+            reposts: platform === "instagram" ? Math.round(views * 0.001) : null,
             avgWatchTime: platform === "instagram" ? Math.round(3000 + rnd() * 4000) : null,
             skipRate: platform === "instagram" ? Math.round(30 + rnd() * 30) : null,
           },

@@ -56,12 +56,14 @@ describe("alert types", () => {
   });
 
   it("PUSH_KINDS_DEFAULT is the approved set and every entry is a known kind", () => {
-    expect(new Set(PUSH_KINDS_DEFAULT)).toEqual(new Set(["engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth"]));
+    expect(new Set(PUSH_KINDS_DEFAULT)).toEqual(new Set(["engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth", "ready-for-approval"]));
     for (const k of PUSH_KINDS_DEFAULT) expect(isAlertKind(k)).toBe(true);
     expect(new Set(ALERT_KINDS).size).toBe(ALERT_KINDS.length);
     expect(isAlertKind("nope")).toBe(false);
     // F9's metrics-health is a known kind but page-only
     expect(isAlertKind("metrics-health")).toBe(true);
     expect(PUSH_KINDS_DEFAULT).not.toContain("metrics-health");
+    // F15: settings-change is an audit row, never pushed
+    expect(PUSH_KINDS_DEFAULT).not.toContain("settings-change");
   });
 });

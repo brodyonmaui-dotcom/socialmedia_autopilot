@@ -80,6 +80,8 @@ export const ALERT_KINDS = [
   "auth", "engagement-kill", "engagement-failure", "engagement-unknown", "engagement-mode",
   "metrics-health", // F9 analytics ingest (page-only)
   "config", // worker misconfiguration, e.g. PUBLIC_MEDIA_BASE (page-only)
+  "ready-for-approval", // F15: an editor render landed as draft items (pushed)
+  "settings-change", // F15: audit row for a Settings edit (caps, DM drafts); inserted acknowledged, never pushed
 ] as const;
 export type AlertKind = (typeof ALERT_KINDS)[number];
 
@@ -96,6 +98,7 @@ export type AlertSource = Platform | "web" | "meta" | "zernio" | "all";
 /** Kinds the alert-push job sends by default (F8 OQ1); the rest are page-only. Override: settings 'alert_push'. */
 export const PUSH_KINDS_DEFAULT: readonly AlertKind[] = [
   "engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth",
+  "ready-for-approval", // F15; "settings-change" is never pushed
 ];
 
 /** Raised by the outbox for anything a human must look at. Delivered by an AlertSink (log, DB, push). */

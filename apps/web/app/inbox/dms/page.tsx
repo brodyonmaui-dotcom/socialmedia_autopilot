@@ -3,11 +3,13 @@ import { ButtonLink, CONTAINER, EmptyState, ListRow, ListRows, Readout, cx } fro
 import { getPool } from "../../../lib/db.js";
 import { requireSession } from "../../../lib/auth/require.js";
 import { counts, listDmThreads, relativeTime } from "../../../lib/engagement/queries.js";
+import { loadEngagement } from "../../../lib/engagement/settings.js";
 import { handleLabel, lastMessages, plural } from "../../../lib/inbox/view.js";
 import { Notice } from "../../batches/ui/Notice.js";
 import { copyDraftAction } from "../actions.js";
 import { CopyButton, ReplyWell } from "../ui/CommentCard.js";
 import { DmCountdown } from "../ui/DmCountdown.js";
+import { DmDraftsSwitch } from "../ui/DmDraftsSwitch.js";
 import { InboxHero, inboxFooter } from "../ui/InboxFrame.js";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +25,10 @@ export default async function DmsPage({ searchParams }: { searchParams: SearchPa
   const sp = await searchParams;
   const pool = getPool();
   const now = new Date();
-  const [c, threads] = await Promise.all([counts(pool, now), listDmThreads(pool, now)]);
+  const [c, threads, engagement] = await Promise.all([counts(pool, now), listDmThreads(pool, now), loadEngagement(pool)]);
+  const dmOn = engagement.dmPollVerified;
+  const error = param(sp.error);
+  const note = param(sp.note);
   const drafts = threads.filter((t) => t.draft).length;
 
   return (
@@ -50,7 +55,18 @@ export default async function DmsPage({ searchParams }: { searchParams: SearchPa
           </>
         }
       />
-      <Notice error={param(sp.error)} />
+      <Notice error={error} note={note} />
+
+      <section aria-labelledby="dm-drafts" className="border-b border-ds-line">
+        <div className={cx(CONTAINER, "grid grid-cols-4 gap-y-3 py-6 lg:grid-cols-12 lg:py-8")}>
+          <h2 id="dm-drafts" className="ds-caps col-span-4 text-ds-muted lg:col-span-4 lg:pt-3">
+            DM drafts · {dmOn ? "on" : "off"}
+          </h2>
+          <div className="col-span-4 lg:col-span-8">
+            <DmDraftsSwitch key={`${dmOn}|${error ?? ""}|${note ?? ""}`} on={dmOn} />
+          </div>
+        </div>
+      </section>
 
       <section aria-labelledby="threads" className={cx(CONTAINER, "grid grid-cols-4 lg:grid-cols-12")}>
         <div className="col-span-4 min-w-0 py-6 lg:col-span-8 lg:col-start-1 lg:border-r lg:border-ds-line lg:py-10 lg:pr-10">
@@ -58,7 +74,16 @@ export default async function DmsPage({ searchParams }: { searchParams: SearchPa
             {plural(threads.length, "thread")}
           </h2>
           {threads.length === 0 ? (
-            <EmptyState icon="message" title="No DM threads yet" body="Instagram threads show up here once the read-only DM poll is verified." className="py-16" />
+            <EmptyState
+              icon="message"
+              title="No DM threads yet"
+              body={
+                dmOn
+                  ? "DM drafts are on. Threads show up here after the next read (every 5 minutes)."
+                  : "DM drafts are off. Turn them on above to read Instagram DMs and get drafts to copy. Nothing is ever sent."
+              }
+              className="py-16"
+            />
           ) : (
             <ListRows label="DM threads" className="mt-2 border-y border-ds-line">
               {threads.map((t) => (

@@ -38,5 +38,16 @@ Comments are polled, triaged (rules → model → rules), planned and stored. De
 4. Fix it by hand on the platform. Reply or delete there yourself **[changes state]**: the worker never deletes anything.
 5. Tell Claude in chat what went wrong. A new rule or blocklist term is an auto-reply behaviour change, so it gets the creator's OK, and the kill switch stays on until then.
 
+## Enabling YouTube comment replies (stays shadow until you say so)
+The `youtube.force-ssl` scope is granted (2026-11-14 probe, `yt.scopes`). Replies are gated twice: env `YT_COMMENT_REPLIES=1` on the worker **and** the YouTube engagement mode in the inbox (`shadow` then `live`). Until both are set, nothing is sent.
+1. Tell Claude in chat you want YouTube auto-replies live. Your explicit OK is required (non-negotiable 2).
+2. **[changes state]** Add the line `YT_COMMENT_REPLIES=1` to the server's env file, then restart the worker as in [deploy.md](deploy.md).
+3. Leave the YouTube mode on `shadow` for a few days and review the shadow replies in the inbox "Would reply" tab.
+4. **[changes state]** Flip the YouTube mode to `live` in the inbox (this writes an `engagement-mode` audit row).
+- **Rollback:** use the kill switch in the inbox, or set the YouTube mode back to `shadow`. To fully disable, remove the `YT_COMMENT_REPLIES` line from the env file and restart the worker.
+
 ## DMs
 - Instagram DM threads are read-only, and the drafts are suggestions only. **No code path sends a DM.** The creator copies a draft and sends it in the app inside the 24 h window shown by the countdown.
+
+### DM drafts (read-only, never sends)
+`dm-poll` is off by default. The inbox has a toggle "Turn on DM drafts (read-only, never sends)" that records an audit event. Nothing is ever sent from DMs.
