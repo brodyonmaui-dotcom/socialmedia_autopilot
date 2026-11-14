@@ -104,6 +104,22 @@
       "area": "apps/web",
       "status": "in-progress",
       "notes": "Design system v2 (Warm Industrial: #EBEBE8, Inter + Playfair italic, 12-col grid, sharp, one blue). Spec + per-page task list: docs/design/ui-system.md (Restyle plan, 10 tasks). Components: apps/web/components/ui; live guide: /app/design (Day/Night); agent: .claude/agents/designer.md. 2026-11-14 day run: batches list + detail restyle (tasks 2-3) started together with F11 T3, unfinished, in the same WIP patch; the parallel design session owns the other pages. Fable run 3: batches list+detail (af4c687) and Snapchat handoff (db78060) done; Alerts, Inbox+DMs, Analytics in flight; Library + touch-up and Research next."
+    },
+    {
+      "id": "F13",
+      "title": "F13 · Go-live readiness (preflight, outbox tick lock, YouTube findExisting, first-real-post runbook)",
+      "model": "fable",
+      "area": "scripts, infra, apps/worker/outbox, packages/adapters/youtube, docs/runbooks",
+      "status": "todo",
+      "notes": "Design: docs/design/F13.md. Preflight PASS/FAIL per check with the next command; advisory lock closes the F7 A9 cap overshoot; YT findExisting only after the uploads-playlist docs are verified (open question); runbook for the first IG + YT real post."
+    },
+    {
+      "id": "F14",
+      "title": "F14 · Weekly loop in the worker (Sunday draft batch, Monday report, Up next UI)",
+      "model": "fable",
+      "area": "apps/worker, packages/core/types, apps/web/home+batches",
+      "status": "todo",
+      "notes": "Design: docs/design/F14.md. AI split: no LLM captions in the worker, drafts have empty flagged captions; adds batch-ready (pushed) and report-ready (page-only) alert kinds; the job never approves."
     }
   ]
 }
