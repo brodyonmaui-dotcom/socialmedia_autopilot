@@ -69,7 +69,7 @@
     "notes": "150 files with DATABASE_URL; typecheck 0; simulate-week + simulate-engagement OK; web build OK; leak scan ok"
   },
   "commits": 14,
-  "prUrl": null,
+  "prUrl": "https://github.com/brodyonmaui-dotcom/socialmedia_autopilot/pull/22",
   "nextPickup": [
     "Fable review of the hunks in docs/prep/run-4-fable-brief.md",
     "F14 weekly loop",
