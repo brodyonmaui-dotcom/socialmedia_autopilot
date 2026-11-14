@@ -23,9 +23,9 @@ export interface StepperProps {
 }
 
 const STEP_BTN =
-  "inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ds-text transition-colors duration-200 ease-ds hover:bg-ds-line active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
+  "inline-flex size-11 shrink-0 items-center justify-center text-ds-text transition-colors duration-300 ease-ds hover:bg-ds-raised disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent";
 
-/** Dark pill − value +. Controlled (`value`) or uncontrolled (`defaultValue`). */
+/** Sharp bordered strip: − | value | + cells split by 1px lines. Controlled (`value`) or uncontrolled (`defaultValue`). */
 export function Stepper({
   label,
   value,
@@ -56,7 +56,7 @@ export function Stepper({
     <div
       role="group"
       aria-label={label}
-      className={cx("inline-flex h-12 items-center gap-1 rounded-full bg-ds-raised px-0.5", disabled && "opacity-50", className)}
+      className={cx("inline-flex items-stretch divide-x divide-ds-line border border-ds-line", disabled && "opacity-50", className)}
     >
       <button
         type="button"
@@ -67,7 +67,7 @@ export function Stepper({
       >
         <Icon name="minus" size={18} strokeWidth={2} />
       </button>
-      <output aria-live="polite" className="min-w-10 text-center text-[17px] font-bold text-ds-text ds-num">
+      <output aria-live="polite" className="inline-flex min-w-14 items-center justify-center px-2 text-[16px] font-bold text-ds-text ds-num">
         {format ? format(current) : current}
       </output>
       <button

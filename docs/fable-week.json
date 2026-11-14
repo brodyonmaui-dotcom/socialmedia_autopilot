@@ -103,7 +103,7 @@
       "model": "fable",
       "area": "apps/web",
       "status": "todo",
-      "notes": "Spec + per-page task list: docs/design/ui-system.md (Restyle plan). Components: apps/web/components/ui; live guide: /app/design; agent: .claude/agents/designer.md. Run after the F8/F10 pages land."
+      "notes": "Design system v2 (Warm Industrial: #EBEBE8, Inter + Playfair italic, 12-col grid, sharp, one blue). Spec + per-page task list: docs/design/ui-system.md (Restyle plan, 10 tasks). Components: apps/web/components/ui; live guide: /app/design (Day/Night); agent: .claude/agents/designer.md."
     }
   ]
 }

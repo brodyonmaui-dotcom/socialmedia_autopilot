@@ -51,19 +51,19 @@ export function Sheet({ open, onClose, title, children, footer, className }: She
       className={cx(
         "fixed inset-x-0 bottom-0 top-auto m-0 max-h-[85dvh] w-full max-w-none overflow-visible bg-transparent p-0 text-ds-text",
         "sm:inset-0 sm:m-auto sm:h-fit sm:max-w-md",
-        "backdrop:bg-black/60",
+        "backdrop:bg-ds-text/40 backdrop:backdrop-blur-sm",
         className,
       )}
     >
       <div
         className={cx(
-          "ds-root flex max-h-[85dvh] flex-col rounded-t-ds-xl bg-ds-card shadow-ds-pop",
-          "px-5 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-ds-xl sm:p-6",
+          "ds-root flex max-h-[85dvh] flex-col border-t border-ds-text bg-ds-bg shadow-ds-pop",
+          "px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:border sm:p-6",
         )}
       >
-        <div aria-hidden="true" className="mx-auto mb-3 h-1.5 w-10 shrink-0 rounded-full bg-ds-line-strong sm:hidden" />
+        <div aria-hidden="true" className="mx-auto mb-3 h-0.5 w-8 shrink-0 bg-ds-line-strong sm:hidden" />
         <div className="mb-3 flex items-start justify-between gap-3">
-          <h2 id={titleId} className="pt-2 text-[20px] font-bold leading-tight">
+          <h2 id={titleId} className="pt-2 text-[28px] font-black leading-[1.05] tracking-[-0.03em]">
             {title}
           </h2>
           <button
@@ -71,14 +71,14 @@ export function Sheet({ open, onClose, title, children, footer, className }: She
             aria-label="Close"
             onClick={onClose}
             className={cx(
-              "-mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ds-muted transition-colors duration-200 ease-ds hover:bg-ds-raised hover:text-ds-text",
+              "-mr-2 inline-flex size-11 shrink-0 items-center justify-center text-ds-muted transition-colors duration-300 ease-ds hover:bg-ds-raised hover:text-ds-text",
               FOCUS,
             )}
           >
             <Icon name="x" size={20} />
           </button>
         </div>
-        <div className="min-h-0 overflow-y-auto text-[17px] text-ds-muted">{children}</div>
+        <div className="min-h-0 overflow-y-auto text-[16px] leading-normal text-ds-muted">{children}</div>
         {footer && <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">{footer}</div>}
       </div>
     </dialog>
@@ -105,13 +105,13 @@ export interface ConfirmSheetProps {
 function ConfirmSubmit({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending} aria-disabled={pending} className="sm:min-w-32">
+    <Button type="submit" variant="solid" disabled={pending} aria-disabled={pending} className="sm:min-w-32">
       {pending ? "Working…" : label}
     </Button>
   );
 }
 
-/** Trigger button → Sheet with a solid confirm and a ghost cancel. */
+/** Trigger button → Sheet with a solid (black) confirm and an outline cancel. */
 export function ConfirmSheet({
   triggerLabel,
   triggerVariant = "outline",
@@ -131,7 +131,7 @@ export function ConfirmSheet({
   const close = () => setOpen(false);
 
   const cancel = (
-    <Button variant="ghost" onClick={close}>
+    <Button variant="outline" onClick={close}>
       {cancelLabel}
     </Button>
   );
@@ -156,6 +156,7 @@ export function ConfirmSheet({
       <>
         {cancel}
         <Button
+          variant="solid"
           disabled={busy}
           className="sm:min-w-32"
           onClick={async () => {

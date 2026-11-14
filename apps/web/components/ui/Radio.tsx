@@ -6,7 +6,7 @@ export type RadioProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "c
   description?: ReactNode;
 };
 
-/** Native radio, styled as a rounded square (per reference) with a white dot when checked. Group with a shared `name`. */
+/** Native radio, styled as a sharp square (v2) with a round on-invert dot when checked. Group with a shared `name`. */
 export function Radio({ label, description, className, disabled, ...rest }: RadioProps) {
   return (
     <ChoiceRow
@@ -18,7 +18,7 @@ export function Radio({ label, description, className, disabled, ...rest }: Radi
       mark={
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 m-auto size-2.5 rounded-full bg-ds-paper opacity-0 transition-opacity duration-200 ease-ds peer-checked:opacity-100"
+          className="pointer-events-none absolute inset-0 m-auto size-2.5 rounded-full bg-ds-on-invert opacity-0 transition-opacity duration-300 ease-ds peer-checked:opacity-100"
         />
       }
     />

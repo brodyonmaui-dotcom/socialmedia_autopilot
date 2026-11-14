@@ -16,21 +16,21 @@ export type SliderProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "
 };
 
 /*
- * Native range input. The 44px-tall input is the hit area; the 6px track is drawn on the
+ * Native range input. The 44px-tall input is the hit area; the 2px track is drawn on the
  * pseudo-elements. Accent fill = linear-gradient up to --pct (WebKit) / ::-moz-range-progress (Firefox).
  * Client component so the fill follows the knob live.
  */
 const TRACK_WEBKIT =
-  "[&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full " +
+  "[&::-webkit-slider-runnable-track]:h-0.5 " +
   "[&::-webkit-slider-runnable-track]:[background:linear-gradient(to_right,var(--color-ds-accent)_var(--pct),var(--color-ds-line)_var(--pct))]";
 const THUMB_WEBKIT =
-  "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:-mt-2 [&::-webkit-slider-thumb]:size-[22px] " +
-  "[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-ds-paper [&::-webkit-slider-thumb]:shadow-ds-pop " +
-  "[&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:duration-200 [&::-webkit-slider-thumb]:ease-ds active:[&::-webkit-slider-thumb]:scale-110";
+  "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:-mt-2 [&::-webkit-slider-thumb]:size-[18px] " +
+  "[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-ds-text [&::-webkit-slider-thumb]:bg-white " +
+  "[&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:duration-300 [&::-webkit-slider-thumb]:ease-ds active:[&::-webkit-slider-thumb]:scale-110";
 const MOZ =
-  "[&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-ds-line " +
-  "[&::-moz-range-progress]:h-1.5 [&::-moz-range-progress]:rounded-full [&::-moz-range-progress]:bg-ds-accent " +
-  "[&::-moz-range-thumb]:size-[22px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-ds-paper";
+  "[&::-moz-range-track]:h-0.5 [&::-moz-range-track]:bg-ds-line " +
+  "[&::-moz-range-progress]:h-0.5 [&::-moz-range-progress]:bg-ds-accent " +
+  "[&::-moz-range-thumb]:size-[18px] [&::-moz-range-thumb]:box-border [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-ds-text [&::-moz-range-thumb]:bg-white";
 
 export function Slider({
   label,
@@ -56,10 +56,10 @@ export function Slider({
   return (
     <div className={cx("flex flex-col gap-1", disabled && "opacity-50", className)}>
       <div className={cx("flex items-baseline justify-between gap-3", hideLabel && "sr-only")}>
-        <label htmlFor={fieldId} className="ds-caps font-bold text-ds-muted">
+        <label htmlFor={fieldId} className="ds-caps text-ds-muted">
           {label}
         </label>
-        <span aria-hidden="true" className="text-[15px] text-ds-text ds-num">
+        <span aria-hidden="true" className="ds-mono text-ds-text">
           {format ? format(current) : current}
         </span>
       </div>

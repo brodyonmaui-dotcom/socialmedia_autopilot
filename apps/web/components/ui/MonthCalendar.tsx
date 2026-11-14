@@ -27,7 +27,7 @@ function dayLabel(month0: number, day: number, marks: DayMark[], isToday: boolea
 }
 
 /**
- * Compact month grid (Monday first by default; weekStartsOn={0} for Sunday): tabular day numbers, today ringed, up to 3 dots per day
+ * Compact month grid (Monday first by default; weekStartsOn={0} for Sunday): tabular day numbers, today in a square ds-text border, up to 3 square 4px marks per day
  * (accent = scheduled, warn = needs action, muted = other). Days link when `hrefFor` is given.
  */
 export function MonthCalendar({
@@ -55,13 +55,13 @@ export function MonthCalendar({
   const cell = hrefFor ? "size-11" : "size-10";
   return (
     <table className={cx("w-full table-fixed border-collapse", className)}>
-      <caption className="ds-caps mb-3 text-left font-bold text-ds-muted">
+      <caption className="ds-caps mb-3 text-left text-ds-muted">
         {label ?? `${MONTHS_LONG[month0]} ${year}`}
       </caption>
       <thead>
         <tr>
           {weekdays.map(([s, l]) => (
-            <th key={l} scope="col" abbr={l} className="pb-1 text-center text-[13px] font-bold text-ds-faint">
+            <th key={l} scope="col" abbr={l} className="pb-2 text-center ds-caps text-ds-faint">
               {s}
             </th>
           ))}
@@ -79,15 +79,15 @@ export function MonthCalendar({
                 <>
                   <span
                     className={cx(
-                      "ds-num inline-flex size-8 items-center justify-center rounded-full text-[15px] leading-none",
-                      isToday && "text-ds-accent-fg ring-1 ring-ds-accent",
+                      "ds-num inline-flex size-8 items-center justify-center border text-[14px] leading-none",
+                      isToday ? "border-ds-text font-bold text-ds-text" : "border-transparent",
                     )}
                   >
                     {day}
                   </span>
-                  <span aria-hidden="true" className="flex h-[5px] gap-[3px]">
+                  <span aria-hidden="true" className="flex h-1 gap-[3px]">
                     {dayMarks.map((m, i) => (
-                      <span key={i} className={cx("size-[5px] rounded-full", DOT[m])} />
+                      <span key={i} className={cx("size-1", DOT[m])} />
                     ))}
                   </span>
                 </>
@@ -100,7 +100,7 @@ export function MonthCalendar({
                       href={hrefFor(day)}
                       aria-label={aria}
                       aria-current={isToday ? "date" : undefined}
-                      className={cx(box, "rounded-ds-md hover:bg-ds-raised", FOCUS)}
+                      className={cx(box, "transition-colors duration-300 ease-ds hover:bg-ds-raised", FOCUS)}
                     >
                       {content}
                     </Link>

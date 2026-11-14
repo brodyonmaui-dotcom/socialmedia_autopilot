@@ -14,8 +14,9 @@ function apply(from: Element | null, t: Theme) {
 }
 
 /**
- * Light/dark switch. `variant="icon"`: 44px sun/moon button for top bars. `variant="row"`: labelled Toggle
- * ("Light theme") for settings cards. Pass the server-read theme as `initial` (getTheme()).
+ * Day/Night switch. `variant="icon"`: sharp 44px square (moon in Day, sun in Night) for the header.
+ * `variant="row"`: labelled Toggle ("Night theme") for settings cards. Pass the server-read theme as
+ * `initial` (getTheme()).
  */
 export function ThemeToggle({ initial, variant = "icon" }: { initial: Theme; variant?: "icon" | "row" }) {
   const [theme, setTheme] = useState<Theme>(initial);
@@ -29,24 +30,25 @@ export function ThemeToggle({ initial, variant = "icon" }: { initial: Theme; var
     return (
       <span ref={ref} className="block">
         <Toggle
-          label="Light theme"
-          description="Dark stays the default; this only changes this device."
-          checked={theme === "light"}
-          onChange={(on) => set(on ? "light" : "dark")}
+          label="Night theme"
+          description="Day stays the default; this only changes this device."
+          checked={theme === "dark"}
+          onChange={(on) => set(on ? "dark" : "light")}
         />
       </span>
     );
   }
   const next = otherTheme(theme);
+  const label = next === "dark" ? "Switch to night theme" : "Switch to day theme";
   return (
     <span ref={ref} className="inline-flex">
       <button
         type="button"
         onClick={() => set(next)}
-        aria-label={`Switch to ${next} theme`}
-        title={`Switch to ${next} theme`}
+        aria-label={label}
+        title={label}
         className={cx(
-          "inline-flex size-11 items-center justify-center rounded-ds-md bg-ds-raised text-ds-muted transition-colors duration-200 ease-ds hover:text-ds-text",
+          "inline-flex size-11 items-center justify-center border border-ds-line text-ds-text transition-colors duration-[var(--ds-dur)] ease-ds hover:bg-ds-raised",
           FOCUS,
         )}
       >

@@ -21,7 +21,7 @@ export function TabLinks({ items, ariaLabel, className }: { items: TabLinkItem[]
           key={item.href}
           href={item.href}
           aria-current={item.active ? "page" : undefined}
-          className={cx(tabSegment(item.active), FOCUS, "focus-visible:-outline-offset-4 focus-visible:outline-ds-ink")}
+          className={cx(tabSegment(item.active), FOCUS, "focus-visible:-outline-offset-4")}
         >
           {item.label}
           {item.count !== undefined && <TabCount count={item.count} />}

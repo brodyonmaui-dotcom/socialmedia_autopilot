@@ -2,7 +2,7 @@ import { useId } from "react";
 import { cx } from "./cx.js";
 import { areaPath, barRects, scalePoints, smoothPath } from "./chart-math.js";
 
-/** Small smooth accent trend line. */
+/** Small smooth accent trend line (1.5px). */
 export function Sparkline({
   values,
   width = 120,
@@ -32,8 +32,8 @@ export function Sparkline({
         d={smoothPath(pts)}
         fill="none"
         stroke="currentColor"
-        strokeWidth={2}
-        strokeLinecap="round"
+        strokeWidth={1.5}
+        strokeLinecap="square"
         strokeLinejoin="round"
       />
     </svg>
@@ -81,19 +81,18 @@ export function MiniBars({
             y={r.y}
             width={r.width}
             height={r.height}
-            rx={Math.min(3, r.width / 2)}
-            className={i === highlightIndex ? "fill-ds-accent" : "fill-ds-line-strong"}
+            className={i === highlightIndex ? "fill-ds-accent" : "fill-ds-line-strong/40"}
           />
         ))}
       </svg>
       {labels && labels.length > 0 && (
-        <div aria-hidden="true" className="mt-1.5 flex gap-1">
+        <div aria-hidden="true" className="mt-2 flex gap-1">
           {labels.map((l, i) => (
             <span
               key={i}
               className={cx(
-                "flex-1 text-center text-[13px] leading-tight",
-                i === highlightIndex ? "text-ds-accent" : "text-ds-faint",
+                "flex-1 text-center ds-mono leading-tight",
+                i === highlightIndex ? "text-ds-accent-fg" : "text-ds-faint",
               )}
             >
               {l}
@@ -107,7 +106,8 @@ export function MiniBars({
 
 /**
  * Full-width accent area chart that bleeds to its container's edges (put it in Card `bleed`).
- * Line keeps a constant 2px stroke despite the stretched viewBox; last point gets a dot.
+ * Line keeps a constant 1.5px stroke despite the stretched viewBox; flat 8% accent fill (no gradient);
+ * last point gets a 6px square marker.
  */
 export function AreaChart({
   values,
@@ -124,7 +124,6 @@ export function AreaChart({
 }) {
   const uid = useId();
   const titleId = `${uid}-t`;
-  const gradId = `${uid}-g`;
   const W = 300;
   const hasLabels = Boolean(xLabels && xLabels.length > 0);
   const pts = scalePoints(values, W, height, { top: 12, bottom: hasLabels ? 30 : 8 });
@@ -141,21 +140,15 @@ export function AreaChart({
         className="absolute inset-0 block"
       >
         <title id={titleId}>{label}</title>
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="currentColor" stopOpacity={0.35} />
-            <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
-          </linearGradient>
-        </defs>
         {pts.length > 0 && (
           <>
-            <path d={areaPath(pts, height)} fill={`url(#${gradId})`} />
+            <path d={areaPath(pts, height)} fill="currentColor" fillOpacity={0.08} />
             <path
               d={smoothPath(pts)}
               fill="none"
               stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
+              strokeWidth={1.5}
+              strokeLinecap="square"
               strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
             />
@@ -165,14 +158,14 @@ export function AreaChart({
       {last && (
         <span
           aria-hidden="true"
-          className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ds-accent ring-2 ring-ds-card"
+          className="absolute size-1.5 -translate-x-1/2 -translate-y-1/2 bg-ds-accent"
           style={{ left: `min(calc(100% - 6px), ${(last.x / W) * 100}%)`, top: last.y }}
         />
       )}
       {hasLabels && (
         <div aria-hidden="true" className="absolute inset-x-0 bottom-0 flex justify-between px-5 pb-2">
           {xLabels!.map((l, i) => (
-            <span key={i} className="ds-num text-[13px] leading-tight text-ds-faint">
+            <span key={i} className="ds-mono leading-tight text-ds-faint">
               {l}
             </span>
           ))}

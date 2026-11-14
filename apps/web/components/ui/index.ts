@@ -1,13 +1,30 @@
-// Design system v1 — see docs/design/ui-system.md. Pages import from here.
+// Design system v2 (Warm Industrial) — see docs/design/ui-system.md. Pages import from here.
 export * from "./cx.js";
 export * from "./Icon.js";
 export * from "./PlatformLogo.js";
 export * from "./theme.js";
 export * from "./ThemeToggle.js";
 // getTheme() lives in ./theme-server.js (server-only, not re-exported here).
-// Layout
+// Frame
 export * from "./AppShell.js";
+export * from "./SiteHeader.js";
+export * from "./TabBar.js";
+export * from "./GridLines.js";
+export * from "./NoiseOverlay.js";
 export * from "./TopBar.js";
+export * from "./SectionHead.js";
+export * from "./FooterBand.js";
+// Editorial
+export * from "./Display.js";
+export * from "./Readout.js";
+export * from "./StatusPulse.js";
+export * from "./Marquee.js";
+export * from "./RevealList.js";
+export * from "./FramedImage.js";
+export * from "./GlassCard.js";
+export * from "./StatusBars.js";
+export * from "./Statement.js";
+// Layout
 export * from "./Card.js";
 export * from "./StatTile.js";
 export * from "./ListRow.js";

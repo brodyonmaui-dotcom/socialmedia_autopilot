@@ -6,9 +6,9 @@ import { PlatformLogo, type Platform } from "../PlatformLogo.js";
 import { otherTheme, parseTheme, themeCookie } from "../theme.js";
 
 describe("theme helpers", () => {
-  it("defaults to dark for anything but an explicit light", () => {
-    expect(parseTheme("light")).toBe("light");
-    for (const v of ["dark", "", undefined, null, "LIGHT", "system"]) expect(parseTheme(v)).toBe("dark");
+  it("defaults to light (Day) for anything but an explicit dark", () => {
+    expect(parseTheme("dark")).toBe("dark");
+    for (const v of ["light", "", undefined, null, "DARK", "system"]) expect(parseTheme(v)).toBe("light");
   });
   it("flips and writes a year-long app-wide cookie", () => {
     expect(otherTheme("dark")).toBe("light");
