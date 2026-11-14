@@ -18,6 +18,8 @@ const KIND_LABELS = {
   "engagement-mode": "Engagement mode",
   "metrics-health": "Metrics",
   config: "Configuration",
+  "ready-for-approval": "Ready for approval",
+  "settings-change": "Settings change",
 };
 
 function notificationView(data) {

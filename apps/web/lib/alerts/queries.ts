@@ -134,6 +134,8 @@ const KIND_LABEL: Record<AlertKind, string> = {
   "engagement-mode": "Engagement mode",
   "metrics-health": "Metrics",
   config: "Configuration",
+  "ready-for-approval": "Ready for approval",
+  "settings-change": "Settings change",
 };
 
 export function kindLabel(kind: AlertKind): string {

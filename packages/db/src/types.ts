@@ -51,6 +51,10 @@ export interface BatchItemRow {
   /** Approval stamp + the app session that approved (migration 0006). */
   approved_at: string | null;
   approved_session: string | null;
+  /** F15 (migration 0009): `${content_hash}:${platform}` on editor items (partial unique index), else null. */
+  ingest_key: string | null;
+  /** F15 (migration 0009): 'editor' for items from the laptop ingest, null for the weekly batch. */
+  origin: "editor" | null;
   created_at: string;
   updated_at: string;
 }

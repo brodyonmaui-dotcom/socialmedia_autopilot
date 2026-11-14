@@ -1,6 +1,6 @@
 import type { Platform } from "./types.js";
 import { daySlotTimes, PLATFORMS, type CadenceSettings } from "./cadence.js";
-import { addCalendarDays, diffCalendarDays, localDate, localToUtc } from "./time.js";
+import { addCalendarDays, diffCalendarDays, hhmmFromMinutes, localDate, localToUtc, minutesOfDay } from "./time.js";
 
 /** One video that wants to go out on some platforms this week. */
 export interface ScheduleItem {
@@ -12,6 +12,13 @@ export interface ScheduleItem {
   capturedAt?: string;
   /** Times already fixed by hand (ISO with offset). Kept verbatim, still counted toward caps. */
   pinned?: Partial<Record<Platform, string>>;
+  /** F15: ISO instants; this item is only placed inside [notBefore, notAfter). Never rolled outside it. */
+  window?: { notBefore: string; notAfter: string };
+  /**
+   * F15 editor item: ignore stagger (every platform takes its earliest free time in the window) and,
+   * when no grid slot is free, fall back to the flex grid (see assignSlots).
+   */
+  sameDay?: boolean;
 }
 
 /** A post already committed outside this run (other batches), so caps and gaps account for it. */
@@ -46,6 +53,8 @@ export interface Assignment {
   /** Slot position on that day, or -1 for a pinned time. */
   slotIndex: number;
   pinned: boolean;
+  /** F15: placed on the flex grid (slotIndex -1, not pinned). Only set for sameDay items. */
+  flex?: true;
 }
 
 export type UnplacedReason = "cap" | "no-slot" | "buffer" | "duplicate" | "pinned-cap" | "pinned-invalid";
@@ -138,7 +147,7 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
   const slotInstant = (dayIndex: number, slotIndex: number): Date => localToUtc(dateOf(dayIndex), slotTimes[slotIndex]!, timeZone);
 
   /** Next usable (day, slot) at or after the given position for a platform, within the spill limit. */
-  function nextFree(platform: Platform, fromDay: number, fromSlot: number, minDay: number): { dayIndex: number; slotIndex: number; at: Date } | null {
+  function nextFree(platform: Platform, fromDay: number, fromSlot: number, minDay: number, allow?: (at: Date) => boolean): { dayIndex: number; slotIndex: number; at: Date } | null {
     if (slotTimes.length === 0) return null;
     let day = Math.max(fromDay, minDay);
     let slot = day === fromDay ? fromSlot : 0;
@@ -150,6 +159,7 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
         const at = slotInstant(day, slot);
         if (at.getTime() <= nowMs) continue;
         if (!gapOk(platform, at.getTime())) continue;
+        if (allow && !allow(at)) continue;
         return { dayIndex: day, slotIndex: slot, at };
       }
       day++;
@@ -163,6 +173,108 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
     const date = dateOf(dayIndex);
     bump(platform, date, at.getTime());
     assignments.push({ key, platform, scheduledFor: at.toISOString(), localDate: date, localTime: slotTimes[slotIndex]!, dayIndex, slotIndex, pinned: false });
+  }
+
+  // Fable to review: F15 editor slotting (window/sameDay/flex grid)
+  // Everything from here to the matching end marker only runs for items with `window` or `sameDay`;
+  // items without them never reach it, so the weekly batch keeps its exact pre-F15 placement.
+  const gapMs = cadence.minGapMinutes * 60_000;
+  const flexStep = Math.max(1, cadence.minGapMinutes);
+
+  /** Local calendar dates the window touches (first to last, inclusive). */
+  function windowDates(w: { start: number; end: number }): string[] {
+    if (!(w.end > w.start)) return [];
+    const first = localDate(new Date(w.start), timeZone);
+    const last = localDate(new Date(w.end - 1), timeZone);
+    const out: string[] = [];
+    for (let d = first; d <= last; d = addCalendarDays(d, 1)) out.push(d);
+    return out;
+  }
+
+  /** Flex candidates on one local day: every minGapMinutes from each posting window's start, up to its end (inclusive, like isWithinAnyWindow). */
+  function flexTimes(): string[] {
+    const out: string[] = [];
+    for (const w of cadence.windows) {
+      for (let m = minutesOfDay(w.start); m <= minutesOfDay(w.end); m += flexStep) out.push(hhmmFromMinutes(m));
+    }
+    return out;
+  }
+  const FLEX_TIMES = flexTimes();
+
+  /**
+   * Places one (item, platform) inside the window: grid slots first (earliest), then, for sameDay
+   * items, the flex grid. Returns the unplaced reason when nothing fits: "cap" when every usable
+   * time in the window sat on a day already at the cap, otherwise "no-slot".
+   */
+  function placeInWindow(key: string, platform: Platform, w: { start: number; end: number }, minDay: number, useFlex: boolean): Unplaced | null {
+    const usable = (at: Date): boolean => at.getTime() >= w.start && at.getTime() < w.end && at.getTime() > nowMs;
+    let sawCandidate = false;
+    let sawUnderCap = false;
+    const dates = windowDates(w).filter((d) => diffCalendarDays(input.weekStart, d) >= minDay);
+    // Grid slots, earliest first.
+    for (const date of dates) {
+      const dayIndex = diffCalendarDays(input.weekStart, date);
+      for (let slot = 0; slot < slotTimes.length; slot++) {
+        const at = localToUtc(date, slotTimes[slot]!, timeZone);
+        if (!usable(at)) continue;
+        sawCandidate = true;
+        if (!underCap(platform, date)) break;
+        sawUnderCap = true;
+        if (taken.has(`${platform}|${dayIndex}|${slot}`)) continue;
+        if (!gapOk(platform, at.getTime())) continue;
+        place(key, platform, dayIndex, slot, at);
+        return null;
+      }
+    }
+    // Flex grid: first candidate >= notBefore that keeps the gap to every post and the day under the cap.
+    if (useFlex) {
+      for (const date of dates) {
+        const dayIndex = diffCalendarDays(input.weekStart, date);
+        for (const hhmm of FLEX_TIMES) {
+          const at = localToUtc(date, hhmm, timeZone);
+          if (!usable(at)) continue;
+          sawCandidate = true;
+          if (!underCap(platform, date)) break;
+          sawUnderCap = true;
+          if (!gapOk(platform, at.getTime())) continue;
+          if (gapMs === 0 && instants.get(platform)!.includes(at.getTime())) continue; // never two posts at one instant
+          bump(platform, date, at.getTime());
+          assignments.push({ key, platform, scheduledFor: at.toISOString(), localDate: date, localTime: hhmm, dayIndex, slotIndex: -1, pinned: false, flex: true });
+          return null;
+        }
+      }
+    }
+    const capBlocked = sawCandidate && !sawUnderCap;
+    return capBlocked
+      ? { key, platform, reason: "cap", detail: `every ${platform} time in the window is on a day already at the cap of ${cadence.dailyCaps[platform]}` }
+      : { key, platform, reason: "no-slot", detail: `no free ${platform} time inside the window` };
+  }
+
+  /** The item's window as epoch ms; sameDay without a window falls back to the plan's days. */
+  function windowOf(item: ScheduleItem): { start: number; end: number } | null {
+    if (item.window) {
+      const start = Date.parse(item.window.notBefore);
+      const end = Date.parse(item.window.notAfter);
+      return Number.isFinite(start) && Number.isFinite(end) ? { start, end } : { start: 0, end: 0 };
+    }
+    if (item.sameDay) return { start: localToUtc(input.weekStart, "00:00", timeZone).getTime(), end: localToUtc(dateOf(days), "00:00", timeZone).getTime() };
+    return null;
+  }
+  // End of F15 editor slotting helpers.
+
+  /** F15 (Fable to review): "cap" when every future grid time in the window is on a capped day, else "no-slot". */
+  function windowReason(platform: Platform, w: { start: number; end: number }, minDay: number): UnplacedReason {
+    let saw = false;
+    for (const date of windowDates(w)) {
+      if (diffCalendarDays(input.weekStart, date) < minDay) continue;
+      for (const t of slotTimes) {
+        const at = localToUtc(date, t, timeZone).getTime();
+        if (at < w.start || at >= w.end || at <= nowMs) continue;
+        saw = true;
+        if (underCap(platform, date)) return "no-slot";
+      }
+    }
+    return saw ? "cap" : "no-slot";
   }
 
   const seen = new Set<string>();
@@ -222,6 +334,17 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
       continue;
     }
 
+    // F15 (Fable to review): editor items. sameDay ignores stagger: each platform independently, earliest first.
+    const win = windowOf(item);
+    if (win && item.sameDay) {
+      for (const platform of wanted) {
+        const miss = placeInWindow(item.key, platform, win, minDay, true);
+        if (miss) unplaced.push(miss);
+      }
+      continue;
+    }
+    const allow = win ? (at: Date): boolean => at.getTime() >= win.start && at.getTime() < win.end : undefined;
+
     // Anchor: Instagram if wanted, else the first wanted platform.
     const anchorPlatform: Platform = wanted.includes("instagram") ? "instagram" : wanted[0]!;
     const anchorIsIG = anchorPlatform === "instagram";
@@ -234,13 +357,19 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
     });
     let anchor: { dayIndex: number; slotIndex: number; at: Date } | null = null;
     for (const d of dayOrder) {
-      const candidate = nextFree(anchorPlatform, d, 0, minDay);
+      const candidate = nextFree(anchorPlatform, d, 0, minDay, allow);
       if (candidate && candidate.dayIndex === d) {
         anchor = candidate;
         break;
       }
     }
-    if (!anchor) anchor = nextFree(anchorPlatform, minDay, 0, minDay); // spill past the plan rather than drop
+    if (!anchor) anchor = nextFree(anchorPlatform, minDay, 0, minDay, allow); // spill past the plan rather than drop
+    if (!anchor && win) {
+      // F15 (Fable to review): a window item never spills outside its window; same reasons as sameDay.
+      const why = windowReason(anchorPlatform, win, minDay);
+      for (const platform of wanted) unplaced.push({ key: item.key, platform, reason: why, detail: `no ${anchorPlatform} slot inside the window` });
+      continue;
+    }
     if (!anchor) {
       for (const platform of wanted) unplaced.push({ key: item.key, platform, reason: "cap", detail: `no ${anchorPlatform} slot under the daily cap in ${days + SPILL_DAYS} days` });
       continue;
@@ -258,7 +387,11 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
         slot -= slotTimes.length;
         day++;
       }
-      const spot = nextFree(platform, day, slot, minDay);
+      const spot = nextFree(platform, day, slot, minDay, allow);
+      if (!spot && win) {
+        unplaced.push({ key: item.key, platform, reason: windowReason(platform, win, minDay), detail: `no ${platform} slot inside the window after the stagger` });
+        continue;
+      }
       if (!spot) {
         unplaced.push({ key: item.key, platform, reason: "no-slot", detail: `no ${platform} slot under the daily cap after day ${day + 1}` });
         continue;
