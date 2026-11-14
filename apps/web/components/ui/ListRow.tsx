@@ -16,7 +16,10 @@ function isMonogram(a: unknown): a is Monogram {
   return typeof a === "object" && a !== null && !isValidElement(a) && "monogram" in a;
 }
 
-/** One list item (<li>): avatar, one-line title + muted subtitle, right-aligned tabular trailing value. */
+/**
+ * One list item (<li>): avatar, one-line title + muted subtitle, right-aligned tabular trailing value.
+ * `children` (F12/4) = a full-width body under the row (wrapping text, a reply well, actions); the head stays one line.
+ */
 export function ListRow({
   avatar,
   title,
@@ -24,6 +27,7 @@ export function ListRow({
   trailing,
   trailingSub,
   href,
+  children,
 }: {
   avatar?: PlatformAvatar | Monogram | ReactNode;
   title: string;
@@ -31,6 +35,7 @@ export function ListRow({
   trailing?: ReactNode | string;
   trailingSub?: string;
   href?: string;
+  children?: ReactNode;
 }) {
   const avatarEl = isPlatform(avatar) ? (
     <span aria-hidden="true" className="inline-flex size-10 shrink-0 items-center justify-center text-ds-text">
@@ -83,6 +88,7 @@ export function ListRow({
       ) : (
         <div className={base}>{inner}</div>
       )}
+      {children != null && <div className="flex flex-col gap-4 pb-6">{children}</div>}
     </li>
   );
 }

@@ -107,26 +107,29 @@ export function MiniBars({
 /**
  * Full-width accent area chart that bleeds to its container's edges (put it in Card `bleed`).
  * Line keeps a constant 1.5px stroke despite the stretched viewBox; flat 8% accent fill (no gradient);
- * last point gets a 6px square marker.
+ * last point gets a 6px square marker. `zeroBased` scales y from 0 instead of the series minimum, so a small
+ * dip doesn't look like a crash (use it for totals such as views per week).
  */
 export function AreaChart({
   values,
   height = 120,
   label,
   xLabels,
+  zeroBased = false,
   className,
 }: {
   values: number[];
   height?: number;
   label: string;
   xLabels?: string[];
+  zeroBased?: boolean;
   className?: string;
 }) {
   const uid = useId();
   const titleId = `${uid}-t`;
   const W = 300;
   const hasLabels = Boolean(xLabels && xLabels.length > 0);
-  const pts = scalePoints(values, W, height, { top: 12, bottom: hasLabels ? 30 : 8 });
+  const pts = scalePoints(values, W, height, { top: 12, bottom: hasLabels ? 30 : 8 }, zeroBased ? 0 : undefined);
   const last = pts[pts.length - 1];
   return (
     <div className={cx("relative w-full text-ds-accent", className)} style={{ height }}>

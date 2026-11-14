@@ -12,6 +12,17 @@ function ys(d: string): number[] {
 }
 
 describe("scalePoints", () => {
+  it("domainMin pins the bottom of the y range (zero-based charts)", () => {
+    expect(scalePoints([50, 100], 100, 100, {}, 0)).toEqual([
+      { x: 0, y: 50 },
+      { x: 100, y: 0 },
+    ]);
+    expect(scalePoints([0, 0], 100, 100, {}, 0)).toEqual([
+      { x: 0, y: 50 },
+      { x: 100, y: 50 },
+    ]);
+    expect(scalePoints([10], 100, 100, {}, 0)).toEqual([{ x: 50, y: 0 }]);
+  });
   it("maps min to the bottom and max to the top, x evenly spaced", () => {
     const pts = scalePoints([0, 5, 10], 100, 50);
     expect(pts).toEqual([

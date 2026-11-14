@@ -1,37 +1,70 @@
-import Link from "next/link";
-import { PUSH_KINDS_DEFAULT, type AlertKind } from "@autopilot/core";
-import { kindLabel, sourceLabel, type AlertView } from "../../../lib/alerts/queries.js";
-import { BTN_GHOST } from "../../batches/ui/WarningChip.js";
+import { Badge, Button, ButtonLink, CONTAINER, Icon, PlatformLogo, cx } from "../../../components/ui/index.js";
+import { kindLabel, type AlertView } from "../../../lib/alerts/queries.js";
+import { isUrgent, shownMessage, sourceGlyph } from "../../../lib/alerts/view.js";
 import { acknowledgeAction } from "../actions.js";
 
-// "Act soon" kinds (the default push set) get the red edge; the rest are informational.
-const URGENT: ReadonlySet<AlertKind> = new Set(PUSH_KINDS_DEFAULT);
-
-/** One alert. The message is shown as stored (sanitised at write time), as plain text. */
-export function AlertCard({ alert, when, ackWhen }: { alert: AlertView; when: string; ackWhen?: string }) {
-  const urgent = URGENT.has(alert.kind) && !alert.acknowledgedAt;
+/**
+ * One alert as a bordered grid band: kind (3 cols) | message + source + age (6) | actions (3).
+ * The message is shown as stored (sanitised at write time), as plain text.
+ */
+export function AlertCard({ alert, index, when, ackWhen }: { alert: AlertView; index: number; when: string; ackWhen?: string }) {
+  const open = !alert.acknowledgedAt;
+  const urgent = isUrgent(alert.kind) && open;
+  const src = sourceGlyph(alert.source);
+  const headingId = `alert-${alert.id}`;
   return (
-    <li className={`rounded-xl border p-3 ${urgent ? "border-red-300 dark:border-red-800" : "border-neutral-200 dark:border-neutral-800"}`}>
-      <div className="flex items-center gap-2">
-        <span className={`rounded-full px-2 py-0.5 text-sm font-medium ${urgent ? "bg-red-600 text-white" : "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"}`}>
-          {kindLabel(alert.kind)}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-sm text-neutral-500">{sourceLabel(alert.source)}</span>
-        <span className="text-sm text-neutral-500">{when}</span>
-      </div>
-      <p className="mt-2 whitespace-pre-wrap break-words text-base">{alert.message.slice(0, 1000)}</p>
-      {ackWhen ? <p className="mt-1 text-sm text-neutral-500">Acknowledged {ackWhen}</p> : null}
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        {alert.batchId ? (
-          <Link href={`/batches/${alert.batchId}`} className="inline-flex min-h-11 items-center underline">
-            Open batch
-          </Link>
-        ) : null}
-        {!alert.acknowledgedAt ? (
-          <form action={acknowledgeAction} className="ml-auto">
-            <input type="hidden" name="id" value={alert.id} />
-            <button className={BTN_GHOST}>Acknowledge</button>
-          </form>
+    <li className="border-b border-ds-line">
+      <div className={cx(CONTAINER, "grid grid-cols-4 gap-y-4 py-6 lg:grid-cols-12 lg:py-8")}>
+        {/* Kind */}
+        <div className="col-span-4 flex min-w-0 items-center justify-between gap-3 lg:col-span-3 lg:flex-col lg:items-start lg:justify-start lg:pr-10">
+          <div className="flex min-w-0 items-center gap-3">
+            <span aria-hidden="true" className="ds-mono text-ds-faint">
+              {String(index).padStart(2, "0")}
+            </span>
+            <h3 id={headingId} className="ds-caps flex min-w-0 items-center gap-2 text-ds-text">
+              <Icon name={open ? "alert" : "check"} size={16} strokeWidth={2} className={cx("shrink-0", urgent ? "text-ds-danger" : open ? "text-ds-warn" : "text-ds-muted")} />
+              {kindLabel(alert.kind)}
+            </h3>
+          </div>
+          {urgent ? <Badge tone="danger">Urgent</Badge> : !open ? <Badge tone="neutral">Acknowledged</Badge> : <Badge tone="warn">Notice</Badge>}
+        </div>
+
+        {/* Message */}
+        <div className="col-span-4 flex min-w-0 flex-col gap-3 lg:col-span-6 lg:border-l lg:border-ds-line lg:px-10">
+          <p className="whitespace-pre-wrap break-words text-[18px] font-bold leading-snug tracking-[-0.01em] text-ds-text lg:text-[20px]">{shownMessage(alert.message)}</p>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ds-muted">
+            <span className="ds-caps inline-flex items-center gap-2 text-ds-text">
+              {src.platform ? <PlatformLogo platform={src.platform} size={16} /> : <Icon name="settings" size={16} />}
+              {src.label}
+            </span>
+            <span aria-hidden="true">·</span>
+            <span className="ds-mono">{when}</span>
+            {ackWhen ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="ds-mono">ack {ackWhen}</span>
+              </>
+            ) : null}
+          </p>
+        </div>
+
+        {/* Actions */}
+        {open || alert.batchId ? (
+          <div className="col-span-4 grid grid-cols-2 content-start gap-2 lg:col-span-3 lg:grid-cols-1 lg:border-l lg:border-ds-line lg:pl-10">
+            {open ? (
+              <form action={acknowledgeAction} className={cx(alert.batchId ? "col-span-1" : "col-span-2", "lg:col-span-1")}>
+                <input type="hidden" name="id" value={alert.id} />
+                <Button type="submit" variant="outline" size="sm" block className="px-3" aria-label={`Acknowledge: ${kindLabel(alert.kind)}`}>
+                  Acknowledge
+                </Button>
+              </form>
+            ) : null}
+            {alert.batchId ? (
+              <ButtonLink href={`/batches/${alert.batchId}`} variant="ghost" size="sm" block arrow className={cx("px-3", open ? "col-span-1" : "col-span-2", "lg:col-span-1")}>
+                Open batch
+              </ButtonLink>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </li>
