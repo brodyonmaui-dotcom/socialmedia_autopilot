@@ -72,6 +72,34 @@ describe("proxyMedia", () => {
     expect(logs.join("\n")).not.toContain(KEY);
   });
 
+  it("refuses an r2_key that would leave the base path (dot segments, encoded, backslash, query/fragment)", async () => {
+    const base = `${BASE}/bucket`;
+    const logs: string[] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...a: unknown[]) => void logs.push(a.join(" ")));
+    try {
+      for (const key of ["../x.mp4", "a/%2e%2e/%2e%2e/x", "..\\x", ".%2E/x", "a?b", "a#b", ""]) {
+        const fetchImpl = vi.fn();
+        const pool = poolReturning([{ scheduled_for: due[0]!.scheduled_for, r2_key: key }]).pool;
+        const res = await proxyMedia({ pool, itemId: ITEM, now: NOW, timeZone: TZ, mediaBase: base, fetchImpl });
+        expect(res.status, key).toBe(404);
+        expect(await res.text()).toBe("not found");
+        expect(fetchImpl, key).not.toHaveBeenCalled();
+      }
+    } finally {
+      spy.mockRestore();
+    }
+    expect(logs.join("\n")).not.toContain(BASE);
+    // Odd but contained keys still stay under the base (host can't change).
+    for (const key of ["//evil.example/x", "https://evil.example/x"]) {
+      const fetchImpl = vi.fn(async () => new Response("V", { status: 200 }));
+      const pool = poolReturning([{ scheduled_for: due[0]!.scheduled_for, r2_key: key }]).pool;
+      await proxyMedia({ pool, itemId: ITEM, now: NOW, timeZone: TZ, mediaBase: base, fetchImpl });
+      const called = String((fetchImpl.mock.calls[0] as unknown[] | undefined)?.[0] ?? "");
+      if (called) expect(new URL(called).host, key).toBe(new URL(BASE).host);
+      if (called) expect(new URL(called).pathname.startsWith("/bucket/"), key).toBe(true);
+    }
+  });
+
   it("503s with a fixed body when PUBLIC_MEDIA_BASE or the zone is missing, before touching the DB", async () => {
     const { pool, query } = poolReturning(due);
     const a = await proxyMedia({ pool, itemId: ITEM, now: NOW, timeZone: TZ, mediaBase: undefined, fetchImpl: vi.fn() });
