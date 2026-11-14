@@ -24,7 +24,13 @@ export type WarningCode =
   | "media.qa"
   | "media.no-clean-file"
   | "tiktok.needs-sound"
-  | "yt.over-60s";
+  | "yt.over-60s"
+  /** F15: empty caption (IG/TikTok/YouTube) or empty YouTube title. Never Snapchat. */
+  | "caption.missing"
+  /** F15: editor flag add-sound-in-app (the sound is added in the platform app). */
+  | "sound.in-app"
+  /** F15: editor flag tiktok-draft-limit (TikTok's 5 pending inbox drafts per 24 h). */
+  | "tiktok.draft-limit";
 
 export interface Warning {
   code: WarningCode;
@@ -32,6 +38,24 @@ export interface Warning {
   severity: "block" | "warn";
   message: string;
   field?: "caption" | "title" | "time";
+}
+
+/** F15 editor flags (trial.editor.flags), set by the laptop ingest. */
+export const EDITOR_FLAGS = ["needs-caption", "add-sound-in-app", "no-slot", "lint-error", "tiktok-draft-limit"] as const;
+export type EditorFlag = (typeof EDITOR_FLAGS)[number];
+
+/** F15: batch_items.trial.editor, written by `pnpm ingest:ready` on the laptop. Parsed defensively (jsonb). */
+export interface EditorMeta {
+  /** The editor tool / app the render came from (a short label, never a path). */
+  source: string | null;
+  pillar: string | null;
+  /** The sidecar's "when" (e.g. "today", "tomorrow", "this-week"). */
+  when: string | null;
+  /** ISO; not before this instant. */
+  earliest: string | null;
+  /** The ingest writes the approval instant (ISO) or true; both mean "approved in the editor". */
+  approvedInEditor: boolean;
+  flags: EditorFlag[];
 }
 
 export interface BatchItemView {
@@ -58,6 +82,12 @@ export interface BatchItemView {
   /** F11: failed|unknown, no platform post id, and an outbox platform: the reset / record sheet applies. */
   canReset?: boolean;
   media: { label: string; durationS: number | null; pillar: string | null; hasCleanFile: boolean; qaWarnings: string[] };
+  /** batch_items.created_at (ISO). Set by loadBatch; optional so fixtures can omit it. */
+  createdAt?: string;
+  /** F15: 'editor' for items from the laptop ingest, null for the weekly batch. Optional so fixtures can omit it. */
+  origin?: "editor" | null;
+  /** F15: trial.editor, only when origin = 'editor'. */
+  editor?: EditorMeta | null;
   /** Filled by computeWarnings. */
   warnings: Warning[];
   /** status draft|approved and not handedOff. */
@@ -94,4 +124,22 @@ export function countByStatus(items: Pick<BatchItemView, "status">[]): Record<It
   const counts = Object.fromEntries(ITEM_STATUSES.map((s) => [s, 0])) as Record<ItemStatus, number>;
   for (const i of items) counts[i.status] = (counts[i.status] ?? 0) + 1;
   return counts;
+}
+
+const str = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v.slice(0, 120) : null);
+
+/** trial.editor → EditorMeta, or null when absent/not an object. Unknown flags are dropped. */
+export function parseEditorMeta(trial: unknown): EditorMeta | null {
+  const e = (trial as { editor?: unknown } | null)?.editor;
+  if (typeof e !== "object" || e === null || Array.isArray(e)) return null;
+  const o = e as Record<string, unknown>;
+  const flags = Array.isArray(o.flags) ? o.flags.filter((f): f is EditorFlag => (EDITOR_FLAGS as readonly unknown[]).includes(f)) : [];
+  return {
+    source: str(o.source),
+    pillar: str(o.pillar),
+    when: str(o.when),
+    earliest: str(o.earliest),
+    approvedInEditor: o.approvedInEditor === true || (typeof o.approvedInEditor === "string" && o.approvedInEditor.trim() !== ""),
+    flags: [...new Set(flags)],
+  };
 }

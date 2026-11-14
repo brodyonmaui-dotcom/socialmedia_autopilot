@@ -12,6 +12,8 @@ import { computeWarnings } from "../../../lib/batches/warnings.js";
 import { ApproveBar } from "../ui/ApproveBar.js";
 import { CELL, CELLS } from "../ui/nav.js";
 import { Notice } from "../ui/Notice.js";
+import { EditorSection } from "../../../components/editor/EditorCard.js";
+import { rendersOfBatch } from "../../../lib/editor/queries.js";
 import { RejectedList, WeekGrid } from "../ui/WeekGrid.js";
 import { addItemAction, approveAllAction, fillTimesAction } from "./actions.js";
 
@@ -59,6 +61,7 @@ export default async function BatchPage({ params, searchParams }: { params: Para
   const stuck = needsYouCount(batch.counts);
   const status = batchStatusBadge(batch.status);
   const openReset = param(sp.reset);
+  const editorRenders = rendersOfBatch(batch, now, ctx.timeZone);
 
   return (
     <AppFrame active="batches">
@@ -82,6 +85,8 @@ export default async function BatchPage({ params, searchParams }: { params: Para
       </header>
 
       <Notice error={param(sp.error)} note={param(sp.note)} />
+
+      <EditorSection renders={editorRenders} index="01" from="batch" utcFallback={ctx.timeZoneSource === "fallback"} />
 
       <div className="border-b border-ds-line">
         <div className={cx(CONTAINER, "py-6 lg:py-10")}>

@@ -27,7 +27,7 @@ describe("buildNav", () => {
 describe("tabFor", () => {
   it("maps tabs to themselves and More pages to more", () => {
     for (const t of ["home", "batches", "inbox", "analytics", "more"]) expect(tabFor(t)).toBe(t);
-    for (const p of ["alerts", "handoff", "library", "touch-up", "research"]) expect(tabFor(p)).toBe("more");
+    for (const p of ["alerts", "handoff", "library", "touch-up", "research", "settings"]) expect(tabFor(p)).toBe("more");
     expect(tabFor("login")).toBe("");
   });
 });
@@ -35,7 +35,7 @@ describe("tabFor", () => {
 describe("moreLinks", () => {
   it("lists every secondary page once, alerts first with the open count", () => {
     const links = moreLinks({ openAlerts: 2 });
-    expect(links.map((l) => l.href)).toEqual(["/alerts", "/handoff", "/library", "/touch-up", "/research"]);
+    expect(links.map((l) => l.href)).toEqual(["/alerts", "/handoff", "/library", "/touch-up", "/research", "/more/settings"]);
     expect(links[0]!.badge).toBe(2);
     expect(links.slice(1).every((l) => l.badge === undefined)).toBe(true);
     expect(moreLinks()[0]!.badge).toBeUndefined();
