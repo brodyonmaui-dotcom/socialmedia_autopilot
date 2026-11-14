@@ -8,6 +8,7 @@ export * from "./ThemeToggle.js";
 // Frame
 export * from "./AppShell.js";
 export * from "./SiteHeader.js";
+export * from "./HeaderMenu.js";
 export * from "./TabBar.js";
 export * from "./GridLines.js";
 export * from "./NoiseOverlay.js";

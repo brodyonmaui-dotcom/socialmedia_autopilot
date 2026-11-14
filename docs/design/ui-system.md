@@ -69,6 +69,7 @@ The reference is a SaaS marketing page. Each of its sections becomes a real job 
 | Row title (RevealList) | Inter 700, 28 px phone / 48 px desktop, -0.03em; becomes `ds-serif` on hover | — |
 | Big number | Inter 900, 40–64 px, -0.04em, `ds-num` | — |
 | Body | Inter 400, 16 px / 1.5 | — |
+| Note | Inter 400, 15 px / 1.375, `ds-muted` (card notes, explanations) | `ds-note` |
 | Label | 10 px (11 px on phone) Inter 700 caps, 0.22em | `ds-caps` |
 | Readout | system mono 10 px (11 px on phone), `KEY · VALUE` | `ds-mono` |
 | Editorial | Playfair Display italic 400 | `ds-serif` |

@@ -7,6 +7,8 @@ const PATHS = {
   inbox: "M3 13l3-8h12l3 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zM3 13h5l1 3h6l1-3h5",
   analytics: "M4 20V10M10 20V4M16 20v-7M22 20H2",
   more: "M5 12h.01M12 12h.01M19 12h.01",
+  menu: "M4 7h16M4 12h16M4 17h16",
+  logout: "M15 4h5v16h-5M10 8l-4 4 4 4M6 12h11",
   library: "M4 4h6v16H4zM14 4l6 2-4 14-6-2z",
   research: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-5-5",
   search: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-5-5",
