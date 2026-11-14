@@ -10,6 +10,7 @@ Writes text, never publishes. The batch lands as `draft`; only the creator's tap
 ## Inputs
 - Clips: `status = 'ready'` rows in `media` (library page), or IDs the creator gives you. Don't read video frames; use the filename, pillar and his notes.
 - `docs/voice.md` (read it every time; it wins over habit). `CLAUDE.md` wins over voice.md.
+- `docs/content-playbook.md`: hook rules (§1), re-hook clip bank (§3), retention fixes from the last report (§6).
 - Last report's "what worked" (weekly-report skill) and the research brief (research-brief skill), if they exist in `logs/`.
 
 ## Steps
@@ -19,6 +20,7 @@ Writes text, never publishes. The batch lands as `draft`; only the creator's tap
    - Per platform, tailor per voice.md: IG first line stands alone, ≤5 hashtags; TikTok shorter, 3–5 hashtags; YouTube `title` ≤60 chars + 1–2 sentence description with 3 hashtags.
    - Trading: real numbers only. If he hasn't given one, write `{{P/L}}` and ask him. Add "Not financial advice." on recaps.
    - `scheduledFor` (ISO with offset) only if he gave times or a scheduler output exists; otherwise leave it out (slot assignment is the scheduler's job).
+   - Hooks: line 1 of every caption follows the playbook hook rules (one sentence, a claim not a question, specific nouns). Yap reels get the hook line only, nothing else. A re-hook of an older clip changes only the hook (or only the song); never re-post to TikTok.
    - Sound-dependent TikToks go as inbox drafts: set `tiktokDraft: true` (he finishes the sound in the TikTok app; max 5 pending drafts per 24 h, the checker warns).
 3. Run `pnpm skill:weekly-batch check logs/batch-<weekStart>.json`. On FAIL, read the log it names, fix the text, re-run. Never "fix" a privacy finding by rewording around a place: remove the place.
 4. Run `pnpm skill:weekly-batch review logs/batch-<weekStart>.json`. It writes `logs/batch-<weekStart>-review.md`: one row per clip with folder + file name (from the library when the DB is reachable, else blank), the IG / TikTok / YouTube text, and open questions (`{{…}}` gaps, check findings, YouTube > 60 s, TikTok drafts, numbers taken from file names, archived clips). Add anything only you know (what the clip seems to show) to that file. It refuses to replace an existing review; pass `--force` only after you've carried over any hand edits. Point him to the file and ask for numbers still in `{{…}}`.
