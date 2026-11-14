@@ -6,17 +6,17 @@ Public-safe: no personal data. Sources are saved Instagram reels (2026-11); thei
 
 ## What to adopt
 ### Filming
-- Lower the exposure for a moodier gym look, and record in 4K so you can crop to 9:16 and punch in later (@bfitcreator, https://www.instagram.com/p/DdWszYKGzHH/).
+- Lower the exposure for a moodier gym look, and record in 4K so you can crop to 9:16 and punch in later (bfitcreator: https://www.instagram.com/p/DdWszYKGzHH/).
 - Film far more than you need (@merik.hodgins, below).
 
 ### Grade (starting point, tune by eye)
-- Cinematic gym grade: **Temperature +10, Luminosity +15, Exposure −20** (@wansinbs, https://www.instagram.com/reel/DdfQICGoUpy/). Save it as a preset so every workout log matches.
+- Cinematic gym grade: **Temperature +10, Luminosity +15, Exposure −20** (wansinbs: https://www.instagram.com/reel/DdfQICGoUpy/). Save it as a preset so every workout log matches.
 
 ### Storytelling without talking
-- Sequence: **setting → details/close-ups → action**. Mix focal lengths (wide, mid, tight). Match the audio's pace to the edit's pace (@merik.hodgins, https://www.instagram.com/reel/DaV4mHOMC--/).
+- Sequence: **setting → details/close-ups → action**. Mix focal lengths (wide, mid, tight). Match the audio's pace to the edit's pace (merik.hodgins: https://www.instagram.com/reel/DaV4mHOMC--/).
 - "Setting" means mood (light, chalk, the bar), never a recognizable place (see the privacy rule in the contract).
 
-### The 7-step 60-second edit (@aidendjohnston, https://www.instagram.com/reel/DegOQG6Tydw/)
+### The 7-step 60-second edit (aidendjohnston: https://www.instagram.com/reel/DegOQG6Tydw/)
 1. Hook doc: write the on-screen hook line first (rules below).
 2. WhisperX word-level timestamps for rough cuts.
 3. Subtitles **2–3 words per cue**.
@@ -26,8 +26,8 @@ Public-safe: no personal data. Sources are saved Instagram reels (2026-11); thei
 7. Close. Our version: **no CTA** or one soft question (voice guide).
 
 ### Make it repeatable
-- Any edit you've done twice becomes a **named skill file with explicit specs** (resolution, grade values, caption font/size/position, cue length, cut rules) (@caleb_tankphoto, https://www.instagram.com/reel/DepWiuBqdhG/).
-- Keep a **rules folder per series** (motion, captions, hook patterns) so every render inherits the same rules (@speedy_devv). Suggested: `rules/workout-log/`, `rules/physique/`, `rules/single-set/`.
+- Any edit you've done twice becomes a **named skill file with explicit specs** (resolution, grade values, caption font/size/position, cue length, cut rules) (caleb_tankphoto: https://www.instagram.com/reel/DepWiuBqdhG/).
+- Keep a **rules folder per series** (motion, captions, hook patterns) so every render inherits the same rules (speedy_devv). Suggested: `rules/workout-log/`, `rules/physique/`, `rules/single-set/`.
 
 ### Hooks and re-hooks (from the autopilot content playbook)
 - Line 1 on screen is a complete claim, one sentence, specific nouns, not a question. Dry and calm ("Leg day and I are not on speaking terms…").

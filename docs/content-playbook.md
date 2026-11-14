@@ -32,24 +32,24 @@ Hook formulas:
 **Anchor rule:** every named law, quote and stat is verified against a real source before it's used (the script file records the URL and status). Unverifiable → drop or swap it. Never invent an attribution. Prefer the replicated version of a finding and say "one study" when it's one study.
 
 ## 2. Script structures for edited reels
-- **Hook → Lead → Body 1 → Open Loop → Body 2 → Open Loop → Body 3 → CTA** (@realskytan, https://www.instagram.com/reel/DambEp1igDW/). For our voice the "CTA" is a soft question or nothing (voice.md: CTAs rare and soft).
-- **Hook (emotion) → Super Hook (credibility) → Open Loop** (@kierzacporter, https://www.instagram.com/reel/DdB54MDoQWM/). Trade-recap version: "Welp, I was the liquidity today 🥀" → "I took this trade live" → "the second move is what mattered".
+- **Hook → Lead → Body 1 → Open Loop → Body 2 → Open Loop → Body 3 → CTA** (realskytan: https://www.instagram.com/reel/DambEp1igDW/). For our voice the "CTA" is a soft question or nothing (voice.md: CTAs rare and soft).
+- **Hook (emotion) → Super Hook (credibility) → Open Loop** (kierzacporter: https://www.instagram.com/reel/DdB54MDoQWM/). Trade-recap version: "Welp, I was the liquidity today 🥀" → "I took this trade live" → "the second move is what mattered".
 
 ## 3. Footage is the asset, the hook is the experiment
-- Re-post the same video with only a new hook (on-screen line 1 + caption line 1) or a new song. Keep a **clip bank** and re-hook instead of reshooting (@zac_spencer, https://www.instagram.com/reel/DcmKoU1hVF3/).
+- Re-post the same video with only a new hook (on-screen line 1 + caption line 1) or a new song. Keep a **clip bank** and re-hook instead of reshooting (zac_spencer: https://www.instagram.com/reel/DcmKoU1hVF3/).
 - Our rules: change **one** variable per re-post (hook *or* song), wait ≥ 7 days, never re-post to TikTok (its "duplicate content" check rejects it; TikTok gets the variant only if the edit is genuinely different). Log the variant so the weekly report compares old vs new.
 
 ## 4. Trial Reels "Manage Versions" (later)
-- Up to **5 versions** of one reel (different hooks or instrumentals), one per day; the winner graduates (@damianappice, https://www.instagram.com/reel/Dco8DB2oRRt/).
+- Up to **5 versions** of one reel (different hooks or instrumentals), one per day; the winner graduates (damianappice: https://www.instagram.com/reel/Dco8DB2oRRt/).
 - Status: our API trials are refused (subcode 2207081, a permission-level refusal at ~137 followers; research.md 2026-11-12). Use this only once the daily re-probe passes; until then, run the same test as regular-reel re-hooks (§3) spaced a week apart.
 
 ## 5. The listicle method (mix it in, don't build on it)
-- Describe a *person*, with progressive intrigue: surface trait → detailed trait. Each item is one sentence trait + one sentence why (@nicktarmo, https://www.instagram.com/reel/DdAFS1PRxQO/).
+- Describe a *person*, with progressive intrigue: surface trait → detailed trait. Each item is one sentence trait + one sentence why (nicktarmo: https://www.instagram.com/reel/DdAFS1PRxQO/).
 - Example: "Traits of someone who's quietly getting better at trading. They log the losing days in more detail than the winners…"
 - It reaches but doesn't build brand: at most 1 in 7 posts.
 
 ## 6. Retention diagnosis rubric (weekly review)
-From @cookin.code (https://www.instagram.com/reel/DfsPYGvCQ3N/). Our analytics has `reels_skip_rate` and `ig_reels_avg_watch_time` (IG), plus views/reach.
+From cookin.code (https://www.instagram.com/reel/DfsPYGvCQ3N/). Our analytics has `reels_skip_rate` and `ig_reels_avg_watch_time` (IG), plus views/reach.
 
 | Diagnosis | Signal | Fix |
 |---|---|---|

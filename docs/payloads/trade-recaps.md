@@ -12,15 +12,15 @@ Public-safe: no personal data. Sources are saved Instagram reels (2026-11); crea
 - Blur or crop account numbers, balances he hasn't chosen to show, broker usernames and anything else identifying in screen recordings.
 
 ## Script structures
-- **Hook (emotion) → Super hook (credibility) → Open loop** (@kierzacporter, https://www.instagram.com/reel/DdB54MDoQWM/). Ours: "Welp, I was the liquidity today 🥀" → "I took this trade live" → "the second move is what mattered."
-- **Hook → Lead → Body 1 → Open loop → Body 2 → Open loop → Body 3 → close** (@realskytan, https://www.instagram.com/reel/DambEp1igDW/). Our close is no CTA, or one soft question.
+- **Hook (emotion) → Super hook (credibility) → Open loop** (kierzacporter: https://www.instagram.com/reel/DdB54MDoQWM/). Ours: "Welp, I was the liquidity today 🥀" → "I took this trade live" → "the second move is what mattered."
+- **Hook → Lead → Body 1 → Open loop → Body 2 → Open loop → Body 3 → close** (realskytan: https://www.instagram.com/reel/DambEp1igDW/). Our close is no CTA, or one soft question.
 - Hook rules: one sentence, a claim not a question, specific nouns, calm. No hype.
 
 ## Re-hook testing
-- **Footage is the asset, the hook is the experiment** (@zac_spencer, https://www.instagram.com/reel/DcmKoU1hVF3/). Keep a clip bank of approved recaps; a re-post changes only the hook (on-screen line 1 + caption line 1) or only the audio, ≥ 7 days later, never on TikTok (duplicate-content rejection). A re-posted recap still says the original date.
+- **Footage is the asset, the hook is the experiment** (zac_spencer: https://www.instagram.com/reel/DcmKoU1hVF3/). Keep a clip bank of approved recaps; a re-post changes only the hook (on-screen line 1 + caption line 1) or only the audio, ≥ 7 days later, never on TikTok (duplicate-content rejection). A re-posted recap still says the original date.
 
 ## Retention rubric (when the creator shares a recap's numbers)
-From @cookin.code (https://www.instagram.com/reel/DfsPYGvCQ3N/):
+From cookin.code (https://www.instagram.com/reel/DfsPYGvCQ3N/):
 | Diagnosis | Signal | Fix |
 |---|---|---|
 | BAD HOOK | most viewers leave in the first 3 s (high skip rate) | cut the intro, lead with the payoff |
@@ -31,7 +31,7 @@ Verify a fix by comparing old vs new retention on the same footage.
 ## Editing pattern
 - WhisperX word-level timestamps for rough cuts (https://github.com/m-bain/whisperX, BSD-2-Clause; `pip install whisperx` in a venv, needs ffmpeg; skip diarization).
 - Subtitles **2–3 words per cue**; hard cuts; occasional punch-in on the chart at the key candle.
-- Any edit done twice → a named skill file with explicit specs (@caleb_tankphoto, https://www.instagram.com/reel/DepWiuBqdhG/); a rules folder for the recap series (@speedy_devv).
+- Any edit done twice → a named skill file with explicit specs (caleb_tankphoto: https://www.instagram.com/reel/DepWiuBqdhG/); a rules folder for the recap series (speedy_devv).
 - Strip metadata on export: `ffmpeg -i in.mp4 -map_metadata -1 -c copy out.mp4`.
 
 ## Cautions
