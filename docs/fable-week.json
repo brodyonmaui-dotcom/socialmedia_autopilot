@@ -102,8 +102,8 @@
       "title": "F12 · UI restyle onto the design system (Fable art direction + designer agents)",
       "model": "fable",
       "area": "apps/web",
-      "status": "in-progress",
-      "notes": "Design system v2 (Warm Industrial: #EBEBE8, Inter + Playfair italic, 12-col grid, sharp, one blue). Spec + per-page task list: docs/design/ui-system.md (Restyle plan, 10 tasks). Components: apps/web/components/ui; live guide: /app/design (Day/Night); agent: .claude/agents/designer.md. 2026-11-14 day run: batches list + detail restyle (tasks 2-3) started together with F11 T3, unfinished, in the same WIP patch; the parallel design session owns the other pages. Fable run 3: batches list+detail (af4c687) and Snapchat handoff (db78060) done; Alerts, Inbox+DMs, Analytics in flight; Library + touch-up and Research next."
+      "status": "done",
+      "notes": "Design system v2 restyle done in Fable run 3 (2026-11-14): all 10 restyle-plan tasks shipped (shell/home/login/site from the design session; batches list+detail, Snapchat handoff, Alerts, Inbox+DMs, Analytics, Library+touch-up, Research in this run). Shots: docs/design/ui-shots/f12/. Cosmetic touch-ups for run 4: alerts kind-filter cell wraps its count on phones; desktop /inbox/dms right column empty; one consistency pass over all pages."
     },
     {
       "id": "F13",

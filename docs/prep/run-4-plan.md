@@ -51,7 +51,7 @@ New this run:
 - **A designer can stop after its first survey command.** Resume it with SendMessage instead of respawning; the survey is not lost.
 - **Parallel designers need separate `NEXT_DIST_DIR`s and ports, and no `pkill`.** The tree currently has `apps/web/.next-{alerts,analytics,inbox,research}/` left over: add them to `.gitignore` or delete them (ask first) before staging, and never `git add .`.
 - **The guard hook can block a Bash command whose text only mentions a risky setting.** A heredoc doc containing the run-mode variable assignments was rejected this run; use Write/Edit for docs and tell implementers up front (same as the `truncate` hook rule below).
-- **The lead's share of cost:** <!-- lead fills: lead share of cost --> (KPI in `docs/night-reports/night-2026-11-14.html`; target < 25%; run 2 was 58% at checkpoint).
+- **The lead's share of cost:** **44%** at the final report (KPI in `docs/night-reports/night-2026-11-14.html`; target < 25%; run 2 was 58% at checkpoint).
 
 Still holding from run 2 (`docs/prep/run-3-plan.md`):
 - **Cap at 3 parallel implementers** and checkpoint (commit + night log) after every finished task. Parallelism burned two 5-hour windows in run 2.
