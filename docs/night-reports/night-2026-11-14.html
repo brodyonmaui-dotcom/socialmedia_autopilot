@@ -24,20 +24,20 @@ a{color:var(--strong)}footer{color:var(--mute);font-size:12px;margin-top:18px}
 <p style="margin-top:8px">In progress.</p></header>
 
 <div class="kpis">
-<div class="kpi"><div class="v">1.78M</div><div class="l">total tokens</div></div>
-<div class="kpi"><div class="v">16.1K</div><div class="l">output tokens</div></div>
-<div class="kpi"><div class="v">1.44M</div><div class="l">cache reads</div></div>
-<div class="kpi"><div class="v">$0.72</div><div class="l">API-equivalent (not your plan bill)</div></div>
+<div class="kpi"><div class="v">12.02M</div><div class="l">total tokens</div></div>
+<div class="kpi"><div class="v">164.3K</div><div class="l">output tokens</div></div>
+<div class="kpi"><div class="v">11.18M</div><div class="l">cache reads</div></div>
+<div class="kpi"><div class="v">$5.40</div><div class="l">API-equivalent (not your plan bill)</div></div>
 <div class="kpi"><div class="v">0%</div><div class="l">lead (Fable) share of cost · target &lt; 25%</div></div>
-<div class="kpi"><div class="v">0.0h</div><div class="l">first→last activity · 22 model calls</div></div>
-<div class="kpi"><div class="v">1261/1261</div><div class="l">tests passing</div></div>
+<div class="kpi"><div class="v">0.2h</div><div class="l">first→last activity · 145 model calls</div></div>
+<div class="kpi"><div class="v">1290/1290</div><div class="l">tests passing</div></div>
 </div>
 
 <section class="attn"><h2>Needs you</h2><p class="muted">Nothing needs you.</p></section>
 
-<section><h2>Done</h2><p class="muted">Nothing.</p></section>
-<section><h2>Not done</h2><p class="muted">Nothing.</p></section>
-<section><h2>Decisions for Brody</h2><p class="muted">No decisions made on your behalf.</p></section>
+<section><h2>Done</h2><ul><li>Review pack: 9 Haiku scout summaries in docs/prep/run-3-review-pack/</li><li>Red-team web hunks (handoff-store, handoff-media, alerts-ack, pwa-public-paths): 3 fixes with failing tests first: /sw.js + manifest/favicon exact match and bounded middleware matcher; media proxy refuses r2_key escaping the base; acknowledgeAll with an unknown kind acks nothing</li><li>F11 T2: PgBatchStore reset-checked/record-published SQL (conditional, key never touched, alert acked in tx), IG auto-check (read-only), resetCheckedAction/recordPublishedAction/igCheckAction, DB tests incl. same-key and concurrency, worker DB tick test (lookup hit → 0 publishes)</li></ul></section>
+<section><h2>Not done</h2><ul><li>F9 T3: no probe output (ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape) in docs/research.md on main; skipped</li></ul></section>
+<section><h2>Decisions for Brody</h2><ul><li>F11 T2: igCheckAction returns its result instead of redirecting (not via run()); requireSession first</li><li>F11 T2: IG check reports error when the item has no time or empty caption; 10 s timeout</li></ul></section>
 <section><h2>Blocked or denied by guardrails</h2><p class="muted">Nothing was blocked.</p></section>
 <section><h2>Pick up next</h2><p class="muted">Nothing.</p></section>
 
@@ -48,7 +48,7 @@ a{color:var(--strong)}footer{color:var(--mute);font-size:12px;margin-top:18px}
 </table></section>
 
 <section><h2>Tokens by model</h2><table><tr><th>Model</th><th>Input</th><th>Output</th><th>Cache read</th><th>Cache write</th></tr>
-<tr><td>claude-haiku-5-5</td><td class="n">20</td><td class="n">8.6K</td><td class="n">232.3K</td><td class="n">260.8K</td></tr><tr><td>claude-opus-5-5</td><td class="n">23</td><td class="n">7.5K</td><td class="n">1.21M</td><td class="n">57.7K</td></tr>
+<tr><td>claude-opus-5-5</td><td class="n">250</td><td class="n">89.7K</td><td class="n">9.67M</td><td class="n">315.0K</td></tr><tr><td>claude-haiku-5-5</td><td class="n">50</td><td class="n">74.6K</td><td class="n">1.51M</td><td class="n">366.6K</td></tr>
 </table></section>
-<footer>Generated 2026-11-14T00:07:25.963Z from 2026-11-14-day.json and 5 transcript file(s). API-equivalent cost uses list prices and is only a relative measure of work done.</footer>
+<footer>Generated 2026-11-14T00:17:30.672Z from 2026-11-14-day.json and 8 transcript file(s). API-equivalent cost uses list prices and is only a relative measure of work done.</footer>
 </main></body></html>

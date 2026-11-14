@@ -7,11 +7,24 @@
   "backlogItem": "Review pack for Fable · F11 T2/T3 · batches restyle · Fable brief rewrite",
   "summary": "In progress.",
   "needsAttention": [],
-  "done": [],
-  "notDone": [],
-  "decisions": [],
+  "done": [
+    "Review pack: 9 Haiku scout summaries in docs/prep/run-3-review-pack/",
+    "Red-team web hunks (handoff-store, handoff-media, alerts-ack, pwa-public-paths): 3 fixes with failing tests first: /sw.js + manifest/favicon exact match and bounded middleware matcher; media proxy refuses r2_key escaping the base; acknowledgeAll with an unknown kind acks nothing",
+    "F11 T2: PgBatchStore reset-checked/record-published SQL (conditional, key never touched, alert acked in tx), IG auto-check (read-only), resetCheckedAction/recordPublishedAction/igCheckAction, DB tests incl. same-key and concurrency, worker DB tick test (lookup hit → 0 publishes)"
+  ],
+  "notDone": [
+    "F9 T3: no probe output (ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape) in docs/research.md on main; skipped"
+  ],
+  "decisions": [
+    "F11 T2: igCheckAction returns its result instead of redirecting (not via run()); requireSession first",
+    "F11 T2: IG check reports error when the item has no time or empty caption; 10 s timeout"
+  ],
   "blocked": [],
-  "tests": { "passed": 1261, "failed": 0, "notes": "Baseline at start: pnpm typecheck exit 0; pnpm test with DATABASE_URL 121 files / 1261 tests." },
+  "tests": {
+    "passed": 1290,
+    "failed": 0,
+    "notes": "After F11 T2: 124 files / 1290 tests with DATABASE_URL, typecheck green."
+  },
   "commits": 0,
   "prUrl": null,
   "nextPickup": []
