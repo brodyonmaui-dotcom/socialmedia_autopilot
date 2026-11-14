@@ -1,6 +1,6 @@
 # Posting plan: Mon Nov 16 – Sun Nov 22, 2026
 
-Status: **DRAFT, needs the creator's OK** (open questions at the end). All times are **creator-local** wall clock, inside the `DEFAULT_CADENCE` windows (09:30–11:45, 12:00–14:00, 15:00–18:00, 20:00–21:00). Nothing here publishes anything: the laptop `weekly-batch` skill turns it into a draft batch, and the creator approves it on the phone.
+Status: **DRAFT; creator answers 2026-11-15 folded in** (sound route, mind-training series, no lighter days, higher caps; see the end). Catch-up cross-posting of the IG backlog runs on top of this plan: `docs/backfill.md`. All times are **creator-local** wall clock, inside the `DEFAULT_CADENCE` windows (09:30–11:45, 12:00–14:00, 15:00–18:00, 20:00–21:00). Nothing here publishes anything: the laptop `weekly-batch` skill turns it into a draft batch, and the creator approves it on the phone.
 
 Rules this plan inherits: `docs/content-playbook.md` (hooks, re-hooks, retention rubric), `docs/voice.md` (tone, hashtags, "Not financial advice."), `docs/tiktok-free-plan.md` (TikTok caps), CLAUDE.md (approval, location boundary).
 
@@ -44,14 +44,13 @@ The lead is the 10:15 yap (it sets the day's tone on IG); Yap #B is a different 
 
 Spares **#15–#20** are held back: they replace any yap that's re-recorded, flagged, or that the weekly report says to swap for a stronger lane next week.
 
-## 4. Sound decision (recommendation)
-**Recommend: music stays out of the scheduled pipeline except where the platform supplies it.**
-1. **Yap reels: direct post everywhere.** No music, so no muting, no Content ID, no Commercial Music Library limit. This is why yaps carry the volume this week.
-2. **Library clips with music (P/S):**
-   - **TikTok:** export **without** music, send as a Creator Inbox **draft** (`soundInApp: true`), add the trending sound in the app. Our Business-API lane only allows the Commercial Music Library for direct posts. Max 5 pending drafts / 24 h, so **≤ 1 draft a day** this week; clear them daily.
-   - **Instagram / YouTube:** post with the **original gym audio** or a track from a free licence that covers that platform (YouTube Audio Library on YT; check the licence terms for IG before use). **Don't** bake in commercial songs: IG can mute the audio and YT Content ID can claim or block it, and a muted reel loses its reach without telling us why.
-   - If a clip only works with a specific trending song, it's TikTok-only (draft), and IG gets it as a re-hook later with a different audio.
-3. Re-hook variants (§5) may change the song **or** the hook, never both.
+## 4. Sound decision (creator-approved 2026-11-15)
+1. **Yap reels:** direct post everywhere. They have no music, so no muting, no Content ID, and no Commercial Music Library limit.
+2. **Library clips (P/S): original audio, no royalty-free tracks.**
+   - **TikTok:** a clip that needs a trending sound goes as a Creator Inbox **draft** (`soundInApp: true`). He adds the sound from his saved sounds in the TikTok app and posts. **≤ 3 drafts a day** (5 pending max), cleared daily.
+   - **Instagram / YouTube:** original audio. The APIs can't attach in-app sounds. If a clip really needs its trending song on IG, he posts that one from the Instagram app.
+   - **Never** bake commercial songs into the file (IG muting, YouTube Content ID).
+3. Re-hook variants (§5) change the song **or** the hook, never both.
 
 ## 5. Re-hook testing (clip bank)
 - Every published P/S clip goes into the **clip bank** with its hook, audio and first-week numbers.
@@ -64,23 +63,27 @@ Spares **#15–#20** are held back: they replace any yap that's re-recorded, fla
 - **When trials pass:** take the week's 2 strongest yaps (lowest `reels_skip_rate`), build up to 5 versions each (the alternate hook, plus 3 new hook lines from the playbook formulas, plus 1 with a different first sentence order), one version per day as a trial, MANUAL graduation. The weekly report says which to share (decisions.md §5).
 - Until then: run the same comparison as regular-reel re-hooks a week apart.
 
-## 7. Caps this plan needs (app settings)
-| Platform | Cap / day | Why |
-|---|---|---|
-| Instagram | **5** | 3 scheduled + R + W on market days |
-| YouTube | **5** | same |
-| TikTok | **3** | tiktok-free-plan.md "never more than 3"; drafts ≤ 1/day (5-pending limit) |
-| Snapchat | **1** | assisted, decisions.md §3 |
+## 7. Caps (app settings)
+Regular plan plus the catch-up backfill (`docs/backfill.md`, which has the limits and sources):
 
-`DEFAULT_CADENCE.dailyCaps` today is 4/4/4/1. The plan needs IG and YT raised to **5** (the labelled 5/day/platform setting another session is adding) and TikTok **lowered to 3**. Also `slotsPerDay` 4 is fine (R/W are ad-hoc). Changing caps is a budget-neutral setting, but it's the creator's call.
+| Platform | Regular | + Backfill | **Cap / day** |
+|---|---|---|---|
+| Instagram | 3 + R + W | — | **6** |
+| YouTube | 3 + R + W | 5 | **10** |
+| TikTok | 2 + R | 4 (ramp: 2 for the first 3 days) | **7**, ≤ 3 drafts |
+| Snapchat | 1 | — | **1** |
+
+`DEFAULT_CADENCE.dailyCaps` is 4/4/4/1 today. The creator OK'd raising caps (2026-11-15); he sets them in Settings. The labelled 5/day/platform setting another session is adding needs to go up to 10 for YouTube.
 
 ## 8. Weekly review hooks
 - Sunday night: `weekly-report` with the retention rubric. Swap in spares for any lane that's BAD HOOK twice.
 - Track per-lane yap results (n is tiny this week: say "too early to tell" under 3 posts).
 
-## Open questions for the creator
-1. Raise IG/YT caps to 5 and lower TikTok to 3? (§7)
-2. Sound route OK: TikTok drafts for music clips, original/free-licence audio on IG/YT? (§4)
-3. Mind-training series (#8, #14, spare #20): only post it if you're actually doing the daily practice. Are you in? If not, swap in spares #15/#16.
-4. Snapchat: OK to use the previous day's best yap Mon–Tue until there's 48 h of data?
-5. Any day you want lighter (exams, travel you don't announce)? Drop Yap #B that day, never the recap.
+## Creator answers (2026-11-15)
+1. **Caps:** raise them; volume first, with a quality floor. Numbers are in §7.
+2. **Sound route:** OK. Original audio, trending sounds added in the app via TikTok drafts, no royalty-free library tracks.
+3. **Mind-training series:** in. #8 posts Thu 19 as day 1, so the daily practice starts that morning. #14 (the rules) posts Sun 22, and #20 is recorded on the real day N.
+4. **Lighter days:** none. If a day is short, swap in a spare (#15–#19) or a backfill clip rather than dropping a slot.
+
+Still open:
+- **Snapchat week 1:** use the previous day's best yap until there's 48 h of data? (Default: yes.)
