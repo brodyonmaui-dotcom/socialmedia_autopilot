@@ -118,6 +118,14 @@ describe.skipIf(!url)("handoff store (db)", () => {
     expect((await item(id)).platform_post_url).toBe("https://www.snapchat.com/spotlight/abc");
   });
 
+  it("two concurrent markPosted calls publish once, with one event", async () => {
+    const id = await fixture("f10-post-race", okBatch, clean, "snapchat", "2099-03-01T18:00:00Z", "approved", true);
+    const rs = await Promise.all([markPosted(pool, id, SESSION, null, NOW), markPosted(pool, id, SESSION, null, NOW)]);
+    expect(rs.filter((r) => r.ok)).toHaveLength(1);
+    expect(rs.filter((r) => !r.ok)).toEqual([{ ok: false, reason: RELOAD }]);
+    expect(await events(id, "snap-posted")).toHaveLength(1);
+  });
+
   it("skip moves a missed item to the next free day after today, same local time, audited", async () => {
     expect(await skipToNextDay(pool, ids.missedRaw!, SESSION, TZ, NOW)).toEqual({ ok: true, to: "2099-03-05" });
     const r = await item(ids.missedRaw!);
