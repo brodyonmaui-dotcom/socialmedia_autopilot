@@ -39,6 +39,8 @@ if (typeof opts["--theme"] === "string") {
 }
 const page = await context.newPage();
 const res = await page.goto(`http://localhost:${port}${path}`, { waitUntil: "networkidle" });
+// Hide the Next.js dev-mode indicator so shots from `next dev` look like production.
+await page.addStyleTag({ content: "nextjs-portal{display:none!important}" }).catch(() => {});
 await page.screenshot({ path: out, fullPage: opts["--full"] === true });
 // Never print the cookie value.
 console.log(`phone-shot: ${res?.status()} ${path} → ${out}`);
