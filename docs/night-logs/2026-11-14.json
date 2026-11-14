@@ -5,31 +5,55 @@
   "model": "claude-fable-5-1 (lead) + haiku scouts + opus designer/implementers",
   "session": "cloud · Fable run 3 · fable/run-3-2026-11-14",
   "backlogItem": "F11 review + T3 · F12 batches restyle + art direction · final cross-cutting review · run-4 plan",
-  "summary": "Window 1: judged the 7 open review-pack rows and approved the F11 T2 reset SQL (no defects, 61 tests green). F11 T3 + batches restyle and the media-base config-alert fix are running on Opus agents.",
+  "summary": "Window 1: judged the 7 open rows, approved the F11 T2 reset SQL, shipped F11 T3 + the batches restyle, the Snapchat handoff restyle and the media-base config alert (all green: 1386 tests, build). Alerts, Inbox and Analytics restyles are running.",
   "needsAttention": [
-    { "priority": 1, "title": "Paste the four F9 probe lines", "detail": "ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape are not in docs/research.md, so F9 T3 did not run this run." },
-    { "priority": 2, "title": "First docker build after merge", "detail": "Both Dockerfiles now copy the root tsconfig.json; no Docker daemon in the cloud container, so `docker compose up -d --build` on the VPS is the real test." }
+    {
+      "priority": 1,
+      "title": "Paste the four F9 probe lines",
+      "detail": "ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape are not in docs/research.md, so F9 T3 did not run this run."
+    },
+    {
+      "priority": 2,
+      "title": "First docker build after merge",
+      "detail": "Both Dockerfiles now copy the root tsconfig.json; no Docker daemon in the cloud container, so `docker compose up -d --build` on the VPS is the real test."
+    }
   ],
   "done": [
     "Item 1: 7 open review-pack rows judged (dockerfiles #2 fixed, #3 creator; f11-pure #8 accepted, #11/#13 folded into T3, #12 approved; handoff-media #7 → fix in flight)",
-    "Item 2: F11 T2 SQL reviewed against the worker's listDue gate and the engine's existence check; approved"
+    "Item 2: F11 T2 SQL reviewed against the worker's listDue gate and the engine's existence check; approved",
+    "handoff-media #7: empty/invalid PUBLIC_MEDIA_BASE skips the tick with one deduped page-only 'config' alert (ed25c6d)",
+    "F11 T3: ResetSheet (Confirm disabled until allTicked), stuck-item cards, record-it on every failed/unknown row except Snapchat, runbook (af4c687)",
+    "F12 tasks 2–3 batches list + detail restyled; task 10 Snapchat handoff restyled (db78060); shots in docs/design/ui-shots/f12/"
   ],
-  "notDone": ["F11 T3 + batches restyle (designer running)", "handoff-media #7 config alert (implementer running)", "F12 pages 4–10 art direction", "F9 T3 (no probe output)", "final cross-cutting review", "run-4 plan"],
+  "notDone": [
+    "F12 Alerts, Inbox+DMs, Analytics (designers running)",
+    "F12 Library + touch-up, Research",
+    "F9 T3 (no probe output)",
+    "final cross-cutting review",
+    "run-4 plan"
+  ],
   "decisions": [
     "F11 T2 SQL approved as written: reset keeps the key, sets attempts=1, clears approved_at; record-published allowed from any failed/unknown row",
     "validatePostUrl keeps 'any path beyond /' (evidence only); hosts stay exact",
     "IG checklist box 3 reworded to cover the auto-check 'error' case; the result shows as a chip",
     "Record-published button on every failed/unknown row except Snapchat (handoff note instead); only the reset button is gated on canReset",
     "Empty/invalid PUBLIC_MEDIA_BASE skips the outbox tick with one deduped 'config' alert (page-only) instead of failing every post",
-    "Both Dockerfiles copy the root tsconfig.json"
+    "Both Dockerfiles copy the root tsconfig.json",
+    "Per-card Approve is outline; 'Approve all' is the single solid action on the batch page",
+    "Skip today asks for confirmation on the handoff page"
   ],
   "blocked": [],
-  "tests": { "passed": 61, "failed": 0, "notes": "reset.test.ts, reset.db.test.ts, outbox-reset.db.test.ts at the item-2 checkpoint; full suite runs at the next checkpoint" },
-  "commits": 1,
+  "tests": {
+    "passed": 1386,
+    "failed": 0,
+    "notes": "132 files with DATABASE_URL at af4c687; typecheck 0 errors; web build compiled"
+  },
+  "commits": 4,
   "prUrl": null,
   "nextPickup": [
-    "Review the designer's F11 T3 + batches restyle diff (shots in docs/design/ui-shots/f12/batches-*.png), run typecheck/test/build, commit",
-    "Review the implementer's outbox config-alert diff (apps/worker/src/jobs/outbox.ts, outbox-config.db.test.ts), commit",
-    "Then F12 pages: Alerts, Snapchat handoff, Inbox+DMs, Analytics, Library, Research (Opus designer for the first of a pattern, Sonnet for follow-ups)"
+    "Review the Alerts / Inbox / Analytics designer diffs + shots (docs/design/ui-shots/f12/{alerts,inbox,analytics}-*.png), run typecheck/test/build, commit each",
+    "Then Library + touch-up (task 5) and Research (task 7) with Sonnet designers",
+    "Scout fact pack → write docs/prep/run-4-plan.md priorities; Sonnet drafts the plan + design docs",
+    "Final cross-cutting review (scout lists new SQL writes/env names/routes + leak scanner), then PR"
   ]
 }
