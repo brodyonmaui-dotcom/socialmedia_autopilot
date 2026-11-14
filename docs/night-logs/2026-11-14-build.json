@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-14",
+  "startedAt": "2026-11-14T00:00:00Z",
+  "endedAt": null,
+  "model": "opus lead",
+  "session": "cloud · build",
+  "backlogItem": "F9 T3 · F13 T1-T4 · F15 editor pipeline · cadence caps",
+  "summary": "Checkpoint: probe log, F9 T3 and F13 T2 committed; F13 T1/T3 and F15 T1 in progress.",
+  "needsAttention": [],
+  "done": [
+    "Probe results 2026-11-14 in the research.md verification log; engagement runbook: YT replies enable steps + DM drafts",
+    "F9 T3: parsers + fixtures on real shapes (reposts, YT string counts), report shares/reposts/watch time/skip rate",
+    "F13 T2: outbox tick advisory lock (Fable to review)",
+    "F15 design doc"
+  ],
+  "notDone": [],
+  "decisions": [
+    "Leak-scan false positive (shell/home/login/site read as a home path) reworded in the tracker and the run-3 report",
+    "F15: rolling per-week batch; ingest_key unique index (migration 0009) for content-hash+platform idempotency; no-slot items stay unslotted (Move to tomorrow), never rolled silently",
+    "Cadence default caps 5/day IG/YT/TikTok in code; the stored cadence row on the VPS keeps 4 until the creator raises it"
+  ],
+  "blocked": [],
+  "tests": {
+    "passed": 0,
+    "failed": 0,
+    "notes": "full run at close-out"
+  },
+  "commits": 4,
+  "prUrl": null,
+  "nextPickup": []
+}
