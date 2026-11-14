@@ -215,6 +215,26 @@ export function privacyCaptionGuard(blocklist: string[]): (post: OutboxPost) => 
 }
 
 /**
+ * The media URL (`${PUBLIC_MEDIA_BASE}/${r2_key}`) must still resolve under the base once a client
+ * normalises it: same origin, under the base path + "/", no query or fragment. `../`, `%2e%2e` or `\`
+ * in r2_key would otherwise point the platform at another object. The reason never names the base or key.
+ */
+export function mediaUrlGuard(publicMediaBase: string): (post: OutboxPost) => string | null {
+  return (post) => {
+    const refusal = "media url refused: the clean file's key resolves outside PUBLIC_MEDIA_BASE";
+    try {
+      const b = new URL(publicMediaBase);
+      const t = new URL(post.mediaUrl);
+      const prefix = `${b.pathname.replace(/\/+$/, "")}/`;
+      if (t.origin !== b.origin || !t.pathname.startsWith(prefix) || t.pathname === prefix || t.search || t.hash) return refusal;
+      return null;
+    } catch {
+      return refusal;
+    }
+  };
+}
+
+/**
  * One outbox tick against Postgres with the real adapters (only those configured). YouTube and TikTok
  * hold their own clock once handed off, so they go out ahead of scheduled_for; Instagram fires at it.
  */
@@ -229,6 +249,9 @@ export async function runOutboxWith(pool: OutboxPool, adapters: Partial<Record<P
   const timeZone = cfg.timeZone ?? "UTC";
   const cadence = await loadCadence(pool);
   const store = new PgOutboxStore(pool, cfg.publicMediaBase, log);
-  const captionGuard = privacyCaptionGuard(cfg.blocklist ?? blocklistFromEnv());
+  const privacy = privacyCaptionGuard(cfg.blocklist ?? blocklistFromEnv());
+  const media = mediaUrlGuard(cfg.publicMediaBase);
+  // Both refusals are permanent failures (+ final-failure alert); the adapter is never called.
+  const captionGuard = (post: OutboxPost): string | null => media(post) ?? privacy(post);
   return runOutboxTick(store, { adapters, dryRun: cfg.dryRun, policy: cfg.policy, cadence, timeZone, alerts: cfg.alerts ?? consoleAlertSink, log, captionGuard });
 }
