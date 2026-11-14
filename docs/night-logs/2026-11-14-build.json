@@ -15,7 +15,7 @@
   ],
   "notDone": [],
   "decisions": [
-    "Leak-scan false positive (shell/home/login/site read as a home path) reworded in the tracker and the run-3 report",
+    "Leak-scan false positive (a slash-joined page list read as a home dir) reworded in the tracker and the run-3 report",
     "F15: rolling per-week batch; ingest_key unique index (migration 0009) for content-hash+platform idempotency; no-slot items stay unslotted (Move to tomorrow), never rolled silently",
     "Cadence default caps 5/day IG/YT/TikTok in code; the stored cadence row on the VPS keeps 4 until the creator raises it"
   ],
