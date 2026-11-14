@@ -1,12 +1,13 @@
 import type { Platform } from "@autopilot/core";
+import type { BatchItemEventKind } from "@autopilot/db";
 
 /**
  * F11: pure pieces for "I checked, it's not on the platform" (reset-checked) and "I checked, it IS
  * there" (record-published). No I/O; the caller (actions + store) does the IG lookup and the writes.
  */
 
-/** New batch_item_events.kind values. TODO(F11 T2): fold into BatchItemEventKind in @autopilot/db. */
-export type ResetEventKind = "reset-checked" | "record-published";
+/** The two batch_item_events.kind values F11 adds (part of BatchItemEventKind in @autopilot/db). */
+export type ResetEventKind = Extract<BatchItemEventKind, "reset-checked" | "record-published">;
 
 /** Result of the IG adapter's read-only `findExisting` (a hit refuses before we get here). Others: "n/a". */
 export type AutoCheck = "not-found" | "error" | "n/a";

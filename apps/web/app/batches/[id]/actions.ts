@@ -7,6 +7,7 @@ import { getPool } from "../../../lib/db.js";
 import { requireSession } from "../../../lib/auth/require.js";
 import { loadWarningContext } from "../../../lib/batches/context.js";
 import { fillTimesChanges, planFillTimes } from "../../../lib/batches/fill-times.js";
+import { checkInstagram, planResetChecked, type IgCheckResult } from "../../../lib/batches/ig-check.js";
 import { PgBatchStore } from "../../../lib/batches/pg-store.js";
 import { ConflictError } from "../../../lib/batches/store.js";
 import { planTransition, type BatchAction } from "../../../lib/batches/transitions.js";
@@ -154,4 +155,55 @@ export async function addItemAction(fd: FormData): Promise<void> {
     }
     return `added ${platforms.length} draft(s): write the caption, then fill missing times`;
   });
+}
+
+/**
+ * F11 "Not on the platform → back to draft". Form fields: batchId, itemId, checked (one per ticked box).
+ * The IG automatic check runs here, server-side, every time (the sheet's result could be stale and the
+ * form's is never trusted); a hit refuses. The reset never approves: the item comes back as a draft.
+ */
+export async function resetCheckedAction(fd: FormData): Promise<void> {
+  const session = await requireSession();
+  const batchId = str(fd, "batchId");
+  await run(batchId, async () => {
+    const itemId = str(fd, "itemId");
+    if (!UUID.test(itemId)) throw new UserError("unknown item");
+    const { store, batch } = await load(batchId);
+    const now = new Date();
+    const plan = await planResetChecked(batch, { itemId, checked: fd.getAll("checked").map(String) }, now);
+    if (!plan.ok) throw new UserError(plan.reason);
+    if (plan.changes.length > 0) await store.apply(batchId, plan.changes, plan.batchStatus, session.id, now);
+    return "back to draft: check the time and caption, then approve it again";
+  });
+}
+
+/** F11 "It's there → record it". Form fields: batchId, itemId, url, platformPostId (optional). */
+export async function recordPublishedAction(fd: FormData): Promise<void> {
+  const session = await requireSession();
+  const batchId = str(fd, "batchId");
+  await run(batchId, async () => {
+    const itemId = str(fd, "itemId");
+    if (!UUID.test(itemId)) throw new UserError("unknown item");
+    const platformPostId = str(fd, "platformPostId").trim();
+    await transition(batchId, session.id, { kind: "record-published", itemId, url: str(fd, "url"), platformPostId: platformPostId || undefined });
+    return "recorded as published";
+  });
+}
+
+/**
+ * F11: the IG automatic check for the reset sheet (read-only GET; never posts). Returns the result
+ * instead of redirecting, so it doesn't go through run(). Non-IG items → "n/a".
+ */
+export async function igCheckAction(batchId: string, itemId: string): Promise<IgCheckResult> {
+  await requireSession();
+  if (!UUID.test(batchId) || !UUID.test(itemId)) return { result: "error" };
+  try {
+    const batch = await new PgBatchStore(getPool()).loadBatch(batchId);
+    const item = batch?.items.find((i) => i.id === itemId);
+    if (!item) return { result: "error" };
+    return await checkInstagram(item);
+  } catch (err) {
+    console.error(`instagram check action failed: ${(err as Error).name}`);
+    return { result: "error" };
+  }
 }

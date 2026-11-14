@@ -31,7 +31,10 @@ beforeEach(() => {
 describe("batch actions without a session", () => {
   it("exports the expected actions", () => {
     expect(exported.map(([n]) => n).sort()).toEqual(
-      ["addItemAction", "approveAction", "approveAllAction", "editAction", "fillTimesAction", "rejectAction", "unapproveAction"].sort(),
+      [
+        "addItemAction", "approveAction", "approveAllAction", "editAction", "fillTimesAction", "igCheckAction", "recordPublishedAction",
+        "rejectAction", "resetCheckedAction", "unapproveAction",
+      ].sort(),
     );
   });
 
@@ -56,7 +59,7 @@ describe("batch actions with a session (fake pool)", () => {
   const BATCH = "b0000000-0000-4000-8000-000000000001";
   const ITEM = "10000000-0000-4000-8000-000000000001";
 
-  function fakePool() {
+  function fakePool(status = "approved") {
     const calls: Array<{ sql: string; params: unknown[] }> = [];
     const answer = (sql: string, params: unknown[] = []) => {
       calls.push({ sql, params });
@@ -66,7 +69,8 @@ describe("batch actions with a session (fake pool)", () => {
           rows: [
             {
               id: ITEM, batch_id: BATCH, media_id: "m0000000-0000-4000-8000-000000000001", platform: "instagram", caption: "calm caption", title: null,
-              scheduled_for: new Date("2099-01-06T10:00:00Z"), status: "approved", trial: null, platform_post_id: null, approved_at: new Date(),
+              scheduled_for: new Date("2099-01-06T10:00:00Z"), status, trial: null, platform_post_id: null, approved_at: new Date(),
+              attempts: 4, last_error: "gave up", key_tail: "abc123", platform_post_url: null,
               source_path: "clip.mp4", r2_key: "k", duration_s: "20", pillar: null, qa: null,
             },
           ],
@@ -99,5 +103,44 @@ describe("batch actions with a session (fake pool)", () => {
     const b = calls.find((c) => /^update batches/.test(c.sql.trim()))!;
     expect(b.params[1]).toBe("draft");
     expect(client.release).toHaveBeenCalled();
+  });
+
+  it("resetCheckedAction: IG check runs server-side (no creds → 'error'), explicit reset SQL, alert ack, never approves", async () => {
+    vi.stubEnv("META_ACCESS_TOKEN", "");
+    vi.stubEnv("IG_USER_ID", "");
+    auth.requireSession.mockResolvedValue(SESSION);
+    const { pool, calls } = fakePool("failed");
+    db.getPool.mockReturnValue(pool);
+    const { RESET_CHECKLIST } = await import("../../../lib/batches/reset.js");
+    const fd = new FormData();
+    fd.set("batchId", BATCH);
+    fd.set("itemId", ITEM);
+    fd.set("autoCheck", "not-found"); // ignored: the server runs its own check
+    for (const c of RESET_CHECKLIST.instagram) fd.append("checked", c);
+
+    await expect(actions.resetCheckedAction(fd)).rejects.toMatchObject({ url: expect.stringMatching(new RegExp(`^/batches/${BATCH}\\?note=`)) });
+    const upd = calls.find((c) => /^update batch_items/.test(c.sql.trim()))!;
+    expect(upd.sql).toMatch(/set status = 'draft'/);
+    expect(upd.sql).toMatch(/platform_post_id is null/);
+    expect(upd.sql).not.toMatch(/idempotency_key/);
+    expect(upd.params).toEqual([ITEM, expect.any(Date), 1, BATCH, "failed"]);
+    const ev = calls.find((c) => /insert into batch_item_events/.test(c.sql))!;
+    expect(ev.params[1]).toBe("reset-checked");
+    expect(JSON.parse(ev.params[4] as string)).toMatchObject({ autoCheck: "error", attemptsBefore: 4, lastError: "gave up" });
+    expect(calls.some((c) => /^update alerts set acknowledged_at/.test(c.sql.trim()))).toBe(true);
+    vi.unstubAllEnvs();
+  });
+
+  it("resetCheckedAction: a missing checklist box refuses before any write", async () => {
+    vi.stubEnv("META_ACCESS_TOKEN", "");
+    auth.requireSession.mockResolvedValue(SESSION);
+    const { pool, calls } = fakePool("failed");
+    db.getPool.mockReturnValue(pool);
+    const fd = new FormData();
+    fd.set("batchId", BATCH);
+    fd.set("itemId", ITEM);
+    await expect(actions.resetCheckedAction(fd)).rejects.toMatchObject({ url: expect.stringContaining("?error=") });
+    expect(calls.some((c) => c.sql.trim() === "begin")).toBe(false);
+    vi.unstubAllEnvs();
   });
 });

@@ -47,10 +47,16 @@ export interface BatchItemView {
   tiktokDraft: boolean;
   platformPostId: string | null;
   approvedAt: string | null;
-  /** Outbox send attempts (batch_items.attempts). Optional until loadBatch selects it (F11 T2). */
+  /** Outbox send attempts (batch_items.attempts). Set by loadBatch; optional so test fixtures can omit it. */
   attempts?: number;
-  /** Sanitised last outbox error (batch_items.last_error; sanitised at write time). Optional until loaded (F11 T2). */
+  /** Sanitised last outbox error (batch_items.last_error; sanitised at write time). Set by loadBatch. */
   lastError?: string | null;
+  /** Last 6 characters of the idempotency key (for matching a TikTok/Zernio post by hand). Never the full key. */
+  keyTail?: string | null;
+  /** batch_items.platform_post_url (set once published or recorded). */
+  platformPostUrl?: string | null;
+  /** F11: failed|unknown, no platform post id, and an outbox platform: the reset / record sheet applies. */
+  canReset?: boolean;
   media: { label: string; durationS: number | null; pillar: string | null; hasCleanFile: boolean; qaWarnings: string[] };
   /** Filled by computeWarnings. */
   warnings: Warning[];
@@ -76,6 +82,11 @@ export function deriveFlags(i: Pick<BatchItemView, "status" | "platformPostId">)
   const handedOff = i.platformPostId != null || HANDED_OFF_STATUSES.has(i.status);
   const editable = !handedOff && (i.status === "draft" || i.status === "approved");
   return { editable, handedOff };
+}
+
+/** F11: the "Not on the platform → back to draft" / "It's there → record it" buttons apply. */
+export function canResetItem(i: Pick<BatchItemView, "status" | "platformPostId" | "platform">): boolean {
+  return (i.status === "failed" || i.status === "unknown") && i.platformPostId == null && i.platform !== "snapchat";
 }
 
 /** Every status key present, 0 by default. */
