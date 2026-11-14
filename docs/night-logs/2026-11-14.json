@@ -53,7 +53,7 @@
     "notes": "137 files with DATABASE_URL at the final commit; typecheck 0 errors; web build compiled; simulate-week OK (0 double-posts, 0 cap breaches); simulate-engagement OK (shadow + live-fake, 0 double-replies, 0 location leaks)"
   },
   "commits": 9,
-  "prUrl": null,
+  "prUrl": "https://github.com/brodyonmaui-dotcom/socialmedia_autopilot/pull/20",
   "nextPickup": [
     "Creator: review/merge the PR, then migrations 0006–0008, passkey, VAPID, docker build, probe lines (see docs/prep/run-4-plan.md 'Needs you')",
     "Run 4: start from docs/prep/run-4-plan.md → F13 T1–T4 (preflight, tick lock, YT findExisting, first-real-post runbook)"
