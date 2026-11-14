@@ -17,6 +17,7 @@ export function normalizeMetrics(raw: unknown): Metrics {
     comments: num(r.comments),
     saves: num(r.saves),
     shares: num(r.shares),
+    reposts: num(r.reposts),
     avgWatchTime: num(r.avgWatchTime),
     skipRate: num(r.skipRate),
   };
