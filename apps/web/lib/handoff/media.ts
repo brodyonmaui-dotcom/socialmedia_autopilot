@@ -18,16 +18,34 @@ const NO_STORE = "private, no-store";
 const plain = (status: number, body: string): Response =>
   new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": NO_STORE } });
 
+/** `${base}/${key}` only if it still resolves under the base (same origin, base path + "/", no query/fragment); else null. */
+function underBase(base: string, key: string): string | null {
+  try {
+    const b = new URL(base);
+    const t = new URL(`${base}/${key}`);
+    const prefix = `${b.pathname.replace(/\/+$/, "")}/`;
+    if (t.origin !== b.origin || !t.pathname.startsWith(prefix) || t.pathname === prefix || t.search || t.hash) return null;
+    return `${base}/${key}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function proxyMedia(i: ProxyMediaInput): Promise<Response> {
   if (!i.mediaBase) return plain(503, "media not configured");
   if (!i.timeZone) return plain(503, "TZ_CREATOR not set");
   const item = await loadShareable(i.pool, i.itemId, i.now, i.timeZone);
   if (!item) return plain(404, "not found");
+  // Same URL shape as the worker (outbox.ts): base + "/" + r2_key, but never outside the base.
+  const target = underBase(i.mediaBase, item.r2Key);
+  if (!target) {
+    console.error("handoff media: r2 key outside the media base, refused");
+    return plain(404, "not found");
+  }
 
   let upstream: Response;
   try {
-    // Same URL shape as the worker (outbox.ts): base + "/" + r2_key.
-    upstream = await (i.fetchImpl ?? fetch)(`${i.mediaBase}/${item.r2Key}`, { cache: "no-store" });
+    upstream = await (i.fetchImpl ?? fetch)(target, { cache: "no-store" });
   } catch {
     console.error("handoff media: upstream fetch failed");
     return plain(502, "upstream error");

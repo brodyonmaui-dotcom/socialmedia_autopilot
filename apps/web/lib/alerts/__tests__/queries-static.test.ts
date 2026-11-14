@@ -101,7 +101,17 @@ describe("queries against a fake pool", () => {
   it("acknowledge and acknowledgeAll return the row count", async () => {
     const f = fakePool(3);
     expect(await acknowledge(f.pool, ["0b9d8f1e-1c2d-4e5f-8a9b-0c1d2e3f4a5b"], "s")).toBe(3);
-    expect(await acknowledgeAll(f.pool, "s", "bogus" as never)).toBe(3);
-    expect(f.calls[1]!.params[2]).toBeNull(); // unknown kind → all open, not a SQL string
+    expect(await acknowledgeAll(f.pool, "s")).toBe(3);
+    expect(f.calls[1]!.params[2]).toBeNull(); // no kind → all open
+    expect(await acknowledgeAll(f.pool, "s", "engagement-kill")).toBe(3);
+    expect(f.calls[2]!.params[2]).toBe("engagement-kill");
+  });
+
+  it("acknowledgeAll with an unknown kind acknowledges nothing (never widens to all open)", async () => {
+    const f = fakePool(3);
+    for (const bad of ["bogus", "", "final-failure' or '1'='1", null]) {
+      expect(await acknowledgeAll(f.pool, "s", bad as never)).toBe(0);
+    }
+    expect(f.calls).toHaveLength(0);
   });
 });

@@ -144,6 +144,29 @@ describe("runAnalyticsIngestOnce", () => {
     expect(pool.alerts).toHaveLength(2);
   });
 
+  it("a failed alert insert on the tripping run is retried next run (the trip is not lost)", async () => {
+    const pool = fakePool(items);
+    const inner = pool.query;
+    let failInsert = true;
+    const flaky = {
+      query: async (sql: string, params?: unknown[]) => {
+        if (/insert into alerts/.test(sql) && failInsert) {
+          failInsert = false;
+          throw new Error("db hiccup");
+        }
+        return inner(sql, params);
+      },
+    };
+    const { f } = fakeFetch({ ig: "fail" });
+    const cfgIg: AnalyticsSourcesEnv = { instagram: cfg.instagram! };
+    await runAnalyticsIngestOnce(flaky, cfgIg, { now: at(25), fetchImpl: f, log: () => {} });
+    await runAnalyticsIngestOnce(flaky, cfgIg, { now: at(26), fetchImpl: f, log: () => {} });
+    await expect(runAnalyticsIngestOnce(flaky, cfgIg, { now: at(27), fetchImpl: f, log: () => {} })).rejects.toThrow("db hiccup");
+    expect(pool.alerts).toHaveLength(0);
+    await runAnalyticsIngestOnce(flaky, cfgIg, { now: at(28), fetchImpl: f, log: () => {} });
+    expect(pool.alerts.map((a) => [a.kind, a.platform])).toEqual([["metrics-health", "instagram"]]);
+  });
+
   it("runs with DRY_RUN=true (read-only, not gated by run mode)", async () => {
     const env = { DRY_RUN: "true", META_ACCESS_TOKEN: IG_TOKEN } as NodeJS.ProcessEnv;
     const pool = fakePool(items);

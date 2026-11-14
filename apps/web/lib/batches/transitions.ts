@@ -1,6 +1,6 @@
 import type { BatchItemEventKind } from "@autopilot/db";
 import { deriveFlags, type BatchItemView, type BatchView, type ItemStatus } from "./types.js";
-import { AUTO_CHECKS, isResettablePlatform, POST_ID_RE, RESET_CHECKLIST, validatePostUrl, type AutoCheck, type ResetEventKind } from "./reset.js";
+import { AUTO_CHECKS, isResettablePlatform, POST_ID_RE, RESET_CHECKLIST, validatePostUrl, type AutoCheck } from "./reset.js";
 
 export type BatchAction =
   | { kind: "approve"; itemIds: string[] }
@@ -17,7 +17,7 @@ export interface ItemChange {
   itemId: string;
   from: ItemStatus;
   to: ItemStatus;
-  eventKind: BatchItemEventKind | ResetEventKind;
+  eventKind: BatchItemEventKind;
   /**
    * Column names as stored (snake case). The outbox fields are set only by reset-checked /
    * record-published. There is deliberately no idempotency_key field: nothing here may change it.

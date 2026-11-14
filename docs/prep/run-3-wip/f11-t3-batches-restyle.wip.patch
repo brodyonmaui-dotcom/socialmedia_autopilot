@@ -1,0 +1,1137 @@
+diff --git a/apps/web/app/batches/page.tsx b/apps/web/app/batches/page.tsx
+index 8b58000..918ac40 100644
+--- a/apps/web/app/batches/page.tsx
++++ b/apps/web/app/batches/page.tsx
+@@ -1,55 +1,80 @@
+-import Link from "next/link";
+ import { getPool } from "../../lib/db.js";
+ import { requireSession } from "../../lib/auth/require.js";
+ import { PgBatchStore } from "../../lib/batches/pg-store.js";
+-import { weekLabel, summaryCounts } from "../../lib/batches/view-model.js";
+-import { Banner, StatusPill } from "./ui/WarningChip.js";
++import { weekLabel } from "../../lib/batches/view-model.js";
++import { batchStatusBadge, countsMeta, needsYouCount, weekIndex } from "../../lib/batches/card-view.js";
++import { getTheme } from "../../components/ui/theme-server.js";
++import { AppShell, Badge, CONTAINER, EmptyState, RevealList, SectionHead, TopBar, cx, type RevealItem } from "../../components/ui/index.js";
++import { APP_NAV } from "./ui/nav.js";
++import { Notice } from "./ui/Notice.js";
+ 
+ export const dynamic = "force-dynamic";
++export const metadata = { title: "Batches · runmysocials" };
+ 
+ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
++type Row = Awaited<ReturnType<PgBatchStore["listBatches"]>>[number];
++
++function toItem(b: Row, now: Date): RevealItem {
++  const status = batchStatusBadge(b.status);
++  const stuck = needsYouCount(b.counts);
++  return {
++    id: b.id,
++    index: weekIndex(b.weekStart),
++    title: weekLabel(b.weekStart, now),
++    meta: countsMeta(b.counts).toUpperCase(),
++    href: `/batches/${b.id}`,
++    trailing: (
++      <span className="flex flex-wrap items-center justify-end gap-2">
++        {stuck > 0 ? <Badge tone="danger">{stuck} need you</Badge> : null}
++        <Badge tone={status.tone}>{status.label}</Badge>
++      </span>
++    ),
++  };
++}
+ 
+ export default async function BatchesPage({ searchParams }: { searchParams: SearchParams }) {
+   await requireSession();
+   const sp = await searchParams;
+   const error = typeof sp.error === "string" ? sp.error.slice(0, 200) : undefined;
+-  const batches = await new PgBatchStore(getPool()).listBatches(30);
++  const [batches, theme] = await Promise.all([new PgBatchStore(getPool()).listBatches(30), getTheme()]);
++
++  const now = new Date();
++  // Upcoming = this week's Monday or later (calendar dates compare as strings).
++  const monday = new Date(now);
++  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
++  const thisWeek = monday.toISOString().slice(0, 10);
++  const upcoming = batches.filter((b) => b.weekStart >= thisWeek);
++  const earlier = batches.filter((b) => b.weekStart < thisWeek);
++  const drafts = batches.filter((b) => b.status === "draft").length;
+ 
+   return (
+-    <main className="mx-auto max-w-2xl p-4 text-base">
+-      <div className="flex items-center justify-between">
+-        <h1 className="text-xl font-semibold">Batches</h1>
+-        <Link href="/" className="inline-flex min-h-11 items-center text-neutral-500 underline">
+-          dashboard
+-        </Link>
+-      </div>
+-      <Banner kind="error" text={error} />
++    <AppShell theme={theme} nav={APP_NAV} active="batches">
++      <TopBar index="02" title="Weekly" serif="batches" meta={`${batches.length} weeks · ${drafts} to review`} />
++      <Notice error={error} />
+       {batches.length === 0 ? (
+-        <p className="mt-4 text-neutral-500">No batches yet. Draft one with the weekly-batch skill in a Claude Code session.</p>
++        <div className={cx(CONTAINER, "py-10")}>
++          <EmptyState icon="batches" title="No batches yet" body="Draft one with the weekly-batch skill in a Claude Code session." className="border border-ds-line" />
++        </div>
+       ) : (
+-        <ul className="mt-4 space-y-3">
+-          {batches.map((b) => {
+-            const c = summaryCounts(b.counts);
+-            return (
+-              <li key={b.id}>
+-                <Link
+-                  href={`/batches/${b.id}`}
+-                  className="block min-h-11 rounded-xl border border-neutral-200 p-3 active:bg-neutral-50 dark:border-neutral-800 dark:active:bg-neutral-900"
+-                >
+-                  <div className="flex items-center justify-between">
+-                    <span className="font-semibold">Week of {weekLabel(b.weekStart, new Date())}</span>
+-                    <StatusPill status={b.status} />
+-                  </div>
+-                  <div className="mt-1 text-sm text-neutral-500">
+-                    {c.draft} draft · {c.approved} approved · {c.published} published · {c.rejected} rejected
+-                    {c.other ? ` · ${c.other} other` : ""}
+-                  </div>
+-                </Link>
+-              </li>
+-            );
+-          })}
+-        </ul>
++        <>
++          {upcoming.length > 0 ? (
++            <>
++              <SectionHead index="01" title="This &" serif="next" meta={`${upcoming.length} week${upcoming.length === 1 ? "" : "s"}`} />
++              <div className={cx(CONTAINER, "-mt-px pb-10")}>
++                <RevealList label="This week and next" items={upcoming.map((b) => toItem(b, now))} />
++              </div>
++            </>
++          ) : null}
++          {earlier.length > 0 ? (
++            <>
++              <SectionHead index={upcoming.length > 0 ? "02" : "01"} title="Earlier" serif="weeks" meta={`${earlier.length} week${earlier.length === 1 ? "" : "s"}`} />
++              <div className={cx(CONTAINER, "-mt-px pb-10")}>
++                <RevealList label="Earlier weeks" items={earlier.map((b) => toItem(b, now))} />
++              </div>
++            </>
++          ) : null}
++        </>
+       )}
+-    </main>
++    </AppShell>
+   );
+ }
+diff --git a/apps/web/app/batches/ui/ItemForm.tsx b/apps/web/app/batches/ui/ItemForm.tsx
+index 2388084..75c8037 100644
+--- a/apps/web/app/batches/ui/ItemForm.tsx
++++ b/apps/web/app/batches/ui/ItemForm.tsx
+@@ -1,19 +1,23 @@
+ "use client";
+ 
+-import { useState } from "react";
++import { useState, type ReactNode } from "react";
+ import { useFormStatus } from "react-dom";
+-import { BTN_GHOST, BTN_PRIMARY, INPUT } from "./WarningChip.js";
++import { Button, FIELD, FOCUS, Input, cx } from "../../../components/ui/index.js";
+ 
+ function Save() {
+   const { pending } = useFormStatus();
+   return (
+-    <button className={BTN_PRIMARY} disabled={pending}>
++    <Button type="submit" variant="solid" disabled={pending} arrow>
+       {pending ? "Saving…" : "Save"}
+-    </button>
++    </Button>
+   );
+ }
+ 
+-/** Caption/title as text, with an Edit toggle that reveals the form (Save → editAction). */
++/**
++ * The card's action row plus the Edit toggle. Not editing: [primary][Edit][danger] (the primary and
++ * danger slots are server-rendered forms). Editing: the edit form (Save → editAction) replaces the row.
++ * Form fields: batchId, itemId, title (YouTube only), caption, scheduledLocal.
++ */
+ export function ItemForm(props: {
+   batchId: string;
+   itemId: string;
+@@ -23,45 +27,45 @@ export function ItemForm(props: {
+   scheduledLocal: string;
+   editable: boolean;
+   action: (fd: FormData) => Promise<void>;
++  primary?: ReactNode;
++  danger?: ReactNode;
+ }) {
+   const [open, setOpen] = useState(false);
+   if (!open) {
++    if (!props.primary && !props.danger && !props.editable) return null;
+     return (
+-      <div className="mt-2">
+-        {props.isYoutube ? <p className="text-base font-medium">{props.title || <span className="text-neutral-400">no title yet</span>}</p> : null}
+-        <p className="whitespace-pre-wrap text-base">{props.caption || <span className="text-neutral-400">no caption yet</span>}</p>
++      <div className="grid grid-cols-[1fr_auto_auto] gap-2">
++        <div className="min-w-0">{props.primary}</div>
+         {props.editable ? (
+-          <button type="button" className={`${BTN_GHOST} mt-2`} onClick={() => setOpen(true)}>
++          <Button variant="outline" onClick={() => setOpen(true)} aria-label="Edit caption, title and time">
+             Edit
+-          </button>
+-        ) : null}
++          </Button>
++        ) : (
++          <span />
++        )}
++        {props.danger ?? <span />}
+       </div>
+     );
+   }
++  const captionId = `caption-${props.itemId}`;
+   return (
+-    <form action={props.action} className="mt-2 space-y-2">
++    <form action={props.action} className="flex flex-col gap-4">
+       <input type="hidden" name="batchId" value={props.batchId} />
+       <input type="hidden" name="itemId" value={props.itemId} />
+-      {props.isYoutube ? (
+-        <label className="block text-sm text-neutral-500">
+-          Title
+-          <input name="title" defaultValue={props.title ?? ""} maxLength={100} className={INPUT} />
++      {props.isYoutube ? <Input label="Title" name="title" defaultValue={props.title ?? ""} maxLength={100} /> : null}
++      {/* No Textarea in the kit yet: the shared FIELD look; min-height beats FIELD's fixed h-12. */}
++      <div className="flex flex-col gap-1.5">
++        <label htmlFor={captionId} className="ds-caps text-ds-muted">
++          Caption
+         </label>
+-      ) : null}
+-      <label className="block text-sm text-neutral-500">
+-        Caption
+-        <textarea name="caption" defaultValue={props.caption} rows={5} className={INPUT} />
+-      </label>
+-      <label className="block text-sm text-neutral-500">
+-        Time
+-        <input type="datetime-local" name="scheduledLocal" defaultValue={props.scheduledLocal} className={INPUT} />
+-      </label>
+-      <p className="text-sm text-neutral-500">Saving moves an approved post back to draft; approve it again after.</p>
+-      <div className="flex gap-2">
++        <textarea id={captionId} name="caption" defaultValue={props.caption} rows={6} className={cx(FIELD, FOCUS, "min-h-36 py-3 leading-normal")} />
++      </div>
++      <Input label="Time" type="datetime-local" name="scheduledLocal" defaultValue={props.scheduledLocal} helper="Saving moves an approved post back to draft; approve it again after." />
++      <div className="grid grid-cols-2 gap-2">
+         <Save />
+-        <button type="button" className={BTN_GHOST} onClick={() => setOpen(false)}>
++        <Button variant="outline" onClick={() => setOpen(false)}>
+           Cancel
+-        </button>
++        </Button>
+       </div>
+     </form>
+   );
+diff --git a/apps/web/app/batches/ui/Notice.tsx b/apps/web/app/batches/ui/Notice.tsx
+new file mode 100644
+index 0000000..0820666
+--- /dev/null
++++ b/apps/web/app/batches/ui/Notice.tsx
+@@ -0,0 +1,50 @@
++import { AlertCard, CONTAINER, Icon, cx } from "../../../components/ui/index.js";
++
++/**
++ * The ?error= / ?note= result of a batch action, as a band under the page title.
++ * Errors use AlertCard (warn icon, announced); notes are a quiet accent line (no green).
++ */
++export function Notice({ error, note }: { error?: string | undefined; note?: string | undefined }) {
++  if (!error && !note) return null;
++  return (
++    <div className="border-b border-ds-line">
++      <div className={cx(CONTAINER, "flex flex-col gap-3 py-4")}>
++        {error ? (
++          <AlertCard tone="light" title="Couldn't do that" live>
++            {error}
++          </AlertCard>
++        ) : null}
++        {note ? (
++          <p role="status" className="flex items-start gap-2 border border-ds-line bg-ds-card p-5 text-[15px] leading-snug text-ds-text">
++            <Icon name="check" size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-ds-accent-fg" />
++            <span>
++              <span className="ds-caps mr-2 text-ds-accent-fg">Done</span>
++              {note}
++            </span>
++          </p>
++        ) : null}
++      </div>
++    </div>
++  );
++}
++
++/**
++ * A warning that can run to two lines: the warn/danger Chip look (1px tinted line, alert icon) without
++ * Chip's fixed height and nowrap. Composed here because Chip is single-line by design.
++ */
++export function WarningLine({ tone, label, children }: { tone: "warn" | "danger"; label?: string; children: React.ReactNode }) {
++  return (
++    <p
++      className={cx(
++        "flex items-start gap-2 border bg-ds-card px-3 py-2 text-[13px] leading-snug",
++        tone === "danger" ? "border-ds-danger/60 text-ds-danger" : "border-ds-warn/60 text-ds-warn",
++      )}
++    >
++      <Icon name="alert" size={14} className="mt-px shrink-0" />
++      <span className="min-w-0 [overflow-wrap:anywhere]">
++        {label ? <span className="font-bold">{label}: </span> : null}
++        {children}
++      </span>
++    </p>
++  );
++}
+diff --git a/apps/web/app/batches/ui/PostCard.tsx b/apps/web/app/batches/ui/PostCard.tsx
+index 174f496..f54f2bd 100644
+--- a/apps/web/app/batches/ui/PostCard.tsx
++++ b/apps/web/app/batches/ui/PostCard.tsx
+@@ -1,75 +1,187 @@
++import {
++  Badge,
++  Button,
++  Chip,
++  FramedImage,
++  Icon,
++  PLATFORM_NAME,
++  PlatformLogo,
++  Readout,
++  buttonClasses,
++  cx,
++} from "../../../components/ui/index.js";
++import { handoffText, isStuck, itemStatusBadge, keyTailLabel } from "../../../lib/batches/card-view.js";
+ import type { BatchItemView } from "../../../lib/batches/types.js";
+-import { formatDuration, toDatetimeLocal } from "../../../lib/batches/view-model.js";
++import { formatDuration, scheduledLabel, toDatetimeLocal } from "../../../lib/batches/view-model.js";
+ import { approveAction, editAction, rejectAction, unapproveAction } from "../[id]/actions.js";
+ import { ItemForm } from "./ItemForm.js";
+-import { BTN_DANGER, BTN_GHOST, BTN_PRIMARY, PlatformBadge, StatusPill, WarningChip } from "./WarningChip.js";
++import { CELL } from "./nav.js";
++import { WarningLine } from "./Notice.js";
++import { ResetSheet } from "./ResetSheet.js";
+ 
+-export function PostCard({ item, time, timeZone, postUrl }: { item: BatchItemView; time: string | null; timeZone: string; postUrl?: string | undefined }) {
++/**
++ * "Batch card (proposed)" as a bordered grid cell: placeholder preview (1 of 4 cols / 2 of 6), the
++ * time, title, caption and chips, then a full-width footer with warnings and the actions for the status.
++ * failed/unknown get the F11 panel (attempts, sanitised last error, the two buttons) instead.
++ */
++export function PostCard({
++  item,
++  time,
++  timeZone,
++  index,
++  dayLabel,
++  openReset,
++}: {
++  item: BatchItemView;
++  time: string | null;
++  timeZone: string;
++  /** "01" within its day. */
++  index?: string;
++  /** "Mon 16 Nov" (omitted for untimed). */
++  dayLabel?: string;
++  /** Open the reset sheet on load (?reset=<itemId>). */
++  openReset?: boolean;
++}) {
+   const firstBlock = item.warnings.find((w) => w.severity === "block");
+-  const meta = [item.media.label, formatDuration(item.media.durationS), item.media.pillar].filter(Boolean).join(" · ");
+   const ids = [item.id];
++  const badge = itemStatusBadge(item.status);
++  const stuck = isStuck(item.status);
++  const duration = formatDuration(item.media.durationS);
++  const postUrl = item.platformPostUrl ?? undefined;
++  const handoff = handoffText(item, !!postUrl);
++  const heading = item.platform === "youtube" && item.title ? item.title : item.media.label;
++  const rejectBtn = (
++    <form action={rejectAction.bind(null, item.batchId, ids)}>
++      <Button type="submit" variant="icon" tone="danger" aria-label={`Reject ${PLATFORM_NAME[item.platform]} post`} title="Reject">
++        <Icon name="x" />
++      </Button>
++    </form>
++  );
++
++  let primary: React.ReactNode = null;
++  let danger: React.ReactNode = null;
++  if (!item.handedOff && item.status === "draft") {
++    primary = (
++      <form action={approveAction.bind(null, item.batchId, ids)}>
++        <Button type="submit" variant="solid" block arrow disabled={!!firstBlock} title={firstBlock?.message}>
++          Approve
++        </Button>
++      </form>
++    );
++    danger = rejectBtn;
++  } else if (!item.handedOff && (item.status === "approved" || item.status === "queued")) {
++    primary = (
++      <form action={unapproveAction.bind(null, item.batchId, ids)}>
++        <Button type="submit" variant="outline" block>
++          Pull back
++        </Button>
++      </form>
++    );
++    danger = rejectBtn;
++  }
++
++  const hasFooter = item.warnings.length > 0 || stuck || !!postUrl || !!handoff || primary != null || item.editable;
+ 
+   return (
+-    <li className={`rounded-xl border p-3 ${firstBlock ? "border-red-300 dark:border-red-900" : "border-neutral-200 dark:border-neutral-800"}`} data-item={item.id}>
+-      <div className="flex items-center gap-2">
+-        <PlatformBadge platform={item.platform} />
+-        <span className="text-lg font-semibold tabular-nums">{time ?? "no time"}</span>
+-        <span className="ml-auto">
+-          <StatusPill status={item.status} />
+-        </span>
++    <li
++      data-item={item.id}
++      className={cx(CELL, "col-span-4 grid grid-cols-4 border lg:col-span-6 lg:grid-cols-6", firstBlock || item.status === "failed" ? "border-ds-danger/60" : "border-ds-line")}
++    >
++      <div className="col-span-1 min-w-0 border-r border-ds-line lg:col-span-2">
++        <FramedImage alt={`${item.media.label} preview (placeholder)`} ratio="9/16">
++          {duration ? <span className="ds-mono absolute bottom-3 right-3 bg-ds-invert px-1.5 py-0.5 text-ds-on-invert">{duration}</span> : null}
++        </FramedImage>
+       </div>
+-      <p className="mt-1 text-sm text-neutral-500 [overflow-wrap:anywhere]">{meta}</p>
+ 
+-      {item.warnings.length > 0 ? (
+-        <ul className="mt-2 space-y-1">
+-          {item.warnings.map((w, i) => (
+-            <WarningChip key={i} w={w} />
+-          ))}
+-        </ul>
+-      ) : null}
++      <div className="col-span-3 flex min-w-0 flex-col gap-3 p-4 lg:col-span-4 lg:p-6">
++        <div className="flex items-center justify-between gap-3">
++          <span className="ds-mono text-ds-faint">
++            {index ?? "--"} / {dayLabel ? dayLabel.toUpperCase() : "NO DAY"}
++          </span>
++          <span className="ds-num text-[15px] font-bold">{time ?? "--:--"}</span>
++        </div>
++        <h3 className="text-[26px] font-black leading-[0.95] tracking-[-0.04em] [overflow-wrap:anywhere] lg:text-[36px]">{heading}</h3>
++        {item.caption ? (
++          <p className="line-clamp-4 whitespace-pre-wrap text-[15px] leading-snug text-ds-muted">{item.caption}</p>
++        ) : (
++          <p className="ds-mono text-ds-faint">no caption yet</p>
++        )}
++        <div className="mt-auto flex flex-wrap gap-2">
++          <Badge tone={badge.tone}>{badge.label}</Badge>
++          <Chip>
++            <PlatformLogo platform={item.platform} size={14} />
++            {PLATFORM_NAME[item.platform]}
++          </Chip>
++          {item.media.pillar ? <Chip>{item.media.pillar}</Chip> : null}
++          {item.tiktokDraft ? <Chip>Inbox draft</Chip> : null}
++        </div>
++      </div>
+ 
+-      <ItemForm
+-        batchId={item.batchId}
+-        itemId={item.id}
+-        isYoutube={item.platform === "youtube"}
+-        caption={item.caption}
+-        title={item.title}
+-        scheduledLocal={toDatetimeLocal(item.scheduledFor, timeZone)}
+-        editable={item.editable}
+-        action={editAction}
+-      />
++      {hasFooter ? (
++      <div className="col-span-4 flex flex-col gap-4 border-t border-ds-line p-4 lg:col-span-6 lg:p-6">
++        {item.warnings.length > 0 ? (
++          <ul className="flex flex-col gap-2">
++            {item.warnings.map((w, i) => (
++              <li key={i}>
++                <WarningLine tone={w.severity === "block" ? "danger" : "warn"} label={w.severity === "block" ? "Blocked" : "Check"}>
++                  {w.field ? `${w.field}: ` : ""}
++                  {w.message}
++                </WarningLine>
++              </li>
++            ))}
++          </ul>
++        ) : null}
+ 
+-      {item.handedOff ? (
+-        item.status === "published" && postUrl ? (
+-          <a href={postUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center text-base underline">
++        {stuck ? (
++          <div className="flex flex-col gap-4">
++            <Readout
++              items={[
++                { k: "Status", v: item.status === "failed" ? "failed · gave up" : "unknown · not retried" },
++                { k: "Attempts", v: String(item.attempts ?? 0) },
++                { k: "Scheduled", v: scheduledLabel(item.scheduledFor, timeZone) },
++                { k: "Key", v: keyTailLabel(item.keyTail) },
++              ]}
++            />
++            <div>
++              <p className="ds-caps text-ds-faint">Last error</p>
++              <p className="ds-mono mt-1 border-l-2 border-ds-danger pl-3 text-ds-text [overflow-wrap:anywhere]">{item.lastError || "none recorded"}</p>
++            </div>
++            <ResetSheet
++              batchId={item.batchId}
++              itemId={item.id}
++              platform={item.platform}
++              status={item.status}
++              attempts={item.attempts ?? 0}
++              lastError={item.lastError ?? null}
++              scheduled={scheduledLabel(item.scheduledFor, timeZone)}
++              keyTail={item.keyTail ?? null}
++              canReset={item.canReset === true}
++              defaultOpen={openReset ? (item.canReset ? "reset" : "record") : undefined}
++            />
++          </div>
++        ) : null}
++
++        {item.status === "published" && postUrl ? (
++          <a href={postUrl} target="_blank" rel="noreferrer" className={buttonClasses({ variant: "outline", block: true, arrow: true })}>
+             View the post
++            <Icon name="arrowUpRight" size={16} />
+           </a>
+-        ) : (
+-          <p className="mt-3 text-sm text-neutral-500">scheduled on the platform; change it in Studio/TikTok</p>
+-        )
+-      ) : item.status === "draft" ? (
+-        <div className="mt-3">
+-          <div className="flex gap-2">
+-            <form action={approveAction.bind(null, item.batchId, ids)} className="flex-1">
+-              <button className={`${BTN_PRIMARY} w-full`} disabled={!!firstBlock} title={firstBlock?.message}>
+-                Approve
+-              </button>
+-            </form>
+-            <form action={rejectAction.bind(null, item.batchId, ids)}>
+-              <button className={BTN_DANGER}>Reject</button>
+-            </form>
+-          </div>
+-          {firstBlock ? <p className="mt-1 text-sm text-red-700 dark:text-red-300">Can&apos;t approve: {firstBlock.message}</p> : null}
+-        </div>
+-      ) : item.status === "approved" || item.status === "queued" ? (
+-        <div className="mt-3 flex gap-2">
+-          <form action={unapproveAction.bind(null, item.batchId, ids)} className="flex-1">
+-            <button className={`${BTN_GHOST} w-full`}>Pull back</button>
+-          </form>
+-          <form action={rejectAction.bind(null, item.batchId, ids)}>
+-            <button className={BTN_DANGER}>Reject</button>
+-          </form>
+-        </div>
++        ) : null}
++        {handoff ? <p className="ds-mono text-ds-faint">{handoff}</p> : null}
++
++        <ItemForm
++          batchId={item.batchId}
++          itemId={item.id}
++          isYoutube={item.platform === "youtube"}
++          caption={item.caption}
++          title={item.title}
++          scheduledLocal={toDatetimeLocal(item.scheduledFor, timeZone)}
++          editable={item.editable}
++          action={editAction}
++          primary={primary}
++          danger={danger}
++        />
++      </div>
+       ) : null}
+     </li>
+   );
+diff --git a/apps/web/app/batches/ui/ResetSheet.tsx b/apps/web/app/batches/ui/ResetSheet.tsx
+new file mode 100644
+index 0000000..58ed243
+--- /dev/null
++++ b/apps/web/app/batches/ui/ResetSheet.tsx
+@@ -0,0 +1,200 @@
++"use client";
++
++import { useEffect, useId, useState } from "react";
++import { useFormStatus } from "react-dom";
++import type { Platform } from "@autopilot/core";
++import { Button, Checkbox, Icon, Input, PLATFORM_NAME, PlatformLogo, Readout, Sheet, cx } from "../../../components/ui/index.js";
++import { autoCheckText, canConfirmReset, keyTailLabel, type AutoCheckState } from "../../../lib/batches/card-view.js";
++import { isResettablePlatform, RESET_CHECKLIST } from "../../../lib/batches/reset.js";
++import type { ItemStatus } from "../../../lib/batches/types.js";
++import { igCheckAction, recordPublishedAction, resetCheckedAction } from "../[id]/actions.js";
++
++type Mode = "reset" | "record";
++
++export interface ResetSheetProps {
++  batchId: string;
++  itemId: string;
++  platform: Platform;
++  status: ItemStatus;
++  attempts: number;
++  /** Sanitised at write time (F7 B1), straight from batch_items.last_error. Nothing else is shown. */
++  lastError: string | null;
++  /** "Mon 16 Nov · 09:00" in the creator's zone. */
++  scheduled: string;
++  keyTail: string | null;
++  /** "Not on the platform → back to draft" applies (failed|unknown, no platform post id, outbox platform). */
++  canReset: boolean;
++  /** Open on load (deep link `?reset=<itemId>`). */
++  defaultOpen?: Mode | undefined;
++}
++
++function Submit({ label, disabled, form }: { label: string; disabled: boolean; form: string }) {
++  const { pending } = useFormStatus();
++  return (
++    <Button type="submit" form={form} variant="solid" disabled={disabled || pending} aria-disabled={disabled || pending} className="sm:min-w-40">
++      {pending ? "Working…" : label}
++    </Button>
++  );
++}
++
++/** A two-line-safe label inside a Button (Button itself is nowrap). */
++const Wrap = ({ children }: { children: string }) => <span className="whitespace-normal text-left">{children}</span>;
++
++/**
++ * F11: the two buttons on a failed/unknown card and the sheet behind them. IG runs the read-only
++ * automatic check (igCheckAction) each time the sheet opens; a hit hides the reset and prefills
++ * "record it". "Confirm reset" stays disabled until every checklist box is ticked. The server
++ * re-checks everything (the checklist strings and the IG lookup); nothing here is trusted.
++ */
++export function ResetSheet(p: ResetSheetProps) {
++  const [mode, setMode] = useState<Mode>(p.defaultOpen ?? (p.canReset ? "reset" : "record"));
++  const [open, setOpen] = useState(p.defaultOpen != null);
++  const [check, setCheck] = useState<AutoCheckState>(p.platform === "instagram" ? "checking" : "n/a");
++  const [ticked, setTicked] = useState<Set<string>>(new Set());
++  const [url, setUrl] = useState("");
++  const [postId, setPostId] = useState("");
++  const formId = useId();
++  const isIg = p.platform === "instagram";
++  const list = isResettablePlatform(p.platform) ? RESET_CHECKLIST[p.platform] : [];
++
++  useEffect(() => {
++    if (!open || !isIg) return;
++    let live = true;
++    setCheck("checking");
++    igCheckAction(p.batchId, p.itemId)
++      .then((r) => {
++        if (!live) return;
++        setCheck(r.result);
++        if (r.result === "found") {
++          setMode("record");
++          if (r.url) setUrl(r.url);
++          if (r.platformPostId) setPostId(r.platformPostId);
++        }
++      })
++      .catch(() => live && setCheck("error"));
++    return () => {
++      live = false;
++    };
++  }, [open, isIg, p.batchId, p.itemId]);
++
++  const show = (m: Mode) => {
++    setMode(m);
++    setOpen(true);
++  };
++  const close = () => setOpen(false);
++  const resetAllowed = p.canReset && check !== "found";
++  const showReset = mode === "reset" && resetAllowed;
++  const ready = canConfirmReset({ list, ticked, check, isInstagram: isIg });
++  const auto = autoCheckText(check);
++  const name = PLATFORM_NAME[p.platform];
++
++  const toggle = (s: string, on: boolean) =>
++    setTicked((prev) => {
++      const next = new Set(prev);
++      if (on) next.add(s);
++      else next.delete(s);
++      return next;
++    });
++
++  return (
++    <>
++      <div className="flex flex-col gap-2">
++        {p.canReset ? (
++          <Button variant="outline" block onClick={() => show("reset")}>
++            <Wrap>Not on the platform → back to draft</Wrap>
++          </Button>
++        ) : null}
++        <Button variant="outline" block onClick={() => show("record")}>
++          <Wrap>It&apos;s there → record it</Wrap>
++        </Button>
++      </div>
++
++      <Sheet
++        open={open}
++        onClose={close}
++        title={showReset ? "Back to draft?" : "Record as published"}
++        footer={
++          <>
++            <Button variant="outline" onClick={close}>
++              Cancel
++            </Button>
++            {showReset ? <Submit form={formId} label="Confirm reset" disabled={!ready} /> : <Submit form={formId} label="Record it" disabled={url.trim() === ""} />}
++          </>
++        }
++      >
++        <div className="flex flex-col gap-5">
++          <div className="flex items-center gap-3 border-b border-ds-line pb-4 text-ds-text">
++            <PlatformLogo platform={p.platform} size={22} />
++            <span className="ds-caps">{name}</span>
++            <span className="ds-mono ml-auto text-ds-faint">{keyTailLabel(p.keyTail)}</span>
++          </div>
++          <Readout
++            items={[
++              { k: "Status", v: p.status },
++              { k: "Attempts", v: String(p.attempts) },
++              { k: "Scheduled", v: p.scheduled },
++            ]}
++          />
++          <div>
++            <p className="ds-caps text-ds-faint">Last error</p>
++            <p className="ds-mono mt-1 border-l-2 border-ds-danger pl-3 text-ds-text [overflow-wrap:anywhere]">{p.lastError || "none recorded"}</p>
++          </div>
++
++          {isIg ? (
++            <p
++              role="status"
++              className={cx(
++                "flex items-start gap-2 border bg-ds-card px-3 py-2 text-[13px] leading-snug",
++                auto.tone === "warn" ? "border-ds-warn/60 text-ds-warn" : auto.tone === "accent" ? "border-ds-accent text-ds-accent-fg" : "border-ds-line text-ds-muted",
++              )}
++            >
++              <Icon name={auto.tone === "warn" ? "alert" : auto.tone === "accent" ? "check" : "clock"} size={14} className="mt-px shrink-0" />
++              {auto.text}
++            </p>
++          ) : null}
++
++          {showReset ? (
++            <form id={formId} action={resetCheckedAction} className="flex flex-col gap-2">
++              <input type="hidden" name="batchId" value={p.batchId} />
++              <input type="hidden" name="itemId" value={p.itemId} />
++              <fieldset>
++                <legend className="ds-caps mb-1 text-ds-text">I checked · tick every box</legend>
++                {list.map((s) => (
++                  <Checkbox key={s} name="checked" value={s} label={s} checked={ticked.has(s)} onChange={(e) => toggle(s, e.currentTarget.checked)} />
++                ))}
++              </fieldset>
++              <p className="ds-mono text-ds-faint">
++                {ticked.size}/{list.length} ticked · the reset never approves: it comes back as a draft
++              </p>
++              <Button variant="ghost" onClick={() => setMode("record")} className="self-start">
++                <Wrap>It&apos;s there → record it instead</Wrap>
++              </Button>
++            </form>
++          ) : (
++            <form id={formId} action={recordPublishedAction} className="flex flex-col gap-4">
++              <input type="hidden" name="batchId" value={p.batchId} />
++              <input type="hidden" name="itemId" value={p.itemId} />
++              <Input
++                label={`${name} post link`}
++                name="url"
++                type="url"
++                inputMode="url"
++                required
++                placeholder="https://"
++                value={url}
++                onChange={(e) => setUrl(e.currentTarget.value)}
++                helper={`https only, on ${name}'s own domain`}
++              />
++              <Input label="Post id (optional)" name="platformPostId" value={postId} onChange={(e) => setPostId(e.currentTarget.value)} autoComplete="off" />
++              {resetAllowed ? (
++                <Button variant="ghost" onClick={() => setMode("reset")} className="self-start">
++                  <Wrap>Not there → back to draft instead</Wrap>
++                </Button>
++              ) : null}
++            </form>
++          )}
++        </div>
++      </Sheet>
++    </>
++  );
++}
+diff --git a/apps/web/app/batches/ui/WeekGrid.tsx b/apps/web/app/batches/ui/WeekGrid.tsx
+index b6839b4..ad7bf6e 100644
+--- a/apps/web/app/batches/ui/WeekGrid.tsx
++++ b/apps/web/app/batches/ui/WeekGrid.tsx
+@@ -1,37 +1,74 @@
++import { CONTAINER, cx } from "../../../components/ui/index.js";
++import type { BatchItemView } from "../../../lib/batches/types.js";
+ import type { WeekGroups } from "../../../lib/batches/view-model.js";
++import { CELLS } from "./nav.js";
+ import { PostCard } from "./PostCard.js";
+ 
+-/** Creator-local days in order, each a vertical list of posts by time; untimed items first. */
+-export function WeekGrid({ groups, timeZone, urls }: { groups: WeekGroups; timeZone: string; urls: Map<string, string> }) {
++const two = (n: number) => String(n).padStart(2, "0");
++
++function DayHead({ n, label, count, hint }: { n: string; label: string; count: number; hint?: string }) {
++  return (
++    <div className="border-b border-ds-line">
++      <div className={cx(CONTAINER, "grid grid-cols-4 items-baseline gap-y-1 py-4 lg:grid-cols-12")}>
++        <span className="ds-mono col-span-1 text-ds-muted">{n}</span>
++        <h3 className="ds-caps col-span-2 text-ds-text lg:col-span-5">{label}</h3>
++        <span className="ds-mono col-span-1 text-right text-ds-muted lg:col-span-6">
++          {count === 0 ? "nothing planned" : `${count} post${count === 1 ? "" : "s"}`}
++        </span>
++        {hint ? <p className="col-span-3 col-start-2 text-[15px] text-ds-muted lg:col-span-11">{hint}</p> : null}
++      </div>
++    </div>
++  );
++}
++
++function Cards({ items, timeZone, dayLabel, openReset }: { items: Array<{ item: BatchItemView; time: string | null }>; timeZone: string; dayLabel?: string; openReset?: string }) {
+   return (
+-    <div className="mt-4 space-y-6">
++    <div className="border-b border-ds-line">
++      <div className={cx(CONTAINER, "py-6 lg:py-8")}>
++        <ul className={CELLS}>
++          {items.map(({ item, time }, i) => (
++            <PostCard key={item.id} item={item} time={time} timeZone={timeZone} index={two(i + 1)} dayLabel={dayLabel} openReset={openReset === item.id} />
++          ))}
++        </ul>
++      </div>
++    </div>
++  );
++}
++
++/** Creator-local days in order (a caps row each), posts as bordered cells: 1 per row on phones, 2 on desktop. Untimed first. */
++export function WeekGrid({ groups, timeZone, openReset }: { groups: WeekGroups; timeZone: string; openReset?: string | undefined }) {
++  return (
++    <div>
+       {groups.untimed.length > 0 ? (
+-        <section>
+-          <h2 className="text-base font-semibold">No time yet</h2>
+-          <p className="text-sm text-neutral-500">Use &ldquo;Fill times&rdquo; below, or edit a post to set one.</p>
+-          <ul className="mt-2 space-y-3">
+-            {groups.untimed.map((item) => (
+-              <PostCard key={item.id} item={item} time={null} timeZone={timeZone} postUrl={urls.get(item.id)} />
+-            ))}
+-          </ul>
++        <section aria-label="No time yet">
++          <DayHead n="00" label="No time yet" count={groups.untimed.length} hint="Use “Fill times” above, or edit a post to set one." />
++          <Cards items={groups.untimed.map((item) => ({ item, time: null }))} timeZone={timeZone} openReset={openReset} />
+         </section>
+       ) : null}
+-      {groups.days.map((d) => (
+-        <section key={d.date}>
+-          <h2 className="sticky top-0 z-10 bg-white/95 py-1 text-base font-semibold dark:bg-neutral-950/95">
+-            {d.label} <span className="font-normal text-neutral-500">· {d.items.length} post{d.items.length === 1 ? "" : "s"}</span>
+-          </h2>
+-          {d.items.length === 0 ? (
+-            <p className="text-sm text-neutral-400">nothing planned</p>
+-          ) : (
+-            <ul className="mt-2 space-y-3">
+-              {d.items.map(({ item, time }) => (
+-                <PostCard key={item.id} item={item} time={time} timeZone={timeZone} postUrl={urls.get(item.id)} />
+-              ))}
+-            </ul>
+-          )}
++      {groups.days.map((d, i) => (
++        <section key={d.date} aria-label={d.label}>
++          <DayHead n={two(i + 1)} label={d.label} count={d.items.length} />
++          {d.items.length > 0 ? <Cards items={d.items} timeZone={timeZone} dayLabel={d.label} openReset={openReset} /> : null}
+         </section>
+       ))}
+     </div>
+   );
+ }
++
++/** Rejected posts, collapsed under a caps summary row. */
++export function RejectedList({ items, timeZone }: { items: BatchItemView[]; timeZone: string }) {
++  if (items.length === 0) return null;
++  return (
++    <details className="group border-b border-ds-line">
++      <summary className={cx(CONTAINER, "grid min-h-14 cursor-pointer list-none grid-cols-4 items-center lg:grid-cols-12")}>
++        <span className="ds-mono col-span-1 text-ds-muted">--</span>
++        <span className="ds-caps col-span-2 text-ds-text lg:col-span-5">Rejected ({items.length})</span>
++        <span className="ds-mono col-span-1 text-right text-ds-accent-fg lg:col-span-6">
++          <span className="group-open:hidden">show</span>
++          <span className="hidden group-open:inline">hide</span>
++        </span>
++      </summary>
++      <Cards items={items.map((item) => ({ item, time: null }))} timeZone={timeZone} />
++    </details>
++  );
++}
+diff --git a/apps/web/app/batches/ui/nav.ts b/apps/web/app/batches/ui/nav.ts
+new file mode 100644
+index 0000000..a489552
+--- /dev/null
++++ b/apps/web/app/batches/ui/nav.ts
+@@ -0,0 +1,17 @@
++import type { NavItem } from "../../../components/ui/index.js";
++
++/**
++ * App navigation for the v2 frame (AppShell header + phone TabBar). Lives here until the shell task
++ * moves a shared nav into components/ui; then the batches pages import that instead.
++ */
++export const APP_NAV: NavItem[] = [
++  { id: "home", label: "Home", href: "/", icon: "home" },
++  { id: "batches", label: "Batches", href: "/batches", icon: "batches" },
++  { id: "inbox", label: "Inbox", href: "/inbox", icon: "inbox" },
++  { id: "analytics", label: "Analytics", href: "/analytics", icon: "analytics" },
++  { id: "more", label: "More", href: "/research", icon: "more" },
++];
++
++/** Bordered grid cells: full 1px borders, overlapped by 1px so shared edges collapse onto one line. */
++export const CELLS = "grid grid-cols-4 lg:grid-cols-12 pl-px pt-px";
++export const CELL = "-ml-px -mt-px";
+diff --git a/apps/web/lib/batches/__tests__/card-view.test.ts b/apps/web/lib/batches/__tests__/card-view.test.ts
+new file mode 100644
+index 0000000..3cba3b3
+--- /dev/null
++++ b/apps/web/lib/batches/__tests__/card-view.test.ts
+@@ -0,0 +1,116 @@
++import { describe, expect, it } from "vitest";
++import {
++  allTicked,
++  approvalProgress,
++  autoCheckText,
++  batchStatusBadge,
++  canConfirmReset,
++  countsMeta,
++  handoffText,
++  isoWeek,
++  itemStatusBadge,
++  keyTailLabel,
++  needsYouCount,
++  weekIndex,
++} from "../card-view.js";
++import { RESET_CHECKLIST } from "../reset.js";
++import { countByStatus, ITEM_STATUSES, type ItemStatus } from "../types.js";
++import { scheduledLabel } from "../view-model.js";
++
++const counts = (s: ItemStatus[]) => countByStatus(s.map((status) => ({ status })));
++
++describe("allTicked", () => {
++  const list = RESET_CHECKLIST.instagram;
++  it("is false until every box (exact string) is ticked", () => {
++    expect(allTicked(list, [])).toBe(false);
++    expect(allTicked(list, list.slice(0, 2))).toBe(false);
++    expect(allTicked(list, [...list.slice(0, 2), `${list[2]} `])).toBe(false);
++    expect(allTicked(list, new Set(list))).toBe(true);
++    expect(allTicked(list, [...list, "extra"])).toBe(true);
++  });
++  it("is false for an empty checklist", () => {
++    expect(allTicked([], [])).toBe(false);
++  });
++});
++
++describe("canConfirmReset", () => {
++  const ig = RESET_CHECKLIST.instagram;
++  const all = new Set(ig);
++  it("IG: needs every box and a finished, non-hit automatic check", () => {
++    expect(canConfirmReset({ list: ig, ticked: new Set(), check: "not-found", isInstagram: true })).toBe(false);
++    expect(canConfirmReset({ list: ig, ticked: all, check: "checking", isInstagram: true })).toBe(false);
++    expect(canConfirmReset({ list: ig, ticked: all, check: "found", isInstagram: true })).toBe(false);
++    expect(canConfirmReset({ list: ig, ticked: all, check: "not-found", isInstagram: true })).toBe(true);
++    expect(canConfirmReset({ list: ig, ticked: all, check: "error", isInstagram: true })).toBe(true);
++  });
++  it("YouTube: the boxes decide", () => {
++    const yt = RESET_CHECKLIST.youtube;
++    expect(canConfirmReset({ list: yt, ticked: new Set([yt[0]!]), check: "n/a", isInstagram: false })).toBe(false);
++    expect(canConfirmReset({ list: yt, ticked: new Set(yt), check: "n/a", isInstagram: false })).toBe(true);
++  });
++});
++
++describe("badges", () => {
++  it("approved batch → accent, draft → neutral", () => {
++    expect(batchStatusBadge("approved")).toEqual({ tone: "accent", label: "Approved" });
++    expect(batchStatusBadge("draft").tone).toBe("neutral");
++  });
++  it("every item status has a badge; failed = danger, unknown = warn", () => {
++    for (const s of ITEM_STATUSES) expect(itemStatusBadge(s).label.length).toBeGreaterThan(0);
++    expect(itemStatusBadge("failed").tone).toBe("danger");
++    expect(itemStatusBadge("unknown").tone).toBe("warn");
++  });
++});
++
++describe("counts", () => {
++  it("meta lists the live total then non-zero buckets", () => {
++    const c = counts(["draft", "draft", "approved", "queued", "failed", "unknown", "rejected"]);
++    expect(countsMeta(c)).toBe("6 posts · 2 draft · 2 approved · 2 need you · 1 rejected");
++    expect(countsMeta(counts([]))).toBe("0 posts");
++    expect(needsYouCount(c)).toBe(2);
++  });
++});
++
++describe("isoWeek", () => {
++  it("numbers weeks per ISO-8601", () => {
++    expect(isoWeek("2026-11-16")).toBe(47);
++    expect(isoWeek("2026-01-01")).toBe(1); // Thursday
++    expect(isoWeek("2021-01-03")).toBe(53); // Sunday of 2020-W53
++    expect(isoWeek("2099-01-05")).toBe(2);
++    expect(weekIndex("2027-01-04")).toBe("W01");
++    expect(isoWeek("nope")).toBe(0);
++  });
++});
++
++describe("handoffText", () => {
++  it("failed/unknown get the F11 panel, never 'scheduled on the platform'", () => {
++    expect(handoffText({ status: "failed", handedOff: true }, false)).toBeNull();
++    expect(handoffText({ status: "unknown", handedOff: true }, false)).toBeNull();
++  });
++  it("other handed-off statuses keep the old line; published with a link shows the link instead", () => {
++    expect(handoffText({ status: "publishing", handedOff: true }, false)).toMatch(/scheduled on the platform/);
++    expect(handoffText({ status: "published", handedOff: true }, true)).toBeNull();
++    expect(handoffText({ status: "draft", handedOff: false }, false)).toBeNull();
++  });
++});
++
++describe("sheet text", () => {
++  it("auto-check wording", () => {
++    expect(autoCheckText("not-found").text).toBe("App checked the last 25 posts: not found");
++    expect(autoCheckText("error").text).toBe("Automatic check failed; check by hand");
++  });
++  it("key tail", () => {
++    expect(keyTailLabel("abc123")).toBe("key …abc123");
++    expect(keyTailLabel(null)).toBe("key not available");
++  });
++  it("scheduled label in the creator's zone", () => {
++    expect(scheduledLabel("2026-11-17T09:00:00.000Z", "UTC")).toBe("Tue 17 Nov · 09:00");
++    expect(scheduledLabel(null, "UTC")).toBe("no time");
++  });
++});
++
++describe("approvalProgress", () => {
++  it("counts approved-or-later out of the live total", () => {
++    expect(approvalProgress(counts(["draft", "approved", "queued", "published", "failed", "rejected"]))).toEqual({ done: 3, total: 5 });
++  });
++});
+diff --git a/apps/web/lib/batches/card-view.ts b/apps/web/lib/batches/card-view.ts
+new file mode 100644
+index 0000000..a0b6c0b
+--- /dev/null
++++ b/apps/web/lib/batches/card-view.ts
+@@ -0,0 +1,131 @@
++import type { IgCheckResult } from "./ig-check.js";
++import type { BatchItemView, ItemStatus } from "./types.js";
++
++/**
++ * Pure view helpers for the v2 batch screens (list rows, post cards, the F11 reset sheet).
++ * Type-only imports, so client components can use this file without pulling server code in.
++ */
++
++export type BadgeToneView = "neutral" | "accent" | "warn" | "danger" | "solid";
++export interface BadgeView {
++  tone: BadgeToneView;
++  label: string;
++}
++
++/** Batch status → Badge. Approved is the accent badge; a draft batch is neutral. */
++export function batchStatusBadge(status: "draft" | "approved"): BadgeView {
++  return status === "approved" ? { tone: "accent", label: "Approved" } : { tone: "neutral", label: "Draft" };
++}
++
++const ITEM_BADGE: Record<ItemStatus, BadgeView> = {
++  draft: { tone: "neutral", label: "Draft" },
++  approved: { tone: "accent", label: "Approved" },
++  queued: { tone: "accent", label: "Queued" },
++  publishing: { tone: "solid", label: "Publishing" },
++  published: { tone: "solid", label: "Published" },
++  failed: { tone: "danger", label: "Failed" },
++  unknown: { tone: "warn", label: "Unknown" },
++  rejected: { tone: "neutral", label: "Rejected" },
++};
++
++/** Item status → Badge. Failed = danger, unknown = warn (both carry the alert icon in Badge). */
++export function itemStatusBadge(status: ItemStatus): BadgeView {
++  return ITEM_BADGE[status];
++}
++
++/** Items that need the creator: the outbox gave up (failed) or doesn't know (unknown). */
++export function needsYouCount(counts: Record<ItemStatus, number>): number {
++  return (counts.failed ?? 0) + (counts.unknown ?? 0);
++}
++
++/** "8 posts · 6 draft · 2 approved": live (non-rejected) total first, then the non-zero buckets. */
++export function countsMeta(counts: Record<ItemStatus, number>): string {
++  const live = Object.entries(counts).reduce((n, [s, c]) => (s === "rejected" ? n : n + c), 0);
++  const parts = [`${live} post${live === 1 ? "" : "s"}`];
++  const add = (n: number, label: string) => {
++    if (n > 0) parts.push(`${n} ${label}`);
++  };
++  add(counts.draft, "draft");
++  add(counts.approved + counts.queued, "approved");
++  add(counts.publishing, "publishing");
++  add(counts.published, "published");
++  add(needsYouCount(counts), "need you");
++  add(counts.rejected, "rejected");
++  return parts.join(" · ");
++}
++
++/** ISO-8601 week number of a "YYYY-MM-DD" date (calendar date, no zone). */
++export function isoWeek(ymd: string): number {
++  const d = new Date(`${ymd}T12:00:00Z`);
++  if (Number.isNaN(d.getTime())) return 0;
++  const day = (d.getUTCDay() + 6) % 7; // Mon = 0
++  d.setUTCDate(d.getUTCDate() - day + 3); // the Thursday of this week decides the year
++  const firstThu = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
++  const firstDay = (firstThu.getUTCDay() + 6) % 7;
++  firstThu.setUTCDate(firstThu.getUTCDate() - firstDay + 3);
++  return 1 + Math.round((d.getTime() - firstThu.getTime()) / (7 * 86_400_000));
++}
++
++/** "W47" (two digits at least). */
++export function weekIndex(ymd: string): string {
++  return `W${String(isoWeek(ymd)).padStart(2, "0")}`;
++}
++
++/** The F11 panel (status, attempts, last error, the two buttons) applies instead of the hand-off line. */
++export function isStuck(status: ItemStatus): boolean {
++  return status === "failed" || status === "unknown";
++}
++
++/**
++ * The one-line hand-off text for statuses the worker owns, other than failed/unknown (those get the
++ * F11 panel). null when the card shows something else (a link, buttons, or nothing).
++ */
++export function handoffText(item: Pick<BatchItemView, "status" | "handedOff">, hasUrl: boolean): string | null {
++  if (!item.handedOff || isStuck(item.status)) return null;
++  if (item.status === "published" && hasUrl) return null;
++  return "scheduled on the platform; change it in Studio/TikTok";
++}
++
++/** "key …abc123" (only ever the tail; the full key is never sent to the page). */
++export function keyTailLabel(tail: string | null | undefined): string {
++  return tail ? `key …${tail}` : "key not available";
++}
++
++/** True when the list is non-empty and every string in it has been ticked (exact match). */
++export function allTicked(list: readonly string[], ticked: ReadonlySet<string> | readonly string[]): boolean {
++  if (list.length === 0) return false;
++  const set = ticked instanceof Set ? ticked : new Set(ticked as readonly string[]);
++  return list.every((s) => set.has(s));
++}
++
++export type AutoCheckState = "checking" | IgCheckResult["result"];
++
++/** What the reset sheet says about the IG automatic check. */
++export function autoCheckText(state: AutoCheckState): { tone: "neutral" | "accent" | "warn"; text: string } {
++  switch (state) {
++    case "checking":
++      return { tone: "neutral", text: "Checking the last 25 posts…" };
++    case "not-found":
++      return { tone: "accent", text: "App checked the last 25 posts: not found" };
++    case "found":
++      return { tone: "warn", text: "App found it on Instagram: record it instead of resetting" };
++    case "error":
++      return { tone: "warn", text: "Automatic check failed; check by hand" };
++    case "n/a":
++      return { tone: "neutral", text: "No automatic check for this platform; check by hand" };
++  }
++}
++
++/** Confirm reset is allowed: every box ticked, the IG check is done and didn't find the post. */
++export function canConfirmReset(opts: { list: readonly string[]; ticked: ReadonlySet<string>; check: AutoCheckState; isInstagram: boolean }): boolean {
++  if (!allTicked(opts.list, opts.ticked)) return false;
++  if (opts.isInstagram && (opts.check === "checking" || opts.check === "found")) return false;
++  return true;
++}
++
++/** Approved or further along (queued, publishing, published), out of the live (non-rejected) total. */
++export function approvalProgress(counts: Record<ItemStatus, number>): { done: number; total: number } {
++  const done = counts.approved + counts.queued + counts.publishing + counts.published;
++  const total = Object.entries(counts).reduce((n, [s, c]) => (s === "rejected" ? n : n + c), 0);
++  return { done, total };
++}
+diff --git a/apps/web/lib/batches/view-model.ts b/apps/web/lib/batches/view-model.ts
+index 6f7999e..06c8b30 100644
+--- a/apps/web/lib/batches/view-model.ts
++++ b/apps/web/lib/batches/view-model.ts
+@@ -117,3 +117,10 @@ export function summaryCounts(counts: Record<ItemStatus, number>): { draft: numb
+   const other = counts.queued + counts.publishing + counts.failed + counts.unknown;
+   return { draft: counts.draft, approved: counts.approved, published: counts.published, rejected: counts.rejected, other };
+ }
++
++/** "Mon 16 Nov · 09:00" in the creator's zone; "no time" when unset/invalid. */
++export function scheduledLabel(iso: string | null, timeZone: string): string {
++  if (!validIso(iso)) return "no time";
++  const at = new Date(iso);
++  return `${dayLabel(localDate(at, timeZone))} · ${localHHMM(at, timeZone)}`;
++}

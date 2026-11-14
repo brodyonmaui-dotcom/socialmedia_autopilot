@@ -62,7 +62,12 @@ export const BATCH_ITEM_STATUSES: readonly BatchItemStatus[] = [
   "draft", "approved", "queued", "publishing", "published", "failed", "unknown", "rejected",
 ];
 
-export type BatchItemEventKind = "approve" | "approve-all" | "approve-cli" | "reject" | "unapprove" | "edit" | "add";
+export type BatchItemEventKind =
+  | "approve" | "approve-all" | "approve-cli" | "reject" | "unapprove" | "edit" | "add"
+  /** F11: failed|unknown → draft after the creator checked the platform ("it's not there"). */
+  | "reset-checked"
+  /** F11: failed|unknown → published with the URL the creator found ("it's there"). */
+  | "record-published";
 
 /** Audit row for a status change made from the app or a CLI (migration 0006). */
 export interface BatchItemEventRow {

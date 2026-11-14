@@ -9,7 +9,9 @@ export function middleware(req: NextRequest) {
 }
 
 // Relative to basePath (/app). Everything except the login page and static assets.
+// Each exclusion is bounded (files end at $, dirs at / or $), mirroring isPublicPath, so lookalikes
+// such as /sw.js.map or /iconsx still go through the middleware.
 export const config = {
   // "/" separately: under a basePath the catch-all alone does not match the bare /app root.
-  matcher: ["/", "/((?!login|_next/static|_next/image|manifest\\.json|sw\\.js|favicon\\.ico|icons).*)"],
+  matcher: ["/", "/((?!(?:login|_next/static|_next/image|icons)(?:/|$)|(?:manifest\\.json|sw\\.js|favicon\\.ico)$).*)"],
 };

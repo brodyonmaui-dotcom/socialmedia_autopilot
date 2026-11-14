@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PgAlertPushStore } from "../jobs/alert-push-store.js";
-import { ALERT_PUSH_TEST_SETTING } from "../jobs/alert-push-core.js";
+import { ALERT_PUSH_TEST_SETTING, runAlertPushOnce } from "../jobs/alert-push-core.js";
 import type { OutboxPool } from "../jobs/outbox.js";
 
 /**
@@ -72,6 +72,43 @@ describe.skipIf(!url)("PgAlertPushStore (db)", () => {
       const all = [...got, ...more];
       expect(new Set(all).size).toBe(all.length);
       expect(new Set(all)).toEqual(new Set(ids));
+    } finally {
+      await a.query("rollback");
+      await b.query("rollback");
+      a.release();
+      b.release();
+    }
+  });
+
+  it("two concurrent full ticks (claim + send) never push the same alert twice", async () => {
+    const a = await pool.connect();
+    const b = await pool.connect();
+    try {
+      await a.query("begin");
+      await b.query("begin");
+      const cfg = { kinds: ["auth", "engagement-kill"] as const, enabled: true, maxAgeH: 24 };
+      const counts: number[][] = [[], []];
+      const sender = (i: number) => ({
+        send: async (_s: unknown, body: string) => {
+          counts[i]!.push(JSON.parse(body).count as number);
+          return { status: 201 };
+        },
+      });
+      const quiet = () => {};
+      const [ra, rb] = await Promise.all([
+        runAlertPushOnce(new PgAlertPushStore(a as unknown as OutboxPool), sender(0), cfg, T, quiet),
+        runAlertPushOnce(new PgAlertPushStore(b as unknown as OutboxPool), sender(1), cfg, T, quiet),
+      ]);
+      const mine = async (c: pg.PoolClient) => (await c.query("select id from alerts where pushed_at = $1", [T])).rows.map((r) => r.id as string);
+      const [ia, ib] = [await mine(a), await mine(b)];
+      expect(ia.filter((id) => ib.includes(id))).toEqual([]); // disjoint claims
+      expect(ia.length).toBe(ra.claimed);
+      expect(ib.length).toBe(rb.claimed);
+      expect(ids.every((id) => ia.includes(id) || ib.includes(id))).toBe(true);
+      const kindsSeen = (await a.query("select distinct kind from alerts where id = any($1::uuid[])", [ia.concat(ib)])).rows.map((r) => r.kind);
+      expect(kindsSeen).not.toContain("metrics-health");
+      // every send of a tick carries exactly that tick's claim count
+      for (const [i, r] of [ra, rb].entries()) for (const n of counts[i]!) expect(n).toBe(r.claimed);
     } finally {
       await a.query("rollback");
       await b.query("rollback");

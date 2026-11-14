@@ -153,6 +153,31 @@ describe("runOutboxWith (pg store)", () => {
     expect(r.skipped).toBe(1);
   });
 
+  it("an r2_key that escapes PUBLIC_MEDIA_BASE fails permanently with a sanitized error; never published", async () => {
+    const mediaBase = "https://media.example/bucket";
+    for (const key of ["../x.mp4", "a/%2e%2e/%2e%2e/x.mp4", "..\\x.mp4", "a.mp4?x=1", "a.mp4#f"]) {
+      alerts.length = 0;
+      const pool = fakePool([{ ...base, r2_key: key }]);
+      let called = false;
+      const r = await runOutboxWith(pool, { instagram: adapter("instagram", async () => ((called = true), { platformPostId: "x" })) }, { ...cfg, publicMediaBase: mediaBase, alerts: sink });
+      expect(called, key).toBe(false);
+      expect(r.failed, key).toBe(1);
+      const failed = pool.writes.find((w) => w.sql.startsWith("update batch_items set status = 'failed'"));
+      expect(failed, key).toBeDefined();
+      const text = [String(failed!.params[2]), ...alerts.map((a) => a.message)].join("\n");
+      expect(text).toMatch(/media url/);
+      expect(text).not.toContain(mediaBase);
+      expect(text).not.toContain("media.example");
+      expect(text).not.toContain(key);
+      expect(alerts.map((a) => a.kind)).toContain("final-failure");
+    }
+    // a dry run refuses it too
+    let called = false;
+    const r = await runOutboxWith(fakePool([{ ...base, r2_key: "../x.mp4" }]), { instagram: adapter("instagram", async () => ((called = true), { platformPostId: "x" })) }, { ...cfg, publicMediaBase: mediaBase, dryRun: true });
+    expect(called).toBe(false);
+    expect(r.skipped).toBe(1);
+  });
+
   it("skips rows for platforms with no configured adapter", async () => {
     const pool = fakePool([{ ...base, platform: "youtube" }]);
     const r = await runOutboxWith(pool, { instagram: adapter("instagram", async () => ({ platformPostId: "x" })) }, cfg);

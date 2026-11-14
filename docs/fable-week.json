@@ -94,16 +94,16 @@
       "title": "Reset failed/unknown items after a platform check (\"I checked, it is not there\" → draft, same idempotency_key; or record as published)",
       "model": "fable",
       "area": "apps/web/batches, apps/web/lib/batches",
-      "status": "todo",
-      "notes": "Design docs/design/F11.md + T1 pure logic (transitions reset-checked / record-published, RESET_CHECKLIST, validatePostUrl; 52 tests) built in the prep run. PgBatchStore refuses both until T2. Left for Fable run 3: T2 (store + actions + IG auto-check) under Fable review, T3 (UI + runbook)."
+      "status": "in-progress",
+      "notes": "T1 pure logic (prep run). T2 store + actions + IG auto-check built 2026-11-14 day run (19ac4ba), SQL under a Fable to review header; DB tests incl. same key, concurrency and the outbox tick test. Fable run 3: review T2 SQL. T3 UI + runbook unfinished: WIP patch docs/prep/run-3-wip/f11-t3-batches-restyle.wip.patch (fails typecheck: page.tsx props)."
     },
     {
       "id": "F12",
-      "title": "F12 \u00b7 UI restyle onto the design system (Fable art direction + designer agents)",
+      "title": "F12 · UI restyle onto the design system (Fable art direction + designer agents)",
       "model": "fable",
       "area": "apps/web",
       "status": "todo",
-      "notes": "Design system v2 (Warm Industrial: #EBEBE8, Inter + Playfair italic, 12-col grid, sharp, one blue). Spec + per-page task list: docs/design/ui-system.md (Restyle plan, 10 tasks). Components: apps/web/components/ui; live guide: /app/design (Day/Night); agent: .claude/agents/designer.md."
+      "notes": "Design system v2 (Warm Industrial: #EBEBE8, Inter + Playfair italic, 12-col grid, sharp, one blue). Spec + per-page task list: docs/design/ui-system.md (Restyle plan, 10 tasks). Components: apps/web/components/ui; live guide: /app/design (Day/Night); agent: .claude/agents/designer.md. 2026-11-14 day run: batches list + detail restyle (tasks 2-3) started together with F11 T3, unfinished, in the same WIP patch; the parallel design session owns the other pages."
     }
   ]
 }

@@ -12,6 +12,26 @@ describe("batch store SQL (static)", () => {
     });
   }
 
+  it("F11: idempotency_key is never in any update … set clause or assigned anywhere; no delete from", () => {
+    const src = read("pg-store.ts");
+    const updates = src.match(/\bupdate\s+\w+\s+set\b[\s\S]*?\bwhere\b/gi) ?? [];
+    expect(updates.length).toBeGreaterThanOrEqual(4); // apply's patch update, reset, record, alerts ack, batches
+    for (const u of updates) expect(u).not.toMatch(/idempotency_key/i);
+    // The patch loop builds its SET list from strings: no assignment to the key in any form either.
+    expect(src).not.toMatch(/idempotency_key\s*=/i);
+    expect(src).not.toMatch(/\bdelete\s+from\b/i);
+    expect(src).not.toMatch(/\binsert\s+into\s+batch_items\b[\s\S]{0,200}idempotency_key/i);
+  });
+
+  it("F11: reset SQL is conditional on failed|unknown and no platform post id; record on failed|unknown", () => {
+    const src = read("pg-store.ts");
+    const body = src.slice(src.indexOf("Fable to review: F11"), src.indexOf("SET list built from the patch keys"));
+    expect(body).toMatch(/set status = 'draft'[\s\S]*status in \('failed', 'unknown'\) and platform_post_id is null/);
+    expect(body).toMatch(/set status = 'published'[\s\S]*status in \('failed', 'unknown'\)/);
+    expect(body).toMatch(/update alerts set acknowledged_at[\s\S]*kind in \('final-failure', 'unknown-outcome'\) and acknowledged_at is null/);
+    expect(body).toMatch(/rowCount !== 1\) throw new ConflictError/);
+  });
+
   it("apply is one transaction with a conditional update", () => {
     const src = read("pg-store.ts");
     const body = src.slice(src.indexOf("async apply("), src.indexOf("async addItem("));
