@@ -25,7 +25,8 @@
     "simulate-week": "tsx scripts/simulate-week.ts",
     "simulate-engagement": "tsx scripts/simulate-engagement.ts",
     "schedule-batch": "tsx scripts/schedule-batch.ts",
-    "preflight": "tsx scripts/preflight.ts"
+    "preflight": "tsx scripts/preflight.ts",
+    "ingest:ready": "pnpm --filter @autopilot/ingest-agent ready"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
