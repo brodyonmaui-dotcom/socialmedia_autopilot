@@ -24,7 +24,8 @@
     "dev:session": "tsx scripts/dev/dev-session.ts",
     "simulate-week": "tsx scripts/simulate-week.ts",
     "simulate-engagement": "tsx scripts/simulate-engagement.ts",
-    "schedule-batch": "tsx scripts/schedule-batch.ts"
+    "schedule-batch": "tsx scripts/schedule-batch.ts",
+    "preflight": "tsx scripts/preflight.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
