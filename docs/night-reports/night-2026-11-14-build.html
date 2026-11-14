@@ -21,25 +21,25 @@ a{color:var(--strong)}footer{color:var(--mute);font-size:12px;margin-top:18px}
 </style></head><body><main>
 <header><h1>Night report: 2026-11-14</h1>
 <p><span class="pill">opus lead</span><span class="pill">cloud · build</span><span class="pill">F9 T3 · F13 T1-T4 · F15 editor pipeline · cadence caps</span></p>
-<p style="margin-top:8px">Checkpoint: probe log, F9 T3 and F13 T2 committed; F13 T1/T3 and F15 T1 in progress.</p></header>
+<p style="margin-top:8px">F9 T3, F13 T1-T4 and F15 (editor → app pipeline) built and green; default stays dry-run; Fable review items in docs/prep/run-4-fable-brief.md.</p></header>
 
 <div class="kpis">
-<div class="kpi"><div class="v">7.18M</div><div class="l">total tokens</div></div>
-<div class="kpi"><div class="v">104.9K</div><div class="l">output tokens</div></div>
-<div class="kpi"><div class="v">6.62M</div><div class="l">cache reads</div></div>
-<div class="kpi"><div class="v">$4.16</div><div class="l">API-equivalent (not your plan bill)</div></div>
+<div class="kpi"><div class="v">38.39M</div><div class="l">total tokens</div></div>
+<div class="kpi"><div class="v">343.6K</div><div class="l">output tokens</div></div>
+<div class="kpi"><div class="v">37.04M</div><div class="l">cache reads</div></div>
+<div class="kpi"><div class="v">$17.53</div><div class="l">API-equivalent (not your plan bill)</div></div>
 <div class="kpi"><div class="v">0%</div><div class="l">lead (Fable) share of cost · target &lt; 25%</div></div>
-<div class="kpi"><div class="v">0.1h</div><div class="l">first→last activity · 106 model calls</div></div>
-<div class="kpi"><div class="v">0/–</div><div class="l">tests passing</div></div>
+<div class="kpi"><div class="v">0.5h</div><div class="l">first→last activity · 364 model calls</div></div>
+<div class="kpi"><div class="v">1589/1589</div><div class="l">tests passing</div></div>
 </div>
 
-<section class="attn"><h2>Needs you</h2><p class="muted">Nothing needs you.</p></section>
+<section class="attn"><h2>Needs you</h2><ul><li><b>Review and merge the PR</b><span class="d">Then apply migration 0009 after a backup, deploy, and restart caddy (Caddyfile changed).</span></li><li><b>Run ./infra/preflight.sh on the VPS</b><span class="d">Paste the summary line; fix FAILs per the runbook each line names.</span></li><li><b>Set up the editor pipeline task on the laptop</b><span class="d">docs/runbooks/editor-pipeline.md: Task Scheduler every 10 min, env names INGEST_READY_DIR, TZ_CREATOR, DATABASE_URL, R2_*.</span></li><li><b>Check the daily cap setting</b><span class="d">Settings → Daily posts per platform: default 5 now applies; set 4 if you prefer.</span></li><li><b>DM drafts toggle</b><span class="d">Inbox → DMs: turn on when you want read-only drafts. Nothing sends.</span></li><li><b>Go live</b><span class="d">Say OK in chat, then docs/runbooks/first-real-post.md.</span></li></ul></section>
 
-<section><h2>Done</h2><ul><li>Probe results 2026-11-14 in the research.md verification log; engagement runbook: YT replies enable steps + DM drafts</li><li>F9 T3: parsers + fixtures on real shapes (reposts, YT string counts), report shares/reposts/watch time/skip rate</li><li>F13 T2: outbox tick advisory lock (Fable to review)</li><li>F15 design doc</li></ul></section>
-<section><h2>Not done</h2><p class="muted">Nothing.</p></section>
-<section><h2>Decisions for Brody</h2><ul><li>Leak-scan false positive (a slash-joined page list read as a home dir) reworded in the tracker and the run-3 report</li><li>F15: rolling per-week batch; ingest_key unique index (migration 0009) for content-hash+platform idempotency; no-slot items stay unslotted (Move to tomorrow), never rolled silently</li><li>Cadence default caps 5/day IG/YT/TikTok in code; the stored cadence row on the VPS keeps 4 until the creator raises it</li></ul></section>
+<section><h2>Done</h2><ul><li>Probe results 2026-11-14 in the research.md verification log; engagement runbook: YT replies enable steps + DM drafts</li><li>F9 T3: parsers + fixtures on real shapes (reposts, YT string counts), report shares/reposts/watch time/skip rate</li><li>F13 T2: outbox tick advisory lock (Fable to review)</li><li>F13 T1: preflight (core, CLI, VPS wrapper) + security checks; restore drill records restore_drill_at (and its table-count query fixed); Caddy frame headers</li><li>F13 T3: YouTube findExisting via the uploads playlist (visibility of private/scheduled items unverified)</li><li>F13 T4: first-real-post runbook</li><li>F15: design, core window/sameDay/flex slotting, caps setting (CAP_LIMITS, default 5), migration 0009, pnpm ingest:ready, From your editors card + one-tap approve, DM drafts toggle, editor-pipeline runbook</li></ul></section>
+<section><h2>Not done</h2><ul><li>F14 weekly loop</li><li>F12 cosmetic touch-ups</li><li>Codebase map refresh</li><li>YouTube uploads-playlist visibility check against official docs (proxy blocked developers.google.com)</li></ul></section>
+<section><h2>Decisions for Brody</h2><ul><li>Leak-scan false positive (a slash-joined page list read as a home dir) reworded in the tracker and the run-3 report</li><li>F15: rolling per-week batch; ingest_key unique index (migration 0009) for content-hash+platform idempotency; no-slot items stay unslotted (Move to tomorrow), never rolled silently</li><li>Cadence default caps 5/day IG/YT/TikTok in code; the stored cadence row on the VPS keeps 4 until the creator raises it</li><li>Default caps 5 apply after deploy because the VPS cadence row is empty; nothing is live, so listed under Needs you</li><li>caption.missing blocks approve on every item (not only editor items)</li><li>YT findExisting kept: a hit avoids a resend; a miss behaves as before</li><li>Sidecar v1 is strict: caption and soundInApp required, unknown keys fail</li></ul></section>
 <section><h2>Blocked or denied by guardrails</h2><p class="muted">Nothing was blocked.</p></section>
-<section><h2>Pick up next</h2><p class="muted">Nothing.</p></section>
+<section><h2>Pick up next</h2><ul><li>Fable review of the hunks in docs/prep/run-4-fable-brief.md</li><li>F14 weekly loop</li><li>Creator: migration 0009 + deploy + preflight</li></ul></section>
 
 <section><h2>Week plan · 11/15 done</h2>
 <div class="bar"><i style="width:73.33333333333333%"></i></div>
@@ -48,7 +48,7 @@ a{color:var(--strong)}footer{color:var(--mute);font-size:12px;margin-top:18px}
 </table></section>
 
 <section><h2>Tokens by model</h2><table><tr><th>Model</th><th>Input</th><th>Output</th><th>Cache read</th><th>Cache write</th></tr>
-<tr><td>claude-opus-5-5</td><td class="n">130</td><td class="n">66.3K</td><td class="n">5.41M</td><td class="n">276.4K</td></tr><tr><td>claude-haiku-5-5</td><td class="n">48</td><td class="n">27.9K</td><td class="n">850.6K</td><td class="n">116.8K</td></tr><tr><td>claude-sonnet-5-5</td><td class="n">30</td><td class="n">10.7K</td><td class="n">356.4K</td><td class="n">59.5K</td></tr>
+<tr><td>claude-opus-5-5</td><td class="n">631</td><td class="n">295.4K</td><td class="n">35.61M</td><td class="n">763.3K</td></tr><tr><td>claude-sonnet-5-5</td><td class="n">60</td><td class="n">20.3K</td><td class="n">571.2K</td><td class="n">129.5K</td></tr><tr><td>claude-haiku-5-5</td><td class="n">48</td><td class="n">27.9K</td><td class="n">850.6K</td><td class="n">116.8K</td></tr>
 </table></section>
-<footer>Generated 2026-11-14T21:23:25.726Z from 2026-11-14-build.json and 9 transcript file(s). API-equivalent cost uses list prices and is only a relative measure of work done.</footer>
+<footer>Generated 2026-11-14T21:48:29.510Z from 2026-11-14-build.json and 14 transcript file(s). API-equivalent cost uses list prices and is only a relative measure of work done.</footer>
 </main></body></html>

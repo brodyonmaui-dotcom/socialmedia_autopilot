@@ -1,31 +1,78 @@
 {
   "date": "2026-11-14",
   "startedAt": "2026-11-14T00:00:00Z",
-  "endedAt": null,
+  "endedAt": "2026-11-14T21:48:22.454Z",
   "model": "opus lead",
   "session": "cloud · build",
   "backlogItem": "F9 T3 · F13 T1-T4 · F15 editor pipeline · cadence caps",
-  "summary": "Checkpoint: probe log, F9 T3 and F13 T2 committed; F13 T1/T3 and F15 T1 in progress.",
-  "needsAttention": [],
+  "summary": "F9 T3, F13 T1-T4 and F15 (editor → app pipeline) built and green; default stays dry-run; Fable review items in docs/prep/run-4-fable-brief.md.",
+  "needsAttention": [
+    {
+      "priority": 1,
+      "title": "Review and merge the PR",
+      "detail": "Then apply migration 0009 after a backup, deploy, and restart caddy (Caddyfile changed)."
+    },
+    {
+      "priority": 2,
+      "title": "Run ./infra/preflight.sh on the VPS",
+      "detail": "Paste the summary line; fix FAILs per the runbook each line names."
+    },
+    {
+      "priority": 3,
+      "title": "Set up the editor pipeline task on the laptop",
+      "detail": "docs/runbooks/editor-pipeline.md: Task Scheduler every 10 min, env names INGEST_READY_DIR, TZ_CREATOR, DATABASE_URL, R2_*."
+    },
+    {
+      "priority": 4,
+      "title": "Check the daily cap setting",
+      "detail": "Settings → Daily posts per platform: default 5 now applies; set 4 if you prefer."
+    },
+    {
+      "priority": 5,
+      "title": "DM drafts toggle",
+      "detail": "Inbox → DMs: turn on when you want read-only drafts. Nothing sends."
+    },
+    {
+      "priority": 6,
+      "title": "Go live",
+      "detail": "Say OK in chat, then docs/runbooks/first-real-post.md."
+    }
+  ],
   "done": [
     "Probe results 2026-11-14 in the research.md verification log; engagement runbook: YT replies enable steps + DM drafts",
     "F9 T3: parsers + fixtures on real shapes (reposts, YT string counts), report shares/reposts/watch time/skip rate",
     "F13 T2: outbox tick advisory lock (Fable to review)",
-    "F15 design doc"
+    "F13 T1: preflight (core, CLI, VPS wrapper) + security checks; restore drill records restore_drill_at (and its table-count query fixed); Caddy frame headers",
+    "F13 T3: YouTube findExisting via the uploads playlist (visibility of private/scheduled items unverified)",
+    "F13 T4: first-real-post runbook",
+    "F15: design, core window/sameDay/flex slotting, caps setting (CAP_LIMITS, default 5), migration 0009, pnpm ingest:ready, From your editors card + one-tap approve, DM drafts toggle, editor-pipeline runbook"
   ],
-  "notDone": [],
+  "notDone": [
+    "F14 weekly loop",
+    "F12 cosmetic touch-ups",
+    "Codebase map refresh",
+    "YouTube uploads-playlist visibility check against official docs (proxy blocked developers.google.com)"
+  ],
   "decisions": [
     "Leak-scan false positive (a slash-joined page list read as a home dir) reworded in the tracker and the run-3 report",
     "F15: rolling per-week batch; ingest_key unique index (migration 0009) for content-hash+platform idempotency; no-slot items stay unslotted (Move to tomorrow), never rolled silently",
-    "Cadence default caps 5/day IG/YT/TikTok in code; the stored cadence row on the VPS keeps 4 until the creator raises it"
+    "Cadence default caps 5/day IG/YT/TikTok in code; the stored cadence row on the VPS keeps 4 until the creator raises it",
+    "Default caps 5 apply after deploy because the VPS cadence row is empty; nothing is live, so listed under Needs you",
+    "caption.missing blocks approve on every item (not only editor items)",
+    "YT findExisting kept: a hit avoids a resend; a miss behaves as before",
+    "Sidecar v1 is strict: caption and soundInApp required, unknown keys fail"
   ],
   "blocked": [],
   "tests": {
-    "passed": 0,
+    "passed": 1589,
     "failed": 0,
-    "notes": "full run at close-out"
+    "notes": "150 files with DATABASE_URL; typecheck 0; simulate-week + simulate-engagement OK; web build OK; leak scan ok"
   },
-  "commits": 4,
+  "commits": 14,
   "prUrl": null,
-  "nextPickup": []
+  "nextPickup": [
+    "Fable review of the hunks in docs/prep/run-4-fable-brief.md",
+    "F14 weekly loop",
+    "Creator: migration 0009 + deploy + preflight"
+  ]
 }
