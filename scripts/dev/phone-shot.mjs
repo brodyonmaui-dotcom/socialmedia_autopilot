@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Phone screenshot of a local page (iPhone 13 viewport) for checking UI work without a phone.
-// Usage: node scripts/dev/phone-shot.mjs /app/library out.png [--port 3100] [--full] [--desktop] [--cookie name=value] [--theme dark]
+// Usage: node scripts/dev/phone-shot.mjs /app/library out.png [--port 3100] [--full] [--desktop] [--cookie name=value] [--theme dark] [--dark]
 // --desktop uses a 1440×900 desktop viewport instead of the iPhone 13. --scale 2 for shots people will look at.
 // Start the app first: cd apps/web && pnpm build && PORT=3100 DATABASE_URL=... pnpm start
 // --cookie sets a cookie for localhost before loading (e.g. the ap_session printed by `pnpm dev:session`).
@@ -27,7 +27,8 @@ const scale = Number(opts["--scale"] ?? 1);
 const viewport = opts["--desktop"] === true
   ? { viewport: { width: 1440, height: 900 }, deviceScaleFactor: scale }
   : { ...devices["iPhone 13"], deviceScaleFactor: scale };
-const context = await browser.newContext(viewport);
+// --dark emulates prefers-color-scheme: dark (static pages under infra/static follow the OS theme).
+const context = await browser.newContext({ ...viewport, ...(opts["--dark"] === true ? { colorScheme: "dark" } : {}) });
 if (typeof opts["--cookie"] === "string") {
   const eq = opts["--cookie"].indexOf("=");
   if (eq < 1) throw new Error("--cookie expects name=value");

@@ -17,8 +17,17 @@ describe("public /snap-test (D7)", () => {
 
   it("the public static dir holds only small html/json/txt files (no media)", () => {
     for (const f of readdirSync(staticDir)) {
+      if (f === "assets") continue; // checked below
       expect(f, f).toMatch(/\.(html|json|txt|css|ico|svg)$/);
       expect(f, f).not.toMatch(/\.(mp4|mov|m4v|webm|jpe?g|png|heic|gif)$/i);
+    }
+  });
+
+  it("assets/ (site CSS + self-hosted fonts) holds only css, woff2 and licence text, no media", () => {
+    const files = readdirSync(join(staticDir, "assets"), { recursive: true, withFileTypes: true }).filter((d) => d.isFile());
+    expect(files.length).toBeGreaterThan(0);
+    for (const d of files) {
+      expect(d.name, d.name).toMatch(/\.(css|woff2|txt)$/);
     }
   });
 
