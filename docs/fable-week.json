@@ -103,7 +103,7 @@
       "model": "fable",
       "area": "apps/web",
       "status": "done",
-      "notes": "Design system v2 restyle done in Fable run 3 (2026-11-14): all 10 restyle-plan tasks shipped (shell/home/login/site from the design session; batches list+detail, Snapchat handoff, Alerts, Inbox+DMs, Analytics, Library+touch-up, Research in this run). Shots: docs/design/ui-shots/f12/. Cosmetic touch-ups for run 4: alerts kind-filter cell wraps its count on phones; desktop /inbox/dms right column empty; one consistency pass over all pages."
+      "notes": "Design system v2 restyle done in Fable run 3 (2026-11-14): all 10 restyle-plan tasks shipped (shell, home, login, site from the design session; batches list+detail, Snapchat handoff, Alerts, Inbox+DMs, Analytics, Library+touch-up, Research in this run). Shots: docs/design/ui-shots/f12/. Cosmetic touch-ups for run 4: alerts kind-filter cell wraps its count on phones; desktop /inbox/dms right column empty; one consistency pass over all pages."
     },
     {
       "id": "F13",
