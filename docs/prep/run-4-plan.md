@@ -1,5 +1,39 @@
 # Run 4 plan (written at the end of Fable run 3, 2026-11-14)
 
+## Update after the build run (2026-11-14)
+Branch `day/build-2026-11-14` (`git log --oneline b46ff25..HEAD`). Checks: typecheck 0, tests 1589/1589 (150 files, with `DATABASE_URL`), both sims OK, web build OK, leak scan ok.
+
+**Done**
+- Probe results of 2026-11-14 are in `docs/research.md`; engagement runbook covers YouTube replies and DM drafts.
+- **F9 T3 done, F9 is done:** parsers and fixtures on the real shapes (reposts added, YouTube string counts become numbers); the report sums shares/reposts and means watch time/skip rate.
+- **F13 T1-T4 built, status review:** preflight (`scripts/lib/preflight.ts`, `scripts/preflight.ts`, `infra/preflight.sh`; security checks; the restore drill writes `restore_drill_at`; Caddy gets X-Frame-Options and CSP frame-ancestors), outbox tick advisory lock, YouTube `findExisting` (uploads playlist; private/scheduled visibility UNVERIFIED because developers.google.com is blocked by the proxy; a miss on a retry still resends as before), `docs/runbooks/first-real-post.md`.
+- **F15 built, status review:** design `docs/design/F15.md`; T1 core (scheduler window/sameDay/flex grid, CAP_LIMITS IG25/YT10/TT15/Snap1, default caps 5, alert kinds ready-for-approval (pushed) and settings-change, migration 0009 ingest_key/origin); T2 `pnpm ingest:ready` in tools/ingest-agent; T3 app card, actions, warnings, Settings caps, DM toggle; T4 `docs/runbooks/editor-pipeline.md`.
+
+**Left**
+- Fable review of the marked hunks: `docs/prep/run-4-fable-brief.md` (F13 T2/T3, F15).
+- F14 weekly loop (`docs/design/F14.md`).
+- F12 touch-ups (alerts kind-filter count wrap on phones; desktop /inbox/dms right column; consistency pass).
+- Codebase map refresh (`docs/prep/codebase-map.md`), more stale now: new areas `tools/ingest-agent/src/ready`, `apps/web/lib/editor`, `lib/settings`, plus the F13 preflight files.
+
+**Needs you (creator)**
+1. Apply migration 0009 after a backup (`docs/runbooks/migrations.md`).
+2. Deploy; because `infra/Caddyfile` changed, also run `docker compose restart caddy`.
+3. Run `./infra/preflight.sh` and paste the summary into chat.
+4. Run the restore drill once.
+5. Set up the Windows Task Scheduler entry (`docs/runbooks/editor-pipeline.md`) with the laptop env `INGEST_READY_DIR`, `TZ_CREATOR` and the DB/R2 names.
+6. Settings, Daily posts per platform: default 5 now applies; set 4 if you prefer.
+7. Flip "Turn on DM drafts" in the inbox when wanted.
+8. Go-live: say OK in chat, then follow `docs/runbooks/first-real-post.md`.
+9. FYI: the postcss high advisories come in via next's build tooling (build-time only); bump next when convenient.
+
+**Lessons from the build run**
+- `report.mjs` writes `night-<date>.html` by default and overwrote the previous run's same-date report. Always pass `--out` for a second run on the same date.
+- The leak scanner flags a slash-joined word after the home-directory prefix; never write such a phrase in docs.
+- Implementers must not edit tests outside their scope; the lead fixes small pinned-test fallout.
+- The designer agent was the costliest (about 220k tokens).
+
+The sections below are the older run-3 end-of-run plan.
+
 Read with `docs/fable-lead.md`, `docs/prep/run-4-outline.md` (the lead's priorities; they are decisions), and the drafts `docs/design/F13.md` and `F14.md`. `docs/prep/codebase-map.md` is stale since F11 T2 (refresh is item 5). Line numbers below were grepped on branch `fable/run-3-2026-11-14` at about `1a56081` plus the uncommitted F12 working tree. Re-grep before citing them in a spec. Deadline: Jan 8, 2027 (55 days left); M1's "IG + YT posting for real by Nov 21" is the milestone at risk.
 
 ## What run 3 finished
