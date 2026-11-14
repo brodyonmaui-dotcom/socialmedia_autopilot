@@ -20,26 +20,26 @@ th{font-size:12px;color:var(--mute);font-weight:500}td.n{font-variant-numeric:ta
 a{color:var(--strong)}footer{color:var(--mute);font-size:12px;margin-top:18px}
 </style></head><body><main>
 <header><h1>Night report: 2026-11-14</h1>
-<p><span class="pill">opus (lead) + haiku scouts + sonnet/opus implementers</span><span class="pill">cloud · opus day run before Fable run 3 · core</span><span class="pill">Review pack for Fable · F11 T2/T3 · batches restyle · Fable brief rewrite</span></p>
-<p style="margin-top:8px">Review pack for Fable (9 hunks, 6 defects fixed with failing tests first, 7 rows open for Fable) and F11 T2 (store, actions, IG auto-check) are done and green. F11 T3 + batches restyle hit a usage limit mid-task and is saved as a WIP patch, not code.</p></header>
+<p><span class="pill">claude-fable-5-1 (lead) + haiku scouts + opus designer/implementers</span><span class="pill">cloud · Fable run 3 · fable/run-3-2026-11-14</span><span class="pill">F11 review + T3 · F12 batches restyle + art direction · final cross-cutting review · run-4 plan</span></p>
+<p style="margin-top:8px">Window 1: judged the 7 open review-pack rows and approved the F11 T2 reset SQL (no defects, 61 tests green). F11 T3 + batches restyle and the media-base config-alert fix are running on Opus agents.</p></header>
 
 <div class="kpis">
-<div class="kpi"><div class="v">23.43M</div><div class="l">total tokens</div></div>
-<div class="kpi"><div class="v">243.8K</div><div class="l">output tokens</div></div>
-<div class="kpi"><div class="v">22.08M</div><div class="l">cache reads</div></div>
-<div class="kpi"><div class="v">$11.30</div><div class="l">API-equivalent (not your plan bill)</div></div>
-<div class="kpi"><div class="v">0%</div><div class="l">lead (Fable) share of cost · target &lt; 25%</div></div>
-<div class="kpi"><div class="v">3.4h</div><div class="l">first→last activity · 238 model calls</div></div>
-<div class="kpi"><div class="v">1338/1338</div><div class="l">tests passing</div></div>
+<div class="kpi"><div class="v">2.29M</div><div class="l">total tokens</div></div>
+<div class="kpi"><div class="v">38.2K</div><div class="l">output tokens</div></div>
+<div class="kpi"><div class="v">2.02M</div><div class="l">cache reads</div></div>
+<div class="kpi"><div class="v">$3.33</div><div class="l">API-equivalent (not your plan bill)</div></div>
+<div class="kpi"><div class="v">77%</div><div class="l">lead (Fable) share of cost · target &lt; 25%</div></div>
+<div class="kpi"><div class="v">0.1h</div><div class="l">first→last activity · 38 model calls</div></div>
+<div class="kpi"><div class="v">61/61</div><div class="l">tests passing</div></div>
 </div>
 
-<section class="attn"><h2>Needs you</h2><ul><li><b>Review and merge the PR after Fable run 3</b><span class="d">Tests green at 50a1bde; F11 T2 SQL waits for Fable review.</span></li><li><b>Paste the four F9 probe lines</b><span class="d">ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape</span></li></ul></section>
+<section class="attn"><h2>Needs you</h2><ul><li><b>Paste the four F9 probe lines</b><span class="d">ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape are not in docs/research.md, so F9 T3 did not run this run.</span></li><li><b>First docker build after merge</b><span class="d">Both Dockerfiles now copy the root tsconfig.json; no Docker daemon in the cloud container, so `docker compose up -d --build` on the VPS is the real test.</span></li></ul></section>
 
-<section><h2>Done</h2><ul><li>Review pack: 9 Haiku scout summaries in docs/prep/run-3-review-pack/</li><li>Red-team web hunks (handoff-store, handoff-media, alerts-ack, pwa-public-paths): 3 fixes with failing tests first: /sw.js + manifest/favicon exact match and bounded middleware matcher; media proxy refuses r2_key escaping the base; acknowledgeAll with an unknown kind acks nothing</li><li>F11 T2: PgBatchStore reset-checked/record-published SQL (conditional, key never touched, alert acked in tx), IG auto-check (read-only), resetCheckedAction/recordPublishedAction/igCheckAction, DB tests incl. same-key and concurrency, worker DB tick test (lookup hit → 0 publishes)</li><li>Red-team worker hunks: push-gating, 0008 (re-run test on a scratch DB), dockerfiles (static dep-graph test): no defects; F9 ingest trip alert now raised before the state save; worker mediaUrlGuard (r2_key escaping the base fails permanently)</li><li>F11 pure red-team: 25 attack tests, no defects</li><li>docs/prep/run-3-fable-brief.md rewritten for what is left (Fable ≈ 20%)</li></ul></section>
-<section><h2>Not done</h2><ul><li>F9 T3: no probe output (ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape) in docs/research.md on main; skipped</li><li>F11 T3 + F12 batches restyle (tasks 2-3): WIP patch docs/prep/run-3-wip/f11-t3-batches-restyle.wip.patch, fails typecheck, no shots</li><li>Codebase map refresh (task 6)</li><li>docs/prep/run-4-plan.md (moved to Fable brief item 7)</li></ul></section>
-<section><h2>Decisions for Brody</h2><ul><li>F11 T2: igCheckAction returns its result instead of redirecting (not via run()); requireSession first</li><li>F11 T2: IG check reports error when the item has no time or empty caption; 10 s timeout</li><li>Resumed at 03:29 UTC after a usage limit: past the 02:30 hard stop, so wrap-up only; the unfinished designer work is saved as a patch instead of committed code</li><li>Worker media URL guard is fail-closed (open Fable row on an empty PUBLIC_MEDIA_BASE)</li></ul></section>
-<section><h2>Blocked or denied by guardrails</h2><ul><li>F9 T3: no probe output</li></ul></section>
-<section><h2>Pick up next</h2><ul><li>Fable run 3 from docs/prep/run-3-fable-brief.md</li><li>Resume F11 T3 from the WIP patch</li></ul></section>
+<section><h2>Done</h2><ul><li>Item 1: 7 open review-pack rows judged (dockerfiles #2 fixed, #3 creator; f11-pure #8 accepted, #11/#13 folded into T3, #12 approved; handoff-media #7 → fix in flight)</li><li>Item 2: F11 T2 SQL reviewed against the worker&#39;s listDue gate and the engine&#39;s existence check; approved</li></ul></section>
+<section><h2>Not done</h2><ul><li>F11 T3 + batches restyle (designer running)</li><li>handoff-media #7 config alert (implementer running)</li><li>F12 pages 4–10 art direction</li><li>F9 T3 (no probe output)</li><li>final cross-cutting review</li><li>run-4 plan</li></ul></section>
+<section><h2>Decisions for Brody</h2><ul><li>F11 T2 SQL approved as written: reset keeps the key, sets attempts=1, clears approved_at; record-published allowed from any failed/unknown row</li><li>validatePostUrl keeps &#39;any path beyond /&#39; (evidence only); hosts stay exact</li><li>IG checklist box 3 reworded to cover the auto-check &#39;error&#39; case; the result shows as a chip</li><li>Record-published button on every failed/unknown row except Snapchat (handoff note instead); only the reset button is gated on canReset</li><li>Empty/invalid PUBLIC_MEDIA_BASE skips the outbox tick with one deduped &#39;config&#39; alert (page-only) instead of failing every post</li><li>Both Dockerfiles copy the root tsconfig.json</li></ul></section>
+<section><h2>Blocked or denied by guardrails</h2><p class="muted">Nothing was blocked.</p></section>
+<section><h2>Pick up next</h2><ul><li>Review the designer&#39;s F11 T3 + batches restyle diff (shots in docs/design/ui-shots/f12/batches-*.png), run typecheck/test/build, commit</li><li>Review the implementer&#39;s outbox config-alert diff (apps/worker/src/jobs/outbox.ts, outbox-config.db.test.ts), commit</li><li>Then F12 pages: Alerts, Snapchat handoff, Inbox+DMs, Analytics, Library, Research (Opus designer for the first of a pattern, Sonnet for follow-ups)</li></ul></section>
 
 <section><h2>Week plan · 9/13 done</h2>
 <div class="bar"><i style="width:69.23076923076923%"></i></div>
@@ -48,7 +48,7 @@ a{color:var(--strong)}footer{color:var(--mute);font-size:12px;margin-top:18px}
 </table></section>
 
 <section><h2>Tokens by model</h2><table><tr><th>Model</th><th>Input</th><th>Output</th><th>Cache read</th><th>Cache write</th></tr>
-<tr><td>claude-opus-5-5</td><td class="n">442</td><td class="n">169.1K</td><td class="n">20.57M</td><td class="n">740.5K</td></tr><tr><td>&lt;synthetic&gt;</td><td class="n">0</td><td class="n">0</td><td class="n">0</td><td class="n">0</td></tr><tr><td>claude-haiku-5-5</td><td class="n">50</td><td class="n">74.6K</td><td class="n">1.51M</td><td class="n">366.6K</td></tr>
+<tr><td>claude-opus-5-5</td><td class="n">40</td><td class="n">7.3K</td><td class="n">572.7K</td><td class="n">97.1K</td></tr><tr><td>claude-haiku-5-5</td><td class="n">12</td><td class="n">7.8K</td><td class="n">132.1K</td><td class="n">39.8K</td></tr><tr><td>claude-fable-5-1</td><td class="n">324</td><td class="n">23.1K</td><td class="n">1.32M</td><td class="n">86.6K</td></tr>
 </table></section>
-<footer>Generated 2026-11-14T03:32:08.522Z from 2026-11-14-day.json and 8 transcript file(s). API-equivalent cost uses list prices and is only a relative measure of work done.</footer>
+<footer>Generated 2026-11-14T03:45:02.456Z from 2026-11-14.json and 4 transcript file(s). API-equivalent cost uses list prices and is only a relative measure of work done.</footer>
 </main></body></html>
