@@ -124,12 +124,14 @@ export async function runAnalyticsIngestOnce(
 
   const prev = (await getSetting<MetricsHealthState>(pool, METRICS_HEALTH_KEY)) ?? {};
   const health = nextHealth(prev, res, now);
-  if (Object.keys(res.attemptedByPlatform).length > 0) await setSetting(pool, METRICS_HEALTH_KEY, health.state);
+  // Alerts before the state save: if an insert fails, the counter isn't advanced, so the next run trips
+  // again (the not-exists guard keeps that to one open row) instead of the trip being lost.
   for (const p of health.trip) {
     const msg = sanitizeForLog(`${p} metrics failed ${METRICS_FAIL_THRESHOLD} runs in a row: ${res.lastErrorByPlatform[p] ?? "unknown error"}`).slice(0, 300);
     const raised = await raiseMetricsHealthAlert(pool, p, msg, now);
     log(`[analytics] metrics-health ${p}: ${raised ? "alert raised" : "alert already open"}`);
   }
+  if (Object.keys(res.attemptedByPlatform).length > 0) await setSetting(pool, METRICS_HEALTH_KEY, health.state);
   for (const p of health.recovered) log(`[analytics] metrics-health ${p}: recovered`);
   return res;
 }
