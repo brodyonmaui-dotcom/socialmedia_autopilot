@@ -178,6 +178,26 @@ describe("runOutboxWith (pg store)", () => {
     expect(r.skipped).toBe(1);
   });
 
+  it("an unset/invalid PUBLIC_MEDIA_BASE skips the tick: no batch_items write, one config alert, value never logged", async () => {
+    for (const [mediaBase, dryRun] of [["", false], ["", true], ["http://media.example/b", false]] as const) {
+      alerts.length = 0;
+      const pool = fakePool([base]);
+      const lines: string[] = [];
+      let called = false;
+      const r = await runOutboxWith(pool, { instagram: adapter("instagram", async () => ((called = true), { platformPostId: "x" })) }, { ...cfg, publicMediaBase: mediaBase, dryRun, alerts: sink, log: (l) => lines.push(l) });
+      expect(called).toBe(false);
+      expect(r).toEqual({ considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, dryRun, alerts: [] });
+      expect(pool.writes.filter((w) => w.sql.startsWith("update batch_items"))).toEqual([]);
+      expect(pool.reads.filter((q) => q.startsWith("select bi.id"))).toEqual([]);
+      const ins = pool.writes.filter((w) => w.sql.startsWith("insert into alerts"));
+      expect(ins).toHaveLength(1);
+      expect(ins[0]!.params[0]).toBe("config");
+      expect(ins[0]!.sql).toContain("where not exists");
+      expect(lines).toEqual(["[outbox] PUBLIC_MEDIA_BASE missing or invalid: tick skipped"]);
+      expect(alerts).toEqual([]);
+    }
+  });
+
   it("skips rows for platforms with no configured adapter", async () => {
     const pool = fakePool([{ ...base, platform: "youtube" }]);
     const r = await runOutboxWith(pool, { instagram: adapter("instagram", async () => ({ platformPostId: "x" })) }, cfg);

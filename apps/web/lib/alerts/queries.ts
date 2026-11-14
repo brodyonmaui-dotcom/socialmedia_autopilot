@@ -133,6 +133,7 @@ const KIND_LABEL: Record<AlertKind, string> = {
   "engagement-unknown": "Engagement unknown",
   "engagement-mode": "Engagement mode",
   "metrics-health": "Metrics",
+  config: "Configuration",
 };
 
 export function kindLabel(kind: AlertKind): string {
