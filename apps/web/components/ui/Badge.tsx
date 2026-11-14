@@ -41,22 +41,29 @@ const CHIP_TONE: Record<ChipTone, string> = {
   danger: "border-ds-danger/60 text-ds-danger",
 };
 
-export type ChipProps = HTMLAttributes<HTMLSpanElement> & { tone?: ChipTone; icon?: IconName; children: ReactNode };
+export type ChipProps = HTMLAttributes<HTMLSpanElement> & {
+  tone?: ChipTone;
+  icon?: IconName;
+  /** Sentence-length chip: wraps onto more lines (min 32 px tall, icon top-aligned) instead of nowrap. */
+  wrap?: boolean;
+  children: ReactNode;
+};
 
 /** Sharp 1px-line tag (warnings, hashtags, platform). Warn/danger default to the alert icon. */
-export function Chip({ tone = "neutral", icon, className, children, ...rest }: ChipProps) {
+export function Chip({ tone = "neutral", icon, wrap = false, className, children, ...rest }: ChipProps) {
   const shown: IconName | undefined = icon ?? (tone === "warn" || tone === "danger" ? "alert" : undefined);
   return (
     <span
       className={cx(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap border bg-ds-card px-3 text-[13px] leading-none",
+        "inline-flex gap-1.5 border bg-ds-card px-3 text-[13px]",
+        wrap ? "min-h-8 max-w-full items-start py-[8px] leading-[16px] [overflow-wrap:anywhere]" : "h-8 shrink-0 items-center whitespace-nowrap leading-none",
         CHIP_TONE[tone],
         className,
       )}
       {...rest}
     >
-      {shown && <Icon name={shown} size={14} />}
-      {children}
+      {shown && <Icon name={shown} size={14} className={wrap ? "mt-px shrink-0" : undefined} />}
+      {wrap ? <span className="min-w-0">{children}</span> : children}
     </span>
   );
 }

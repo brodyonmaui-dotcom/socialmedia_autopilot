@@ -116,7 +116,7 @@ Server components unless marked **client**.
   - the `clip-path` image reveal runs from `inset(0 0 0 100%)` to `inset(0)` over 600 ms, grayscale with a blue 20% multiply;
   - a "View" circle follows the cursor (pointer: fine only) and otherwise sits on the right;
   - phone: 120 px rows with a visible 64 px thumbnail.
-- `FramedImage`: grayscale image or placeholder with a 20 px inner frame line. `GlassCard`: `bg-ds-card/60` + `backdrop-blur-md` + 1 px line, sharp.
+- `FramedImage`: grayscale image or placeholder with a 20 px inner frame line. Variant `video` (F12/10): a same-origin or `blob:` clip as a muted, inline, grayscale `<video controls>` over the placeholder pattern (used by /handoff once the clip is prepared; never autoplays, never a remote URL). `GlassCard`: `bg-ds-card/60` + `backdrop-blur-md` + 1 px line, sharp.
 - `StatusBars`: labelled mono bars (platform → %).
 - `Statement`: big serif line with a small caps source.
 - `FooterBand`: inverted band, big link with an underline grow, background marquee, and a status row.
@@ -133,7 +133,7 @@ Server components unless marked **client**.
   - `Toggle` (pill track allowed);
   - `Checkbox` / `Radio` (sharp squares);
   - `Tabs` (bordered cells, active = black fill);
-  - `Badge` (pill) / `Chip` (sharp, 1 px line);
+  - `Badge` (pill) / `Chip` (sharp, 1 px line; `wrap` = sentence-length chip that wraps, min 32 px, icon top-aligned — warnings, the F11 auto-check result, "Past time");
   - `Input` / `SearchField` (sharp, raised fill, 1 px line on focus);
   - `Select`, `Stepper`;
   - `ProgressBar` (4 px, square ends, blue);
@@ -179,8 +179,8 @@ Shared acceptance:
 - edges align to the grid lines.
 
 1. **Shell + Home** (`app/layout.tsx` body bg → `ds-bg`, `app/page.tsx`). Uses the Hero, Marquee, Up next RevealList, numbers band, Statement and FooterBand. Accept: it matches `/design?view=home` with real data, and logout moves into the header menu.
-2. **Batches list.** Uses RevealList rows per week (index = week number, meta = counts, Badge status). Accept: the status words are mapped (approved → accent badge).
-3. **Batch detail / approval grid.** Uses "Batch card (proposed)" as a bordered grid cell, Chips, `Button solid` Approve, ProgressBar and ConfirmSheet. Accept: approve-all goes through the Sheet; actions are ≥ 44 px.
+2. **Batches list.** Uses RevealList rows per week (index = week number, meta = counts, Badge status). Accept: the status words are mapped (approved → accent badge). **Done (run 3):** `AppFrame` + "This & next" / "Earlier weeks" sections; failed+unknown add a danger "N need you" badge. Mapping in `lib/batches/card-view.ts`.
+3. **Batch detail / approval grid.** Uses "Batch card (proposed)" as a bordered grid cell, Chips, `Button solid` Approve, ProgressBar and ConfirmSheet. Accept: approve-all goes through the Sheet; actions are ≥ 44 px. **Done (run 3):** header band (W-index, "Week of *date*", status badges) → Approval cell (count, ProgressBar, Readout) + Actions cell (solid "Approve all N" → Sheet, Fill times, Add clip) → one caps row per day with post cards as bordered cells. failed/unknown cards carry the F11 panel and ResetSheet; a past-time draft shows a wrapping warn Chip.
 4. **Inbox + DMs.** Uses Tabs, Toggle (kill switch with ConfirmSheet), ListRow cells, StatusPulse for live mode, Readouts for limits.
 5. **Library + touch-up.** Uses a grid of FramedImage cells (4 / 12 cols), Badge "file missing" (danger) and SearchField.
 6. **Analytics.** Uses SectionHead, a numbers band, AreaChart, Donut, Statement (top insight) and Journal (report items).

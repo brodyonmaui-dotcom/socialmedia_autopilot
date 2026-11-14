@@ -117,3 +117,10 @@ export function summaryCounts(counts: Record<ItemStatus, number>): { draft: numb
   const other = counts.queued + counts.publishing + counts.failed + counts.unknown;
   return { draft: counts.draft, approved: counts.approved, published: counts.published, rejected: counts.rejected, other };
 }
+
+/** "Mon 16 Nov · 09:00" in the creator's zone; "no time" when unset/invalid. */
+export function scheduledLabel(iso: string | null, timeZone: string): string {
+  if (!validIso(iso)) return "no time";
+  const at = new Date(iso);
+  return `${dayLabel(localDate(at, timeZone))} · ${localHHMM(at, timeZone)}`;
+}

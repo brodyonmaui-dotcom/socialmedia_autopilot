@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Platform } from "@autopilot/core";
-import { RESET_CHECKLIST, validatePostUrl } from "../reset.js";
+import { allTicked, RESET_CHECKLIST, validatePostUrl } from "../reset.js";
 import { planTransition, type BatchAction } from "../transitions.js";
 import type { ItemStatus } from "../types.js";
 import { makeBatch, makeItem, NOW } from "./fixtures.js";
@@ -235,5 +235,32 @@ describe("validatePostUrl", () => {
   ];
   it.each(bad)("refuses %s %s", (p, url) => {
     expect(validatePostUrl(p, url)).toBeNull();
+  });
+});
+
+describe("allTicked", () => {
+  it("is true only when every box for the platform is ticked", () => {
+    for (const p of ["instagram", "youtube", "tiktok"] as const) expect(allTicked(p, all(p))).toBe(true);
+  });
+  it("one missing box → false, whichever it is", () => {
+    for (const p of ["instagram", "youtube", "tiktok"] as const) {
+      for (let k = 0; k < RESET_CHECKLIST[p].length; k++) {
+        expect(allTicked(p, all(p).filter((_, j) => j !== k))).toBe(false);
+      }
+    }
+    expect(allTicked("instagram", [])).toBe(false);
+  });
+  it("extra or near-miss strings don't help", () => {
+    const ig = all("instagram");
+    expect(allTicked("instagram", [...ig.slice(0, 2), `${ig[2]} `, "anything", ...all("youtube")])).toBe(false);
+    expect(allTicked("instagram", [...ig, "extra"])).toBe(true);
+  });
+  it("snapchat and unknown platforms → false", () => {
+    expect(allTicked("snapchat", [...all("instagram"), ...all("youtube"), ...all("tiktok")])).toBe(false);
+    expect(allTicked("myspace", [])).toBe(false);
+    expect(allTicked("constructor", [])).toBe(false);
+  });
+  it("the IG box 3 wording covers both automatic-check outcomes", () => {
+    expect(RESET_CHECKLIST.instagram[2]).toBe("Automatic caption check (result below): not found — or it failed and I searched my recent posts by hand");
   });
 });

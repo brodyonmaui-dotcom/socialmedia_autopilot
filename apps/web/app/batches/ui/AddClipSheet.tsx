@@ -1,7 +1,8 @@
 "use client";
 
+import { useId } from "react";
 import { useFormStatus } from "react-dom";
-import { BTN_GHOST, BTN_PRIMARY, INPUT } from "./WarningChip.js";
+import { Button, Checkbox, PlatformLogo, Select, Sheet } from "../../../components/ui/index.js";
 
 export interface PickerMedia {
   id: string;
@@ -18,65 +19,73 @@ const PLATFORM_CHOICES = [
   ["snapchat", "Snapchat (assisted)"],
 ] as const;
 
-function Submit() {
+function Submit({ form, disabled }: { form: string; disabled: boolean }) {
   const { pending } = useFormStatus();
+  const off = pending || disabled;
   return (
-    <button className={`${BTN_PRIMARY} flex-1`} disabled={pending}>
+    <Button type="submit" form={form} variant="solid" disabled={off} aria-disabled={off} className="sm:min-w-32">
       {pending ? "Adding…" : "Add as drafts"}
-    </button>
+    </Button>
   );
 }
 
-/** Bottom sheet: pick a library clip + platforms → addItemAction (drafts with no caption/time yet). */
+/** Sheet: pick a library clip + platforms → addItemAction (drafts with no caption/time yet). */
 export function AddClipSheet(props: { open: boolean; onClose: () => void; batchId: string; media: PickerMedia[]; action: (fd: FormData) => Promise<void> }) {
-  if (!props.open) return null;
+  const formId = useId();
+  const empty = props.media.length === 0;
   return (
-    <div className="fixed inset-0 z-40 flex items-end bg-black/40" onClick={props.onClose}>
-      <form
-        action={props.action}
-        onClick={(e) => e.stopPropagation()}
-        className="mx-auto max-h-[85vh] w-full max-w-2xl space-y-3 overflow-y-auto rounded-t-2xl bg-white p-4 pb-8 dark:bg-neutral-900"
-        role="dialog"
-        aria-label="Add clip"
-      >
-        <h2 className="text-lg font-semibold">Add a clip</h2>
-        <input type="hidden" name="batchId" value={props.batchId} />
-        {props.media.length === 0 ? (
-          <p className="text-base text-neutral-500">The library is empty: ingest clips first.</p>
-        ) : (
-          <label className="block text-sm text-neutral-500">
-            Clip
-            <select name="mediaId" required className={INPUT} defaultValue="">
-              <option value="" disabled>
-                pick a clip…
-              </option>
-              {props.media.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                  {m.pillar ? ` · ${m.pillar}` : ""}
-                  {m.durationS != null ? ` · ${Math.round(m.durationS)} s` : ""}
-                  {m.hasCleanFile ? "" : " · no clean file"}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <fieldset className="space-y-1">
-          <legend className="text-sm text-neutral-500">Platforms</legend>
-          {PLATFORM_CHOICES.map(([value, label]) => (
-            <label key={value} className="flex min-h-11 items-center gap-3 text-base">
-              <input type="checkbox" name="platforms" value={value} defaultChecked={value === "instagram"} className="h-5 w-5" />
-              {label}
-            </label>
-          ))}
-        </fieldset>
-        <div className="flex gap-2">
-          <Submit />
-          <button type="button" className={BTN_GHOST} onClick={props.onClose}>
+    <Sheet
+      open={props.open}
+      onClose={props.onClose}
+      title="Add a clip"
+      footer={
+        <>
+          <Button variant="outline" onClick={props.onClose}>
             Cancel
-          </button>
-        </div>
+          </Button>
+          <Submit form={formId} disabled={empty} />
+        </>
+      }
+    >
+      <form id={formId} action={props.action} className="flex flex-col gap-5">
+        <input type="hidden" name="batchId" value={props.batchId} />
+        {empty ? (
+          <p>The library is empty: ingest clips first.</p>
+        ) : (
+          <Select label="Clip" name="mediaId" required defaultValue="">
+            <option value="" disabled>
+              pick a clip…
+            </option>
+            {props.media.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+                {m.pillar ? ` · ${m.pillar}` : ""}
+                {m.durationS != null ? ` · ${Math.round(m.durationS)} s` : ""}
+                {m.hasCleanFile ? "" : " · no clean file"}
+              </option>
+            ))}
+          </Select>
+        )}
+        <fieldset className="border-t border-ds-line pt-4">
+          <legend className="ds-caps float-left mb-1 w-full text-ds-text">Platforms</legend>
+          <div className="clear-both">
+            {PLATFORM_CHOICES.map(([value, label]) => (
+              <Checkbox
+                key={value}
+                name="platforms"
+                value={value}
+                defaultChecked={value === "instagram"}
+                label={
+                  <span className="inline-flex items-center gap-2">
+                    <PlatformLogo platform={value} size={16} />
+                    {label}
+                  </span>
+                }
+              />
+            ))}
+          </div>
+        </fieldset>
       </form>
-    </div>
+    </Sheet>
   );
 }
