@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Phone screenshot of a local page (iPhone 13 viewport) for checking UI work without a phone.
-// Usage: node scripts/dev/phone-shot.mjs /app/library out.png [--port 3100] [--full] [--desktop] [--cookie name=value]
+// Usage: node scripts/dev/phone-shot.mjs /app/library out.png [--port 3100] [--full] [--desktop] [--cookie name=value] [--theme dark]
 // --desktop uses a 1440×900 desktop viewport instead of the iPhone 13. --scale 2 for shots people will look at.
 // Start the app first: cd apps/web && pnpm build && PORT=3100 DATABASE_URL=... pnpm start
 // --cookie sets a cookie for localhost before loading (e.g. the ap_session printed by `pnpm dev:session`).
@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url);
 const { chromium, devices } = require("playwright");
 
 const args = process.argv.slice(2);
-const WITH_VALUE = new Set(["--port", "--cookie", "--scale"]);
+const WITH_VALUE = new Set(["--port", "--cookie", "--scale", "--theme"]);
 const positional = [];
 const opts = {};
 for (let k = 0; k < args.length; k++) {
@@ -32,6 +32,10 @@ if (typeof opts["--cookie"] === "string") {
   const eq = opts["--cookie"].indexOf("=");
   if (eq < 1) throw new Error("--cookie expects name=value");
   await context.addCookies([{ name: opts["--cookie"].slice(0, eq), value: opts["--cookie"].slice(eq + 1), domain: "localhost", path: "/" }]);
+}
+// --theme dark|light sets the ds-theme cookie (Night/Day) for pages that read getTheme().
+if (typeof opts["--theme"] === "string") {
+  await context.addCookies([{ name: "ds-theme", value: opts["--theme"], domain: "localhost", path: "/" }]);
 }
 const page = await context.newPage();
 const res = await page.goto(`http://localhost:${port}${path}`, { waitUntil: "networkidle" });
