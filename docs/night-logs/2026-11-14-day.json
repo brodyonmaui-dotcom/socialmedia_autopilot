@@ -1,31 +1,55 @@
 {
   "date": "2026-11-14",
   "startedAt": "2026-11-14T00:05:00Z",
-  "endedAt": null,
+  "endedAt": "2026-11-14T03:45:00Z",
   "model": "opus (lead) + haiku scouts + sonnet/opus implementers",
   "session": "cloud · opus day run before Fable run 3 · core",
   "backlogItem": "Review pack for Fable · F11 T2/T3 · batches restyle · Fable brief rewrite",
-  "summary": "In progress.",
-  "needsAttention": [],
+  "summary": "Review pack for Fable (9 hunks, 6 defects fixed with failing tests first, 7 rows open for Fable) and F11 T2 (store, actions, IG auto-check) are done and green. F11 T3 + batches restyle hit a usage limit mid-task and is saved as a WIP patch, not code.",
+  "needsAttention": [
+    {
+      "priority": 1,
+      "title": "Review and merge the PR after Fable run 3",
+      "detail": "Tests green at 50a1bde; F11 T2 SQL waits for Fable review."
+    },
+    {
+      "priority": 2,
+      "title": "Paste the four F9 probe lines",
+      "detail": "ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape"
+    }
+  ],
   "done": [
     "Review pack: 9 Haiku scout summaries in docs/prep/run-3-review-pack/",
     "Red-team web hunks (handoff-store, handoff-media, alerts-ack, pwa-public-paths): 3 fixes with failing tests first: /sw.js + manifest/favicon exact match and bounded middleware matcher; media proxy refuses r2_key escaping the base; acknowledgeAll with an unknown kind acks nothing",
-    "F11 T2: PgBatchStore reset-checked/record-published SQL (conditional, key never touched, alert acked in tx), IG auto-check (read-only), resetCheckedAction/recordPublishedAction/igCheckAction, DB tests incl. same-key and concurrency, worker DB tick test (lookup hit → 0 publishes)"
+    "F11 T2: PgBatchStore reset-checked/record-published SQL (conditional, key never touched, alert acked in tx), IG auto-check (read-only), resetCheckedAction/recordPublishedAction/igCheckAction, DB tests incl. same-key and concurrency, worker DB tick test (lookup hit → 0 publishes)",
+    "Red-team worker hunks: push-gating, 0008 (re-run test on a scratch DB), dockerfiles (static dep-graph test): no defects; F9 ingest trip alert now raised before the state save; worker mediaUrlGuard (r2_key escaping the base fails permanently)",
+    "F11 pure red-team: 25 attack tests, no defects",
+    "docs/prep/run-3-fable-brief.md rewritten for what is left (Fable ≈ 20%)"
   ],
   "notDone": [
-    "F9 T3: no probe output (ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape) in docs/research.md on main; skipped"
+    "F9 T3: no probe output (ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape) in docs/research.md on main; skipped",
+    "F11 T3 + F12 batches restyle (tasks 2-3): WIP patch docs/prep/run-3-wip/f11-t3-batches-restyle.wip.patch, fails typecheck, no shots",
+    "Codebase map refresh (task 6)",
+    "docs/prep/run-4-plan.md (moved to Fable brief item 7)"
   ],
   "decisions": [
     "F11 T2: igCheckAction returns its result instead of redirecting (not via run()); requireSession first",
-    "F11 T2: IG check reports error when the item has no time or empty caption; 10 s timeout"
+    "F11 T2: IG check reports error when the item has no time or empty caption; 10 s timeout",
+    "Resumed at 03:29 UTC after a usage limit: past the 02:30 hard stop, so wrap-up only; the unfinished designer work is saved as a patch instead of committed code",
+    "Worker media URL guard is fail-closed (open Fable row on an empty PUBLIC_MEDIA_BASE)"
   ],
-  "blocked": [],
+  "blocked": [
+    "F9 T3: no probe output"
+  ],
   "tests": {
-    "passed": 1290,
+    "passed": 1338,
     "failed": 0,
-    "notes": "After F11 T2: 124 files / 1290 tests with DATABASE_URL, typecheck green."
+    "notes": "pnpm typecheck green; pnpm test with DATABASE_URL 127 files / 1338 tests; simulate-week + simulate-engagement OK; web build exit 0 (all on committed code, WIP stashed)."
   },
-  "commits": 0,
+  "commits": 14,
   "prUrl": null,
-  "nextPickup": []
+  "nextPickup": [
+    "Fable run 3 from docs/prep/run-3-fable-brief.md",
+    "Resume F11 T3 from the WIP patch"
+  ]
 }
