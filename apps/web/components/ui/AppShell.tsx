@@ -25,6 +25,7 @@ export function AppShell({
   footer,
   brand,
   homeHref,
+  menu,
   children,
 }: {
   nav: NavItem[];
@@ -39,6 +40,8 @@ export function AppShell({
   footer?: ReactNode;
   brand?: Brand;
   homeHref?: string;
+  /** Header far-right slot (HeaderMenu). */
+  menu?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -54,7 +57,7 @@ export function AppShell({
       </a>
       <NoiseOverlay />
       <GridLines />
-      <SiteHeader nav={nav} active={active} theme={theme} cta={cta ?? primaryAction} brand={brand} homeHref={homeHref} />
+      <SiteHeader nav={nav} active={active} theme={theme} cta={cta ?? primaryAction} brand={brand} homeHref={homeHref} menu={menu} />
       <div className="relative z-10 pb-[calc(var(--ds-tabbar-h)+env(safe-area-inset-bottom))] lg:pb-0">
         <main id="main" tabIndex={-1} className="relative z-10 outline-none">
           {children}

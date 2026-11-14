@@ -36,6 +36,12 @@
 		rewrite * /index.html
 		file_server
 	}
+	# Shared CSS + self-hosted OFL fonts for the static pages above (no third-party requests).
+	handle /assets/* {
+		root * /srv/static
+		header Cache-Control "public, max-age=604800"
+		file_server
+	}
 	handle /healthz {
 		respond "ok" 200
 	}

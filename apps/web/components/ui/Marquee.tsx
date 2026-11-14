@@ -70,7 +70,7 @@ export function Marquee({
     <div
       role="marquee"
       aria-label={label}
-      className={cx("h-[120px] overflow-hidden border-y border-ds-line bg-ds-card", className)}
+      className={cx("h-[120px] overflow-hidden border-y border-ds-line bg-ds-card [--ds-stroke-fill:var(--color-ds-card)]", className)}
     >
       <div className="flex h-full w-max animate-ds-marquee items-center text-[48px] leading-none lg:text-[72px]">
         {copy(false)}

@@ -152,10 +152,20 @@
   font-weight: 400;
   letter-spacing: -0.02em;
 }
+/* Secondary prose (card notes, empty-state bodies, explanations): 15px muted. */
+@utility ds-note {
+  font-size: 15px;
+  line-height: 1.375;
+  color: var(--color-ds-muted);
+}
 /* Outline display text: lightness at massive sizes. */
+/* Outline type. Inter Variable has overlapping contours, so a plain transparent stroke draws their
+   inner seams. Instead: a 2px stroke painted under a fill in the surface colour, so only the outer
+   1px shows. Set --ds-stroke-fill on a container whose surface isn't ds-bg (e.g. Marquee on ds-card). */
 @utility ds-stroke {
-  color: transparent;
-  -webkit-text-stroke: 1px var(--color-ds-text);
+  color: var(--ds-stroke-fill, var(--color-ds-bg));
+  -webkit-text-stroke: 2px var(--color-ds-text);
+  paint-order: stroke fill;
 }
 /* Display scale: 56px on a phone → 160px on wide screens, -0.05em. */
 @utility ds-display {

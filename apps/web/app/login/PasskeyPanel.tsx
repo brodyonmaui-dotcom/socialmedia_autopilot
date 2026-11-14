@@ -2,10 +2,8 @@
 
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { useState } from "react";
+import { AlertCard, Button, Icon, Input } from "../../components/ui/index.js";
 import { beginLoginAction, beginRegistrationAction, finishLoginAction, finishRegistrationAction } from "./actions.js";
-
-const button =
-  "min-h-12 w-full rounded-lg bg-neutral-900 px-4 text-base font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900";
 
 /** Short, non-identifying device label for the passkey list. */
 function deviceLabel(): string {
@@ -79,22 +77,46 @@ export function PasskeyPanel({ hasCredentials }: { hasCredentials: boolean }) {
   }
 
   return (
-    <div className="mt-8 space-y-10">
+    <div>
+      {(error || info) && (
+        <div className="border-b border-ds-line py-6" aria-live="polite">
+          {error && (
+            <AlertCard tone="light" title="Couldn't sign in" live>
+              {error}
+            </AlertCard>
+          )}
+          {info && (
+            <p className="flex items-center gap-2 border border-ds-line bg-ds-card p-5 ds-caps text-ds-text">
+              <Icon name="check" size={16} strokeWidth={2} className="text-ds-accent-fg" />
+              {info}
+            </p>
+          )}
+        </div>
+      )}
+
       {canLogin && (
-        <section>
-          <button type="button" className={button} disabled={busy} onClick={login}>
-            Log in with passkey
-          </button>
+        <section aria-label="Sign in" className="border-b border-ds-line py-8">
+          <Button variant="solid" block arrow disabled={busy} aria-busy={busy || undefined} onClick={login}>
+            {busy ? "Waiting for passkey" : "Use passkey"}
+          </Button>
+          <p className="mt-3 text-center ds-mono text-ds-faint">FACE ID · TOUCH ID · SECURITY KEY</p>
         </section>
       )}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-medium">Add this device</h2>
-        <p className="text-sm text-neutral-500">
-          On the server run <code>pnpm auth:enroll</code>, then type the code here.
+      <section aria-labelledby="add-device" className="py-8">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 id="add-device" className="ds-caps text-ds-text">
+            Add this device
+          </h2>
+          <span className="ds-mono text-ds-faint">{canLogin ? "OPTIONAL" : "STEP 01"}</span>
+        </div>
+        <p className="mt-3 text-[15px] leading-snug text-ds-muted">
+          On the server run <code className="ds-mono text-ds-text">pnpm auth:enroll</code>, then type the code here.
         </p>
-        <input
-          className="min-h-12 w-full rounded-lg border border-neutral-300 bg-transparent px-3 text-lg tracking-widest uppercase dark:border-neutral-700"
+        <Input
+          className="mt-5"
+          label="Enrollment code"
+          name="code"
           placeholder="XXXX-XXXX"
           inputMode="text"
           autoCapitalize="characters"
@@ -105,13 +127,16 @@ export function PasskeyPanel({ hasCredentials }: { hasCredentials: boolean }) {
           value={code}
           onChange={(e) => setCode(e.target.value)}
         />
-        <button type="button" className={button} disabled={busy || code.trim().length < 8} onClick={addDevice}>
+        <Button
+          variant={canLogin ? "outline" : "solid"}
+          block
+          className="mt-4"
+          disabled={busy || code.trim().length < 8}
+          onClick={addDevice}
+        >
           Add this device
-        </button>
+        </Button>
       </section>
-
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {info && <p className="text-sm text-green-700 dark:text-green-400">{info}</p>}
     </div>
   );
 }

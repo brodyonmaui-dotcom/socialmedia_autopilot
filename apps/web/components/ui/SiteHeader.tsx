@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { NavItem } from "./AppShell.js";
 import { cx, FOCUS } from "./cx.js";
 import { CONTAINER } from "./GridLines.js";
@@ -26,6 +27,7 @@ export function Logo({ brand }: { brand: Brand }) {
 /**
  * Sticky top frame: desktop nav (first 5 items) left, centred wordmark, theme toggle + pill CTA right.
  * Below lg: theme toggle left, wordmark centre, round "+" CTA right (nav moves to TabBar).
+ * `menu` (e.g. a HeaderMenu) sits at the far right on every width.
  */
 export function SiteHeader({
   nav,
@@ -34,6 +36,7 @@ export function SiteHeader({
   cta,
   brand = { serif: "run", sans: "MYSOCIALS" },
   homeHref = "/",
+  menu,
 }: {
   nav: NavItem[];
   active: string;
@@ -41,6 +44,8 @@ export function SiteHeader({
   cta?: HeaderCta;
   brand?: Brand;
   homeHref?: string;
+  /** Far-right slot, e.g. <HeaderMenu> with secondary links and logout. */
+  menu?: ReactNode;
 }) {
   return (
     <header className="sticky top-0 z-40 h-[var(--ds-header-h)] border-b border-ds-line bg-ds-bg/80 backdrop-blur-[10px]">
@@ -114,6 +119,7 @@ export function SiteHeader({
               </Link>
             </>
           )}
+          {menu}
         </div>
       </div>
     </header>
