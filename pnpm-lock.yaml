@@ -283,9 +283,15 @@ importers:
       '@autopilot/media':
         specifier: workspace:*
         version: link:../../packages/media
+      '@autopilot/research':
+        specifier: workspace:*
+        version: link:../../packages/research
       '@aws-sdk/client-s3':
         specifier: ^3.700.0
         version: 3.1166.0
+      zod:
+        specifier: ^4.1.0
+        version: 4.6.7
     devDependencies:
       '@types/node':
         specifier: ^22.10.0

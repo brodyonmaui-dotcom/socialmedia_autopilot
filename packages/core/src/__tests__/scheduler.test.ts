@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CADENCE, daySlotTimes, isWithinAnyWindow, normalizeCadence } from "../cadence.js";
 import { assignSlots, findCapBreaches, type ScheduleItem } from "../scheduler.js";
-import { addCalendarDays, localDate, localHHMM } from "../time.js";
+import { addCalendarDays, localDate, localHHMM, localToUtc } from "../time.js";
+import type { Platform } from "../types.js";
 
 const TZ = "America/New_York"; // fixture zone (DST-observing), not the creator's
-const cadence = DEFAULT_CADENCE;
+// Pinned to the pre-F15 caps (4/day) so these grid tests keep exercising the cap at the grid size.
+const cadence = normalizeCadence({ dailyCaps: { instagram: 4, youtube: 4, tiktok: 4, snapchat: 1 } });
 
 function clips(n: number, platforms: ScheduleItem["platforms"] = ["instagram", "youtube", "tiktok"]): ScheduleItem[] {
   return Array.from({ length: n }, (_, i) => ({ key: `clip-${i + 1}`, pillar: "gym", platforms }));
@@ -110,5 +112,86 @@ describe("assignSlots", () => {
   it("findCapBreaches reports the day and count over the cap in the creator's zone", () => {
     const posts = Array.from({ length: 5 }, (_, i) => ({ platform: "tiktok" as const, scheduledFor: `2026-11-10T${15 + i}:00:00Z` }));
     expect(findCapBreaches(posts, cadence, TZ)).toEqual([{ platform: "tiktok", localDate: localDate(new Date(posts[0]!.scheduledFor), TZ), count: 5, cap: 4 }]);
+  });
+});
+
+describe("assignSlots: F15 editor slotting (window / sameDay / flex grid)", () => {
+  const caps5 = DEFAULT_CADENCE; // 5/day IG/YT/TikTok
+  const TUE = "2026-11-10";
+  const day = (ymd: string, from = "00:00") => ({ notBefore: localToUtc(ymd, from, TZ).toISOString(), notAfter: localToUtc(addCalendarDays(ymd, 1), "00:00", TZ).toISOString() });
+  const gridPosts = (ymd: string, platform: Platform) => daySlotTimes(caps5).map((t) => ({ platform, scheduledFor: localToUtc(ymd, t, TZ).toISOString() }));
+
+  it("window excludes slots outside it (stagger copy that lands outside is unplaced)", () => {
+    const window = { notBefore: localToUtc(TUE, "12:00", TZ).toISOString(), notAfter: localToUtc(TUE, "18:00", TZ).toISOString() };
+    const r = assignSlots({ weekStart: "2026-11-09", items: [{ key: "w", platforms: ["instagram", "youtube", "tiktok"], window }], cadence: caps5, timeZone: TZ });
+    const by = Object.fromEntries(r.assignments.map((a) => [a.platform, a]));
+    expect(by.instagram).toMatchObject({ localDate: TUE, localTime: "13:00" });
+    expect(by.youtube).toMatchObject({ localDate: TUE, localTime: "16:30" });
+    for (const a of r.assignments) {
+      expect(Date.parse(a.scheduledFor)).toBeGreaterThanOrEqual(Date.parse(window.notBefore));
+      expect(Date.parse(a.scheduledFor)).toBeLessThan(Date.parse(window.notAfter));
+    }
+    expect(r.unplaced).toEqual([{ key: "w", platform: "tiktok", reason: "no-slot", detail: expect.any(String) }]);
+  });
+
+  it("sameDay ignores stagger: TikTok and YouTube post the same day as Instagram", () => {
+    const r = assignSlots({ weekStart: "2026-11-09", items: [{ key: "s", platforms: ["instagram", "youtube", "tiktok"], window: day(TUE), sameDay: true }], cadence: caps5, timeZone: TZ });
+    expect(r.unplaced).toEqual([]);
+    for (const a of r.assignments) expect(a).toMatchObject({ localDate: TUE, slotIndex: 0, localTime: "10:38" });
+  });
+
+  it("earliest within a window is respected (no slot before notBefore, earliest one after it)", () => {
+    const r = assignSlots({ weekStart: "2026-11-09", items: [{ key: "e", platforms: ["instagram", "tiktok"], window: day(TUE, "14:00"), sameDay: true }], cadence: caps5, timeZone: TZ });
+    expect(r.assignments.map((a) => [a.platform, a.localDate, a.localTime])).toEqual([["instagram", TUE, "16:30"], ["tiktok", TUE, "16:30"]]);
+  });
+
+  it("5th same-day post on a day with 4 grid slots taken uses the flex grid", () => {
+    const existing = gridPosts(TUE, "instagram");
+    const r = assignSlots({ weekStart: "2026-11-09", items: [{ key: "f", platforms: ["instagram"], window: day(TUE), sameDay: true }], cadence: caps5, timeZone: TZ, existing });
+    expect(r.unplaced).toEqual([]);
+    const a = r.assignments[0]!;
+    expect(a).toMatchObject({ localDate: TUE, localTime: "09:30", slotIndex: -1, pinned: false, flex: true });
+    expect(localHHMM(new Date(a.scheduledFor), TZ)).toBe("09:30");
+    for (const e of existing) expect(Math.abs(Date.parse(e.scheduledFor) - Date.parse(a.scheduledFor))).toBeGreaterThanOrEqual(caps5.minGapMinutes * 60_000);
+    expect(isWithinAnyWindow(a.localTime, caps5.windows)).toBe(true);
+    expect(findCapBreaches([...existing, ...r.assignments], caps5, TZ)).toEqual([]);
+  });
+
+  it("cap 5 holds: the 6th same-day post is unplaced with reason cap", () => {
+    const existing = gridPosts(TUE, "instagram");
+    const r = assignSlots({
+      weekStart: "2026-11-09",
+      items: [{ key: "f5", platforms: ["instagram"], window: day(TUE), sameDay: true }, { key: "f6", platforms: ["instagram"], window: day(TUE), sameDay: true }],
+      cadence: caps5,
+      timeZone: TZ,
+      existing,
+    });
+    expect(r.assignments.map((a) => a.key)).toEqual(["f5"]);
+    expect(r.unplaced).toEqual([{ key: "f6", platform: "instagram", reason: "cap", detail: expect.any(String) }]);
+    expect(findCapBreaches([...existing, ...r.assignments], caps5, TZ)).toEqual([]);
+  });
+
+  it("a window with no time left (all past `now`) is unplaced no-slot, never rolled to another day", () => {
+    const now = localToUtc(TUE, "21:30", TZ);
+    const r = assignSlots({ weekStart: "2026-11-09", items: [{ key: "late", platforms: ["instagram"], window: day(TUE), sameDay: true }], cadence: caps5, timeZone: TZ, now });
+    expect(r.assignments).toEqual([]);
+    expect(r.unplaced[0]).toMatchObject({ key: "late", reason: "no-slot" });
+  });
+
+  it("keeps wall-clock times in a DST-change week with a window (fall-back Sunday, grid + flex)", () => {
+    const SUN = "2026-11-01"; // US fall-back day: 25 h long
+    const existing = gridPosts(SUN, "instagram");
+    const r = assignSlots({
+      weekStart: "2026-10-26",
+      items: [{ key: "g", platforms: ["youtube"], window: day(SUN, "12:00"), sameDay: true }, { key: "x", platforms: ["instagram"], window: day(SUN), sameDay: true }],
+      cadence: caps5,
+      timeZone: TZ,
+      existing,
+    });
+    expect(r.unplaced).toEqual([]);
+    const by = Object.fromEntries(r.assignments.map((a) => [a.key, a]));
+    expect(by.g!.scheduledFor).toBe("2026-11-01T18:00:00.000Z"); // 13:00 EST (UTC-5)
+    expect(by.x!.scheduledFor).toBe("2026-11-01T14:30:00.000Z"); // flex 09:30 EST
+    for (const a of r.assignments) expect(a.localDate).toBe(SUN);
   });
 });

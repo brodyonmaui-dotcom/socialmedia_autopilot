@@ -1,13 +1,22 @@
 {
   "kind": "youtube#videoListResponse",
-  "etag": "etag",
+  "etag": "fakeetag0",
   "items": [
     {
       "kind": "youtube#video",
-      "etag": "etag",
+      "etag": "fakeetag1",
       "id": "dQw4w9WgXcQ",
-      "statistics": { "viewCount": "2410", "likeCount": "131", "favoriteCount": "0", "commentCount": "12" }
+      "statistics": {
+        "viewCount": "2410",
+        "likeCount": "131",
+        "dislikeCount": "0",
+        "favoriteCount": "0",
+        "commentCount": "12"
+      }
     }
   ],
-  "pageInfo": { "totalResults": 1, "resultsPerPage": 1 }
+  "pageInfo": {
+    "totalResults": 1,
+    "resultsPerPage": 1
+  }
 }

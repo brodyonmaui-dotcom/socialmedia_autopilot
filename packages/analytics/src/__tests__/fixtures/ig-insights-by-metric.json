@@ -1,0 +1,130 @@
+{
+  "views": {
+    "data": [
+      {
+        "description": "Total number of times the reel was played.",
+        "id": "17944070922377356/insights/views/lifetime",
+        "name": "views",
+        "period": "lifetime",
+        "title": "Views",
+        "values": [
+          {
+            "value": 1532
+          }
+        ]
+      }
+    ]
+  },
+  "reach": {
+    "data": [
+      {
+        "description": "Unique accounts that saw the reel.",
+        "id": "17944070922377356/insights/reach/lifetime",
+        "name": "reach",
+        "period": "lifetime",
+        "title": "Reach",
+        "values": [
+          {
+            "value": 1100
+          }
+        ]
+      }
+    ]
+  },
+  "saved": {
+    "data": [
+      {
+        "description": "Number of saves.",
+        "id": "17944070922377356/insights/saved/lifetime",
+        "name": "saved",
+        "period": "lifetime",
+        "title": "Saved",
+        "values": [
+          {
+            "value": 14
+          }
+        ]
+      }
+    ]
+  },
+  "shares": {
+    "data": [
+      {
+        "description": "Number of shares.",
+        "id": "17944070922377356/insights/shares/lifetime",
+        "name": "shares",
+        "period": "lifetime",
+        "title": "Shares",
+        "values": [
+          {
+            "value": 6
+          }
+        ]
+      }
+    ]
+  },
+  "ig_reels_avg_watch_time": {
+    "data": [
+      {
+        "description": "Average time spent watching the reel.",
+        "id": "17944070922377356/insights/ig_reels_avg_watch_time/lifetime",
+        "name": "ig_reels_avg_watch_time",
+        "period": "lifetime",
+        "title": "Average watch time",
+        "values": [
+          {
+            "value": 4210
+          }
+        ]
+      }
+    ]
+  },
+  "ig_reels_video_view_total_time": {
+    "data": [
+      {
+        "description": "Total time spent watching the reel.",
+        "id": "17944070922377356/insights/ig_reels_video_view_total_time/lifetime",
+        "name": "ig_reels_video_view_total_time",
+        "period": "lifetime",
+        "title": "Video view total time",
+        "values": [
+          {
+            "value": 6450000
+          }
+        ]
+      }
+    ]
+  },
+  "reels_skip_rate": {
+    "data": [
+      {
+        "description": "Share of views skipped in the first 3 seconds.",
+        "id": "17944070922377356/insights/reels_skip_rate/lifetime",
+        "name": "reels_skip_rate",
+        "period": "lifetime",
+        "title": "Skip rate",
+        "values": [
+          {
+            "value": 38
+          }
+        ]
+      }
+    ]
+  },
+  "reposts": {
+    "data": [
+      {
+        "description": "Number of reposts.",
+        "id": "17944070922377356/insights/reposts/lifetime",
+        "name": "reposts",
+        "period": "lifetime",
+        "title": "Reposts",
+        "values": [
+          {
+            "value": 3
+          }
+        ]
+      }
+    ]
+  }
+}

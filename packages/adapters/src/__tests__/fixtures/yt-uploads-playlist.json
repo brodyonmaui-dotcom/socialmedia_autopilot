@@ -1,0 +1,64 @@
+{
+  "kind": "youtube#playlistItemListResponse",
+  "etag": "fakeEtagPlaylist",
+  "pageInfo": { "totalResults": 3, "resultsPerPage": 25 },
+  "items": [
+    {
+      "kind": "youtube#playlistItem",
+      "etag": "fakeEtagItem1",
+      "id": "VVVmYWtlSXRlbTE",
+      "snippet": {
+        "publishedAt": "2026-11-30T08:12:41Z",
+        "channelId": "UCfakeChannelId000000000",
+        "title": "My lats are not a fan of this pull day…",
+        "description": "My lats are not a fan of this pull day…\n\n#gym #gymbro #hypertrophy",
+        "thumbnails": { "default": { "url": "https://i.ytimg.com/vi/fakeVid0001/default.jpg", "width": 120, "height": 90 } },
+        "channelTitle": "Fake Channel",
+        "playlistId": "UUfakeChannelId000000000",
+        "position": 0,
+        "resourceId": { "kind": "youtube#video", "videoId": "fakeVid0001" },
+        "videoOwnerChannelTitle": "Fake Channel",
+        "videoOwnerChannelId": "UCfakeChannelId000000000"
+      },
+      "status": { "privacyStatus": "private" }
+    },
+    {
+      "kind": "youtube#playlistItem",
+      "etag": "fakeEtagItem2",
+      "id": "VVVmYWtlSXRlbTI",
+      "snippet": {
+        "publishedAt": "2026-11-29T07:58:03Z",
+        "channelId": "UCfakeChannelId000000000",
+        "title": "Café   PULL day\n",
+        "description": "",
+        "thumbnails": {},
+        "channelTitle": "Fake Channel",
+        "playlistId": "UUfakeChannelId000000000",
+        "position": 1,
+        "resourceId": { "kind": "youtube#video", "videoId": "fakeVid0002" },
+        "videoOwnerChannelTitle": "Fake Channel",
+        "videoOwnerChannelId": "UCfakeChannelId000000000"
+      },
+      "status": { "privacyStatus": "private" }
+    },
+    {
+      "kind": "youtube#playlistItem",
+      "etag": "fakeEtagItem3",
+      "id": "VVVmYWtlSXRlbTM",
+      "snippet": {
+        "publishedAt": "2026-11-20T10:00:00Z",
+        "channelId": "UCfakeChannelId000000000",
+        "title": "Leg day, no excuses",
+        "description": "",
+        "thumbnails": {},
+        "channelTitle": "Fake Channel",
+        "playlistId": "UUfakeChannelId000000000",
+        "position": 2,
+        "resourceId": { "kind": "youtube#video", "videoId": "fakeVid0003" },
+        "videoOwnerChannelTitle": "Fake Channel",
+        "videoOwnerChannelId": "UCfakeChannelId000000000"
+      },
+      "status": { "privacyStatus": "public" }
+    }
+  ]
+}

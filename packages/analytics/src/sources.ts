@@ -81,6 +81,7 @@ export function createInstagramMetricsSource(cfg: InstagramSourceConfig): Metric
         reach: v.reach ?? null,
         saves: v.saved ?? null,
         shares: v.shares ?? null,
+        reposts: v.reposts ?? null,
         likes: num(f.like_count),
         comments: num(f.comments_count),
         avgWatchTime: v.ig_reels_avg_watch_time ?? null,

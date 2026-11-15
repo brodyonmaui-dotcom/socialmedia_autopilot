@@ -111,3 +111,26 @@ describe("buildWeeklyReport: mix artifacts", () => {
     expect(r.recommendations.map((x) => `${x.dimension}:${x.group}`)).toEqual(["pillar:trading"]);
   });
 });
+
+describe("buildWeeklyReport: shares, reposts, watch time, skip rate", () => {
+  const m = (metrics: object, extra: object = {}) => post({ postedAt: "2026-11-03T10:00:00Z", metrics: metrics as never, ...extra });
+  const posts = [
+    m({ shares: 4, reposts: 1, avgWatchTime: 4000, skipRate: 30 }, { pillar: "gym" }),
+    m({ shares: 2, reposts: 2, avgWatchTime: 6000, skipRate: 50 }, { pillar: "gym" }),
+    m({ shares: null, reposts: null }, { pillar: "gym" }),
+    m({ shares: 1 }, { platform: "tiktok" }),
+  ];
+  const r = buildWeeklyReport(posts, opts);
+
+  it("per-platform sums and means skip nulls; null when nobody reports", () => {
+    expect(r.platforms.find((p) => p.platform === "instagram")).toMatchObject({ shares: 6, reposts: 3, avgWatchTime: 5000, skipRate: 40 });
+    expect(r.platforms.find((p) => p.platform === "tiktok")).toMatchObject({ shares: 1, reposts: null, avgWatchTime: null, skipRate: null });
+    expect(r.markdown).toMatch(/6 shares, 3 reposts, avg watch 5\.0 s, skip rate 40%/);
+  });
+
+  it("group stats carry median watch time and skip rate", () => {
+    const g = r.groups.find((x) => x.platform === "instagram" && x.dimension === "pillar" && x.group === "gym")!;
+    expect(g).toMatchObject({ n: 3, medianAvgWatchTime: 5000, medianSkipRate: 40 });
+    expect(r.groups.find((x) => x.platform === "tiktok")!.medianSkipRate).toBeNull();
+  });
+});

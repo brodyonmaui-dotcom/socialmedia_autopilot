@@ -12,6 +12,8 @@ export interface Metrics {
   comments: number | null;
   saves: number | null;
   shares: number | null;
+  /** IG reposts (reel reposted by others). IG only; null elsewhere. */
+  reposts: number | null;
   /** IG ig_reels_avg_watch_time / Zernio igReelsAvgWatchTime: milliseconds per Zernio (Meta's page gives no unit). Compare within a platform only. */
   avgWatchTime: number | null;
   /** IG reels_skip_rate: percentage (0–100) of initial views skipped in the first 3 s. Lower is better; IG only. */
@@ -25,6 +27,7 @@ export const EMPTY_METRICS: Metrics = {
   comments: null,
   saves: null,
   shares: null,
+  reposts: null,
   avgWatchTime: null,
   skipRate: null,
 };

@@ -67,14 +67,27 @@ export function computeWarnings(items: BatchItemView[], ctx: WarningContext): Ma
         );
       }
     };
-    lint(item.caption, "caption");
-    if (item.platform === "youtube") lint(item.title ?? "", "title");
+    // An empty caption/title is reported once as caption.missing (below), not again as lint noise ("0 hashtags").
+    const missing = (t: string | null) => item.platform !== "snapchat" && (t ?? "").trim() === "";
+    if (!missing(item.caption)) lint(item.caption, "caption");
+    if (item.platform === "youtube" && !missing(item.title)) lint(item.title ?? "", "title");
 
     if (PLACEHOLDER.test(item.caption)) ws.push({ code: "placeholder", severity: "block", message: "fill in the {{…}} placeholder", field: "caption" });
     if (item.title != null && PLACEHOLDER.test(item.title)) ws.push({ code: "placeholder", severity: "block", message: "fill in the {{…}} placeholder", field: "title" });
 
+    // F15: nothing goes out without words. Snapchat is assisted (captions optional in the share sheet).
+    if (item.platform !== "snapchat") {
+      if (item.caption.trim() === "") ws.push({ code: "caption.missing", severity: "block", message: "needs a caption", field: "caption" });
+      if (item.platform === "youtube" && (item.title ?? "").trim() === "") ws.push({ code: "caption.missing", severity: "block", message: "needs a title", field: "title" });
+    }
+
+    const editor = item.origin === "editor" ? item.editor ?? null : null;
     if (item.scheduledFor == null) {
-      ws.push({ code: "time.missing", severity: "block", message: "no time set", field: "time" });
+      ws.push(
+        editor
+          ? { code: "time.missing", severity: "block", message: "No free slot today — move to tomorrow", field: "time" }
+          : { code: "time.missing", severity: "block", message: "no time set", field: "time" },
+      );
     } else {
       const at = new Date(item.scheduledFor);
       const ms = at.getTime();
@@ -99,6 +112,12 @@ export function computeWarnings(items: BatchItemView[], ctx: WarningContext): Ma
 
     if (item.platform === "tiktok" && item.tiktokDraft) {
       ws.push({ code: "tiktok.needs-sound", severity: "warn", message: "goes to the TikTok inbox as a draft: finish the sound in the app; max 5 pending drafts per 24 h" });
+    }
+    if (editor?.flags.includes("add-sound-in-app")) {
+      ws.push({ code: "sound.in-app", severity: "warn", message: "add the sound in the app, or post as-is" });
+    }
+    if (editor?.flags.includes("tiktok-draft-limit")) {
+      ws.push({ code: "tiktok.draft-limit", severity: "warn", message: "TikTok allows 5 pending inbox drafts per 24 h; this one may wait" });
     }
     if (item.platform === "youtube" && item.media.durationS != null && item.media.durationS > 60) {
       ws.push({ code: "yt.over-60s", severity: "warn", message: "over 60 s: licensed music in Shorts is limited to 60 s; fine if the audio is original" });

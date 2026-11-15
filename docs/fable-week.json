@@ -78,8 +78,8 @@
       "title": "Analytics ingest wiring: hourly worker job, probe-verified metric sources, metrics-health alert",
       "model": "fable",
       "area": "packages/analytics, apps/worker, scripts/probes",
-      "status": "todo",
-      "notes": "Prep run (2026-11-13): T1 probe shape lines, T2 per-platform ingest reporting + nextHealth (3 all-fail runs → one metrics-health alert, page-only), T4 hourly read-only analytics-ingest job (23 * * * *), T5 runbook docs/runbooks/analytics.md done. Left: T3 (verify parsers against the creator's probe output: ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape)."
+      "status": "done",
+      "notes": "Prep run (2026-11-13): T1 probe shape lines, T2 per-platform ingest reporting + nextHealth (3 all-fail runs → one metrics-health alert, page-only), T4 hourly read-only analytics-ingest job (23 * * * *), T5 runbook docs/runbooks/analytics.md done. Left: T3 (verify parsers against the creator's probe output: ig.reel_insights, ig.reel_insight_shape, ig.media_fields_shape, yt.video_stats_shape). Build run 2026-11-14: T3 done. Probe lines in research.md; parsers/fixtures moved to the real shapes (reposts added, YouTube string counts parsed to numbers); report sums shares/reposts and means watch time/skip rate."
     },
     {
       "id": "F10",
@@ -103,15 +103,15 @@
       "model": "fable",
       "area": "apps/web",
       "status": "done",
-      "notes": "Design system v2 restyle done in Fable run 3 (2026-11-14): all 10 restyle-plan tasks shipped (shell/home/login/site from the design session; batches list+detail, Snapchat handoff, Alerts, Inbox+DMs, Analytics, Library+touch-up, Research in this run). Shots: docs/design/ui-shots/f12/. Cosmetic touch-ups for run 4: alerts kind-filter cell wraps its count on phones; desktop /inbox/dms right column empty; one consistency pass over all pages."
+      "notes": "Design system v2 restyle done in Fable run 3 (2026-11-14): all 10 restyle-plan tasks shipped (shell, home, login, site from the design session; batches list+detail, Snapchat handoff, Alerts, Inbox+DMs, Analytics, Library+touch-up, Research in this run). Shots: docs/design/ui-shots/f12/. Cosmetic touch-ups for run 4: alerts kind-filter cell wraps its count on phones; desktop /inbox/dms right column empty; one consistency pass over all pages."
     },
     {
       "id": "F13",
       "title": "F13 · Go-live readiness (preflight, outbox tick lock, YouTube findExisting, first-real-post runbook)",
       "model": "fable",
       "area": "scripts, infra, apps/worker/outbox, packages/adapters/youtube, docs/runbooks",
-      "status": "todo",
-      "notes": "Design: docs/design/F13.md. Preflight PASS/FAIL per check with the next command; advisory lock closes the F7 A9 cap overshoot; YT findExisting only after the uploads-playlist docs are verified (open question); runbook for the first IG + YT real post."
+      "status": "review",
+      "notes": "Build run 2026-11-14: T1 preflight (scripts/lib/preflight.ts, scripts/preflight.ts, infra/preflight.sh; security checks; restore drill writes restore_drill_at; Caddy X-Frame-Options + CSP frame-ancestors added), T2 outbox tick advisory lock, T3 YouTube findExisting (uploads playlist; private/scheduled visibility UNVERIFIED because developers.google.com is blocked by the proxy; a miss on a retry still resends as before), T4 docs/runbooks/first-real-post.md. Fable gates T2/T3 (docs/prep/run-4-fable-brief.md)."
     },
     {
       "id": "F14",
@@ -120,6 +120,14 @@
       "area": "apps/worker, packages/core/types, apps/web/home+batches",
       "status": "todo",
       "notes": "Design: docs/design/F14.md. AI split: no LLM captions in the worker, drafts have empty flagged captions; adds batch-ready (pushed) and report-ready (page-only) alert kinds; the job never approves."
+    },
+    {
+      "id": "F15",
+      "title": "F15 · Same-day editor → app pipeline (ready-to-post folder, ingest:ready, From your editors card, one-tap approve)",
+      "model": "fable",
+      "area": "tools/ingest-agent, packages/core/scheduler, apps/web/editor, packages/db (0009)",
+      "status": "review",
+      "notes": "Build run 2026-11-14. Design docs/design/F15.md. T1 core: scheduler window/sameDay/flex grid, CAP_LIMITS IG25/YT10/TT15/Snap1, default caps 5, alert kinds ready-for-approval (pushed) + settings-change, migration 0009 (ingest_key/origin). T2 tools/ingest-agent `pnpm ingest:ready`. T3 app card, actions, warnings, Settings caps, DM toggle. T4 docs/runbooks/editor-pipeline.md. Fable reviews the marked hunks (docs/prep/run-4-fable-brief.md). Creator: apply 0009, Task Scheduler entry on the laptop."
     }
   ]
 }

@@ -5,7 +5,7 @@ import type { NavItem } from "./ui/AppShell.js";
 /** The five bottom tabs, in order. */
 export type TabId = "home" | "batches" | "inbox" | "analytics" | "more";
 /** Pages reached through More (and the header menu). */
-export type MoreId = "alerts" | "handoff" | "library" | "touch-up" | "research";
+export type MoreId = "alerts" | "handoff" | "library" | "touch-up" | "research" | "settings";
 /** What a page passes as AppFrame `active`. */
 export type Section = TabId | MoreId;
 
@@ -32,6 +32,7 @@ const MORE: ReadonlyArray<Omit<MoreLink, "badge">> = [
   { id: "library", label: "Library", href: "/library", icon: "library", hint: "Ingested clips" },
   { id: "touch-up", label: "Touch-up", href: "/touch-up", icon: "touchUp", hint: "Clips waiting for a clean copy" },
   { id: "research", label: "Research", href: "/research", icon: "research", hint: "Ideas, hooks and briefs" },
+  { id: "settings", label: "Settings", href: "/more/settings", icon: "settings", hint: "Daily posts per platform (cap)" },
 ];
 
 const MORE_IDS = new Set<string>(MORE.map((m) => m.id));

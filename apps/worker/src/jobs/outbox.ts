@@ -18,7 +18,26 @@ import { blocklistFromEnv, lintText } from "@autopilot/research";
 /** Only what the store needs from pg.Pool, so tests pass a recording fake (same pattern as db/settings.ts). */
 export interface OutboxPool {
   query(sql: string, params?: unknown[]): Promise<{ rows: any[]; rowCount?: number | null }>;
+  /**
+   * One dedicated connection (pg.Pool has it; most fakes don't). Used only for the tick's session
+   * advisory lock, which must be taken and released on the same connection. `release(err)` makes pg
+   * destroy the connection instead of returning it to the pool.
+   */
+  connect?(): Promise<{ query(sql: string, params?: unknown[]): Promise<{ rows: any[] }>; release(err?: Error | boolean): void }>;
 }
+
+/**
+ * Session advisory-lock key for the outbox tick (F13 T2, OQ1): one tick at a time across every worker
+ * process on this database. 0x0f130002 ("F13 T2"). Other advisory locks in the repo: apps/web/lib/handoff
+ * uses pg_advisory_xact_lock(hashtext('autopilot:handoff:snapchat-skip')) = 632214110, a different key
+ * in the same single-bigint keyspace. Pick a new constant for any new lock; never reuse this one.
+ */
+export const OUTBOX_LOCK_KEY = 0x0f130002;
+export const OUTBOX_TICK_BUSY_LOG = "[outbox] tick already running; skipped";
+export const OUTBOX_NO_CONNECT_LOG = "[outbox] pool has no connect(); tick lock disabled";
+let warnedNoConnect = false;
+
+const zeroResult = (dryRun: boolean): TickResult => ({ considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, dryRun, alerts: [] });
 
 export interface OutboxConfig {
   /** Platform credentials; only configured platforms get an adapter (see credentialsFromEnv). */
@@ -288,6 +307,49 @@ export async function runOutboxOnce(pool: OutboxPool, cfg: OutboxConfig): Promis
 export async function runOutboxWith(pool: OutboxPool, adapters: Partial<Record<Platform, PlatformAdapter>>, cfg: OutboxConfig): Promise<TickResult> {
   const log = cfg.log ?? ((line: string) => console.log(sanitizeForLog(line)));
   if (!cfg.timeZone && !cfg.dryRun) throw new Error("TZ_CREATOR is required for a live outbox run (daily caps are per creator-local day)");
+  // Fable to review: outbox tick lock (F13 T2)
+  // The lock comes FIRST, before the media-base check: a config-skip tick writes an alert, and the
+  // whole tick (including that path) must be serialised the same way, so nothing below ever races a
+  // second tick. The TZ check above is a pure throw with no DB effect, so it doesn't need the lock.
+  // Dry-run ticks take it too. pg_try_advisory_lock never waits: a busy lock means another tick is
+  // running, and this one is skipped (the next cron minute tries again). The lock is the correctness
+  // guarantee; the claim() conditional update stays as the per-row guard underneath it.
+  if (!pool.connect) {
+    if (!warnedNoConnect) {
+      warnedNoConnect = true;
+      log(OUTBOX_NO_CONNECT_LOG);
+    }
+    return tickBody(pool, adapters, cfg, log);
+  }
+  const client = await pool.connect();
+  let locked: boolean;
+  try {
+    locked = (await client.query("select pg_try_advisory_lock($1) as ok", [OUTBOX_LOCK_KEY])).rows[0]?.ok === true;
+  } catch (err) {
+    client.release(err instanceof Error ? err : true); // unknown lock state: destroy the connection
+    throw err;
+  }
+  if (!locked) {
+    client.release();
+    log(OUTBOX_TICK_BUSY_LOG);
+    return zeroResult(cfg.dryRun);
+  }
+  try {
+    // The tick itself runs on the POOL, not this client: the client only owns the lock.
+    return await tickBody(pool, adapters, cfg, log);
+  } finally {
+    let unlockErr: Error | undefined;
+    try {
+      await client.query("select pg_advisory_unlock($1)", [OUTBOX_LOCK_KEY]);
+    } catch (err) {
+      // Destroying the connection ends the session, which drops the session lock with it.
+      unlockErr = err instanceof Error ? err : new Error(String(err));
+    }
+    client.release(unlockErr);
+  }
+}
+
+async function tickBody(pool: OutboxPool, adapters: Partial<Record<Platform, PlatformAdapter>>, cfg: OutboxConfig, log: (line: string) => void): Promise<TickResult> {
   const timeZone = cfg.timeZone ?? "UTC";
   // A missing/invalid base would make the media guard refuse every due post (→ failed + an alert each).
   // Fail closed with a small blast radius instead: skip the whole tick, touch no batch_items row,
@@ -295,7 +357,7 @@ export async function runOutboxWith(pool: OutboxPool, adapters: Partial<Record<P
   if (!isValidMediaBase(cfg.publicMediaBase)) {
     log(MEDIA_BASE_INVALID_LOG);
     await raiseConfigAlert(pool, MEDIA_BASE_INVALID_MESSAGE, cfg.now?.() ?? new Date());
-    return { considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, dryRun: cfg.dryRun, alerts: [] };
+    return zeroResult(cfg.dryRun);
   }
   const cadence = await loadCadence(pool);
   const store = new PgOutboxStore(pool, cfg.publicMediaBase, log);

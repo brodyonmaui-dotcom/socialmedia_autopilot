@@ -137,7 +137,7 @@ describe("runOutboxWith (pg store)", () => {
   });
 
   it("holds a post when today's count already meets the platform cap", async () => {
-    const pool = fakePool([base], { sentToday: 4 });
+    const pool = fakePool([base], { sentToday: 5 });
     let called = false;
     const r = await runOutboxWith(pool, { instagram: adapter("instagram", async () => ((called = true), { platformPostId: "x" })) }, cfg);
     expect(called).toBe(false);
@@ -211,7 +211,7 @@ describe("loadCadence", () => {
     const c = await loadCadence(pool);
     expect(c.windows).toEqual([{ start: "10:00", end: "12:00" }]);
     expect(c.dailyCaps.tiktok).toBe(2);
-    expect(c.dailyCaps.instagram).toBe(4);
+    expect(c.dailyCaps.instagram).toBe(5);
   });
 });
 

@@ -2,6 +2,7 @@ import type { Pool } from "pg";
 import { getSetting } from "@autopilot/db";
 import { normalizeEngagement } from "@autopilot/engagement/src/settings.js";
 import type { EngagementPlatform, EngagementSettings, Mode } from "@autopilot/engagement";
+import { writeSettingsAudit } from "../settings/audit.js";
 
 const KEY = "engagement";
 type Overlay = Record<string, unknown>;
@@ -46,4 +47,14 @@ export function setKilled(pool: Pool, killed: boolean, reason?: string) {
     const { killedReason: _previous, ...rest } = o;
     return killed && reason ? { ...rest, killed, killedReason: reason } : { ...rest, killed };
   });
+}
+
+/**
+ * F15 DM drafts switch (/inbox/dms): sets dmPollVerified (the worker's read-only DM poll gate; it never
+ * sends) and, when the value actually changed, writes the acknowledged 'settings-change' audit row.
+ */
+export async function setDmDrafts(pool: Pool, on: boolean): Promise<{ before: boolean; after: boolean }> {
+  const { before, after } = await updateEngagement(pool, (o) => ({ ...o, dmPollVerified: on }));
+  if (before.dmPollVerified !== after.dmPollVerified) await writeSettingsAudit(pool, `dm drafts ${after.dmPollVerified ? "on" : "off"}`, "instagram");
+  return { before: before.dmPollVerified, after: after.dmPollVerified };
 }

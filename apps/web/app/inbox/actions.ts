@@ -15,7 +15,7 @@ import {
   promoteShadow,
   writeEngagementAlert,
 } from "../../lib/engagement/queries.js";
-import { setKilled, setMode } from "../../lib/engagement/settings.js";
+import { setDmDrafts, setKilled, setMode } from "../../lib/engagement/settings.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PLATFORMS: readonly EngagementPlatform[] = ["instagram", "youtube", "tiktok"];
@@ -143,4 +143,18 @@ export async function copyDraftAction(draftId: string): Promise<void> {
   if (!UUID.test(draftId)) return;
   await markDraftCopied(getPool(), draftId);
   revalidatePath("/inbox/dms");
+}
+
+/**
+ * F15: the "Turn on DM drafts" switch. on = "on" | "off" (form field). Sets engagement.dmPollVerified
+ * (a read-only poll that only drafts; nothing goes out) and writes the acknowledged audit row.
+ */
+export async function setDmDraftsAction(fd: FormData): Promise<void> {
+  const session = await requireSession();
+  await run("/inbox/dms", async () => {
+    const v = field(fd, "on");
+    if (v !== "on" && v !== "off") throw new UserError("unknown setting");
+    const { after } = await setDmDrafts(getPool(), v === "on");
+    return after ? "DM drafts on: read-only, nothing is ever sent" : "DM drafts off";
+  });
 }

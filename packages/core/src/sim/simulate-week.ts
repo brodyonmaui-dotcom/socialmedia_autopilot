@@ -101,9 +101,14 @@ function scriptFor(ordinal: number): FakeOutcome[] | undefined {
   }
 }
 
+/** Sim fixture caps: the pre-F15 4/day, matching the 4-slot grid. */
+const SIM_CAPS: CadenceSettings["dailyCaps"] = { instagram: 4, youtube: 4, tiktok: 4, snapchat: 1 };
+
 export async function simulateWeek(opts: SimulateOptions): Promise<SimReport> {
   const timeZone = opts.timeZone;
-  const cadence = normalizeCadence(opts.cadence ?? {});
+  // Caps pinned to the grid size (4/day, pre-F15 default) so a full 4-slot week runs exactly at the cap
+  // and the cap checks below stay meaningful now that DEFAULT_CADENCE allows 5 (F15). opts.cadence overrides.
+  const cadence = normalizeCadence(opts.cadence ?? {}, normalizeCadence({ dailyCaps: SIM_CAPS }));
   const policy = opts.policy ?? DEFAULT_RETRY_POLICY;
   const days = opts.days ?? 7;
   const platforms = opts.platforms ?? (["instagram", "youtube", "tiktok"] as Platform[]);

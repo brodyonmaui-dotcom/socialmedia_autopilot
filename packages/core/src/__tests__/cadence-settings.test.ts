@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CADENCE, daySlotTimes, normalizeCadence } from "../cadence.js";
+import { CAP_LIMITS, DEFAULT_CADENCE, daySlotTimes, normalizeCadence } from "../cadence.js";
 
 describe("normalizeCadence", () => {
   it("returns the defaults for an empty or missing value", () => {
@@ -27,6 +27,25 @@ describe("normalizeCadence", () => {
     expect(() => normalizeCadence({ dailyCaps: { instagram: -1 } })).toThrow(/dailyCaps/);
     expect(() => normalizeCadence({ stagger: { tiktok: { days: 30 } } })).toThrow(/stagger/);
     expect(() => normalizeCadence({ bufferDays: { gym: 99 } })).toThrow(/bufferDays/);
+  });
+});
+
+describe("daily caps (F15)", () => {
+  it("defaults to 5/day IG/YT/TikTok and 1 Snapchat", () => {
+    expect(DEFAULT_CADENCE.dailyCaps).toEqual({ instagram: 5, youtube: 5, tiktok: 5, snapchat: 1 });
+  });
+
+  it("a stored cadence row with caps 4 still yields 4", () => {
+    expect(normalizeCadence({ dailyCaps: { instagram: 4, youtube: 4, tiktok: 4, snapchat: 1 } }).dailyCaps).toEqual({ instagram: 4, youtube: 4, tiktok: 4, snapchat: 1 });
+  });
+
+  it("accepts a cap at the limit and throws on a cap above CAP_LIMITS", () => {
+    expect(CAP_LIMITS).toEqual({ instagram: 25, youtube: 10, tiktok: 15, snapchat: 1 });
+    expect(normalizeCadence({ dailyCaps: { ...CAP_LIMITS } }).dailyCaps).toEqual(CAP_LIMITS);
+    expect(() => normalizeCadence({ dailyCaps: { instagram: 26 } })).toThrow(/dailyCaps.instagram/);
+    expect(() => normalizeCadence({ dailyCaps: { youtube: 11 } })).toThrow(/dailyCaps.youtube/);
+    expect(() => normalizeCadence({ dailyCaps: { tiktok: 16 } })).toThrow(/dailyCaps.tiktok/);
+    expect(() => normalizeCadence({ dailyCaps: { snapchat: 2 } })).toThrow(/dailyCaps.snapchat/);
   });
 });
 

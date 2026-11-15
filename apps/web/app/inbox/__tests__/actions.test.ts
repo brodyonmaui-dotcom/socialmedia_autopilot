@@ -32,7 +32,7 @@ beforeEach(() => {
 describe("inbox actions without a session", () => {
   it("exports the expected actions", () => {
     expect(exported.map(([n]) => n).sort()).toEqual(
-      ["blockAuthorAction", "copyDraftAction", "markHandledAction", "promoteShadowAction", "sendManualAction", "setKillAction", "setModeAction"].sort(),
+      ["blockAuthorAction", "copyDraftAction", "markHandledAction", "promoteShadowAction", "sendManualAction", "setDmDraftsAction", "setKillAction", "setModeAction"].sort(),
     );
   });
 

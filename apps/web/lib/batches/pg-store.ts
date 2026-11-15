@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import type { Platform } from "@autopilot/core";
-import { canResetItem, countByStatus, deriveFlags, type BatchItemView, type BatchView, type ItemStatus } from "./types.js";
+import { canResetItem, countByStatus, deriveFlags, parseEditorMeta, type BatchItemView, type BatchView, type ItemStatus } from "./types.js";
 import type { ItemChange } from "./transitions.js";
 import { ConflictError, type BatchStore, type BatchSummary, type LibraryMedia } from "./store.js";
 
@@ -44,7 +44,7 @@ export class PgBatchStore implements BatchStore {
     if (!batch) return null;
     const { rows } = await this.pool.query(
       `select bi.id, bi.batch_id, bi.media_id, bi.platform, bi.caption, bi.title, bi.scheduled_for, bi.status, bi.trial,
-              bi.platform_post_id, bi.platform_post_url, bi.approved_at, bi.attempts, bi.last_error,
+              bi.platform_post_id, bi.platform_post_url, bi.approved_at, bi.attempts, bi.last_error, bi.origin, bi.created_at,
               right(bi.idempotency_key::text, 6) as key_tail, m.source_path, m.r2_key, m.duration_s, m.pillar, m.qa
          from batch_items bi join media m on m.id = bi.media_id
         where bi.batch_id = $1
@@ -79,6 +79,9 @@ export class PgBatchStore implements BatchStore {
           hasCleanFile: r.r2_key != null,
           qaWarnings: qaWarnings(r.qa),
         },
+        createdAt: iso(r.created_at) ?? undefined,
+        origin: r.origin === "editor" ? "editor" : null,
+        editor: r.origin === "editor" ? parseEditorMeta(r.trial) : null,
         warnings: [],
         ...deriveFlags({ status, platformPostId }),
       };
