@@ -161,15 +161,15 @@
   font-size: 40px;
   @media (min-width: 1024px) { font-size: 56px; }
 }
-/* Card / section title: 22 px phone / 24 px desktop. */
+/* Card / section title: 26 px phone / 28 px desktop, weight 500 (400 is too thin at this size). */
 @utility ds-heading {
   font-family: var(--font-display-ds);
-  font-weight: 400;
+  font-weight: 500;
   font-optical-sizing: auto;
   letter-spacing: 0;
   line-height: 1.05;
-  font-size: 22px;
-  @media (min-width: 1024px) { font-size: 24px; }
+  font-size: 26px;
+  @media (min-width: 1024px) { font-size: 28px; }
 }
 /* Labels: 12 px Inter 600, sentence case. */
 @utility ds-label {

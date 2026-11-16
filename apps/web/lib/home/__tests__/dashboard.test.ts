@@ -26,8 +26,9 @@ const TODAY = "2026-11-18";
 describe("ranges", () => {
   it("parses with safe defaults", () => {
     expect(parseRange("30d")).toBe("30d");
-    expect(parseRange("last-week")).toBe("last-week");
-    expect(parseRange("x")).toBe("week");
+    expect(parseRange("week")).toBe("week");
+    expect(parseRange("last-week")).toBe("7d");
+    expect(parseRange(undefined)).toBe("7d");
     expect(parseMetric("engagement")).toBe("engagement");
     expect(parseMetric(undefined)).toBe("views");
   });
@@ -39,9 +40,11 @@ describe("ranges", () => {
     expect(current.days[6]).toBe("2026-11-22");
     expect(previous).toMatchObject({ start: "2026-11-09", endExcl: "2026-11-12" });
   });
-  it("last week and 30 days", () => {
-    expect(periodsFor("last-week", TODAY).current).toMatchObject({ start: "2026-11-09", endExcl: "2026-11-16" });
-    expect(periodsFor("last-week", TODAY).previous).toMatchObject({ start: "2026-11-02", endExcl: "2026-11-09" });
+  it("rolling 7 and 30 days compare with the equal-length period before", () => {
+    const w = periodsFor("7d", TODAY);
+    expect(w.current).toMatchObject({ start: "2026-11-12", endExcl: "2026-11-19" });
+    expect(w.current.days).toHaveLength(7);
+    expect(w.previous).toMatchObject({ start: "2026-11-05", endExcl: "2026-11-12" });
     const m = periodsFor("30d", TODAY);
     expect(m.current.days).toHaveLength(30);
     expect(m.current.days[29]).toBe(TODAY);
@@ -82,8 +85,10 @@ describe("KPIs", () => {
     }
     expect(k[0]!.note).toBe("Collected after the next sync");
   });
-  it("delta words: down, same, nothing to compare", () => {
+  it("delta words: down, same, none yet, nothing to compare", () => {
     expect(deltaOf(90, 100, "vs last week")).toEqual({ text: "▼ 10% vs last week", tone: "down" });
+    expect(deltaOf(0, 12, "vs last week")).toEqual({ text: "None yet", tone: "flat" });
+    expect(deltaOf(0, 0, "vs last week")).toBeNull();
     expect(deltaOf(100, 100, "vs last week")).toEqual({ text: "Same as last week", tone: "flat" });
     expect(deltaOf(5, 0, "vs last week")).toBeNull();
     expect(deltaOf(null, 3, "vs last week")).toBeNull();

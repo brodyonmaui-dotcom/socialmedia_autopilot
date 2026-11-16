@@ -7,6 +7,8 @@ description: Build the weekly research brief from tracked creators (top hooks, h
 
 Read-only on the platforms. Writes only to `logs/` and, with his OK, to the research backlog (ideas/hooks).
 
+**Ideas and hooks now arrive by themselves** (decisions.md §4 addendum 2026-11-16): the worker job `research-refresh` runs every 3 days, ranks the tracked creators' recent posts, adds niche ideas and the yap scripts, and writes code-made "about / adapt" notes. Check its last run on Research (or `research_runs`) before doing anything by hand. This skill is the **deeper, on-demand brief**: use it when he wants more than the automatic ideas (a pattern read across creators, a fresh angle, or hooks for a specific week).
+
 ## Steps
 1. Run the script:
    - With live data: `pnpm skill:research-brief` (creators from the DB). **The Business Discovery fetch is a stub** until its field list is verified against Meta's docs and logged in `docs/research.md`; until then it prints FAIL and you use a snapshot file.
@@ -14,7 +16,7 @@ Read-only on the platforms. Writes only to `logs/` and, with his OK, to the rese
 2. Read the markdown file the one-line summary names. Hooks that named a place were already dropped; don't go looking for them.
 3. Tag each top hook with its playbook formula (`docs/content-playbook.md` §1: superlative, negation swap, conditional warning, named law + stat, quiet-signal reframe, paradox). Keep processes, not view counts (creator numbers are unverified).
 4. Turn the top patterns into **3–5 ideas and 3–5 hooks in his voice** (docs/voice.md): dry, calm, honest; one idea each, hooks per the playbook rules. Any named law, quote or stat in a hook needs a source URL first; no source, no anchor. Patterns, not copies: never reuse another creator's line verbatim, never mock or call out a creator.
-5. Show them in chat. Add the ones he picks on the phone (Research → ideas / hooks), or, if he asks you to, insert them with `addIdea` / `addHook` from `packages/research` (they lint for privacy on write).
+5. Skip anything the automatic job already added (same reference post or same niche prompt). Show the rest in chat. Add the ones he picks on the phone (Research → ideas / hooks), or, if he asks you to, insert them with `addIdea` / `addHook` from `packages/research` (they lint for privacy on write). Finished ideas go to "Already used" with the Used checkbox, never deleted.
 
 ## Rules
 - Creators are tracked by public handle only. Notes say why we follow them, never where they are.

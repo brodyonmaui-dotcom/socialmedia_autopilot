@@ -20,7 +20,7 @@ v3 replaces v2 ("Warm Industrial"). The creator used v2 on his phone and called 
 ## Type
 | Role | Font | Spec | Used for |
 |---|---|---|---|
-| Display | **Imbue** (variable, OFL, self-hosted via `@fontsource-variable/imbue`, `opsz` axis on) | weight 400, uppercase off, letter-spacing 0, line-height 1.0 | the logo, page titles (40 px phone / 56 px desktop), card titles (22–24 px), post titles (20–22 px), KPI numbers are **not** display |
+| Display | **Imbue** (variable, OFL, self-hosted via `@fontsource-variable/imbue`, `opsz` axis on) | weight 400 for the logo and page titles, **500** for card/section titles; uppercase off, letter-spacing 0, line-height 1.0; `font-optical-sizing: auto` so `opsz` follows the size | the logo (28 px), page titles (40 px phone / 56 px desktop), card and section titles (26 px phone / 28 px desktop), post titles (20–22 px); KPI numbers are **not** display |
 | Sans | Inter variable | 400 body, 600 labels and buttons, 700 KPI numbers | everything else |
 | Editorial italic | Playfair Display italic | whole sentences only, 20–28 px | one pull-quote per screen at most ("what worked" headline, an empty-state line). Never inside a phrase with another font. |
 
@@ -28,7 +28,7 @@ Imbue is a tall, condensed, high-contrast didone: the closest free match to the 
 
 Sizes (phone / desktop):
 - page title 40 / 56 display;
-- section or card title 22 / 24 display;
+- section or card title 26 / 28 display, weight 500;
 - KPI number 28 / 32 Inter 700 tabular;
 - body 15 / 15;
 - label 12 / 12 Inter 600, sentence case, `ds-muted` (no tracked caps walls; caps only for 1–2 word tags such as GYM, TRADING, at 11 px tracked 0.06em);
@@ -57,7 +57,7 @@ New tokens:
 │  Page title (display)                     [This week ▾]      │
 │  cards…                                                      │
 ```
-- **Top bar.** Left: menu button (44 px square, icon only) then the logo: the word "My Socials" in Imbue, 26 px, linking Home. Right: exactly four 40 px square icon buttons with 8 px radius and a hairline border: Search, Day/Night, Inbox (count badge), Notifications (count badge). Nothing else: no profile block, no CTA.
+- **Top bar.** Left: menu button (44 px square, icon only) then the logo: the word "My Socials" in Imbue, 28 px, linking Home. Right: exactly four 40 px square icon buttons with 8 px radius and a hairline border: Search, Day/Night, Inbox (count badge), Notifications (count badge). Nothing else: no profile block, no CTA.
 - **Sidebar** (`Sidebar`, client). 264 px wide, card fill, hairline right edge, pop shadow. Logo at the top-left in the same position as the top-bar logo, so opening it doesn't shift the mark. Items, each with a 20 px line icon and an Inter 600 15 px label; the active item is a soft pill (`ds-raised`):
   Home · Calendar · Inbox · Analytics (expandable: Overview, Instagram, YouTube, TikTok, Snapchat) · Research · Library (expandable: All clips, Touch-up) · Platforms (expandable: Instagram, YouTube, TikTok, Snapchat) · Settings. "Log out" sits at the bottom. Groups expand in place; the group containing the current page starts open.
   - **Desktop (≥ 1024 px, fine pointer):** hidden by default. A 12 px invisible hot zone on the left screen edge opens it on `pointerenter`; the menu button and keyboard focus also open it. It stays open while the pointer or focus is inside, and closes **2.5 s after the pointer leaves** (timer cancelled on re-entry). Esc closes at once. It overlays content and never reflows the page.
@@ -87,7 +87,7 @@ Routes are under the `/app` base path. Old routes redirect: `/batches` and `/bat
 
 ### Home `/`
 A quick dashboard, one screen on desktop.
-1. `PageHeader` "Home" + range Dropdown (This week / Last week / Last 30 days).
+1. `PageHeader` "Home" + range Dropdown (Last 7 days, the default / Last 30 days / This week). Rolling ranges compare with the equal-length period before; "This week" with the same weekdays last week. No delta when the previous value is 0 or unknown; a current 0 reads "None yet".
 2. Four `StatTile`s (2 × 2 on phone): Followers (all platforms, change in the range), Views, Engagement (likes + comments + shares), Posts published. Each compares with the previous period. A metric with no data yet shows "–" and a one-line reason, not 0.
 3. Row 8 + 4: **Activity** card (`BarChart` of views per day stacked by platform, with its own metric Dropdown: Views / Engagement) and **This week** card (seven rows or columns Mon–Sun with the number of posts scheduled per day as small bars; today marked; each day links to `/calendar?day=`).
 4. Row 6 + 6: **From your editors** (up to 4 compact `PostCard`s waiting for approval with Approve; "See all" → calendar filtered to drafts) and **Needs a reply** (up to 4 flagged inbox items: who, the comment, the drafted reply, "Approve & send" and "Open").

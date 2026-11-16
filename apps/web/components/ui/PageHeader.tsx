@@ -3,12 +3,12 @@ import type { ReactNode } from "react";
 import { cx, FOCUS } from "./cx.js";
 import { Icon } from "./Icon.js";
 
-/** The app's name as a wordmark: "My Socials" in the display face, 26 px. */
+/** The app's name as a wordmark: "My Socials" in the display face, 28 px. */
 export const APP_NAME = "My Socials";
 
-/** `size="lg"` = 40 px (login card); default 26 px (top bar, sidebar). */
+/** `size="lg"` = 40 px (login card); default 28 px (top bar, sidebar). */
 export function Wordmark({ size = "md", className }: { size?: "md" | "lg"; className?: string }) {
-  return <span className={cx("ds-font-display whitespace-nowrap leading-none text-ds-text", size === "lg" ? "text-[40px]" : "text-[26px]", className)}>{APP_NAME}</span>;
+  return <span className={cx("ds-font-display whitespace-nowrap leading-none text-ds-text", size === "lg" ? "text-[40px]" : "text-[28px]", className)}>{APP_NAME}</span>;
 }
 
 /**

@@ -37,7 +37,7 @@ describe("public/sw.js", () => {
     expect(sw.shown).toHaveLength(1);
     expect(sw.shown[0]!.title).toBe("3 new alerts");
     expect(sw.shown[0]!.opts.body).toBe("Failed · Login");
-    expect(sw.shown[0]!.opts.data.url).toBe("/app/alerts");
+    expect(sw.shown[0]!.opts.data.url).toBe("/app/notifications");
   });
 
   it("one alert, a test payload, unknown kinds and a broken payload", async () => {
@@ -51,12 +51,26 @@ describe("public/sw.js", () => {
     expect(sw.shown.map((s) => s.opts.body).join()).not.toContain("evil");
   });
 
-  it("a click always opens /app/alerts, whatever the payload url says", async () => {
+  it("a click opens /app/notifications unless the url is an /app/inbox path", async () => {
     const sw = loadSw();
     let closed = false;
     await sw.fire("notificationclick", { notification: { close: () => (closed = true), data: { url: "https://evil.example.com" } } });
     expect(closed).toBe(true);
-    expect(sw.opened).toEqual(["/app/alerts"]);
+    for (const url of ["//evil.example.com/app/inbox", "/app/inbox/../settings", "/app/inboxx", "/app/batches/1", "javascript:alert(1)"])
+      await sw.fire("notificationclick", { notification: { close: () => {}, data: { url } } });
+    await sw.fire("notificationclick", { notification: { close: () => {}, data: { url: "/app/inbox/item/0b1c2d3e-aaaa-4bbb-8ccc-123456789abc" } } });
+    expect(sw.opened).toEqual([...Array(6).fill("/app/notifications"), "/app/inbox/item/0b1c2d3e-aaaa-4bbb-8ccc-123456789abc"]);
+  });
+
+  it("reply-ready pushes show the payload body and keep an inbox url", async () => {
+    const sw = loadSw();
+    await sw.push({ count: 1, kinds: ["reply-ready"], sources: ["instagram"], url: "/app/inbox/item/c1", body: "gym_fan_22 asked about your warm-up" });
+    await sw.push({ count: 2, kinds: ["reply-ready"], url: "https://evil.example.com" });
+    await sw.push({ count: 2, kinds: ["reply-ready", "auth"], url: "/app/inbox", body: "should not show" });
+    expect(sw.shown[0]!).toMatchObject({ title: "Reply ready", opts: { body: "gym_fan_22 asked about your warm-up", data: { url: "/app/inbox/item/c1" } } });
+    expect(sw.shown[1]!).toMatchObject({ title: "2 replies ready", opts: { data: { url: "/app/notifications" } } });
+    expect(sw.shown[2]!.opts.body).toBe("Reply ready · Login");
+    expect(sw.shown[2]!.opts.data.url).toBe("/app/notifications");
   });
 
   it("focuses an open app window instead of opening a new one", async () => {
@@ -65,7 +79,7 @@ describe("public/sw.js", () => {
     let focused = false;
     sw.self.clients.matchAll = async () => [{ navigate: async (u: string) => void nav.push(u), focus: async () => void (focused = true) }];
     await sw.fire("notificationclick", { notification: { close: () => {} } });
-    expect(nav).toEqual(["/app/alerts"]);
+    expect(nav).toEqual(["/app/notifications"]);
     expect(focused).toBe(true);
     expect(sw.opened).toEqual([]);
   });
@@ -77,8 +91,8 @@ describe("public/sw.js", () => {
   it("kind labels match the /alerts page for every kind", async () => {
     for (const k of ALERT_KINDS) {
       const sw = loadSw();
-      await sw.push({ count: 1, kinds: [k] });
-      expect(sw.shown[0]!.opts.body, k).toBe(kindLabel(k));
+      await sw.push({ count: 1, kinds: [k, "auth"] });
+      expect(sw.shown[0]!.opts.body, k).toBe(k === "auth" ? "Login · Login" : `${kindLabel(k)} · Login`);
     }
   });
 });

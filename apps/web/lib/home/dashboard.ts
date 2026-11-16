@@ -6,16 +6,18 @@ import type { EditorRender } from "../editor/view.js";
 
 // ---------------------------------------------------------------- ranges
 
-export type RangeId = "week" | "last-week" | "30d";
+export type RangeId = "7d" | "30d" | "week";
 export type MetricId = "views" | "engagement";
 
 export const RANGES: ReadonlyArray<{ id: RangeId; label: string; compare: string }> = [
-  { id: "week", label: "This week", compare: "vs last week" },
-  { id: "last-week", label: "Last week", compare: "vs the week before" },
+  { id: "7d", label: "Last 7 days", compare: "vs the 7 days before" },
   { id: "30d", label: "Last 30 days", compare: "vs the 30 days before" },
+  { id: "week", label: "This week", compare: "vs last week" },
 ];
 
-export const parseRange = (raw: unknown): RangeId => (raw === "last-week" || raw === "30d" ? raw : "week");
+/** Default: the rolling 7 days (a calendar week makes Monday look like a crash). */
+export const DEFAULT_RANGE: RangeId = "7d";
+export const parseRange = (raw: unknown): RangeId => (raw === "30d" || raw === "week" ? raw : "7d");
 export const parseMetric = (raw: unknown): MetricId => (raw === "engagement" ? "engagement" : "views");
 
 /** A window of creator-local calendar days: [start, endExcl). `days` = the days the chart shows. */
@@ -29,21 +31,18 @@ const span = (start: string, n: number): string[] => Array.from({ length: n }, (
 export const mondayOf = (ymd: string): string => addCalendarDays(ymd, -weekdayIndex(ymd));
 
 /**
- * The range's window and the one it is compared with. "This week" counts Monday..today and compares with
- * the same days last week (a fair partial-week comparison); the chart still shows Mon–Sun.
+ * The range's window and the one it is compared with. Rolling ranges (7 / 30 days, today included)
+ * compare with the equal-length period just before. "This week" counts Monday..today and compares with
+ * the same days last week (a fair partial-week comparison); its chart still shows Mon–Sun.
  */
 export function periodsFor(range: RangeId, today: string): { current: Period; previous: Period } {
-  if (range === "30d") {
-    const start = addCalendarDays(today, -29);
-    const pStart = addCalendarDays(start, -30);
-    return { current: { start, endExcl: addCalendarDays(today, 1), days: span(start, 30) }, previous: { start: pStart, endExcl: start, days: span(pStart, 30) } };
+  if (range === "30d" || range === "7d") {
+    const n = range === "30d" ? 30 : 7;
+    const start = addCalendarDays(today, -(n - 1));
+    const pStart = addCalendarDays(start, -n);
+    return { current: { start, endExcl: addCalendarDays(today, 1), days: span(start, n) }, previous: { start: pStart, endExcl: start, days: span(pStart, n) } };
   }
   const thisMon = mondayOf(today);
-  if (range === "last-week") {
-    const start = addCalendarDays(thisMon, -7);
-    const pStart = addCalendarDays(start, -7);
-    return { current: { start, endExcl: thisMon, days: span(start, 7) }, previous: { start: pStart, endExcl: start, days: span(pStart, 7) } };
-  }
   const elapsed = weekdayIndex(today) + 1;
   const pStart = addCalendarDays(thisMon, -7);
   return {
@@ -105,9 +104,13 @@ const num = (x: number | null | undefined) => (x == null || !Number.isFinite(x) 
 export const engagementOf = (r: Pick<PostMetricRow, "likes" | "comments" | "shares">) => num(r.likes) + num(r.comments) + num(r.shares);
 const hasMetrics = (r: PostMetricRow) => r.views != null || r.likes != null || r.comments != null || r.shares != null;
 
-/** "▲ 12% vs last week" / "▼ 8% …" / "Same as …"; null when there is nothing to compare with. */
+/**
+ * "▲ 12% vs last week" / "▼ 8% …" / "Same as …". No delta when there is nothing to compare with (previous
+ * null or 0); a current 0 reads "None yet" (muted) instead of "▼ 100%".
+ */
 export function deltaOf(cur: number | null, prev: number | null, compare: string): Delta | null {
   if (cur == null || prev == null || prev <= 0) return null;
+  if (cur === 0) return { text: "None yet", tone: "flat" };
   const pct = Math.round(((cur - prev) / prev) * 100);
   if (pct === 0) return { text: `Same as ${compare.replace(/^vs /, "")}`, tone: "flat" };
   return pct > 0 ? { text: `▲ ${pct}% ${compare}`, tone: "up" } : { text: `▼ ${Math.abs(pct)}% ${compare}`, tone: "down" };

@@ -34,6 +34,7 @@ import { handoffContext, listHandoff } from "../lib/handoff/store.js";
 import {
   activityBars,
   buildKpis,
+  DEFAULT_RANGE,
   editorTiles,
   hasActivity,
   kpiText,
@@ -61,7 +62,7 @@ const SERIES: ChartSeries[] = (["instagram", "youtube", "tiktok", "snapchat"] as
 
 function homeHref(range: RangeId, metric: MetricId): string {
   const q = new URLSearchParams();
-  if (range !== "week") q.set("range", range);
+  if (range !== DEFAULT_RANGE) q.set("range", range);
   if (metric !== "views") q.set("metric", metric);
   const s = q.toString();
   return s ? `/?${s}` : "/";
@@ -104,7 +105,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
     <AppFrame active="home" counts={counts}>
       <PageHeader
         title="Home"
-        subtitle={`${rangeText(days[0]!, days[days.length - 1]!)}${zone ? "" : " (UTC)"}`}
+        subtitle={rangeText(days[0]!, days[days.length - 1]!)}
         action={<Dropdown label="Range" options={RANGES.map((r) => ({ label: r.label, href: homeHref(r.id, metric), current: r.id === range }))} />}
       />
 
