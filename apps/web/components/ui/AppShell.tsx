@@ -21,9 +21,8 @@ type Action = (fd: FormData) => void | Promise<void>;
 /**
  * The v3 top bar (56 px, sticky, page colour, hairline below). Left: menu button + "My Socials" (Home).
  * Right: exactly four icon buttons: Search, Day/Night, Inbox (badge), Notifications (badge).
- * Named AppTopBar while the v2 page-title `TopBar` is still imported by older pages.
  */
-export function AppTopBar({
+export function TopBar({
   theme,
   inboxCount,
   notifications,
@@ -55,7 +54,7 @@ export function AppTopBar({
 }
 
 /**
- * Page frame (v3): `.ds-root` + skip link + AppTopBar + Sidebar (overlay) + `<main id="main">` holding a
+ * Page frame (v3): `.ds-root` + skip link + TopBar + Sidebar (overlay) + `<main id="main">` holding a
  * centred 1280 px content column with the page gutter. No tab bar, grid lines, noise or footer band.
  */
 export function AppShell({
@@ -93,7 +92,7 @@ export function AppShell({
         Skip to content
       </a>
       <SidebarProvider>
-        <AppTopBar theme={theme} inboxCount={inboxCount} notifications={notifications} openAlerts={openAlerts} ackAction={ackAction} />
+        <TopBar theme={theme} inboxCount={inboxCount} notifications={notifications} openAlerts={openAlerts} ackAction={ackAction} />
         <Sidebar nav={nav} currentHref={currentHref} openGroups={openGroups} logoutAction={logoutAction} />
       </SidebarProvider>
       <main id="main" tabIndex={-1} className="outline-none">

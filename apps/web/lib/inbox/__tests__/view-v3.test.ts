@@ -99,7 +99,7 @@ describe("reply status sentence", () => {
 
 describe("reason words", () => {
   it("one chip, the most important reason first", () => {
-    expect(reasonChip("flag", "question; location/schedule")).toEqual({ label: "Asks where you are", tone: "warn" });
+    expect(reasonChip("flag", "question; location/schedule")).toEqual({ label: "Location", tone: "warn" });
     expect(reasonChip("flag", "question; brand/business")).toEqual({ label: "Business", tone: "neutral" });
     expect(reasonChip("flag", "question")).toEqual({ label: "Question", tone: "neutral" });
     expect(reasonChip("hide_flag", "threat")).toEqual({ label: "Threat", tone: "danger" });

@@ -69,7 +69,7 @@ export async function planResetChecked(
   deps: IgCheckDeps = {},
 ): Promise<TransitionResult | { ok: false; reason: string; itemId: string; found: IgCheckResult }> {
   const item = batch.items.find((i) => i.id === input.itemId);
-  if (!item) return { ok: false, reason: "item not found in this batch, reload", itemId: input.itemId };
+  if (!item) return { ok: false, reason: "that post isn't in this week any more, reload", itemId: input.itemId };
   const check = await checkInstagram(item, deps);
   if (check.result === "found") {
     return {

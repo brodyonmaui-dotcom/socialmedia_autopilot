@@ -53,11 +53,10 @@ export * from "./MonthCalendar.js";
 export * from "./chart-math.js";
 
 // ---- v2 leftovers: still imported by pages not rebuilt yet. They render nothing (GridLines, NoiseOverlay,
-// Marquee, FooterBand) or render v3-style (TopBar, SectionHead, Display, Readout, StatusPulse). Delete each
+// Marquee, FooterBand) or render v3-style (SectionHead, Display, Readout, StatusPulse). Delete each
 // file and its export once nothing imports it (ui-system.md "Removed").
 export * from "./GridLines.js";
 export * from "./NoiseOverlay.js";
-export * from "./TopBar.js";
 export * from "./SectionHead.js";
 export * from "./FooterBand.js";
 export * from "./Display.js";

@@ -101,10 +101,10 @@ export function computeWarnings(items: BatchItemView[], ctx: WarningContext): Ma
     }
 
     if (item.caption.trim() !== "" && (captionCounts.get(captionKey(item)) ?? 0) > 1) {
-      ws.push({ code: "duplicate.caption", severity: "warn", message: `same caption as another ${item.platform} post in this batch`, field: "caption" });
+      ws.push({ code: "duplicate.caption", severity: "warn", message: `same caption as another ${item.platform} post this week`, field: "caption" });
     }
     if ((mediaCounts.get(mediaKey(item)) ?? 0) > 1) {
-      ws.push({ code: "duplicate.media", severity: "warn", message: `this video is in the batch twice for ${item.platform}` });
+      ws.push({ code: "duplicate.media", severity: "warn", message: `this video is planned twice this week for ${item.platform}` });
     }
 
     if (item.media.qaWarnings.length > 0) ws.push({ code: "media.qa", severity: "warn", message: `media QA: ${item.media.qaWarnings.join("; ")}` });

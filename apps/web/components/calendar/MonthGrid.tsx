@@ -66,7 +66,7 @@ export function MonthGrid({ weeks, hrefFor, draftsOnly = false, label }: { weeks
                 aria-current={c.isToday ? "date" : undefined}
                 className={cx(
                   "flex h-full min-h-16 flex-col gap-1 p-1 transition-colors duration-[var(--ds-dur)] hover:bg-ds-raised lg:min-h-[112px] lg:p-2",
-                  !c.inMonth && "bg-ds-bg/40",
+                  !c.inMonth && "bg-ds-bg/40 [&>*]:opacity-60",
                   FOCUS,
                   "focus-visible:-outline-offset-2",
                 )}

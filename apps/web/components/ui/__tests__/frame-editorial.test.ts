@@ -13,7 +13,6 @@ import { SectionHead } from "../SectionHead.js";
 import { MenuButton, Sidebar, SidebarProvider } from "../Sidebar.js";
 import { StatusPulse } from "../StatusPulse.js";
 import { ThemeToggle } from "../ThemeToggle.js";
-import { TopBar } from "../TopBar.js";
 import { sidebarNav } from "../../app-nav.js";
 
 const count = (html: string, s: string) => html.split(s).length - 1;
@@ -32,15 +31,12 @@ describe("v2 decoration is gone (hard rules 2 and 3)", () => {
     expect(html).toContain("bg-ds-accent");
     expect(html).not.toMatch(/green/i);
   });
-  it("Display, SectionHead and TopBar put the whole phrase in one font (no serif word, no outline, no index)", () => {
+  it("Display and SectionHead put the whole phrase in one font (no serif word, no outline, no index)", () => {
     const d = renderToStaticMarkup(h(Display, { lines: [{ text: "Week 47", style: "stroke" }, { text: "approved", style: "serif" }] }));
     expect(d).toBe('<h1 class="ds-title text-ds-text">Week 47 approved</h1>');
     const s = renderToStaticMarkup(h(SectionHead, { index: "02", title: "Up", serif: "next" }));
     expect(s).toContain(">Up next<");
     expect(s).not.toContain("02");
-    const t = renderToStaticMarkup(h(TopBar, { index: "02", title: "Weekly", serif: "batches", meta: "3 weeks" }));
-    expect(t).toContain('<h1 class="ds-title text-ds-text">Weekly batches</h1>');
-    expect(t).not.toContain("02 /");
   });
 });
 

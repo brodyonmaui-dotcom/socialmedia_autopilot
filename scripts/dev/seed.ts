@@ -183,6 +183,7 @@ try {
   console.log(`dev:seed: OK ${await (await import("./lib/seed-research.js")).seedResearch(pool)}`); // research-refresh demo on fixture data (0013)
   console.log(`dev:seed: OK ${await (await import("./lib/seed-inbox.js")).seedDemoInbox(pool)}`); // inbox filters + promo demo (0012)
   console.log(`dev:seed: OK ${await (await import("./lib/seed-shell.js")).seedShellDemo(pool)}`); // v3 shell + Home demo (alerts, editor drafts)
+  console.log(`dev:seed: OK ${await (await import("./lib/seed-calendar.js")).seedCalendarDemo(pool)}`); // calendar demo (approved, drafts, failed, check it, Snapchat daily)
 } catch (e) {
   console.error(`dev:seed: FAIL ${(e as Error).message.replace(/^dev:seed: /, "")}`);
   process.exitCode = 1;

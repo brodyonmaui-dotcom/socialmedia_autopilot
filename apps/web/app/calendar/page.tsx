@@ -13,7 +13,7 @@ import {
   WeekView,
   type PostCardLinks,
 } from "../../components/calendar/index.js";
-import { Button, ButtonLink, Card, EmptyState, IconLink, InlineNotice, PageHeader, TabLinks, cx } from "../../components/ui/index.js";
+import { Button, ButtonLink, Card, EmptyState, Icon, IconLink, InlineNotice, PageHeader, TabLinks, cx } from "../../components/ui/index.js";
 import { requireSession } from "../../lib/auth/require.js";
 import { getPool } from "../../lib/db.js";
 import { creatorZone, loadCalendar } from "../../lib/calendar/load.js";
@@ -118,7 +118,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
             </ButtonLink>
             <IconLink href={calendarHref(state, { d: stepAnchor(state.view, state.d, 1) })} icon="chevronRight" label={state.view === "week" ? "Next week" : "Next month"} />
           </div>
-          <div className="w-40">
+        </div>
+        <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
+          <div className="mr-2 w-40">
             <TabLinks
               ariaLabel="View"
               items={[
@@ -127,12 +129,13 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
               ]}
             />
           </div>
-        </div>
-        <div className="-mt-1 flex flex-wrap gap-x-1 gap-y-1">
-          <ButtonLink href={calendarHref(state, { drafts: !state.drafts })} variant="ghost" size="sm" aria-pressed={state.drafts} className={cx(state.drafts && "bg-ds-raised")}>
+
+          <ButtonLink href={calendarHref(state, { drafts: !state.drafts })} variant="ghost" size="sm" aria-current={state.drafts ? "true" : undefined} className={cx(state.drafts && "bg-ds-raised")}>
+            {state.drafts ? <Icon name="check" size={16} /> : null}
             Needs approval only
           </ButtonLink>
-          <ButtonLink href={calendarHref(state, { showRejected: !state.showRejected })} variant="ghost" size="sm" aria-pressed={state.showRejected} className={cx(state.showRejected && "bg-ds-raised")}>
+          <ButtonLink href={calendarHref(state, { showRejected: !state.showRejected })} variant="ghost" size="sm" aria-current={state.showRejected ? "true" : undefined} className={cx(state.showRejected && "bg-ds-raised")}>
+            {state.showRejected ? <Icon name="check" size={16} /> : null}
             Show rejected
           </ButtonLink>
         </div>

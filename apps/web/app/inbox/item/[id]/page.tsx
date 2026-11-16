@@ -55,7 +55,7 @@ export default async function InboxItemPage({ params, searchParams }: { params: 
 
   const dismiss = plan.canDismiss ? (
     <form action={markHandledAction.bind(null, item.commentId)}>
-      <Button type="submit" variant="ghost" size="sm">
+      <Button type="submit" variant="ghost">
         Dismiss
       </Button>
     </form>

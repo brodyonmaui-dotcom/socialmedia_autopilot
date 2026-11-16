@@ -57,7 +57,7 @@ async function sharedToday(pool: Pool, now: Date, timeZone: string): Promise<num
 
 const when = (it: HandoffItem, timeZone: string) => `${it.localDay} · ${localHHMM(new Date(it.scheduledFor), timeZone)}`;
 
-const footer = <FooterBand link={{ href: "/batches", label: "Batches", sub: "Snapchat posts come from approved batches" }} status="Assisted route · you share" meta="runmysocials · approval first" />;
+const footer = <FooterBand link={{ href: "/calendar", label: "Calendar", sub: "Snapchat posts come from the calendar" }} status="Assisted route · you share" meta="runmysocials · approval first" />;
 
 export default async function HandoffPage() {
   await requireSession();
@@ -142,10 +142,10 @@ export default async function HandoffPage() {
             <EmptyState
               icon="share"
               title="Nothing to share today"
-              body="Approved Snapchat posts show up here on their day. Add one to a batch and approve it there."
+              body="Approved Snapchat posts show up here on their day. Plan one in the calendar and approve it there."
               action={
-                <ButtonLink href="/batches" variant="outline" size="sm" arrow>
-                  Go to batches
+                <ButtonLink href="/calendar" variant="outline" size="sm" arrow>
+                  Open the calendar
                 </ButtonLink>
               }
               className="col-span-4 border-b border-ds-line py-16 lg:col-span-5 lg:border-b-0 lg:border-r"

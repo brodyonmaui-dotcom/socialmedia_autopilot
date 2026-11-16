@@ -119,9 +119,10 @@ const firstLine = (s: string) => s.split(/\r?\n/).map((l) => l.trim()).find(Bool
 export function entryTitle(items: Array<Pick<BatchItemView, "platform" | "title" | "caption" | "media">>): string {
   const yt = items.find((i) => i.platform === "youtube" && i.title?.trim());
   if (yt) return yt.title!.trim();
-  const label = items[0]?.media.label?.trim();
-  if (label) return label;
-  return firstLine(items.find((i) => i.caption.trim())?.caption ?? "") || "Untitled clip";
+  // A caption's first line reads better than a file label ("demo-0031"); the label is the last resort.
+  const line = firstLine(items.find((i) => i.caption.trim())?.caption ?? "");
+  if (line) return line.length > 60 ? `${line.slice(0, 57).trimEnd()}…` : line;
+  return items[0]?.media.label?.trim() || "Untitled clip";
 }
 
 /** The niche tag: gym / trading as is, anything else kept, null when unknown. */

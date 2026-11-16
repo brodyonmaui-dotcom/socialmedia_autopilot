@@ -165,7 +165,7 @@ export class PgBatchStore implements BatchStore {
           where id = $1 returning id`,
         [batchId, batchStatus, now],
       );
-      if (b.rowCount !== 1) throw new ConflictError("batch not found, reload");
+      if (b.rowCount !== 1) throw new ConflictError("that week isn't there any more, reload");
       await client.query("commit");
     } catch (err) {
       await client.query("rollback").catch(() => {});

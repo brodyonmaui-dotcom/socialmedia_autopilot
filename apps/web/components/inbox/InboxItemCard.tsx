@@ -27,17 +27,11 @@ export function InboxItemCard({ row, filter, now }: { row: InboxListRow; filter:
   const menu: MenuItem[] = [];
   if (row.href) menu.push({ label: "Open", icon: "arrowUpRight", href: row.href });
   if (plan.canHide) menu.push({ label: "Hide on Instagram", icon: "eye", action: sendManualAction.bind(null, row.id, "hide"), fields, tone: "danger" });
+  if (plan.canDismiss) menu.push({ label: "Dismiss without replying", icon: "check", action: markHandledAction.bind(null, row.id), fields });
   if (plan.canIgnoreAccount && filter !== "ignored") menu.push({ label: "Always ignore this account", icon: "x", action: ignoreAccountAction.bind(null, row.kind, row.id), fields });
 
-  const dismiss = plan.canDismiss ? (
-    <form action={markHandledAction.bind(null, row.id)}>
-      <input type="hidden" name="tab" value={tab} />
-      <Button type="submit" variant="ghost" size="sm" aria-label={`Dismiss ${row.authorName} without replying`}>
-        Dismiss
-      </Button>
-    </form>
-  ) : null;
-  const more = menu.length ? <Menu label={`More for ${row.authorName}`} items={menu} /> : null;
+  // The handle already opens the item; the menu only shows when it holds more than "Open".
+  const more = menu.length > (row.href ? 1 : 0) ? <Menu label={`More for ${row.authorName}`} items={menu} /> : null;
   const igLink =
     row.kind === "dm" && row.authorHandle && IG_HANDLE.test(row.authorHandle) ? (
       <ButtonLink href={`https://ig.me/m/${row.authorHandle}`} target="_blank" rel="noopener noreferrer" variant="outline" size="sm">
@@ -88,12 +82,7 @@ export function InboxItemCard({ row, filter, now }: { row: InboxListRow; filter:
           mode={plan.primary}
           draft={row.draftedReply}
           tab={tab}
-          extra={
-            <>
-              {dismiss}
-              {more}
-            </>
-          }
+          extra={more}
         />
       ) : (
         <>
@@ -124,7 +113,6 @@ export function InboxItemCard({ row, filter, now }: { row: InboxListRow; filter:
                 </Button>
               </form>
             ) : null}
-            {dismiss}
             {more}
           </ItemButtons>
         </>

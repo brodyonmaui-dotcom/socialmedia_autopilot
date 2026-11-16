@@ -55,10 +55,11 @@ export function Dialog({
     if (!d) return;
     if (open && !d.open) {
       d.showModal();
-      if (initialFocus) d.querySelector<HTMLElement>(initialFocus)?.focus();
+      // Focus the requested control, else the title (not the close button: no stray focus ring on open).
+      (initialFocus ? d.querySelector<HTMLElement>(initialFocus) : d.querySelector<HTMLElement>(`[id="${CSS.escape(titleId)}"]`))?.focus();
     }
     if (!open && d.open) d.close();
-  }, [open, initialFocus]);
+  }, [open, initialFocus, titleId]);
 
   function onBackdrop(e: MouseEvent<HTMLDialogElement>) {
     if (e.target === e.currentTarget) close();
@@ -91,7 +92,7 @@ export function Dialog({
         )}
       >
         <div className={cx("flex items-start justify-between gap-3 px-4 pt-4 lg:px-5 lg:pt-5", hideTitle && "sr-only")}>
-          <h2 id={titleId} className="ds-heading min-w-0 pt-2">
+          <h2 id={titleId} tabIndex={-1} className="ds-heading min-w-0 pt-2 outline-none">
             {title}
           </h2>
           <button

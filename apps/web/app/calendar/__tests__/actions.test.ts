@@ -18,7 +18,7 @@ class Redirect extends Error {
   }
 }
 
-const actions = await import("../[id]/actions.js");
+const actions = await import("../actions.js");
 const exported = Object.entries(actions).filter(([, v]) => typeof v === "function") as Array<[string, (...a: unknown[]) => Promise<void>]>;
 
 beforeEach(() => {
@@ -28,12 +28,12 @@ beforeEach(() => {
   });
 });
 
-describe("batch actions without a session", () => {
+describe("calendar actions without a session", () => {
   it("exports the expected actions", () => {
     expect(exported.map(([n]) => n).sort()).toEqual(
       [
-        "addItemAction", "approveAction", "approveAllAction", "editAction", "fillTimesAction", "igCheckAction", "recordPublishedAction",
-        "rejectAction", "resetCheckedAction", "unapproveAction",
+        "approveAllAction", "approveItemsAction", "editTextAction", "fillTimesAction", "igCheckAction", "moveAction", "moveTomorrowAction",
+        "recordPublishedAction", "rejectItemsAction", "resetCheckedAction",
       ].sort(),
     );
   });
@@ -55,11 +55,19 @@ describe("batch actions without a session", () => {
   }
 });
 
-describe("batch actions with a session (fake pool)", () => {
+describe("calendar actions with a session (fake pool)", () => {
   const BATCH = "b0000000-0000-4000-8000-000000000001";
   const ITEM = "10000000-0000-4000-8000-000000000001";
 
-  function fakePool(status = "approved") {
+  const BACK = "/calendar?d=2099-01-06&day=2099-01-06";
+  const form = (fields: Record<string, string | string[]>) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(fields)) for (const x of Array.isArray(v) ? v : [v]) fd.append(k, x);
+    return fd;
+  };
+  const writes = (calls: Array<{ sql: string }>) => calls.filter((c) => /^(update|insert)/.test(c.sql.trim()));
+
+  function fakePool(status = "approved", caption = "calm caption") {
     const calls: Array<{ sql: string; params: unknown[] }> = [];
     const answer = (sql: string, params: unknown[] = []) => {
       calls.push({ sql, params });
@@ -68,7 +76,7 @@ describe("batch actions with a session (fake pool)", () => {
         return {
           rows: [
             {
-              id: ITEM, batch_id: BATCH, media_id: "m0000000-0000-4000-8000-000000000001", platform: "instagram", caption: "calm caption", title: null,
+              id: ITEM, batch_id: BATCH, media_id: "m0000000-0000-4000-8000-000000000001", platform: "instagram", caption, title: null,
               scheduled_for: new Date("2099-01-06T10:00:00Z"), status, trial: null, platform_post_id: null, approved_at: new Date(),
               attempts: 4, last_error: "gave up", key_tail: "abc123", platform_post_url: null,
               source_path: "clip.mp4", r2_key: "k", duration_s: "20", pillar: null, qa: null,
@@ -84,12 +92,14 @@ describe("batch actions with a session (fake pool)", () => {
     return { pool, client, calls };
   }
 
-  it("rejectAction: one conditional update in a transaction, audited with the session, then back to the batch", async () => {
+  it("rejectItemsAction: one conditional update in a transaction, audited with the session, then back to the calendar", async () => {
     auth.requireSession.mockResolvedValue(SESSION);
     const { pool, client, calls } = fakePool();
     db.getPool.mockReturnValue(pool);
 
-    await expect(actions.rejectAction(BATCH, [ITEM])).rejects.toMatchObject({ url: `/batches/${BATCH}` });
+    await expect(actions.rejectItemsAction(form({ back: BACK, item: `${BATCH}:${ITEM}` }))).rejects.toMatchObject({
+      url: expect.stringMatching(/^\/calendar\?d=2099-01-06&note=Rejected\+1/),
+    });
 
     expect(auth.requireSession).toHaveBeenCalledTimes(1);
     const sqls = calls.map((c) => c.sql.trim().split(/\s+/).slice(0, 3).join(" "));
@@ -113,12 +123,13 @@ describe("batch actions with a session (fake pool)", () => {
     db.getPool.mockReturnValue(pool);
     const { RESET_CHECKLIST } = await import("../../../lib/batches/reset.js");
     const fd = new FormData();
+    fd.set("back", BACK);
     fd.set("batchId", BATCH);
     fd.set("itemId", ITEM);
     fd.set("autoCheck", "not-found"); // ignored: the server runs its own check
     for (const c of RESET_CHECKLIST.instagram) fd.append("checked", c);
 
-    await expect(actions.resetCheckedAction(fd)).rejects.toMatchObject({ url: expect.stringMatching(new RegExp(`^/batches/${BATCH}\\?note=`)) });
+    await expect(actions.resetCheckedAction(fd)).rejects.toMatchObject({ url: expect.stringMatching(/^\/calendar\?d=2099-01-06&day=2099-01-06&note=/) });
     const upd = calls.find((c) => /^update batch_items/.test(c.sql.trim()))!;
     expect(upd.sql).toMatch(/set status = 'draft'/);
     expect(upd.sql).toMatch(/platform_post_id is null/);
@@ -142,5 +153,56 @@ describe("batch actions with a session (fake pool)", () => {
     await expect(actions.resetCheckedAction(fd)).rejects.toMatchObject({ url: expect.stringContaining("?error=") });
     expect(calls.some((c) => c.sql.trim() === "begin")).toBe(false);
     vi.unstubAllEnvs();
+  });
+
+  it("approveItemsAction: a draft without block warnings is approved through the approve transition", async () => {
+    auth.requireSession.mockResolvedValue(SESSION);
+    const { pool, calls } = fakePool("draft");
+    db.getPool.mockReturnValue(pool);
+    await expect(actions.approveItemsAction(form({ back: BACK, item: `${BATCH}:${ITEM}` }))).rejects.toMatchObject({ url: expect.stringContaining("note=Approved+1") });
+    const upd = calls.find((c) => /^update batch_items/.test(c.sql.trim()))!;
+    expect(upd.params.slice(0, 1)).toEqual(["approved"]);
+    const ev = calls.find((c) => /insert into batch_item_events/.test(c.sql))!;
+    expect(ev.params[1]).toBe("approve");
+  });
+
+  it("approveItemsAction / approveAllAction never approve a block-warning item (empty caption)", async () => {
+    auth.requireSession.mockResolvedValue(SESSION);
+    for (const fn of [actions.approveItemsAction, actions.approveAllAction]) {
+      const { pool, calls } = fakePool("draft", "");
+      db.getPool.mockReturnValue(pool);
+      await expect(fn(form({ back: BACK, item: `${BATCH}:${ITEM}` }))).rejects.toMatchObject({ url: expect.stringContaining("error=Nothing+approved") });
+      expect(writes(calls)).toEqual([]);
+    }
+  });
+
+  it("editTextAction: the edit transition (approved → back to draft), audited", async () => {
+    auth.requireSession.mockResolvedValue(SESSION);
+    const { pool, calls } = fakePool("approved");
+    db.getPool.mockReturnValue(pool);
+    await expect(actions.editTextAction(form({ back: BACK, item: `${BATCH}:${ITEM}`, [`caption:${ITEM}`]: "a new calm caption" }))).rejects.toMatchObject({ url: expect.stringContaining("note=Saved+1") });
+    const ev = calls.find((c) => /insert into batch_item_events/.test(c.sql))!;
+    expect(ev.params.slice(1, 4)).toEqual(["edit", "approved", "draft"]);
+  });
+
+  it("moveAction: an edit of the time; a move into the past is refused and writes nothing", async () => {
+    auth.requireSession.mockResolvedValue(SESSION);
+    const ok = fakePool("approved");
+    db.getPool.mockReturnValue(ok.pool);
+    await expect(actions.moveAction(form({ back: BACK, item: `${BATCH}:${ITEM}`, date: "2099-01-08" }))).rejects.toMatchObject({ url: expect.stringContaining("note=Moved+1") });
+    const ev = ok.calls.find((c) => /insert into batch_item_events/.test(c.sql))!;
+    expect(ev.params[1]).toBe("edit");
+
+    const past = fakePool("approved");
+    db.getPool.mockReturnValue(past.pool);
+    await expect(actions.moveAction(form({ back: BACK, item: `${BATCH}:${ITEM}`, date: "2001-01-01" }))).rejects.toMatchObject({ url: expect.stringContaining("error=Can%27t+move+there") });
+    expect(writes(past.calls)).toEqual([]);
+  });
+
+  it("only returns to /calendar or Home (never an open redirect)", async () => {
+    auth.requireSession.mockResolvedValue(SESSION);
+    const { pool } = fakePool();
+    db.getPool.mockReturnValue(pool);
+    await expect(actions.rejectItemsAction(form({ back: "https://evil.example.com", item: `${BATCH}:${ITEM}` }))).rejects.toMatchObject({ url: expect.stringMatching(/^\/calendar\?note=/) });
   });
 });

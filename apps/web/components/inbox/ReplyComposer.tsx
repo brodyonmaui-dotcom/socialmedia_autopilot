@@ -66,7 +66,7 @@ export function ReplyComposer({
       </form>
       <div className={cx("flex flex-wrap items-center gap-2", lg && "flex-col items-stretch sm:flex-row sm:items-center")}>
         {!open && mode === "write" ? (
-          <Button variant="solid" size={lg ? "md" : "sm"} block={lg} className={lg ? "h-12 text-[16px] sm:w-auto sm:min-w-56" : undefined} aria-expanded={false} onClick={() => setOpen(true)}>
+          <Button variant={lg ? "solid" : "outline"} size={lg ? "md" : "sm"} block={lg} className={lg ? "h-12 text-[16px] sm:w-auto sm:min-w-56" : undefined} aria-expanded={false} onClick={() => setOpen(true)}>
             Write a reply
           </Button>
         ) : (
@@ -74,11 +74,11 @@ export function ReplyComposer({
             {mode === "write" ? "Send reply" : open ? "Send edited reply" : "Approve & send"}
           </Button>
         )}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={cx("flex flex-wrap items-center gap-2", !lg && "contents")}>
           {open && !(mode === "write" && lg) ? (
             <Button
               variant="outline"
-              size="sm"
+              size={lg ? "md" : "sm"}
               aria-expanded
               onClick={() => {
                 setText(draft ?? "");
@@ -88,7 +88,7 @@ export function ReplyComposer({
               Cancel
             </Button>
           ) : mode === "approve" ? (
-            <Button variant="outline" size="sm" aria-expanded={false} onClick={() => setOpen(true)}>
+            <Button variant="outline" size={lg ? "md" : "sm"} aria-expanded={false} onClick={() => setOpen(true)}>
               Edit
             </Button>
           ) : null}

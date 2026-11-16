@@ -95,7 +95,11 @@ export function PostCard({
           <h3 className="ds-font-display min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap pt-0.5 text-[20px] leading-tight text-ds-text lg:text-[22px]">{e.title}</h3>
           {menu.length ? <div className="-mr-1.5 -mt-1.5 shrink-0"><Menu label={`Actions for ${e.title}`} items={menu} /></div> : null}
         </div>
-        {e.caption ? <p className="line-clamp-2 text-[14px] leading-snug text-ds-muted">{e.caption}</p> : <p className="text-[14px] text-ds-muted">No caption yet.</p>}
+        {e.caption ? (
+          <p className="line-clamp-2 text-[14px] leading-snug text-ds-muted">{e.caption}</p>
+        ) : (
+          <p className="text-[14px] text-ds-muted">{e.platforms.every((p) => p.platform === "snapchat") ? "Shared by hand; the text is added in Snapchat." : "No caption yet."}</p>
+        )}
         <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1.5">
           <ul className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="Platforms">
             {e.platforms.map((p) => (

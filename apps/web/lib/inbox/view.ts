@@ -230,7 +230,7 @@ const REASONS: Array<[string, ChipView]> = [
   ["threat", { label: "Threat", tone: "danger" }],
   ["doxxing", { label: "Personal info", tone: "danger" }],
   ["scam", { label: "Scam", tone: "danger" }],
-  ["location/schedule", { label: "Asks where you are", tone: "warn" }],
+  ["location/schedule", { label: "Location", tone: "warn" }],
   ["blocklist", { label: "Private word", tone: "warn" }],
   ["brand/business", { label: "Business", tone: "neutral" }],
   ["link", { label: "Has a link", tone: "neutral" }],
