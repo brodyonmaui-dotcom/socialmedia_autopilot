@@ -1,0 +1,34 @@
+# Brief: Calendar replaces "Batches" (designer: data layer + UI)
+
+Read `docs/prep/run-4-agent-rules.md` (binding), `docs/design/ui-system.md` v3 (sections Hard rules, Core components, Calendar), `CLAUDE.md`. You do not commit. Your port and dist dir are in the task message.
+
+## Goal
+`/calendar` is the one place where he sees, approves, edits, moves, rejects and retries posts. The word "batch" disappears from the UI. The data model (`batches`, `batch_items`, events) and every approval rule stay exactly as they are.
+
+## Safety frame
+- Every state change goes through the existing `planTransition` (`apps/web/lib/batches/transitions.ts`) and `PgBatchStore.apply`, with fresh server-side warnings (`computeWarnings`), exactly as the batch screen and `apps/web/lib/editor/approve.ts` do today. Reuse the existing server actions in `apps/web/app/batches/[id]/` and `apps/web/app/editor/actions.ts` (move them to `apps/web/app/calendar/actions.ts` or import them; don't fork their logic). No new SQL that writes `batch_items.status`, `approved_at` or `scheduled_for` outside the store.
+- F11 flows (reset a failed/unknown post, record as posted) keep every confirmation step (`ResetSheet`: all boxes ticked before Confirm).
+- "Approve all" needs a confirm Dialog that lists the count per platform and names anything that will stay (block warnings).
+- "Move" re-validates through the same transition as an edit of the time (caps, gaps, past-time checks). Offer: Tomorrow (the existing editor slotting for editor drafts), or pick a date + time. A refused move shows the reason in plain words and changes nothing.
+- Nothing here may publish; the worker's gates are untouched.
+
+## Build
+1. **Data layer** `apps/web/lib/calendar/` (pure + tested, plus one pg loader):
+   - `loadCalendar(pool, { from, to, timeZone })` → days → entries. An **entry groups one clip's platform items on one creator-local day**: `{ key, mediaId, title, caption, pillar: 'gym'|'trading'|other|null, platforms: Array<{ itemId, batchId, platform, time (local HH:MM), scheduledFor, status, statusLabel, tone, text: { caption, title }, warnings, canApprove, canEdit, canReset, tiktokDraft }>, status: the group's roll-up (needs-you > failed/unknown > approved > published), firstTime }`. Title = the YouTube title when there is one, else the media label, else the caption's first line. Local day and time come from `TZ_CREATOR` via the existing helpers (`handoffContext()` shows how the zone is read); when it isn't set, say so once at the top of the page (plain sentence, link to Settings) and fall back to UTC.
+   - Month matrix builder (weeks start Monday, leading/trailing days), week builder, per-day counts incl. "needs him" flag. Unscheduled drafts (no time) appear in a "No time yet" section of the page with "Fill times" (existing action).
+   - Status words (no jargon): Draft → "Needs approval", approved → "Approved", publishing → "Posting", published → "Posted", failed → "Failed", unknown → "Check it", rejected → hidden unless the "Show rejected" toggle is on.
+2. **Components** in `apps/web/components/calendar/`: `MonthGrid`, `WeekView`, `DayDialog`, `PostCard`, `PostHoverPreview`, `MoveDialog`, `EditTextDialog` (per-platform caption/title fields with the existing lint feedback), `ApproveAllDialog`. `PostCard` is also used on Home ("From your editors"): export it from `apps/web/components/calendar/index.ts` with a compact `actions` prop so Home can pass Approve only. Replace Home's temporary editor card with it if that is a small change (file: `apps/web/app/page.tsx`; coordinate through your report if another agent is in that file).
+3. **Page** `apps/web/app/calendar/page.tsx`: URL-driven state (`?view=month|week`, `?d=YYYY-MM-DD` anchor, `?day=YYYY-MM-DD` opens the Day Dialog, `?edit=<itemId>` etc.), so every state is linkable, works without client JS for navigation, and server actions redirect back to the same URL with a short result note ("Approved 3. 1 stayed: TikTok needs a caption").
+4. **Redirects**: `/batches` → `/calendar`; `/batches/[id]` → `/calendar?view=week&d=<that batch's week_start>`; keep any deep links used by alerts/push working (grep for `/batches` across `apps/`, `packages/`, `scripts/` and update link builders + their tests). Then delete the old batches pages and the now-unused `apps/web/components/editor/EditorCard.tsx` if nothing imports it. Replace every user-visible "batch"/"Batches" string in `apps/web` (alerts messages are produced in packages too: grep `packages/` and `apps/worker` for user-visible strings containing "batch" and change the wording only, not identifiers or alert kinds).
+5. **Snapchat** items show like the others (status "Share by hand" when due); their menu has "Open handoff" → `/platforms/snapchat` (until that page exists, link `/handoff`).
+6. **Seed check**: the seed week must show a believable calendar: published posts in past weeks, this week a mix of approved, needs-approval (some from the editor), one failed, one "check it", Snapchat daily. If the seed lacks a state, add rows in `scripts/dev/lib/seed-calendar.ts` (+ one line in `scripts/dev/seed.ts`).
+
+## Look
+- The month grid must feel like a real calendar app: generous cells (desktop min-height 112 px), quiet numbers, entries as one-line pills with the platform glyph, no lines other than the grid's own hairlines, today clearly marked. On a 390 px phone the cells are compact (about 52 × 64) with dots, and tapping a day opens the Day Dialog as a bottom sheet (max-height 85vh, scrolls inside).
+- `PostCard` proportions per the spec: about 112 px tall, 9:16 thumb on the left, display-font title, two-line caption, logos row. At 390 px nothing wraps awkwardly: the status Badge moves under the logos if needed; the ⋯ menu stays top-right.
+- Hover preview: a Popover anchored to the thumb, 280 px wide, larger poster on top, full caption, then each platform's text under its glyph + name. On touch it opens on tap of the thumb and closes on outside tap.
+
+## Acceptance
+- typecheck, full tests with DATABASE_URL, web build with your dist dir.
+- Tests: grouping (same clip, 3 platforms, one day → one entry; a clip posting on two different days → two entries), month matrix across a month boundary and a DST change, roll-up status precedence, redirect targets, and action tests proving approve / approve-all / edit / move / reject / reset go through `planTransition` (reuse the existing action tests as the template; a block-warning item is never approved from the calendar).
+- Shots saved to `docs/design/ui-shots/v3/`: `calendar-month-{phone,phone-night,desktop,desktop-night}.png`, `calendar-week-{phone,desktop}.png`, `calendar-day-{phone,desktop}.png` (dialog open), `calendar-hover-desktop.png` (preview open), `calendar-menu-phone.png`. Review each against the hard rules before reporting.
