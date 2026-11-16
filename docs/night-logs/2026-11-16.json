@@ -5,17 +5,21 @@
   "model": "lead + Opus designers/implementers",
   "session": "cloud · fable run 4",
   "backlogItem": "Run 4 · usable, functional, beautiful (UI v3 + calendar, all-posts analytics, inbox triage, research, fix-it, settings)",
-  "summary": "In progress. Safety hunks reviewed (three small fixes delegated). UI system v3 spec written. Wave 1 building: shell + Home, poster frames, all-posts analytics.",
+  "summary": "In progress. Safety review done and fixes merged; poster frames and all-posts analytics committed. Running: v3 shell + Home, inbox triage backend, research backend. A 5-hour limit pause happened at about 02:40 UTC; work resumed 06:41 UTC with nothing lost.",
   "needsAttention": [],
   "done": [
     "Reviewed the run-4 brief hunks: tick lock, scheduler window/sameDay, editor write, ready plan, one-tap approve, move to tomorrow, YouTube findExisting, migration 0009",
     "docs/design/ui-system.md v3 (the spec for every screen)",
-    "Briefs for the next wave: docs/prep/run-4-briefs/{inbox,research,touchup}.md"
+    "Briefs for the next wave: docs/prep/run-4-briefs/{inbox,research,touchup}.md",
+    "Review fixes: same-instant guard, HH:MM earliest on move-to-tomorrow, YouTube lookup page 50",
+    "Poster frames: ingest, backfill command, session-guarded proxy, migration 0010",
+    "Analytics for all account posts: IG + YouTube ingest, matching, findings with sample sizes, loaders, migration 0011",
+    "Briefs: calendar.md, pages.md"
   ],
   "notDone": [
-    "Wave 1 (running): v3 shell + Home; poster frames + 3 safety fixes; analytics for all posts",
-    "Wave 2: calendar (replaces batches), inbox backend, research backend",
-    "Wave 3: touch-up fix-it backend; pages for analytics, inbox, research, library, platforms, settings",
+    "Running: v3 shell + Home (designer), inbox backend (0012), research backend (0013)",
+    "Next: calendar (docs/prep/run-4-briefs/calendar.md), touch-up fix-it backend (touchup.md, 0014)",
+    "Then pages A-E in docs/prep/run-4-briefs/pages.md",
     "Close-out: delete old components, ui-shots v3, run-5 plan, PR"
   ],
   "decisions": [
@@ -27,15 +31,21 @@
     "Brief decision c: caption.missing keeps applying to all items",
     "Display font: Imbue (OFL, tall condensed didone), self-hosted; Inter for everything else; one font per phrase",
     "Research generation runs as a worker job with code-written notes (no AI cost); Haiku notes are an opt-in setting with a monthly token budget, default off",
-    "Fix-it runs in the worker (always on, reads R2); originals are kept; a fix is a new media row"
+    "Fix-it runs in the worker (always on, reads R2); originals are kept; a fix is a new media row",
+    "Screenshots and the app run on a separate clean DB (autopilot_demo); tests keep autopilot_dev, because a db test leaves rows that make the seed refuse the DB",
+    "Default daily caps become his choice (IG 6, YT 10, TikTok 7, Snapchat 1) in the Settings task"
   ],
   "blocked": [],
-  "tests": { "passed": null, "failed": null, "notes": "baseline before the run: 1589 passing on main per the build-run log" },
-  "commits": 1,
+  "tests": {
+    "passed": null,
+    "failed": null,
+    "notes": "baseline before the run: 1589 passing on main per the build-run log"
+  },
+  "commits": 4,
   "prUrl": null,
   "nextPickup": [
-    "If agents from wave 1 were cut off: check `git status`, run `pnpm typecheck` and `pnpm test` with DATABASE_URL, then re-brief from docs/design/ui-system.md and docs/prep/run-4-agent-rules.md",
-    "Launch wave 2 from docs/prep/run-4-briefs/inbox.md and research.md (implementer, Opus) and the calendar designer task (spec: ui-system.md, Calendar section)",
-    "Then touchup.md, then the page designers (analytics, inbox, research, library, platforms, settings)"
+    "Check git status: uncommitted files belong to the shell/Home, inbox and research agents. Resume them by SendMessage if this session still has them; otherwise re-brief from docs/prep/run-4-briefs/*.md (they list files and acceptance)",
+    "Start Postgres (bash scripts/dev/local-stack.sh), demo DB = autopilot_demo with DEV_POSTER_DIR=logs/dev-posters",
+    "Then calendar.md (designer), touchup.md (implementer), pages.md sections A-E (designers, max 3 at once)"
   ]
 }
