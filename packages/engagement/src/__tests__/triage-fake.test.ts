@@ -36,7 +36,7 @@ describe("createFakeTriageClient", () => {
   it("unsafe signals beat praise in the defaults", async () => {
     expect((await t.triage(c("nice pace, where is this trail?"), {})).bucket).toBe("flag");
     expect((await t.triage(c("love it, kys"), {})).bucket).toBe("hide_flag");
-    expect(DEFAULT_FAKE_RULES).toHaveLength(4);
+    expect(DEFAULT_FAKE_RULES).toHaveLength(6);
   });
 
   it("custom rules, first match wins, confidence override", async () => {

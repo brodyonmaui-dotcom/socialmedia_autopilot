@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, CONTAINER, Chip, Icon, Readout, StatusPulse, cx } from "../../../components/ui/index.js";
+import { Button, Card, Chip, Icon, StatusPulse, cx } from "../../../components/ui/index.js";
 import { pushPulse } from "../../../lib/alerts/view.js";
 import { sendTestAction, subscribeAction, unsubscribeAction, type PushActionResult } from "../push-actions.js";
 import { SW_SCOPE, SW_URL, deviceLabel, pushSupport, urlBase64ToUint8Array, type PushSupport } from "./push-client.js";
@@ -91,20 +91,18 @@ export function EnablePush({ vapidPublicKey, activeCount }: { vapidPublicKey: st
   const pulse = pushPulse(support, subscribed);
 
   return (
-    <div className="border-b border-ds-line">
-      <div className={cx(CONTAINER, "grid grid-cols-4 lg:grid-cols-12")}>
-        <div className="col-span-4 flex min-w-0 flex-col gap-4 py-6 lg:col-span-7 lg:py-10 lg:pr-10">
-          <StatusPulse tone={pulse.tone} label={pulse.label} />
-          <p className="text-[18px] font-bold leading-snug tracking-[-0.01em]">Urgent alerts are pushed to the phone.</p>
-          <p className="ds-note">The notification says how many and what kind, never the alert text.</p>
+    <Card title="Push notifications" titleId="push-title" subtitle="Urgent alerts are pushed to the phone: how many and what kind, never the alert text.">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-3">
+          <StatusPulse tone={pulse.tone} label={pulse.label} className="text-ds-text" />
           {support && support !== "ok" ? (
             <Chip tone="warn" wrap>
               {HINT[support]}
             </Chip>
           ) : null}
-          <Readout items={[{ k: "Devices", v: `${activeCount} subscribed` }]} />
+          <p className="ds-num text-[13px] text-ds-muted">{activeCount === 1 ? "1 device subscribed" : `${activeCount} devices subscribed`}</p>
         </div>
-        <div className="col-span-4 flex min-w-0 flex-col justify-center gap-2 pb-6 lg:col-span-5 lg:border-l lg:border-ds-line lg:py-10 lg:pl-10">
+        <div className="flex min-w-0 flex-col gap-2 sm:w-64 sm:shrink-0">
           {support === "ok" ? (
             subscribed ? (
               <>
@@ -116,7 +114,7 @@ export function EnablePush({ vapidPublicKey, activeCount }: { vapidPublicKey: st
                 </Button>
               </>
             ) : (
-              <Button variant="solid" block arrow disabled={busy || subscribed === null} onClick={enable}>
+              <Button variant="outline" block disabled={busy || subscribed === null} onClick={enable}>
                 Enable notifications
               </Button>
             )
@@ -129,6 +127,6 @@ export function EnablePush({ vapidPublicKey, activeCount }: { vapidPublicKey: st
           ) : null}
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

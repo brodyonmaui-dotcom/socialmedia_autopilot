@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getPool } from "../../../lib/db.js";
-import { requireSession } from "../../../lib/auth/require.js";
-import { parseCapsForm, updateCaps } from "../../../lib/settings/caps.js";
+import { getPool } from "../../lib/db.js";
+import { requireSession } from "../../lib/auth/require.js";
+import { parseCapsForm, updateCaps } from "../../lib/settings/caps.js";
 
-const PATH = "/more/settings";
+const PATH = "/settings";
 
 /** Form fields: cap-<platform> (whole numbers, 0..CAP_LIMITS). Merges into the 'cadence' row and writes the audit alert. */
 export async function saveCapsAction(fd: FormData): Promise<void> {

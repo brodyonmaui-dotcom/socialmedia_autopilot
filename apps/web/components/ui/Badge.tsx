@@ -5,10 +5,10 @@ import { Icon, type IconName } from "./Icon.js";
 export type BadgeTone = "neutral" | "accent" | "warn" | "danger" | "solid";
 
 const BADGE_TONE: Record<BadgeTone, string> = {
-  neutral: "border border-ds-line-strong text-ds-text",
+  neutral: "border border-ds-line bg-ds-raised text-ds-text",
   accent: "border border-ds-accent bg-ds-accent text-ds-ink",
-  warn: "border border-ds-warn text-ds-warn",
-  danger: "border border-ds-danger text-ds-danger",
+  warn: "border border-ds-warn/60 text-ds-warn",
+  danger: "border border-ds-danger/60 text-ds-danger",
   solid: "border border-ds-invert bg-ds-invert text-ds-on-invert",
 };
 
@@ -20,7 +20,7 @@ export function Badge({ tone = "neutral", className, children, ...rest }: BadgeP
   return (
     <span
       className={cx(
-        "inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 ds-caps text-[10px] leading-none ds-num",
+        "inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-[12px] font-semibold leading-none ds-num",
         BADGE_TONE[tone],
         className,
       )}
@@ -49,13 +49,13 @@ export type ChipProps = HTMLAttributes<HTMLSpanElement> & {
   children: ReactNode;
 };
 
-/** Sharp 1px-line tag (warnings, hashtags, platform). Warn/danger default to the alert icon. */
+/** 8 px-radius hairline tag (warnings, triage reason, "No sound yet"). Warn/danger default to the alert icon. */
 export function Chip({ tone = "neutral", icon, wrap = false, className, children, ...rest }: ChipProps) {
   const shown: IconName | undefined = icon ?? (tone === "warn" || tone === "danger" ? "alert" : undefined);
   return (
     <span
       className={cx(
-        "inline-flex gap-1.5 border bg-ds-card px-3 text-[13px]",
+        "inline-flex gap-1.5 rounded-ds-sm border bg-ds-card px-2.5 text-[13px]",
         wrap ? "min-h-8 max-w-full items-start py-[8px] leading-[16px] [overflow-wrap:anywhere]" : "h-8 shrink-0 items-center whitespace-nowrap leading-none",
         CHIP_TONE[tone],
         className,

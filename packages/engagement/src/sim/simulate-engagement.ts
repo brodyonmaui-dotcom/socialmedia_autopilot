@@ -30,7 +30,7 @@ export interface SimulateEngagementOptions {
   unsafeSkipRules?: boolean;
 }
 
-export type Category = "praise" | "emoji" | "mockery" | "fake" | "threat" | "scam" | "question" | "location" | "brand" | "market" | "own";
+export type Category = "praise" | "emoji" | "mockery" | "fake" | "threat" | "scam" | "question" | "location" | "brand" | "market" | "own" | "promo";
 
 export interface EngagementInvariants {
   doubleReplies: number;
@@ -40,6 +40,10 @@ export interface EngagementInvariants {
   unsafeReplies: number;
   ownReplies: number;
   hidesWhileDisabled: number;
+  /** any engagement action (reply or hide, any status) for a promo-spam comment: must be 0 */
+  promoActions: number;
+  /** promo comments that did not end in the spam_promo bucket */
+  promoMissed: number;
   shadowSends: number;
   unknownResent: number;
 }
@@ -94,6 +98,7 @@ const TEMPLATES: Array<[Category, number, string[]]> = [
   ["brand", 7, ["collab?", "we'd love a brand partnership, dm us", "sponsor opportunity for you", "dm me for a promo"]],
   ["market", 6, ["clean NY session today", "great London open trade", "nice Asia session read"]],
   ["own", 3, ["thanks everyone for the support"]],
+  ["promo", 8, ["love it 🔥 send it to @fit_features_hub", "DM us to be featured", "We'd love to feature you on our page", "paid promotion available, inbox us", "s4s?", "check out our page for more", "nice 🔥 submit to @gym_reels_spot", "grow your page with real followers"]],
 ];
 
 function pick<T>(rng: () => number, xs: readonly T[]): T {
@@ -159,12 +164,13 @@ export async function simulateEngagement(opts: SimulateEngagementOptions = {}): 
   const scripts = new Map<string, FakeBehaviour[]>(); // key(platform, commentId) → script (our copy; the fake consumes its own)
   const commentStore = new Map<string, SimComment>();
   const categoryOf = new Map<string, Category>();
+  const promoComments = new Set<string>();
   const generated = generate(n, rng);
 
   const report: SimulateEngagementReport = {
     ok: false, mode, seed, comments: generated.length, unique: 0, duplicatesIgnored: 0, categories: {}, buckets: {},
     replies: 0, hides: 0, flags: 0, sent: 0, retried: 0, failed: 0, unknown: 0, pending: 0, ticks: 0, killedNow: null,
-    invariants: { doubleReplies: 0, limitBreaches: 0, locationLeaks: 0, unsafeReplies: 0, ownReplies: 0, hidesWhileDisabled: 0, shadowSends: 0, unknownResent: 0 },
+    invariants: { doubleReplies: 0, limitBreaches: 0, locationLeaks: 0, unsafeReplies: 0, ownReplies: 0, hidesWhileDisabled: 0, promoActions: 0, promoMissed: 0, shadowSends: 0, unknownResent: 0 },
     checks: [], alerts: {}, actions: [], log, summary: "",
   };
   const alerts: EngagementAlert[] = [];
@@ -189,6 +195,7 @@ export async function simulateEngagement(opts: SimulateEngagementOptions = {}): 
       src.behaviours.set(c.platformCommentId, [...script]);
     }
 
+    if (category === "promo") promoComments.add(k);
     let t: TriageResult;
     const hit = opts.unsafeSkipRules ? null : preRules(c);
     if (hit) t = { bucket: hit.bucket, reply: null, confidence: 1, reasons: [hit.reason], model: "rules" };
@@ -197,6 +204,7 @@ export async function simulateEngagement(opts: SimulateEngagementOptions = {}): 
       if (!opts.unsafeSkipRules) t = postRules(t, c);
     }
     report.buckets[t.bucket] = (report.buckets[t.bucket] ?? 0) + 1;
+    if (category === "promo" && t.bucket !== "spam_promo") report.invariants.promoMissed++;
 
     for (const p of await planActions(c, t, settings, store, now)) {
       if (p.kind === "flag") report.flags++;
@@ -285,6 +293,7 @@ export async function simulateEngagement(opts: SimulateEngagementOptions = {}): 
       if (!live) inv.shadowSends += calls;
     }
     if (!settings.hideEnabled[p]) inv.hidesWhileDisabled += src.calls.filter((c) => c.op === "hide").length;
+    inv.promoActions += src.calls.filter((c) => promoComments.has(key(p, c.platformCommentId))).length;
   }
   const perCommentKind = new Map<string, number>();
   for (const a of store.actions) {
@@ -306,6 +315,7 @@ export async function simulateEngagement(opts: SimulateEngagementOptions = {}): 
   }
 
   for (const a of store.actions) {
+    if (promoComments.has(a.commentId)) inv.promoActions++; // promo spam is never replied to or hidden
     if (a.kind === "hide" && !settings.hideEnabled[a.platform]) inv.hidesWhileDisabled++;
     if (a.kind !== "reply") continue;
     const text = a.text ?? "";
@@ -340,7 +350,7 @@ export async function simulateEngagement(opts: SimulateEngagementOptions = {}): 
   const failing = report.checks.filter((c) => !c.ok).map((c) => c.name);
   report.summary =
     `simulate-engagement (${mode}): ${report.ok ? "OK" : "FAIL"} ${report.comments} comments · replies ${report.replies} · hides ${report.hides} · flags ${report.flags} · sent ${report.sent}` +
-    ` · ${inv.doubleReplies} double-replies · ${inv.limitBreaches} limit breaches · ${inv.locationLeaks} location leaks · kill: ${report.killedNow ? "tripped" : "not tripped"}` +
+    ` · ${inv.doubleReplies} double-replies · ${inv.limitBreaches} limit breaches · ${inv.locationLeaks} location leaks · ${inv.promoActions} promo replies · kill: ${report.killedNow ? "tripped" : "not tripped"}` +
     (failing.length ? ` · FAILED: ${failing.join("; ")}` : "");
   return report;
 }

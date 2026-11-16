@@ -1,302 +1,308 @@
-import { CAPABILITIES, type Platform } from "@autopilot/core";
+import Link from "next/link";
 import { AppFrame } from "../components/AppFrame.js";
+import { loadFrameCounts } from "../components/frame-counts.js";
 import {
+  Avatar,
+  BarChart,
+  Button,
   ButtonLink,
   Card,
-  Chip,
-  CONTAINER,
-  Display,
+  CardLink,
+  DataList,
+  DataRow,
+  Dropdown,
   EmptyState,
-  FooterBand,
-  FramedImage,
-  GlassCard,
-  ListRow,
-  ListRows,
-  Marquee,
-  MonthCalendar,
+  InlineNotice,
+  PageHeader,
   PLATFORM_NAME,
   PlatformLogo,
-  ProgressBar,
-  Readout,
-  RevealList,
-  SectionHead,
-  Statement,
-  StatPair,
   StatTile,
-  StatusPulse,
+  Thumb,
   cx,
+  type ChartSeries,
+  type IconName,
+  type StatTint,
 } from "../components/ui/index.js";
+import { approveEditorRender } from "./editor/actions.js";
+import { sendManualAction } from "./inbox/actions.js";
 import { requireSession } from "../lib/auth/require.js";
-import { PgBatchStore } from "../lib/batches/pg-store.js";
+import { formatDuration } from "../lib/batches/view-model.js";
 import { getPool } from "../lib/db.js";
 import { loadEditorRenders } from "../lib/editor/queries.js";
-import { EditorSection } from "../components/editor/EditorCard.js";
-import { Notice } from "./batches/ui/Notice.js";
+import { listInbox, relativeTime } from "../lib/engagement/queries.js";
 import { handoffContext, listHandoff } from "../lib/handoff/store.js";
 import {
-  batchProgress,
-  heroLines,
-  isoWeek,
-  marqueeItems,
-  monthMarks,
-  nextPostShort,
-  plural,
-  routeLabel,
-  snapLine,
-  upNextMeta,
-  upNextTitle,
-  type LatestBatch,
-  type UpNextRow,
-} from "../lib/home/view.js";
+  activityBars,
+  buildKpis,
+  editorTiles,
+  hasActivity,
+  kpiText,
+  loadHome,
+  parseMetric,
+  parseRange,
+  periodsFor,
+  RANGES,
+  rangeText,
+  replyTiles,
+  weekSchedule,
+  type Kpi,
+  type MetricId,
+  type RangeId,
+} from "../lib/home/dashboard.js";
 
 export const dynamic = "force-dynamic";
-
-/** Bordered cells with collapsed 1px edges (same approach as CardGrid / the /design guide). */
-const CELLS = "grid grid-cols-4 lg:grid-cols-12 pl-px pt-px";
-const CELL = "-ml-px -mt-px";
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+export const metadata = { title: "Home · My Socials" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const param = (v: string | string[] | undefined) => (typeof v === "string" ? v.slice(0, 300) : undefined);
 
-export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
+const KPI_ICON: Record<Kpi["id"], IconName> = { followers: "users", views: "eye", engagement: "heart", posts: "send" };
+const SERIES: ChartSeries[] = (["instagram", "youtube", "tiktok", "snapchat"] as const).map((p) => ({ id: p, label: PLATFORM_NAME[p], platform: p }));
+
+function homeHref(range: RangeId, metric: MetricId): string {
+  const q = new URLSearchParams();
+  if (range !== "week") q.set("range", range);
+  if (metric !== "views") q.set("metric", metric);
+  const s = q.toString();
+  return s ? `/?${s}` : "/";
+}
+
+/** v3 Home: KPI tiles, Activity + This week, From your editors + Needs a reply, and the Snapchat strip when relevant. */
+export default async function HomePage({ searchParams }: { searchParams: SearchParams }) {
   await requireSession();
   const sp = await searchParams;
+  const range = parseRange(sp.range);
+  const metric = parseMetric(sp.metric);
   const pool = getPool();
   const now = new Date();
-  // Read-only, indexed counts. The first three also feed the frame's badges (passed in, not re-queried).
-  const [batchRows, alertRows, flaggedRows, latestAlert, outboxRows, upNext, monthRows, latest, editors] = await Promise.all([
-    pool.query("select status, count(*)::int as n from batches group by status"),
-    pool.query("select count(*)::int as n from alerts where acknowledged_at is null"),
-    pool.query("select count(*)::int as n from comment_triage where bucket in ('flag', 'hide_flag') and handled_at is null"),
-    pool.query("select message from alerts where acknowledged_at is null order by created_at desc limit 1"),
-    pool.query("select count(*)::int as n from batch_items where status in ('failed', 'unknown')"),
-    // Up next: approved posts with a time still ahead (count(*) over () = all of them, before the limit).
-    pool.query(
-      `select bi.id, bi.batch_id, bi.platform, bi.title, bi.caption, bi.scheduled_for, m.duration_s, count(*) over ()::int as total
-         from batch_items bi
-         join batches b on b.id = bi.batch_id
-         join media m on m.id = bi.media_id
-        where bi.status in ('approved', 'queued', 'publishing') and b.status = 'approved' and bi.scheduled_for >= $1
-        order by bi.scheduled_for asc, bi.created_at asc
-        limit 5`,
-      [now],
-    ),
-    // Calendar marks: a window around this month (the creator-local month is cut in monthMarks()).
-    pool.query(
-      `select scheduled_for, status from batch_items
-        where scheduled_for >= $1 and scheduled_for < $2 and status not in ('draft', 'rejected')`,
-      [new Date(now.getTime() - 32 * 86_400_000), new Date(now.getTime() + 32 * 86_400_000)],
-    ),
-    new PgBatchStore(pool).listBatches(1),
-    // F15: editor drafts (read-only; warnings computed per whole batch).
-    loadEditorRenders(pool, now),
-  ]);
-  const hasEditors = editors.renders.length > 0;
-  const idx = (n: number) => String(hasEditors ? n + 1 : n).padStart(2, "0");
-  const flagged = (flaggedRows.rows[0]?.n as number | undefined) ?? 0;
-  const batchCount = (s: string) => (batchRows.rows as Array<{ status: string; n: number }>).find((r) => r.status === s)?.n ?? 0;
-  const openAlerts = (alertRows.rows[0]?.n as number | undefined) ?? 0;
-  const stuck = (outboxRows.rows[0]?.n as number | undefined) ?? 0;
-  const latestAlertText = latestAlert.rows[0]?.message as string | undefined;
-  const platforms = Object.entries(CAPABILITIES) as Array<[Platform, (typeof CAPABILITIES)[Platform]]>;
-  // F10: Snapchat items due today (null when TZ_CREATOR is unset: no guessing "today").
-  const snapCtx = handoffContext();
-  const snapToday = snapCtx.timeZone ? (await listHandoff(pool, new Date(), snapCtx.timeZone, snapCtx.blocklist)).today.length : null;
-  const tz = snapCtx.timeZone;
+  const zone = handoffContext().timeZone;
+  const tz = zone ?? "UTC";
 
-  const batch: LatestBatch | null = latest[0] ? { id: latest[0].id, weekStart: latest[0].weekStart, status: latest[0].status, counts: latest[0].counts } : null;
-  const progress = batch ? batchProgress(batch.counts) : null;
-  const week = batch ? isoWeek(batch.weekStart) : null;
-  const next: UpNextRow[] = upNext.rows.map((r) => ({
-    id: r.id,
-    batchId: r.batch_id,
-    platform: r.platform as Platform,
-    title: r.title,
-    caption: r.caption,
-    scheduledFor: new Date(r.scheduled_for),
-    durationS: r.duration_s == null ? null : Number(r.duration_s),
-  }));
-  const upcomingTotal = (upNext.rows[0]?.total as number | undefined) ?? 0;
-  const cal = monthMarks(
-    monthRows.rows.map((r) => ({ scheduledFor: new Date(r.scheduled_for), status: String(r.status) })),
-    now,
-    tz,
-  );
-  const first = next[0];
-  const footerLink =
-    flagged > 0
-      ? { href: "/inbox", label: `Inbox — ${flagged} waiting`, sub: "Flagged comments" }
-      : snapToday
-        ? { href: "/handoff", label: `Snapchat — ${snapToday} today`, sub: "Tap to share" }
-        : { href: "/batches", label: "Batches", sub: `${plural(batchCount("draft"), "draft")} · ${batchCount("approved")} approved` };
+  const [counts, home, editors, flagged, snapToday] = await Promise.all([
+    loadFrameCounts(pool),
+    loadHome(pool, now, tz, range),
+    loadEditorRenders(pool, now),
+    listInbox(pool, "flagged", 4),
+    // Snapchat "today" needs the creator zone; without it there is no strip (never guess "today").
+    zone ? listHandoff(pool, now, zone, handoffContext().blocklist).then((h) => h.today.length) : Promise.resolve(0),
+  ]);
+
+  const periods = periodsFor(range, home.today);
+  const kpis = buildKpis(home, periods, range, home.followers);
+  const bars = activityBars(home, periods.current, metric, home.today);
+  const week = weekSchedule(home.scheduled, home.today);
+  const weekMax = Math.max(1, ...week.map((d) => d.count));
+  const weekTotal = week.reduce((s, d) => s + d.count, 0);
+  const tiles = editorTiles(editors.renders);
+  const replies = replyTiles(flagged);
+  const days = periods.current.days;
+  const rangeLabel = RANGES.find((r) => r.id === range)!.label;
+  const error = param(sp.error);
+  const note = param(sp.note);
 
   return (
-    <AppFrame
-      active="home"
-      counts={{ draftBatches: batchCount("draft"), flagged, openAlerts }}
-      footer={<FooterBand link={footerLink} status="Approved posts only" meta="runmysocials · approval first" />}
-    >
-      {/* 01 · Split hero */}
-      <section aria-label="This week" className="border-b border-ds-line">
-        <div className={cx(CONTAINER, "grid grid-cols-4 lg:grid-cols-12")}>
-          <div className="col-span-4 flex min-w-0 flex-col gap-8 py-10 lg:col-span-7 lg:gap-10 lg:py-16 lg:pr-10">
-            <div className="flex items-center justify-between">
-              {openAlerts > 0 ? (
-                <StatusPulse tone="warn" label={`${plural(openAlerts, "alert")} open`} />
-              ) : (
-                <StatusPulse label="No open alerts" />
-              )}
-              <span className="ds-mono text-ds-faint">01 / OVERVIEW</span>
-            </div>
-            <Display lines={heroLines(batch)} />
-            {progress && progress.total > 0 && <ProgressBar value={progress.approved} max={progress.total} label="Batch approval" />}
-            <Readout
-              items={[
-                { k: "Pending", v: progress ? plural(progress.draft, "post") : "—" },
-                { k: "Next post", v: nextPostShort(first, tz) },
-                { k: "Alerts", v: `${openAlerts} open` },
-                { k: "Outbox", v: `${stuck} stuck` },
-              ]}
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <ButtonLink href={batch ? `/batches/${batch.id}` : "/batches"} arrow>
-                {batch ? "Review batch" : "Open batches"}
-              </ButtonLink>
-              {stuck > 0 && (
-                <Chip tone="warn">
-                  <span className="ds-num">{stuck}</span>&nbsp;failed or unknown
-                </Chip>
-              )}
-            </div>
-          </div>
-          <div className="col-span-4 min-w-0 pb-10 lg:col-span-5 lg:border-l lg:border-ds-line lg:pb-0">
-            <FramedImage alt="Next post preview (placeholder)" ratio="4/5" className="lg:aspect-auto lg:h-full">
-              <div className="absolute inset-x-5 bottom-5">
-                <GlassCard title="Next up" code={week ? `W${week}` : undefined}>
-                  {first ? (
-                    <ListRows label="Next scheduled post">
-                      <ListRow
-                        avatar={{ platform: first.platform }}
-                        title={upNextTitle(first.title, first.caption)}
-                        subtitle={upNextMeta(first, tz)}
-                        href={`/batches/${first.batchId}`}
-                      />
-                    </ListRows>
-                  ) : (
-                    <p className="ds-mono text-ds-muted">Nothing scheduled yet</p>
-                  )}
-                </GlassCard>
-              </div>
-            </FramedImage>
-          </div>
-        </div>
+    <AppFrame active="home" counts={counts}>
+      <PageHeader
+        title="Home"
+        subtitle={`${rangeText(days[0]!, days[days.length - 1]!)}${zone ? "" : " (UTC)"}`}
+        action={<Dropdown label="Range" options={RANGES.map((r) => ({ label: r.label, href: homeHref(r.id, metric), current: r.id === range }))} />}
+      />
+
+      {error ? (
+        <InlineNotice tone="danger" live className="mb-3 lg:mb-4">
+          {error}
+        </InlineNotice>
+      ) : note ? (
+        <InlineNotice live className="mb-3 lg:mb-4">
+          {note}
+        </InlineNotice>
+      ) : null}
+
+      <section aria-label={`${rangeLabel} in numbers`} className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        {kpis.map((k, i) => (
+          <StatTile key={k.id} icon={KPI_ICON[k.id]} label={k.label} value={kpiText(k.value)} delta={k.delta} note={k.note} tint={(i + 1) as StatTint} />
+        ))}
       </section>
 
-      <Marquee
-        items={marqueeItems(platforms.map(([p]) => p), batch)}
-        label={`Instagram, YouTube, TikTok, Snapchat${week ? ` — week ${week}` : ""}`}
-      />
-
-      <Notice error={param(sp.error)} note={param(sp.note)} />
-
-      {/* 02 · From your editors (F15; hidden when there are none) */}
-      <EditorSection renders={editors.renders} index="02" from="home" hideWhenEmpty utcFallback={editors.timeZoneSource === "fallback"} />
-
-      {/* Up next */}
-      <SectionHead index={idx(2)} title="Up" serif="next" meta={<span>{plural(upcomingTotal, "post")} scheduled</span>} />
-      <div className={CONTAINER}>
-        {next.length > 0 ? (
-          <RevealList
-            label="Next scheduled posts"
-            items={next.map((p, i) => ({
-              id: p.id,
-              index: String(i + 1).padStart(2, "0"),
-              title: upNextTitle(p.title, p.caption),
-              meta: upNextMeta(p, tz),
-              href: `/batches/${p.batchId}`,
-              trailing: <PlatformLogo platform={p.platform} size={28} title={PLATFORM_NAME[p.platform]} />,
-              image: { alt: `${upNextTitle(p.title, p.caption)} preview (placeholder)` },
-            }))}
-          />
-        ) : (
-          <EmptyState
-            icon="calendar"
-            title="Nothing scheduled"
-            body="Approved posts with a time show up here, soonest first."
-            action={
-              <ButtonLink href="/batches" variant="outline" size="sm">
-                Open batches
-              </ButtonLink>
-            }
-            className="border-b border-ds-line py-16"
-          />
-        )}
-      </div>
-
-      {/* 03 · Numbers */}
-      <SectionHead index={idx(3)} title="By the" serif="numbers" meta="Live counts" id="numbers" />
-      <div className={cx(CONTAINER, "py-10 lg:py-16")}>
-        <div className={CELLS}>
-          <Card index="A" title="Batches" className={cx(CELL, "col-span-4 lg:col-span-6")}>
-            <StatPair>
-              <StatTile icon="batches" value={batchCount("draft")} caption="Draft" tone="neutral" />
-              <StatTile icon="check" value={batchCount("approved")} caption="Approved" />
-            </StatPair>
-            <ButtonLink href="/batches" variant="ghost" size="sm" arrow className="-ml-6 mt-6">
-              All batches
-            </ButtonLink>
-          </Card>
-          <Card index="B" title="Flagged" className={cx(CELL, "col-span-2 lg:col-span-3")}>
-            <StatTile icon="message" value={flagged} caption="Need you" />
-            <ButtonLink href="/inbox" variant="ghost" size="sm" arrow className="-ml-6 mt-6">
-              Inbox
-            </ButtonLink>
-          </Card>
-          <Card index="C" title="Alerts" className={cx(CELL, "col-span-2 lg:col-span-3")}>
-            <StatTile icon="bell" value={openAlerts} caption="Open" tone={openAlerts ? "warn" : "accent"} />
-            {latestAlertText && <p className="ds-note mt-4 line-clamp-3">{latestAlertText}</p>}
-            <ButtonLink href="/alerts" variant="ghost" size="sm" arrow className="-ml-6 mt-6">
-              Alerts
-            </ButtonLink>
-          </Card>
-          <Card index="D" title="Calendar" className={cx(CELL, "col-span-4 lg:col-span-5")}>
-            <MonthCalendar
-              year={cal.year}
-              month0={cal.month0}
-              today={cal.today}
-              marks={cal.marks}
-              label={`${MONTHS[cal.month0]} ${cal.year}${tz ? "" : " (UTC)"}`}
+      <div className="mt-3 grid grid-cols-1 gap-3 lg:mt-4 lg:grid-cols-12 lg:gap-4">
+        <Card
+          title="Activity"
+          titleId="activity"
+          subtitle={metric === "views" ? "Views gained per day, every post" : "Likes, comments and shares, by the day a post went out"}
+          className="lg:col-span-8"
+          action={
+            <Dropdown
+              label="Chart metric"
+              size="sm"
+              options={[
+                { label: "Views", href: homeHref(range, "views"), current: metric === "views" },
+                { label: "Engagement", href: homeHref(range, "engagement"), current: metric === "engagement" },
+              ]}
             />
-          </Card>
-          <Card index="E" title="Snapchat" className={cx(CELL, "col-span-4 lg:col-span-4")}>
-            {snapToday === null ? (
-              <div className="flex flex-col items-start gap-4">
-                <Chip tone="warn">{snapLine(snapToday)}</Chip>
-                <p className="ds-note">Set TZ_CREATOR on the server so &ldquo;today&rdquo; is your day, not a guess.</p>
-              </div>
-            ) : (
-              <StatTile icon="share" value={snapToday} caption="To share today" />
-            )}
-            <ButtonLink href="/handoff" variant="ghost" size="sm" arrow className="-ml-6 mt-6">
-              Handoff
-            </ButtonLink>
-          </Card>
-          <Card index="F" title="Routes" className={cx(CELL, "col-span-4 lg:col-span-3")}>
-            <ListRows label="Posting route per platform">
-              {platforms.map(([platform, cap]) => (
-                <ListRow key={platform} avatar={{ platform }} title={PLATFORM_NAME[platform]} subtitle={routeLabel(cap)} />
-              ))}
-            </ListRows>
-          </Card>
-        </div>
+          }
+        >
+          {hasActivity(bars) ? (
+            <BarChart data={bars} series={SERIES} label={`${metric === "views" ? "Views" : "Engagement"} per day, by platform`} unit={metric === "views" ? "views" : "interactions"} />
+          ) : (
+            <EmptyState
+              icon="analytics"
+              title="No numbers yet"
+              body="Views show up a day after a post goes out."
+              action={
+                <ButtonLink href="/calendar" variant="outline" size="sm">
+                  Open the calendar
+                </ButtonLink>
+              }
+              className="flex-1 justify-center py-6"
+            />
+          )}
+        </Card>
+
+        <Card title="This week" titleId="this-week" subtitle={weekTotal === 1 ? "1 post planned" : `${weekTotal} posts planned`} className="lg:col-span-4" action={<CardLink href="/calendar">Calendar</CardLink>}>
+          <ol className="flex flex-1 flex-col justify-between gap-0.5">
+            {week.map((d) => (
+              <li key={d.day}>
+                <Link
+                  href={d.href}
+                  aria-label={`${d.weekday} ${d.dayNum}: ${d.count === 1 ? "1 post" : `${d.count} posts`}${d.needsYou ? `, ${d.needsYou} need you` : ""}${d.isToday ? " (today)" : ""}`}
+                  aria-current={d.isToday ? "date" : undefined}
+                  className={cx(
+                    "flex min-h-11 items-center gap-3 rounded-ds-sm px-2 hover:bg-ds-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-focus lg:min-h-9",
+                    d.isToday && "bg-ds-raised",
+                  )}
+                >
+                  <span className={cx("w-16 shrink-0 text-[14px]", d.isToday ? "font-bold text-ds-text" : d.isPast ? "text-ds-muted" : "text-ds-text")}>
+                    {d.weekday} <span className="ds-num">{d.dayNum}</span>
+                  </span>
+                  <span className="relative h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-ds-line/60" aria-hidden="true">
+                    <span className={cx("absolute inset-y-0 left-0 rounded-full", d.isPast ? "bg-ds-line-strong" : "bg-ds-accent")} style={{ width: `${(d.count / weekMax) * 100}%` }} />
+                  </span>
+                  <span className="ds-num w-5 shrink-0 text-right text-[14px] font-semibold text-ds-text">{d.count}</span>
+                  <span aria-hidden="true" className={cx("size-1.5 shrink-0 rounded-full", d.needsYou ? "bg-ds-warn" : "bg-transparent")} />
+                </Link>
+              </li>
+            ))}
+          </ol>
+          {week.some((d) => d.needsYou) ? (
+            <p className="mt-3 flex items-center gap-2 text-[13px] text-ds-muted">
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-ds-warn" />
+              Drafts or posts to check
+            </p>
+          ) : null}
+        </Card>
       </div>
 
-      <Statement
-        text="Nothing goes public until you approve it."
-        source={progress ? `Approval boundary · week ${week} · ${progress.approved} of ${progress.total} approved` : "Approval boundary"}
-      />
+      <div className="mt-3 grid grid-cols-1 gap-3 lg:mt-4 lg:grid-cols-12 lg:gap-4">
+        <Card
+          title="From your editors"
+          titleId="editors"
+          subtitle={tiles.length ? `${editors.renders.length === 1 ? "1 clip" : `${editors.renders.length} clips`} waiting for your OK` : undefined}
+          className="lg:col-span-6"
+          action={tiles.length ? <CardLink href="/calendar?status=draft">See all</CardLink> : undefined}
+        >
+          {tiles.length === 0 ? (
+            <EmptyState
+              icon="film"
+              title="Nothing to review"
+              body="New edits land here for a quick OK before they're scheduled."
+              action={
+                <ButtonLink href="/library" variant="outline" size="sm">
+                  Open the library
+                </ButtonLink>
+              }
+              className="flex-1 justify-center py-6"
+            />
+          ) : (
+            <DataList label="Edits waiting for approval">
+              {tiles.map((t) => (
+                <DataRow
+                  key={t.key}
+                  leading={<Thumb mediaId={t.mediaId} alt={`${t.title} poster`} duration={formatDuration(t.durationS) || null} className="w-9" />}
+                  title={t.title}
+                  meta={t.meta}
+                  trailing={
+                    t.blocked ? (
+                      <ButtonLink href="/calendar?status=draft" variant="ghost" size="sm">
+                        Fix first
+                      </ButtonLink>
+                    ) : (
+                      <form action={approveEditorRender.bind(null, t.batchId, t.approvableIds, "home")}>
+                        <Button type="submit" variant="outline" size="sm" aria-label={`Approve ${t.title}`}>
+                          Approve
+                        </Button>
+                      </form>
+                    )
+                  }
+                />
+              ))}
+            </DataList>
+          )}
+        </Card>
 
+        <Card
+          title="Needs a reply"
+          titleId="replies"
+          subtitle={replies.length ? `${counts.flagged === 1 ? "1 comment" : `${counts.flagged ?? replies.length} comments`} flagged for you` : undefined}
+          className="lg:col-span-6"
+          action={replies.length ? <CardLink href="/inbox">Inbox</CardLink> : undefined}
+        >
+          {replies.length === 0 ? (
+            <EmptyState
+              icon="message"
+              title="No one is waiting"
+              body="Comments that need your own words show up here with a drafted reply."
+              action={
+                <ButtonLink href="/inbox" variant="outline" size="sm">
+                  Open the inbox
+                </ButtonLink>
+              }
+              className="flex-1 justify-center py-6"
+            />
+          ) : (
+            <DataList label="Comments waiting for a reply">
+              {replies.map((r) => (
+                <DataRow
+                  key={r.commentId}
+                  leading={<Avatar name={r.who} />}
+                  title={
+                    <span className="inline-flex items-center gap-1.5">
+                      {r.who}
+                      <PlatformLogo platform={r.platform} size={14} title={PLATFORM_NAME[r.platform]} className="text-ds-muted" />
+                    </span>
+                  }
+                  meta={relativeTime(r.commentedAt, now)}
+                >
+                  <p className="line-clamp-2 text-[15px] leading-snug text-ds-text">{r.text}</p>
+                  {r.draft ? (
+                    <p className="line-clamp-2 rounded-ds-sm bg-ds-raised px-3 py-2 text-[14px] leading-snug text-ds-muted">
+                      <span className="sr-only">Drafted reply: </span>
+                      {r.draft}
+                    </p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    {r.draft ? (
+                      <form action={sendManualAction.bind(null, r.commentId, "reply")}>
+                        <Button type="submit" variant="outline" size="sm">
+                          Approve &amp; send
+                        </Button>
+                      </form>
+                    ) : null}
+                    <ButtonLink href={r.href} variant="ghost" size="sm">
+                      Open
+                    </ButtonLink>
+                  </div>
+                </DataRow>
+              ))}
+            </DataList>
+          )}
+        </Card>
+      </div>
+
+      {snapToday > 0 ? (
+        <InlineNotice className="mt-3 lg:mt-4" href="/platforms/snapchat" linkLabel="Open">
+          Snapchat: today&rsquo;s Spotlight is ready.
+        </InlineNotice>
+      ) : null}
     </AppFrame>
   );
 }

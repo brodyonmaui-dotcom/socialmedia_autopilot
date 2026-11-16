@@ -14,7 +14,8 @@ export interface AckAllCopy {
 
 /**
  * "Acknowledge all" behind the design-system ConfirmSheet with the count. Sends exactly the ids on screen,
- * so an alert that arrived after the page loaded is never acknowledged unseen. Grid cell: 9 cols note | 3 cols trigger.
+ * so an alert that arrived after the page loaded is never acknowledged unseen. Renders the trigger (and a
+ * status line after it ran); sits in the Notifications page header.
  */
 export function AckAllSheet({ ids, copy }: { ids: string[]; copy: AckAllCopy }) {
   const router = useRouter();
@@ -35,22 +36,17 @@ export function AckAllSheet({ ids, copy }: { ids: string[]; copy: AckAllCopy }) 
   }
 
   return (
-    <>
-      <div className="col-span-4 flex min-w-0 flex-col justify-center gap-2 pt-6 lg:col-span-9 lg:py-6 lg:pr-10">
-        <p className="ds-caps text-ds-muted">Bulk</p>
-        <p className="ds-note">Clears only the alerts listed below. They move to Acknowledged and are kept.</p>
-        {msg ? (
-          <p role={msg.ok ? "status" : "alert"} className={cx("flex items-start gap-2 text-[15px] leading-snug", msg.ok ? "text-ds-accent-fg" : "text-ds-danger")}>
-            <Icon name={msg.ok ? "check" : "alert"} size={16} className="mt-0.5 shrink-0" />
-            {msg.text}
-          </p>
-        ) : null}
-      </div>
-      <div className="col-span-4 flex items-center py-6 lg:col-span-3 lg:border-l lg:border-ds-line lg:pl-10">
+    <div className="flex min-w-0 flex-col items-stretch gap-2 sm:items-end">
+      {msg ? (
+        <p role={msg.ok ? "status" : "alert"} className={cx("flex items-start gap-2 text-[14px] leading-snug", msg.ok ? "text-ds-accent-fg" : "text-ds-danger")}>
+          <Icon name={msg.ok ? "check" : "alert"} size={16} className="mt-0.5 shrink-0" />
+          {msg.text}
+        </p>
+      ) : null}
+      <div>
         <ConfirmSheet
           triggerLabel={copy.trigger}
           triggerVariant="outline"
-          triggerClassName="w-full"
           title={copy.title}
           confirmLabel={copy.confirm}
           onConfirm={confirm}
@@ -61,6 +57,6 @@ export function AckAllSheet({ ids, copy }: { ids: string[]; copy: AckAllCopy }) 
           }
         />
       </div>
-    </>
+    </div>
   );
 }

@@ -79,7 +79,7 @@ export function MonthCalendar({
                 <>
                   <span
                     className={cx(
-                      "ds-num inline-flex size-8 items-center justify-center border text-[14px] leading-none",
+                      "ds-num inline-flex size-8 items-center justify-center rounded-full border text-[14px] leading-none",
                       isToday ? "border-ds-text font-bold text-ds-text" : "border-transparent",
                     )}
                   >

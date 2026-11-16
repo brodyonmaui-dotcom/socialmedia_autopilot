@@ -1,8 +1,9 @@
 import { NEGATIVE_POOL, POSITIVE_POOL } from "./pools.js";
-import type { EngagementLimits, EngagementPlatform, EngagementSettings, Mode } from "./types.js";
+import type { EngagementLimits, EngagementPlatform, EngagementSettings, Mode, PingMode } from "./types.js";
 
 const PLATFORMS: readonly EngagementPlatform[] = ["instagram", "youtube", "tiktok"];
 const MODES: readonly Mode[] = ["off", "shadow", "live"];
+export const PING_MODES: readonly PingMode[] = ["each", "hourly", "off"];
 
 /** Decisions (run-2-decisions.md F3): everything ships in shadow, TikTok comments out, hide off, 10/h 40/d 80/d, 10-min veto. */
 export const DEFAULT_ENGAGEMENT: EngagementSettings = {
@@ -14,6 +15,7 @@ export const DEFAULT_ENGAGEMENT: EngagementSettings = {
   pollMinutes: { instagram: 5, youtube: 15 },
   pools: { positive: [...POSITIVE_POOL], negative: [...NEGATIVE_POOL] },
   dmPollVerified: false,
+  pings: "hourly",
 };
 
 type Obj = Record<string, unknown>;
@@ -66,6 +68,7 @@ export function normalizeEngagement(input: unknown, base: EngagementSettings = D
     },
     pools: { positive: pool(pools.positive, base.pools.positive), negative: pool(pools.negative, base.pools.negative) },
     dmPollVerified: bool(o.dmPollVerified, base.dmPollVerified),
+    pings: typeof o.pings === "string" && (PING_MODES as readonly string[]).includes(o.pings) ? (o.pings as PingMode) : base.pings,
   };
   const reason = typeof o.killedReason === "string" ? o.killedReason : base.killedReason;
   if (reason !== undefined) out.killedReason = reason;

@@ -3,12 +3,19 @@
 
 import type { AlertKind, Platform, RetryPolicy } from "@autopilot/core";
 
-export type Bucket = "simple_positive" | "negative" | "hide_flag" | "flag";
+/** spam_promo (run 4): promo spam ("send it to @page", "DM us to be featured"). Never replied to, never hidden, no action row. */
+export type Bucket = "simple_positive" | "negative" | "hide_flag" | "flag" | "spam_promo";
+export const BUCKETS: readonly Bucket[] = ["simple_positive", "negative", "hide_flag", "flag", "spam_promo"];
 export type EngagementPlatform = Extract<Platform, "instagram" | "youtube" | "tiktok">;
 export type Mode = "off" | "shadow" | "live";
 export type ActionKind = "reply" | "hide";
 export type ActionStatus = "planned" | "sending" | "sent" | "failed" | "unknown" | "cancelled" | "shadow";
 export type ActionOrigin = "auto" | "manual";
+/** Phone pings for drafted/flagged comments (settings engagement.pings). Default hourly. */
+export type PingMode = "each" | "hourly" | "off";
+
+/** A row of engagement_promo_accounts (open = removed_at is null). authorKey: platform author id, else the lower-cased handle. */
+export interface PromoAccount { platform: EngagementPlatform; authorKey: string }
 
 /** A comment as fetched from a platform (normalised). */
 export interface InboundComment {
@@ -64,6 +71,7 @@ export interface EngagementSettings {
   pollMinutes: { instagram: number; youtube: number }; // 5, 15
   pools: { positive: string[]; negative: string[] };
   dmPollVerified: boolean; // false until the read-only DM probe confirms access
+  pings: PingMode; // "hourly": one digest push per hour while something waits
 }
 
 /** What the planner needs to know about past actions (backed by engagement_actions). */

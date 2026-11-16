@@ -48,6 +48,9 @@ importers:
       '@autopilot/research':
         specifier: workspace:*
         version: link:../../packages/research
+      '@fontsource-variable/imbue':
+        specifier: 5.3.0
+        version: 5.3.0
       '@fontsource-variable/inter':
         specifier: 5.2.8
         version: 5.2.8
@@ -555,6 +558,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource-variable/imbue@5.3.0':
+    resolution: {integrity: sha512-qc3gGfmVET/YX2fuas4O70Wq8QxpSIjt79yTjGE02xw0JzFQmv7LikC098k3BTLvXzBOyNaQ2zr3E5Jvh1G3QA==}
 
   '@fontsource-variable/inter@5.2.8':
     resolution: {integrity: sha512-kOfP2D+ykbcX/P3IFnokOhVRNoTozo5/JxhAIVYLpea/UBmCQ/YWPBfWIDuBImXX/15KH+eKh4xpEUyS2sQQGQ==}
@@ -1981,6 +1987,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@fontsource-variable/imbue@5.3.0': {}
 
   '@fontsource-variable/inter@5.2.8': {}
 

@@ -18,31 +18,35 @@ export interface ButtonClassOptions {
 }
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 select-none whitespace-nowrap transition-colors duration-300 ease-ds";
+  "inline-flex items-center justify-center gap-2 select-none whitespace-nowrap font-semibold transition-colors duration-[var(--ds-dur)] ease-ds";
 
-/** v2 Warm Industrial: sharp rectangles; only `pill` is round. */
+/**
+ * v3: sentence-case Inter 600 labels, 8 px radius. One `solid` (ink) button per view; everything else is
+ * outline or ghost. `pill` is the only round variant. `accent` and `white` are v2 leftovers.
+ */
 const VARIANT: Record<ButtonVariant, string> = {
-  solid: "bg-ds-invert text-ds-on-invert ds-caps hover:bg-ds-accent hover:text-ds-ink",
-  accent: "bg-ds-accent text-ds-ink ds-caps hover:bg-ds-accent-hi",
-  outline: "border border-ds-text/80 text-ds-text ds-caps hover:bg-ds-text hover:text-ds-bg",
-  white: "bg-ds-card text-ds-text ds-caps border border-ds-line hover:bg-ds-raised",
-  ghost: "text-ds-accent-fg ds-caps hover:bg-ds-raised",
-  icon: "size-11 shrink-0 border border-ds-line text-ds-text hover:bg-ds-raised",
-  pill: "rounded-full border border-ds-text text-ds-text ds-caps hover:bg-ds-text hover:text-ds-bg",
+  solid: "rounded-ds-sm bg-ds-invert text-ds-on-invert hover:bg-ds-invert/85",
+  accent: "rounded-ds-sm bg-ds-accent text-ds-ink hover:bg-ds-accent-hi",
+  outline: "rounded-ds-sm border border-ds-line-strong text-ds-text hover:bg-ds-raised",
+  white: "rounded-ds-sm border border-ds-line bg-ds-card text-ds-text hover:bg-ds-raised",
+  ghost: "rounded-ds-sm text-ds-text hover:bg-ds-raised",
+  icon: "size-11 shrink-0 rounded-ds-sm border border-ds-line text-ds-text hover:bg-ds-raised",
+  pill: "rounded-full border border-ds-line-strong text-ds-text hover:bg-ds-raised",
 };
 
-/** Danger tone: a danger-coloured line (inverts on hover); ghost gets danger text. Solid/accent keep their fill. */
+/** Danger tone: danger text and line; fills only on hover as a raised well. Solid/accent keep their fill. */
 const DANGER: Partial<Record<ButtonVariant, string>> = {
-  outline: "border border-ds-danger/50 text-ds-danger ds-caps hover:bg-ds-danger hover:text-ds-bg",
-  white: "bg-ds-card border border-ds-danger/50 text-ds-danger ds-caps hover:bg-ds-raised",
-  icon: "size-11 shrink-0 border border-ds-danger/50 text-ds-danger hover:bg-ds-raised",
-  pill: "rounded-full border border-ds-danger/50 text-ds-danger ds-caps hover:bg-ds-danger hover:text-ds-bg",
-  ghost: "text-ds-danger ds-caps hover:bg-ds-raised",
+  outline: "rounded-ds-sm border border-ds-danger/60 text-ds-danger hover:bg-ds-raised",
+  white: "rounded-ds-sm border border-ds-danger/60 bg-ds-card text-ds-danger hover:bg-ds-raised",
+  icon: "size-11 shrink-0 rounded-ds-sm border border-ds-danger/60 text-ds-danger hover:bg-ds-raised",
+  pill: "rounded-full border border-ds-danger/60 text-ds-danger hover:bg-ds-raised",
+  ghost: "rounded-ds-sm text-ds-danger hover:bg-ds-raised",
 };
 
+/** Both sizes stay ≥ 44 px tall on phones; `sm` tightens to 36 px on desktop. */
 const SIZE: Record<ButtonSize, string> = {
-  md: "h-12 px-6",
-  sm: "h-11 px-6",
+  md: "h-11 px-5 text-[15px]",
+  sm: "h-11 px-4 text-[14px] lg:h-9 lg:px-3.5",
 };
 
 /** Pure class builder shared by Button, ButtonLink and tests. */
@@ -55,7 +59,7 @@ export function buttonClasses(opts: ButtonClassOptions = {}): string {
     BASE,
     FOCUS,
     look,
-    variant === "pill" ? "h-11 px-5" : variant !== "icon" && SIZE[size],
+    variant === "pill" ? "h-11 px-5 text-[14px]" : variant !== "icon" && SIZE[size],
     block && variant !== "icon" && "w-full",
     arrow && "group",
     disabled && "opacity-50 cursor-not-allowed",
@@ -63,7 +67,7 @@ export function buttonClasses(opts: ButtonClassOptions = {}): string {
   );
 }
 
-/** Trailing ↗ arrow (16px) that rotates from -45deg to 0 on hover of the parent `group`. */
+/** Trailing → arrow (16 px), static (v3: hover changes colour only, nothing rotates). */
 export function ButtonArrow({ className }: { className?: string }) {
   return (
     <svg
@@ -74,11 +78,12 @@ export function ButtonArrow({ className }: { className?: string }) {
       focusable="false"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.75}
-      strokeLinecap="square"
-      className={cx("shrink-0 -rotate-45 transition-transform duration-[600ms] ease-ds group-hover:rotate-0", className)}
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cx("shrink-0", className)}
     >
-      <path d="M7 17 17 7M8 7h9v9" />
+      <path d="M4 12h16M14 6l6 6-6 6" />
     </svg>
   );
 }

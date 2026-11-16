@@ -51,19 +51,19 @@ export function Sheet({ open, onClose, title, children, footer, className }: She
       className={cx(
         "fixed inset-x-0 bottom-0 top-auto m-0 max-h-[85dvh] w-full max-w-none overflow-visible bg-transparent p-0 text-ds-text",
         "sm:inset-0 sm:m-auto sm:h-fit sm:max-w-md",
-        "backdrop:bg-ds-text/40 backdrop:backdrop-blur-sm",
+        "backdrop:bg-ds-scrim",
         className,
       )}
     >
       <div
         className={cx(
-          "ds-root flex max-h-[85dvh] flex-col border-t border-ds-text bg-ds-bg shadow-ds-pop",
-          "px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:border sm:p-6",
+          "ds-root ds-fade flex max-h-[85dvh] flex-col rounded-t-ds-lg border border-ds-line bg-ds-card shadow-ds-pop",
+          "px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-ds-lg sm:p-5",
         )}
       >
-        <div aria-hidden="true" className="mx-auto mb-3 h-0.5 w-8 shrink-0 bg-ds-line-strong sm:hidden" />
+        <div aria-hidden="true" className="mx-auto mb-3 h-1 w-9 shrink-0 rounded-full bg-ds-line sm:hidden" />
         <div className="mb-3 flex items-start justify-between gap-3">
-          <h2 id={titleId} className="pt-2 text-[28px] font-black leading-[1.05] tracking-[-0.03em]">
+          <h2 id={titleId} className="ds-heading pt-2.5">
             {title}
           </h2>
           <button
@@ -71,14 +71,14 @@ export function Sheet({ open, onClose, title, children, footer, className }: She
             aria-label="Close"
             onClick={onClose}
             className={cx(
-              "-mr-2 inline-flex size-11 shrink-0 items-center justify-center text-ds-muted transition-colors duration-300 ease-ds hover:bg-ds-raised hover:text-ds-text",
+              "-mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-ds-sm text-ds-muted transition-colors duration-[var(--ds-dur)] ease-ds hover:bg-ds-raised hover:text-ds-text",
               FOCUS,
             )}
           >
             <Icon name="x" size={20} />
           </button>
         </div>
-        <div className="min-h-0 overflow-y-auto text-[16px] leading-normal text-ds-muted">{children}</div>
+        <div className="min-h-0 overflow-y-auto text-[15px] leading-normal text-ds-muted">{children}</div>
         {footer && <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">{footer}</div>}
       </div>
     </dialog>

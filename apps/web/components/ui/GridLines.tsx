@@ -1,30 +1,13 @@
-import { cx } from "./cx.js";
-
-const COLS = 12;
-
-/** The one content container: same max width and gutters as the grid lines and header. */
-export const CONTAINER = "mx-auto w-full max-w-[var(--ds-max)] px-[var(--ds-gutter)]";
+/**
+ * @deprecated v2 content container. In v3 the AppShell's <main> already provides the centred 1280 px
+ * column and the page gutter, so this is just a full-width block (kept so older pages don't double the gutter).
+ */
+export const CONTAINER = "w-full min-w-0";
 
 /**
- * Fixed, decorative column lines behind the content: 4 columns on phones/tablets, 12 at ≥1024px.
- * Same max width and gutter as SiteHeader's container so content cells sit on the lines.
+ * @deprecated v2 decorative column lines. v3 hard rule 3 forbids background grids, so this renders
+ * nothing; it stays exported only until the remaining v2 pages drop their import (then delete the file).
  */
 export function GridLines() {
-  return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0">
-      <div className={cx(CONTAINER, "grid h-full grid-cols-4 lg:grid-cols-12")}>
-        {Array.from({ length: COLS }, (_, i) => (
-          <div
-            key={i}
-            className={cx(
-              "border-l border-ds-grid",
-              i === 3 && "border-r lg:border-r-0",
-              i === COLS - 1 && "border-r",
-              i >= 4 && "hidden lg:block",
-            )}
-          />
-        ))}
-      </div>
-    </div>
-  );
+  return null;
 }

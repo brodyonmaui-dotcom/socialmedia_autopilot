@@ -1,110 +1,69 @@
 import type { ReactNode } from "react";
-import { logoutAction, logoutEverywhereAction } from "../app/login/actions.js";
+import { acknowledgeAction } from "../app/alerts/actions.js";
+import { logoutAction } from "../app/login/actions.js";
+import { kindLabel, listAlerts, type AlertView } from "../lib/alerts/queries.js";
+import { isUrgent, shownMessage } from "../lib/alerts/view.js";
 import { getPool } from "../lib/db.js";
-import { buildNav, moreLinks, tabFor, type FrameCounts, type MoreLink, type Section } from "./app-nav.js";
+import { relativeTime } from "../lib/engagement/queries.js";
+import { activeState, badgeOf, inboxBadge, sidebarNav, type FrameCounts } from "./app-nav.js";
 import { loadFrameCounts } from "./frame-counts.js";
-import { AppShell, Badge, Button, HeaderMenu, Icon, ListRow, ListRows, type HeaderCta } from "./ui/index.js";
+import { AppShell, type NotificationItem } from "./ui/index.js";
 import { getTheme } from "./ui/theme-server.js";
 
-export type { FrameCounts, Section } from "./app-nav.js";
+export type { FrameCounts } from "./app-nav.js";
+/** What a page passes as `active`: a v3 nav id ("home", "calendar", "analytics/youtube", "library/touch-up", "platforms/snapchat", "settings", "notifications"…) or a v2 id (mapped). */
+export type Section = string;
 
-/** Icon square used as the ListRow avatar for app destinations (menu + /more). */
-export function DestinationIcon({ link }: { link: Pick<MoreLink, "icon"> }) {
-  return (
-    <span aria-hidden="true" className="inline-flex size-10 shrink-0 items-center justify-center border border-ds-line text-ds-text">
-      <Icon name={link.icon} size={20} />
-    </span>
-  );
-}
-
-/** ListRows of the More destinations (shared by the header menu and the /more page). */
-export function MoreList({ links, label = "More pages" }: { links: MoreLink[]; label?: string }) {
-  return (
-    <ListRows label={label}>
-      {links.map((l) => (
-        <ListRow
-          key={l.id}
-          avatar={<DestinationIcon link={l} />}
-          title={l.label}
-          subtitle={l.hint}
-          href={l.href}
-          trailing={l.badge ? <Badge tone="accent">{l.badge} open</Badge> : <Icon name="chevronRight" size={18} className="text-ds-muted" />}
-        />
-      ))}
-    </ListRows>
-  );
-}
-
-function MenuPanel({ links }: { links: MoreLink[] }) {
-  return (
-    <div className="px-[var(--ds-gutter)] pb-6 lg:px-6">
-      <p className="ds-caps pt-6 text-ds-muted">More</p>
-      <MoreList links={links} label="More pages" />
-      <div className="mt-4 border-t border-ds-line pt-6">
-        <p className="ds-caps text-ds-muted">Account</p>
-        <form action={logoutAction} className="mt-4">
-          <Button type="submit" variant="outline" block>
-            <Icon name="logout" size={18} />
-            Log out
-          </Button>
-        </form>
-        <details className="group mt-3">
-          <summary className="ds-caps flex min-h-11 cursor-pointer list-none items-center justify-between text-ds-muted hover:text-ds-text [&::-webkit-details-marker]:hidden">
-            Lost a phone?
-            <Icon name="chevronDown" size={16} className="transition-transform duration-[var(--ds-dur)] ease-ds group-open:rotate-180" />
-          </summary>
-          <p className="ds-note mt-1">
-            Signs out every device, revokes every passkey and turns off push notifications on every device. You&apos;ll need to re-enrol on the server afterwards.
-          </p>
-          <form action={logoutEverywhereAction} className="mt-4">
-            <Button type="submit" variant="outline" tone="danger" block>
-              Log out everywhere
-            </Button>
-          </form>
-        </details>
-      </div>
-    </div>
-  );
+/** Pop-over rows from open alerts (newest first). Pure. */
+export function notificationItems(alerts: AlertView[], now: Date): NotificationItem[] {
+  return alerts.map((a) => ({
+    id: a.id,
+    kind: kindLabel(a.kind) ?? a.kind,
+    message: shownMessage(a.message),
+    age: relativeTime(a.createdAt, now),
+    urgent: isUrgent(a.kind),
+  }));
 }
 
 /**
- * The app frame every signed-in page uses: AppShell (header, grid lines, noise, phone TabBar) with the real
- * nav, badge counts, and a header menu holding the More links and logout.
- * Pages still call requireSession() themselves before rendering this.
+ * The frame every signed-in page uses: the v3 AppShell (top bar + sidebar + main) with the real nav,
+ * badge counts and the newest open alerts. Pages still call requireSession() themselves first.
  *
- * - `active`: "home" | "batches" | "inbox" | "analytics" | "more" | "alerts" | "handoff" | "library" | "touch-up" | "research".
- *   More pages light the More tab.
- * - `counts`: pass them if the page already queried them (Home does) to skip the frame's own three count queries.
+ * - `active`: the nav id of the page (see Section).
+ * - `counts`: pass them if the page already queried them, to skip the frame's own count queries.
+ * - `footer`, `cta`: v2 props, ignored (v3 has no footer band and no header CTA).
  */
 export async function AppFrame({
   active,
   children,
-  footer,
-  cta,
   counts,
 }: {
-  active: Section | (string & {});
+  active: Section;
   children: ReactNode;
-  /** Usually a <FooterBand>; rendered under <main>, above the tab-bar padding. */
   footer?: ReactNode;
-  /** Header pill (desktop) / round "+" (phone). */
-  cta?: HeaderCta;
+  cta?: { href: string; label: string };
   counts?: FrameCounts;
 }) {
-  const [theme, c] = await Promise.all([getTheme(), counts ? Promise.resolve(counts) : loadFrameCounts(getPool())]);
-  const links = moreLinks(c);
+  const pool = getPool();
+  const now = new Date();
+  const [theme, c, alerts] = await Promise.all([
+    getTheme(),
+    counts ? Promise.resolve(counts) : loadFrameCounts(pool),
+    listAlerts(pool, { state: "open", now, limit: 6 }).catch(() => [] as AlertView[]),
+  ]);
+  const nav = sidebarNav(c);
+  const state = activeState(nav, active);
   return (
     <AppShell
       theme={theme}
-      nav={buildNav(c)}
-      active={tabFor(active)}
-      cta={cta}
-      footer={footer}
-      menu={
-        <HeaderMenu>
-          <MenuPanel links={links} />
-        </HeaderMenu>
-      }
+      nav={nav}
+      currentHref={state.linkHref}
+      openGroups={state.openGroups}
+      inboxCount={inboxBadge(c)}
+      notifications={notificationItems(alerts, now)}
+      openAlerts={badgeOf(c.openAlerts) ?? 0}
+      ackAction={acknowledgeAction}
+      logoutAction={logoutAction}
     >
       {children}
     </AppShell>

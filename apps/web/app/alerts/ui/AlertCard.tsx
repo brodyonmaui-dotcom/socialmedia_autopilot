@@ -1,72 +1,66 @@
-import { Badge, Button, ButtonLink, CONTAINER, Icon, PlatformLogo, cx } from "../../../components/ui/index.js";
+import { Button, ButtonLink, Icon, PlatformLogo, cx } from "../../../components/ui/index.js";
 import { kindLabel, type AlertView } from "../../../lib/alerts/queries.js";
 import { isUrgent, shownMessage, sourceGlyph } from "../../../lib/alerts/view.js";
 import { acknowledgeAction } from "../actions.js";
 
 /**
- * One alert as a bordered grid band: kind (3 cols) | message + source + age (6) | actions (3).
- * The message is shown as stored (sanitised at write time), as plain text.
+ * One alert as a list row inside the Notifications card: icon, kind label, the message (plain text, as
+ * stored: writers sanitise at write time), source + age, then Acknowledge (open alerts) and "Open in calendar".
  */
-export function AlertCard({ alert, index, when, ackWhen }: { alert: AlertView; index: number; when: string; ackWhen?: string }) {
+export function AlertCard({ alert, when, ackWhen }: { alert: AlertView; index?: number; when: string; ackWhen?: string }) {
   const open = !alert.acknowledgedAt;
   const urgent = isUrgent(alert.kind) && open;
   const src = sourceGlyph(alert.source);
   const headingId = `alert-${alert.id}`;
   return (
-    <li className="border-b border-ds-line">
-      <div className={cx(CONTAINER, "grid grid-cols-4 gap-y-4 py-6 lg:grid-cols-12 lg:py-8")}>
-        {/* Kind */}
-        <div className="col-span-4 flex min-w-0 items-center justify-between gap-3 lg:col-span-3 lg:flex-col lg:items-start lg:justify-start lg:pr-10">
-          <div className="flex min-w-0 items-center gap-3">
-            <span aria-hidden="true" className="ds-mono text-ds-faint">
-              {String(index).padStart(2, "0")}
-            </span>
-            <h3 id={headingId} className="ds-caps flex min-w-0 items-center gap-2 text-ds-text">
-              <Icon name={open ? "alert" : "check"} size={16} strokeWidth={2} className={cx("shrink-0", urgent ? "text-ds-danger" : open ? "text-ds-warn" : "text-ds-muted")} />
-              {kindLabel(alert.kind)}
-            </h3>
-          </div>
-          {urgent ? <Badge tone="danger">Urgent</Badge> : !open ? <Badge tone="neutral">Acknowledged</Badge> : <Badge tone="warn">Notice</Badge>}
-        </div>
-
-        {/* Message */}
-        <div className="col-span-4 flex min-w-0 flex-col gap-3 lg:col-span-6 lg:border-l lg:border-ds-line lg:px-10">
-          <p className="whitespace-pre-wrap break-words text-[18px] font-bold leading-snug tracking-[-0.01em] text-ds-text lg:text-[20px]">{shownMessage(alert.message)}</p>
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ds-muted">
-            <span className="ds-caps inline-flex items-center gap-2 text-ds-text">
-              {src.platform ? <PlatformLogo platform={src.platform} size={16} /> : <Icon name="settings" size={16} />}
-              {src.label}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span className="ds-mono">{when}</span>
-            {ackWhen ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="ds-mono">ack {ackWhen}</span>
-              </>
-            ) : null}
-          </p>
-        </div>
-
-        {/* Actions */}
-        {open || alert.batchId ? (
-          <div className="col-span-4 grid grid-cols-2 content-start gap-2 lg:col-span-3 lg:grid-cols-1 lg:border-l lg:border-ds-line lg:pl-10">
-            {open ? (
-              <form action={acknowledgeAction} className={cx(alert.batchId ? "col-span-1" : "col-span-2", "lg:col-span-1")}>
-                <input type="hidden" name="id" value={alert.id} />
-                <Button type="submit" variant="outline" size="sm" block className="px-3" aria-label={`Acknowledge: ${kindLabel(alert.kind)}`}>
-                  Acknowledge
-                </Button>
-              </form>
-            ) : null}
-            {alert.batchId ? (
-              <ButtonLink href={`/batches/${alert.batchId}`} variant="ghost" size="sm" block arrow className={cx("px-3", open ? "col-span-1" : "col-span-2", "lg:col-span-1")}>
-                Open batch
-              </ButtonLink>
-            ) : null}
-          </div>
-        ) : null}
+    <li aria-labelledby={headingId} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start">
+      <span
+        aria-hidden="true"
+        className={cx(
+          "inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-ds-raised",
+          urgent ? "text-ds-danger" : open ? "text-ds-warn" : "text-ds-muted",
+        )}
+      >
+        <Icon name={open ? "alert" : "check"} size={18} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h3 id={headingId} className="text-[13px] font-semibold text-ds-muted">
+          {kindLabel(alert.kind)}
+          {urgent ? <span className="text-ds-danger"> · Urgent</span> : null}
+        </h3>
+        <p className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-snug text-ds-text">{shownMessage(alert.message)}</p>
+        <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ds-muted">
+          <span className="inline-flex items-center gap-1.5">
+            {src.platform ? <PlatformLogo platform={src.platform} size={14} className="text-ds-text" /> : <Icon name="settings" size={14} />}
+            {src.label}
+          </span>
+          <span aria-hidden="true">·</span>
+          <span className="ds-num">{when}</span>
+          {ackWhen ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="ds-num">acknowledged {ackWhen}</span>
+            </>
+          ) : null}
+        </p>
       </div>
+      {open || alert.batchId ? (
+        <div className="flex shrink-0 gap-2 sm:flex-col sm:items-stretch">
+          {open ? (
+            <form action={acknowledgeAction}>
+              <input type="hidden" name="id" value={alert.id} />
+              <Button type="submit" variant="outline" size="sm" aria-label={`Acknowledge: ${kindLabel(alert.kind)}`}>
+                Acknowledge
+              </Button>
+            </form>
+          ) : null}
+          {alert.batchId ? (
+            <ButtonLink href={`/batches/${alert.batchId}`} variant="ghost" size="sm">
+              Open in calendar
+            </ButtonLink>
+          ) : null}
+        </div>
+      ) : null}
     </li>
   );
 }

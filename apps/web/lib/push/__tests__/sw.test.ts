@@ -111,9 +111,9 @@ describe("manifest + icons", () => {
 
 describe("VAPID public key", () => {
   it("comes from runtime env in the server page, never NEXT_PUBLIC_*", () => {
-    const page = readFileSync(fileURLToPath(new URL("../../../app/alerts/page.tsx", import.meta.url)), "utf8");
+    const page = readFileSync(fileURLToPath(new URL("../../../app/notifications/page.tsx", import.meta.url)), "utf8");
     expect(page).toMatch(/process\.env\.VAPID_PUBLIC_KEY/);
-    const web = ["../../../app/alerts/ui/EnablePush.tsx", "../../../app/alerts/ui/push-client.ts", "../../../app/alerts/page.tsx"].map((r) =>
+    const web = ["../../../app/alerts/ui/EnablePush.tsx", "../../../app/alerts/ui/push-client.ts", "../../../app/notifications/page.tsx"].map((r) =>
       readFileSync(fileURLToPath(new URL(r, import.meta.url)), "utf8"),
     );
     for (const src of web) {

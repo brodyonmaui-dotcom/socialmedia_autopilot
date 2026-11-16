@@ -179,6 +179,7 @@ try {
     }
   }
   await seedDemoPosters(pool); // synthetic thumbnails in logs/dev-posters (serve with DEV_POSTER_DIR)
+  console.log(`dev:seed: OK ${await (await import("./lib/seed-account-posts.js")).seedAccountPosts(pool)}`); // account-wide analytics demo (0011)
 } catch (e) {
   console.error(`dev:seed: FAIL ${(e as Error).message.replace(/^dev:seed: /, "")}`);
   process.exitCode = 1;

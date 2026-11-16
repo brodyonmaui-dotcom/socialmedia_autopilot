@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { cx, FOCUS } from "./cx.js";
 import { Icon } from "./Icon.js";
+import { iconButtonClasses } from "./IconButton.js";
 import { Toggle } from "./Toggle.js";
 import { otherTheme, themeCookie, type Theme } from "./theme.js";
 
@@ -14,7 +14,7 @@ function apply(from: Element | null, t: Theme) {
 }
 
 /**
- * Day/Night switch. `variant="icon"`: sharp 44px square (moon in Day, sun in Night) for the header.
+ * Day/Night switch. `variant="icon"`: the top bar's 40 px icon button (moon in Day, sun in Night).
  * `variant="row"`: labelled Toggle ("Night theme") for settings cards. Pass the server-read theme as
  * `initial` (getTheme()).
  */
@@ -47,10 +47,7 @@ export function ThemeToggle({ initial, variant = "icon" }: { initial: Theme; var
         onClick={() => set(next)}
         aria-label={label}
         title={label}
-        className={cx(
-          "inline-flex size-11 items-center justify-center border border-ds-line text-ds-text transition-colors duration-[var(--ds-dur)] ease-ds hover:bg-ds-raised",
-          FOCUS,
-        )}
+        className={iconButtonClasses()}
       >
         <Icon name={theme === "dark" ? "sun" : "moon"} size={20} />
       </button>

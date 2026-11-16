@@ -47,7 +47,7 @@ export function PasskeyPanel({ hasCredentials }: { hasCredentials: boolean }) {
       }
       const done = await finishLoginAction(begin.challengeId, response);
       if (!done.ok) return setError(done.error);
-      window.location.assign("/app/batches");
+      window.location.assign("/app/");
     } finally {
       setBusy(false);
     }
@@ -76,18 +76,43 @@ export function PasskeyPanel({ hasCredentials }: { hasCredentials: boolean }) {
     }
   }
 
+  const addDevice_ = (
+    <>
+      <p className="text-[14px] leading-snug text-ds-muted">
+        On the server run <code className="font-[inherit] font-semibold text-ds-text">pnpm auth:enroll</code>, then type the code here.
+      </p>
+      <Input
+        className="mt-4"
+        label="Enrollment code"
+        name="code"
+        placeholder="XXXX-XXXX"
+        inputMode="text"
+        autoCapitalize="characters"
+        autoComplete="one-time-code"
+        autoCorrect="off"
+        spellCheck={false}
+        maxLength={12}
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+      />
+      <Button variant={canLogin ? "outline" : "solid"} block className="mt-3" disabled={busy || code.trim().length < 8} onClick={addDevice}>
+        Add this device
+      </Button>
+    </>
+  );
+
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       {(error || info) && (
-        <div className="border-b border-ds-line py-6" aria-live="polite">
+        <div aria-live="polite">
           {error && (
-            <AlertCard tone="light" title="Couldn't sign in" live>
+            <AlertCard title="Couldn't sign in" live>
               {error}
             </AlertCard>
           )}
           {info && (
-            <p className="flex items-center gap-2 border border-ds-line bg-ds-card p-5 ds-caps text-ds-text">
-              <Icon name="check" size={16} strokeWidth={2} className="text-ds-accent-fg" />
+            <p className="flex items-center gap-2 rounded-ds-sm bg-ds-raised px-3 py-2.5 text-[14px] text-ds-text">
+              <Icon name="check" size={16} className="shrink-0 text-ds-accent-fg" />
               {info}
             </p>
           )}
@@ -95,48 +120,32 @@ export function PasskeyPanel({ hasCredentials }: { hasCredentials: boolean }) {
       )}
 
       {canLogin && (
-        <section aria-label="Sign in" className="border-b border-ds-line py-8">
-          <Button variant="solid" block arrow disabled={busy} aria-busy={busy || undefined} onClick={login}>
-            {busy ? "Waiting for passkey" : "Use passkey"}
+        <section aria-label="Sign in">
+          <Button variant="solid" block disabled={busy} aria-busy={busy || undefined} onClick={login}>
+            {busy ? "Waiting for passkey…" : "Use passkey"}
           </Button>
-          <p className="mt-3 text-center ds-mono text-ds-faint">FACE ID · TOUCH ID · SECURITY KEY</p>
+          <p className="mt-2 text-center text-[13px] text-ds-muted">Face ID, Touch ID or a security key.</p>
         </section>
       )}
 
-      <section aria-labelledby="add-device" className="py-8">
-        <div className="flex items-baseline justify-between gap-4">
-          <h2 id="add-device" className="ds-caps text-ds-text">
+      {canLogin ? (
+        <details className="group border-t border-ds-line pt-2">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-ds-sm text-[14px] font-semibold text-ds-muted hover:text-ds-text [&::-webkit-details-marker]:hidden">
+            Add this device
+            <Icon name="chevronDown" size={16} className="group-open:rotate-180" />
+          </summary>
+          <section aria-label="Add this device" className="pb-1 pt-2">
+            {addDevice_}
+          </section>
+        </details>
+      ) : (
+        <section aria-labelledby="add-device">
+          <h2 id="add-device" className="mb-2 text-[15px] font-semibold text-ds-text">
             Add this device
           </h2>
-          <span className="ds-mono text-ds-faint">{canLogin ? "OPTIONAL" : "STEP 01"}</span>
-        </div>
-        <p className="mt-3 text-[15px] leading-snug text-ds-muted">
-          On the server run <code className="ds-mono text-ds-text">pnpm auth:enroll</code>, then type the code here.
-        </p>
-        <Input
-          className="mt-5"
-          label="Enrollment code"
-          name="code"
-          placeholder="XXXX-XXXX"
-          inputMode="text"
-          autoCapitalize="characters"
-          autoComplete="one-time-code"
-          autoCorrect="off"
-          spellCheck={false}
-          maxLength={12}
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-        />
-        <Button
-          variant={canLogin ? "outline" : "solid"}
-          block
-          className="mt-4"
-          disabled={busy || code.trim().length < 8}
-          onClick={addDevice}
-        >
-          Add this device
-        </Button>
-      </section>
+          {addDevice_}
+        </section>
+      )}
     </div>
   );
 }

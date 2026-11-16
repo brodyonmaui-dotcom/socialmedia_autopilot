@@ -8,7 +8,7 @@ export type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" |
 
 /** Shared box: sharp 22px square, black (invert) fill when checked; the mark is the sibling SVG. */
 export const CHOICE_BOX =
-  "peer size-[22px] shrink-0 appearance-none border border-ds-line-strong bg-ds-bg transition-colors duration-300 ease-ds " +
+  "peer size-[22px] shrink-0 appearance-none rounded-ds-xs border border-ds-line-strong bg-ds-card transition-colors duration-[var(--ds-dur)] ease-ds " +
   "checked:border-ds-invert checked:bg-ds-invert disabled:cursor-not-allowed " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-focus";
 

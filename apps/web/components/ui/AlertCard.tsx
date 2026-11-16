@@ -13,25 +13,23 @@ export interface AlertCardProps {
   className?: string;
 }
 
-/** "Attention" banner (sharp, 1px line): ⚠ + caps title, short body, optional small action. Dark = inverted band. */
-export function AlertCard({ tone = "dark", title, children, action, live = false, className }: AlertCardProps) {
-  const light = tone === "light";
+/** "Attention" card (v3): warn icon + label, short body, optional small action. `tone` is a v2 leftover (both look the same). */
+export function AlertCard({ title, children, action, live = false, className }: AlertCardProps) {
   return (
     <div
       role={live ? "alert" : undefined}
       className={cx(
-        "flex flex-col gap-3 border p-5 sm:flex-row sm:items-center sm:justify-between",
-        light ? "border-ds-line bg-ds-card text-ds-text" : "border-ds-invert bg-ds-invert text-ds-on-invert",
+        "flex flex-col gap-3 rounded-ds-lg border border-ds-line bg-ds-card p-4 text-ds-text sm:flex-row sm:items-center sm:justify-between lg:p-5",
         className,
       )}
     >
       <div className="min-w-0">
         <p className="flex items-center gap-2 ds-caps">
-          <Icon name="alert" size={16} strokeWidth={2} className={light ? "text-ds-warn" : "text-ds-accent"} />
+          <Icon name="alert" size={16} className="text-ds-warn" />
           {title}
         </p>
         {children && (
-          <div className={cx("mt-1.5 text-[15px] leading-snug", light ? "text-ds-muted" : "text-ds-on-invert/80")}>{children}</div>
+          <div className="mt-1.5 text-[15px] leading-snug text-ds-muted">{children}</div>
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}

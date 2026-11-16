@@ -6,9 +6,13 @@ export type FakeRule = [RegExp, Bucket, string | null, number?];
 
 export const DEFAULT_FAKE_RULES: FakeRule[] = [
   [/kys|kill yourself|know where you live/i, "hide_flag", null],
-  [/fake|scam|paid actor|cringe|lol no/i, "negative", "Have a great day 😊👍"],
-  [/\?|collab|where|when|brand|dm/i, "flag", null],
-  [/thank|love|fire|🔥|great|nice|clean/i, "simple_positive", "Appreciate you man"],
+  // A model may add promo on its own (never remove a rule's promo verdict).
+  [/\bfeature (?:you|your)\b|promo(?:tion)? (?:offer|service)s?|followers? for sale/i, "spam_promo", null],
+  [/fake|scam|paid actor|cringe|lol no|terrible|nobody asked|overrated/i, "negative", "Have a great day 😊👍"],
+  // Rhetorical praise ("how are you this good?!", "bro what 🔥?"): the model is confident it's praise.
+  [/(?:\?!|!\?)|^(?:bro )?what 🔥\?$/i, "simple_positive", "Appreciate you man", 0.8],
+  [/\?|collab|where|when|sponsor|partnership|\bdm\b|brand deal/i, "flag", null],
+  [/thank|love|fire|🔥|great|nice|clean|insane|crazy|goat|🐐|respect|underrated|inspir|motivat|best|legend|\bw\b|💪|🙌|👏|❤️|😎|👑|unreal|gold|easy|needed this|keep going|smooth|solid|hits? different|look at this|try this|combo|lift|disciplin|patien|consisten|progress/i, "simple_positive", "Appreciate you man"],
 ];
 
 export function createFakeTriageClient(rules: FakeRule[] = DEFAULT_FAKE_RULES): TriageClient {
