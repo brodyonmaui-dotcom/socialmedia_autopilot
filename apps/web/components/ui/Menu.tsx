@@ -16,7 +16,8 @@ export type MenuItem = {
   icon?: IconName;
   href?: string;
   action?: (fd: FormData) => void | Promise<void>;
-  fields?: Record<string, string>;
+  /** Hidden inputs; an array value repeats the field (e.g. several `item` ids). */
+  fields?: Record<string, string | string[]>;
   onSelect?: () => void;
   /** Marks the current choice (Dropdown) with a check and aria-current. */
   current?: boolean;
@@ -69,7 +70,8 @@ export function MenuList({ items, label, close }: { items: MenuItem[]; label: st
         if (item.action) {
           return (
             <form key={i} action={item.action} role="none" onSubmit={() => setTimeout(close, 0)}>
-              {item.fields && Object.entries(item.fields).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
+              {item.fields &&
+                Object.entries(item.fields).flatMap(([k, v]) => (Array.isArray(v) ? v : [v]).map((x, j) => <input key={`${k}-${j}`} type="hidden" name={k} value={x} />))}
               <button role="menuitem" type="submit" disabled={item.disabled} aria-disabled={item.disabled || undefined} className={cls}>
                 <ItemInner item={item} />
               </button>

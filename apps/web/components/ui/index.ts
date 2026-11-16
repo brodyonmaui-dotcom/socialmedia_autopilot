@@ -36,6 +36,7 @@ export * from "./Radio.js";
 export * from "./Tabs.js";
 export * from "./Badge.js";
 export * from "./Input.js";
+export * from "./Textarea.js";
 export * from "./Select.js";
 export * from "./Stepper.js";
 export * from "./ProgressBar.js";
