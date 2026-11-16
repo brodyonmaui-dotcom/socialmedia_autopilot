@@ -72,7 +72,7 @@ describe.skipIf(!url)("research-refresh end to end (scratch schema, rolled back)
     expect(ideas).toHaveLength(9);
     for (const i of ideas) {
       expect(i.referenceUrl).toMatch(/^https:\/\/www\.instagram\.com\/(reel|p)\/DEMO\d+\/$/);
-      expect(i.about).toMatch(/^A (reel|video|post|carousel) by @demo_\w+ that opens with a .+ hook: “.+”\. It got [\d.]+× their usual engagement\.$/);
+      expect(i.about).toMatch(/^A (reel|video|post|carousel) by @demo_\w+ that opens with a .+ hook: “.+”\.? It got [\d.]+× their usual engagement\.$/);
       expect(i.adapt).toMatch(/Don't/);
       expect(i.creatorHandle).toMatch(/^demo_/);
       expect(i.notesBy).toBe("code");

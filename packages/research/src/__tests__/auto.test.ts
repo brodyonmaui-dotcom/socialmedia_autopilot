@@ -89,6 +89,8 @@ describe("about / adapt from code", () => {
   it("about quotes only the hook line and states the multiple", () => {
     const about = aboutFromCode({ kind: "reel", hookLine: "Stop skipping your warm-up", ratio: 2.34, pattern: "contrarian" }, { handle: "demo_lifter_one" });
     expect(about).toBe("A reel by @demo_lifter_one that opens with a contrarian hook: “Stop skipping your warm-up”. It got 2.3× their usual engagement.");
+    const q = aboutFromCode({ kind: "image", hookLine: "Why bother?", ratio: 12.4, pattern: "question" }, { handle: "x", displayName: "Demo X" });
+    expect(q).toBe("A post by Demo X that opens with a question hook: “Why bother?” It got 12× their usual engagement.");
   });
   it("has a specific template per pattern × lane, all passing the voice + privacy lint", () => {
     for (const p of AUTO_PATTERNS) for (const lane of ["gym", "trading", null]) expect(adaptFromCode(p, lane)).toMatch(/Don't|own/);
