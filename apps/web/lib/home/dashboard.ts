@@ -266,7 +266,8 @@ export function editorTiles(renders: EditorRender[], max = 4): EditorTile[] {
       key: r.key,
       batchId: r.batchId,
       mediaId: r.mediaId,
-      title: r.label,
+      // The clip's own words first (YouTube title, else the caption's first line), the file label last.
+      title: r.edits.find((e) => e.title?.trim())?.title?.trim() || r.captionLines[0] || r.label,
       meta: [platforms, first ? first.slot : "No time yet"].join(" · "),
       durationS: r.durationS,
       approvableIds: r.approvableIds,

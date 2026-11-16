@@ -20,6 +20,7 @@ const KIND_LABELS = {
   config: "Configuration",
   "ready-for-approval": "Ready for approval",
   "settings-change": "Settings change",
+  "reply-ready": "Reply ready",
 };
 
 function notificationView(data) {

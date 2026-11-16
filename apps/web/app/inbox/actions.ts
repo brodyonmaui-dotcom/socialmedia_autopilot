@@ -16,6 +16,9 @@ import {
   writeEngagementAlert,
 } from "../../lib/engagement/queries.js";
 import { setDmDrafts, setKilled, setMode } from "../../lib/engagement/settings.js";
+import { approveAndSend, approveDepsFromEnv } from "../../lib/inbox/item.js";
+import { addPromoAccount, markNotSpam, removePromoAccount } from "../../lib/inbox/promo.js";
+import { setPings } from "../../lib/inbox/status.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PLATFORMS: readonly EngagementPlatform[] = ["instagram", "youtube", "tiktok"];
@@ -158,3 +161,68 @@ export async function setDmDraftsAction(fd: FormData): Promise<void> {
     return after ? "DM drafts on: read-only, nothing is ever sent" : "DM drafts off";
   });
 }
+
+// ---- run 4: one-tap approve, promo list, pings ----
+
+/** Back to the item page by default (the push deep link), or to the list tab the form names. */
+function itemPath(commentId: string, fd: FormData | undefined): string {
+  return field(fd, "tab") ? pathFrom(fd) : `/inbox/item/${commentId}`;
+}
+
+/**
+ * "Approve & send" (one tap from the item page / the push). Queues the drafted (or edited, form field
+ * "text") reply as a manual action; the worker's next tick applies every gate. Idempotent on double tap.
+ */
+export async function approveAndSendAction(commentId: string, fd?: FormData): Promise<void> {
+  const session = await requireSession();
+  await run(UUID.test(commentId) ? itemPath(commentId, fd) : "/inbox", async () => {
+    if (!UUID.test(commentId)) throw new UserError("unknown comment");
+    const text = field(fd, "text");
+    const r = await approveAndSend(approveDepsFromEnv(getPool()), commentId, { ...(text.trim() ? { text } : {}), sessionId: session.id, now: new Date() });
+    if (r.status === "refused") throw new UserError(r.reason);
+    return r.message;
+  });
+}
+
+/** "Always ignore this account" (kind = "comment" | "dm"). */
+export async function ignoreAccountAction(kind: string, id: string, fd?: FormData): Promise<void> {
+  const session = await requireSession();
+  await run(kind === "dm" ? "/inbox/dms" : pathFrom(fd), async () => {
+    if (!UUID.test(id) || (kind !== "comment" && kind !== "dm")) throw new UserError("unknown item");
+    const r = await addPromoAccount(getPool(), kind === "dm" ? { threadId: id } : { commentId: id }, new Date());
+    if (!r) throw new UserError("this item has no author to ignore");
+    return `ignored from now on (${r.commentsMoved} comment(s), ${r.threadsIgnored} DM thread(s) moved to Ignored)`;
+  });
+}
+
+/** "Not spam": one item back through normal triage; a rule-listed author comes off the list. */
+export async function notSpamAction(kind: string, id: string, fd?: FormData): Promise<void> {
+  const session = await requireSession();
+  await run(kind === "dm" ? "/inbox/dms" : pathFrom(fd), async () => {
+    if (!UUID.test(id) || (kind !== "comment" && kind !== "dm")) throw new UserError("unknown item");
+    const r = await markNotSpam(getPool(), kind === "dm" ? { threadId: id } : { commentId: id }, new Date());
+    if (!r.moved) return "already back in the inbox";
+    return kind === "dm" ? "back in DMs" : "back in the inbox: it gets triaged again";
+  });
+}
+
+/** Take one account off the promo list (removed_at; nothing is deleted). */
+export async function removePromoAccountAction(id: string, fd?: FormData): Promise<void> {
+  const session = await requireSession();
+  await run(pathFrom(fd), async () => {
+    if (!UUID.test(id)) throw new UserError("unknown account");
+    return (await removePromoAccount(getPool(), id, new Date())) ? "removed from the promo list" : "already removed";
+  });
+}
+
+/** engagement.pings: each | hourly | off (form field "pings"). Phone notifications only. */
+export async function setPingsAction(fd: FormData): Promise<void> {
+  const session = await requireSession();
+  await run(pathFrom(fd), async () => {
+    const v = field(fd, "pings");
+    if (v !== "each" && v !== "hourly" && v !== "off") throw new UserError("unknown setting");
+    const { after } = await setPings(getPool(), v);
+    return `pings: ${after}`;
+  });
+}
+

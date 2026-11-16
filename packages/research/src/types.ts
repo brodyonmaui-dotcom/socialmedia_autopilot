@@ -51,12 +51,19 @@ export interface Hook {
   id: string;
   text: string;
   pillar: Pillar | null;
-  /** "own" = he wrote/used it, "creator" = adapted from a tracked creator's pattern. */
-  source: "own" | "creator";
+  /** "own" = he wrote/used it, "creator" = a tracked creator's pattern, "niche"/"script" = research-refresh (0013). */
+  source: HookSource;
   sourceCreatorId: string | null;
   timesUsed: number;
   createdAt: string;
 }
+
+export const HOOK_SOURCES = ["own", "creator", "niche", "script"] as const;
+export type HookSource = (typeof HOOK_SOURCES)[number];
+
+/** Where an idea came from (0013): typed in by hand, a tracked creator's post, his niche prompts, or the yap scripts. */
+export const IDEA_SOURCES = ["manual", "creator", "niche", "script"] as const;
+export type IdeaSource = (typeof IDEA_SOURCES)[number];
 
 export function isPillar(value: unknown): value is Pillar {
   return typeof value === "string" && (PILLARS as readonly string[]).includes(value);

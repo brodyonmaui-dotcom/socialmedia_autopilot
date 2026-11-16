@@ -188,7 +188,8 @@ export function Sidebar({
   return (
     <>
       {desktop && !open && (
-        <div aria-hidden="true" className="fixed inset-y-0 left-0 z-[45] w-3" onPointerEnter={() => ctl.pointerEnter()} onPointerLeave={() => ctl.pointerLeave()} />
+        // pointermove (not pointerenter): a cursor that merely rests at the edge while the page loads doesn't open it.
+        <div aria-hidden="true" className="fixed inset-y-0 left-0 z-[45] w-3" onPointerMove={() => ctl.pointerEnter()} onPointerLeave={() => ctl.pointerLeave()} />
       )}
       {!desktop && open && <div aria-hidden="true" className="ds-fade fixed inset-0 z-[55] bg-ds-scrim" onClick={closeAndReturn} />}
       <div
@@ -207,7 +208,7 @@ export function Sidebar({
         }}
         className={cx(
           "fixed inset-y-0 left-0 z-[60] flex w-[var(--ds-sidebar-w)] max-w-[86vw] flex-col border-r border-ds-line bg-ds-card shadow-ds-pop transition-transform duration-[var(--ds-dur)] ease-ds",
-          open ? "translate-x-0" : "-translate-x-[calc(100%+48px)]",
+          open ? "translate-x-0" : "-translate-x-[calc(100%_+_48px)]",
         )}
       >
         <div className="flex h-[var(--ds-topbar-h)] shrink-0 items-center gap-1 px-[var(--ds-gutter)]">

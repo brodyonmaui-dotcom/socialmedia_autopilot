@@ -343,6 +343,25 @@ describe("job registration", () => {
 
   it("by default exactly the approved kinds are pushable; every other declared kind is page-only", () => {
     const pushable = ALERT_KINDS.filter((k) => isPushable({ kind: k, created_at: NOW, pushed_at: null, acknowledged_at: null }, cfg(), NOW));
-    expect(new Set(pushable)).toEqual(new Set(["engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth", "ready-for-approval"]));
+    expect(new Set(pushable)).toEqual(new Set(["engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth", "ready-for-approval", "reply-ready"]));
+  });
+});
+
+describe("reply-ready payload (run 4)", () => {
+  const ID = "c0000000-0000-4000-8000-000000000001";
+  it("one reply-ready alert: its (pre-linted) message as body and a deep link to the item", () => {
+    const p = buildPayload([{ kind: "reply-ready", platform: "instagram", message: 'gym_fan_22 commented: "love it". Drafted: "Appreciate you man". Approve?', comment_id: ID }]);
+    expect(p).toEqual({ count: 1, kinds: ["reply-ready"], sources: ["instagram"], url: `/app/inbox/item/${ID}`, body: 'gym_fan_22 commented: "love it". Drafted: "Appreciate you man". Approve?' });
+  });
+  it("a digest (no comment) links to the inbox; a malformed id never reaches the URL", () => {
+    expect(buildPayload([{ kind: "reply-ready", platform: "all", message: "5 replies drafted, 2 need you", comment_id: null }]).url).toBe("/app/inbox");
+    expect(buildPayload([{ kind: "reply-ready", platform: "all", message: "x", comment_id: "../../alerts" }]).url).toBe("/app/inbox");
+  });
+  it("several reply-ready alerts: a count and /app/inbox, no text; mixed with other kinds: the old payload, no text", () => {
+    const two = buildPayload([{ kind: "reply-ready", platform: "instagram", message: "a", comment_id: ID }, { kind: "reply-ready", platform: "youtube", message: "b", comment_id: ID }]);
+    expect(two).toEqual({ count: 2, kinds: ["reply-ready"], sources: ["instagram", "youtube"], url: "/app/inbox" });
+    const mixed = buildPayload([{ kind: "reply-ready", platform: "instagram", message: "a", comment_id: ID }, { kind: "auth", platform: "web", message: "secret" }]);
+    expect(Object.keys(mixed).sort()).toEqual(["count", "kinds", "sources", "url"]);
+    expect(mixed.url).toBe("/app/alerts");
   });
 });

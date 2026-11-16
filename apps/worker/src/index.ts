@@ -8,6 +8,7 @@ import { registerTokenHealthJob, tokenHealthConfigFromEnv } from "./jobs/token-h
 import { registerAlertPushJob } from "./jobs/alert-push.js";
 import { analyticsSourcesFromEnv, analyticsStartupLine, registerAnalyticsIngestJob } from "./jobs/analytics-ingest.js";
 import { accountStartupLine, registerAccountIngestJob } from "./jobs/account-ingest.js";
+import { registerResearchRefreshJob, researchEnvFromEnv, researchStartupLine } from "./jobs/research-refresh.js";
 import { buildCommentSources, commentCredentialsFromEnv, createInstagramDmSource, credentialsFromEnv } from "@autopilot/adapters";
 import { killEnvFromEnv } from "@autopilot/engagement";
 import { PgEngagementStore } from "./jobs/engagement-store.js";
@@ -55,6 +56,8 @@ const analyticsCfg = analyticsSourcesFromEnv(process.env);
 await registerAnalyticsIngestJob(boss, pool, analyticsCfg);
 // Account-wide analytics (all recent IG/YT posts, incl. ones posted by hand): read-only, every 6 h.
 await registerAccountIngestJob(boss, pool, analyticsCfg, timeZone);
+// Research refresh: ideas + hooks every 3 days (read-only on Instagram, own tables only), so it runs in dry-run too.
+await registerResearchRefreshJob(boss, pool, researchEnvFromEnv(process.env)).then(() => console.log(researchStartupLine(researchEnvFromEnv(process.env))));
 // Alert push (F8): private notifications to the creator, so it runs in dry-run too. No VAPID → one log line, not registered.
 await registerAlertPushJob(boss, pool, process.env);
 

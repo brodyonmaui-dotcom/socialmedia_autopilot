@@ -78,7 +78,9 @@ export function shapePosts(rows: PostRow[], timeZone: string): SearchResult[] {
       if (!g.platforms.includes(r.platform as Platform)) g.platforms.push(r.platform as Platform);
     } else groups.set(key, { row: r, day, platforms: [r.platform as Platform] });
   }
+  const order: string[] = ["instagram", "youtube", "tiktok", "snapchat"];
   return [...groups.values()].slice(0, PER_GROUP).map(({ row, day, platforms }) => {
+    platforms.sort((a, b) => order.indexOf(a) - order.indexOf(b));
     const label = mediaLabel(row.source_path, row.media_id);
     const title = oneLine(row.title) || oneLine(row.caption) || label;
     const when = day ? dayLabel(day) : "No time yet";

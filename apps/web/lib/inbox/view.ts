@@ -47,6 +47,7 @@ const BUCKET: Record<Bucket, { label: string; tone: Tone }> = {
   hide_flag: { label: "Hide + flag", tone: "danger" },
   negative: { label: "Negative", tone: "warn" },
   simple_positive: { label: "Positive", tone: "neutral" },
+  spam_promo: { label: "Promo · ignored", tone: "neutral" },
 };
 
 /** Triage label as a Chip (no green: positive is neutral; warn/danger carry the alert icon). */

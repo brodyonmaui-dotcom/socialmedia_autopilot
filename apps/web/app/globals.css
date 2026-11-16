@@ -138,7 +138,7 @@
   }
 }
 
-/* Numbers: Inter with tabular, lining figures (never monospace). */
+/* Numbers: Inter with tabular, lining figures (never a fixed-width face). */
 @utility ds-num {
   font-variant-numeric: tabular-nums lining-nums;
 }
@@ -215,7 +215,7 @@
   line-height: 1.35;
   letter-spacing: 0;
 }
-/* Was a monospace readout: now Inter tabular (hard rule 5: no monospace). */
+/* Was a fixed-width readout: now Inter tabular (hard rule 5). */
 @utility ds-mono {
   font-size: 12px;
   font-variant-numeric: tabular-nums lining-nums;

@@ -31,7 +31,7 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={cx("flex flex-col gap-4 pb-6 pt-6 sm:flex-row sm:items-end sm:justify-between lg:pb-8 lg:pt-10", className)}>
+    <header className={cx("flex flex-wrap items-end justify-between gap-x-4 gap-y-3 pb-5 pt-6 lg:pb-8 lg:pt-10", className)}>
       <div className="min-w-0">
         {back && (
           <Link

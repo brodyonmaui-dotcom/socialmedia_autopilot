@@ -180,6 +180,9 @@ try {
   }
   await seedDemoPosters(pool); // synthetic thumbnails in logs/dev-posters (serve with DEV_POSTER_DIR)
   console.log(`dev:seed: OK ${await (await import("./lib/seed-account-posts.js")).seedAccountPosts(pool)}`); // account-wide analytics demo (0011)
+  console.log(`dev:seed: OK ${await (await import("./lib/seed-research.js")).seedResearch(pool)}`); // research-refresh demo on fixture data (0013)
+  console.log(`dev:seed: OK ${await (await import("./lib/seed-inbox.js")).seedDemoInbox(pool)}`); // inbox filters + promo demo (0012)
+  console.log(`dev:seed: OK ${await (await import("./lib/seed-shell.js")).seedShellDemo(pool)}`); // v3 shell + Home demo (alerts, editor drafts)
 } catch (e) {
   console.error(`dev:seed: FAIL ${(e as Error).message.replace(/^dev:seed: /, "")}`);
   process.exitCode = 1;

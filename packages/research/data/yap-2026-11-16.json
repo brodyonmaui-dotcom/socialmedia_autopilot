@@ -1,0 +1,367 @@
+{
+  "prefix": "yap-2026-11-16",
+  "ideas": [
+    {
+      "sourceKey": "yap-2026-11-16-#1",
+      "number": 1,
+      "title": "Yap #1 · Trading: discipline vs. emotion",
+      "lane": "Trading",
+      "pillar": "trading",
+      "hook": "Your brain charges you double for every loss, and that's the whole reason you can't follow your own rules.",
+      "script": "Your brain charges you double for every loss, and that's the whole reason you can't follow your own rules.\n\nThere's a thing in psychology called loss aversion. Kahneman and Tversky found that losses hit roughly twice as hard as gains of the same size.\n\nSo when a trade goes against me, I'm not feeling a small red number. I'm feeling twice that. And twice that is enough to make me move a stop, or hold something I already decided to close.\n\nIt's like a scale that's been rigged before you ever step on it. You can argue with the reading all day. It's still rigged.\n\nThe fix isn't being a braver person. It's not more confidence, and it's not some mindset quote taped to the monitor. It's deciding the exit before the trade, when nothing is on the line yet, and then treating the version of me in the trade like he's not allowed to change the plan.\n\nYou can't stop feeling the loss. You can stop letting it vote.",
+      "about": "Loss aversion: losses loom larger than gains, roughly twice as strongly (Kahneman & Tversky, Prospect Theory 1979; Tversky & Kahneman 1992).",
+      "referenceUrl": "https://en.wikipedia.org/wiki/Loss_aversion",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#2",
+      "number": 2,
+      "title": "Yap #2 · Process > results",
+      "lane": "Process > results",
+      "pillar": "trading",
+      "hook": "A green day can be the worst trade you made all week.",
+      "script": "A green day can be the worst trade you made all week.\n\nAnnie Duke, the poker player, has a name for the mistake. She calls it resulting. It's judging how good a decision was by how it turned out.\n\nAnd trading is built to make you do it. You break your rules, the market bails you out, and now your brain files that as a good decision. So you do it again.\n\nIt's like running a red light and getting home fine. Getting home fine doesn't make it a good idea. It just means it didn't cost you yet.\n\nSo I don't grade my days by P and L anymore. Not on the good days, and not on the bad ones either. A red day where I followed every rule is a better day than a green one where I didn't. That still feels wrong to write down. It's still true.\n\nDid you make a good decision, or did you just get paid for a bad one?",
+      "about": "\"Resulting\": judging the quality of a decision by the quality of its outcome (Annie Duke, Thinking in Bets, 2018).",
+      "referenceUrl": "https://en.wikipedia.org/wiki/Annie_Duke",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#3",
+      "number": 3,
+      "title": "Yap #3 · Gym as a discipline mirror",
+      "lane": "Gym as a discipline mirror",
+      "pillar": "gym",
+      "hook": "The gym is the only place in my life where nobody can lie to me, including me.",
+      "script": "The gym is the only place in my life where nobody can lie to me, including me.\n\nHenry Rollins wrote an essay about lifting where he said the iron never lies to you. Two hundred pounds is always two hundred pounds.\n\nEverywhere else, I can negotiate. I can tell myself the trade was basically fine. I can tell myself I studied enough. I can round up.\n\nThe bar doesn't round up. Either it moves or it doesn't. It doesn't care that I slept badly, it doesn't care that I had a good week, and it definitely doesn't care how I feel about myself.\n\nThat's why I like it. Not because it's motivating. It's because it's the one honest scoreboard I have, and it shows me pretty quickly whether the discipline I talk about is real or just something I say.\n\nIf I'm skipping sets, I'm probably skipping rules somewhere else too.\n\nThe bar isn't hard on you. It's just honest.",
+      "about": "Henry Rollins, \"The Iron\" (Details, 1994; reprinted as \"Iron and the Soul\"): \"The Iron never lies to you… two hundred pounds is always two hundred pounds.\"",
+      "referenceUrl": "https://www.artofmanliness.com/character/manhood/henry-rollins-iron-and-soul/",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#4",
+      "number": 4,
+      "title": "Yap #4 · Resistance as proof of progress",
+      "lane": "Resistance as proof of progress",
+      "pillar": "lifestyle",
+      "hook": "The amount you don't want to do something is a pretty accurate measure of how much it matters.",
+      "script": "The amount you don't want to do something is a pretty accurate measure of how much it matters.\n\nSteven Pressfield wrote that the more important an action is to your growth, the more resistance you'll feel toward doing it. He capitalizes Resistance, like it's a person.\n\nI notice it in the stupidest ways. I'll happily watch charts for an hour. Writing down why I took a trade, which is the part that actually makes me better? Suddenly I'm hungry, I need to reply to a text, I'm reorganizing my desk.\n\nIt's like a metal detector. The beeping gets louder the closer you get to the thing worth digging up.\n\nIt's not laziness, exactly. And it's not a sign you picked the wrong goal. It's just what it feels like to stand right next to the part that's going to change you.\n\nThe resistance isn't telling you to stop. It's telling you where to go.",
+      "about": "Steven Pressfield, The War of Art (2002): \"The more important a call or action is to our soul's evolution, the more Resistance we will feel toward pursuing it.\"",
+      "referenceUrl": "https://www.oprah.com/entertainment/steven-pressfield--the-war-of-art-excerpt/all",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#5",
+      "number": 5,
+      "title": "Yap #5 · Process > results",
+      "lane": "Process > results",
+      "pillar": "trading",
+      "hook": "The moment I made a P&L goal, I started becoming a worse trader.",
+      "script": "The moment I made a P&L goal, I started becoming a worse trader.\n\nThere's an idea called Goodhart's Law. The way the anthropologist Marilyn Strathern phrased it is: when a measure becomes a target, it ceases to be a good measure.\n\nP and L was supposed to tell me if my process was working. Then I set a weekly number, and it stopped being a measurement. It became a thing to hit. So on a Thursday when I was short of it, I'd take trades I would never take on a Monday.\n\nIt's like a student who studies for the test instead of the subject. The grade goes up. The understanding doesn't.\n\nSo now the targets are things I control. Did I wait for my setup. Did I size it right. Did I stop when I said I'd stop. Not the money. The money is just the receipt.\n\nChase the number and you'll get the number. You might not get better.",
+      "about": "Goodhart's Law, as Marilyn Strathern put it (1997): \"When a measure becomes a target, it ceases to be a good measure.\"",
+      "referenceUrl": "https://www.gwern.net/doc/statistics/decision/1997-strathern.pdf",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#6",
+      "number": 6,
+      "title": "Yap #6 · Ego and self-criticism",
+      "lane": "Ego and self-criticism",
+      "pillar": "lifestyle",
+      "hook": "Being hard on yourself after a bad day is not discipline, it's just a slower way to quit.",
+      "script": "Being hard on yourself after a bad day is not discipline, it's just a slower way to quit.\n\nI used to think the self-criticism was the engine. Like if I stopped tearing myself apart after a loss, I'd get soft.\n\nThen I found this study by Breines and Chen. People failed a test, and the ones who were nudged to be kind to themselves about it studied longer for the next one. Not less. Longer.\n\nWhich makes sense when you think about it. If every mistake comes with a beating, you stop looking at your mistakes. You don't journal the bad trade, you don't rewatch the bad set, you just want it over.\n\nIt's the difference between a coach and a critic. Both see the same mistake. Only one of them makes you want to come back tomorrow.\n\nSelf-compassion isn't letting yourself off the hook. It's not pretending the day was fine. It's making the mistake safe enough to look at.\n\nYou can hold yourself to a standard without holding yourself in contempt.",
+      "about": "Breines & Chen (2012, PSPB): after a failed test, people prompted toward self-compassion spent more time studying for the retake than those prompted toward self-esteem or nothing.",
+      "referenceUrl": "https://pubmed.ncbi.nlm.nih.gov/22645164/",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#7",
+      "number": 7,
+      "title": "Yap #7 · Trading: discipline vs. emotion",
+      "lane": "Trading",
+      "pillar": "trading",
+      "hook": "Most people don't lose money because they pick bad trades, they lose it because they can't stand being wrong.",
+      "script": "Most people don't lose money because they pick bad trades, they lose it because they can't stand being wrong.\n\nThere's a well-documented pattern in finance called the disposition effect. People tend to sell their winners too early and hold their losers too long.\n\nAnd it's not a math problem. It's an ego problem. Closing a winner feels like proof I was right, so I grab it. Closing a loser means admitting I was wrong, so I wait. And wait. Hoping it comes back so I don't have to admit anything.\n\nIt's like staying in an argument you already know you lost, just because leaving would mean saying it out loud.\n\nI'm not immune to this. It's most of what my bad days have in common. Not bad analysis. Not bad luck. Just me protecting my ego with real money.\n\nThe stop isn't there to protect my account. It's there to protect me from me.\n\nBeing wrong costs a little. Refusing to be wrong costs everything.",
+      "about": "The disposition effect: investors tend to sell winners too early and hold losers too long (Shefrin & Statman, 1985; Odean, 1998, Journal of Finance).",
+      "referenceUrl": "https://en.wikipedia.org/wiki/Disposition_effect",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#8",
+      "number": 8,
+      "title": "Yap #8 · Experiment: training my mind (day 1)",
+      "lane": "Experiment",
+      "pillar": "lifestyle",
+      "hook": "Your mind is somewhere else almost half the time, and in trading that's the half that costs you.",
+      "script": "Your mind is somewhere else almost half the time, and in trading that's the half that costs you.\n\nThere's a Harvard study where they pinged people at random through the day and asked what they were doing and what they were thinking about. In about forty-seven percent of those moments, their minds were somewhere else. And they were less happy when that was happening.\n\nI believe it. I'll be watching price and suddenly I'm thinking about lunch, or a conversation from yesterday, and I come back and the move already happened. Or worse, I'm in a trade and I don't remember why.\n\nI train my body every day on purpose. I've never trained my attention on purpose. Not once. I just assumed some people are focused and some aren't.\n\nSo I'm trying something. A few minutes every day, before the market opens, just practicing coming back. I'll tell you how it goes. Honestly, including if it does nothing.\n\nIf focus is a skill, I've never actually practiced it. So this is day one.",
+      "about": "Killingsworth & Gilbert (2010, Science): people's minds were wandering in 46.9% of sampled moments, and they were less happy when they were. Note: only post this if you're actually starting the daily practice the day it goes up (plan.md open question 3). Describe the practice you'll really do; don't promise a result.",
+      "referenceUrl": "https://www.imm.uzh.ch/news/schatzkammer/Science_2010.330.932.pdf",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#9",
+      "number": 9,
+      "title": "Yap #9 · Identity / becoming your future self",
+      "lane": "Identity / becoming your future self",
+      "pillar": "lifestyle",
+      "hook": "You don't become disciplined and then act like it, you act like it until there's enough evidence to believe it.",
+      "script": "You don't become disciplined and then act like it, you act like it until there's enough evidence to believe it.\n\nJames Clear has a line I think about a lot. Every action you take is a vote for the type of person you wish to become.\n\nWhat I like about that is it takes the pressure off any single day. One skipped workout doesn't make me lazy. One revenge trade doesn't make me a gambler. It's one vote. But it's also not nothing. It counts.\n\nIt's like a jar you're filling with marbles. Nobody notices one marble. Eventually somebody notices the jar.\n\nI'm not trying to feel like a disciplined person right now. Honestly, most days I don't. I'm not trying to convince anyone either. I'm just trying to stack enough boring evidence that one day it's not a goal anymore, it's just a description.\n\nYou don't need to win the election today. You just need to keep voting.",
+      "about": "James Clear, Atomic Habits (2018): \"Every action you take is a vote for the type of person you wish to become.\"",
+      "referenceUrl": "https://jamesclear.com/identity-votes",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#10",
+      "number": 10,
+      "title": "Yap #10 · Validation and peace",
+      "lane": "Validation and peace",
+      "pillar": "lifestyle",
+      "hook": "People are paying about half as much attention to you as you think, and that's the most freeing thing I've learned this year.",
+      "script": "People are paying about half as much attention to you as you think, and that's the most freeing thing I've learned this year.\n\nThere's a classic study where students had to walk into a room wearing a really embarrassing T-shirt. Afterwards they guessed about half the room noticed. In reality, it was about a quarter.\n\nPsychologists call it the spotlight effect. We all feel like we're on stage. Everyone else is busy feeling like they're on stage too.\n\nWhen I started posting my trades and my lifts, I was scared of exactly this. The red days. The ugly reps. People thinking I'm cringe for even trying.\n\nAnd yeah, some people will. But most people scroll past. They're not judging you. They're thinking about themselves, which is exactly what you're doing right now.\n\nThat doesn't mean nothing matters. It means the thing stopping you is mostly imaginary.\n\nNobody's watching as closely as you think. So you might as well do it your way.",
+      "about": "The spotlight effect: students made to wear an embarrassing T-shirt estimated about 50% of the room noticed; about 25% actually did (Gilovich, Medvec & Savitsky, 2000, JPSP).",
+      "referenceUrl": "https://psychologytoday.com/us/blog/mental-mishaps/202111/why-some-people-assume-everyone-is-looking-them",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#11",
+      "number": 11,
+      "title": "Yap #11 · Gym as a discipline mirror",
+      "lane": "Gym as a discipline mirror",
+      "pillar": "gym",
+      "hook": "The gym doesn't build discipline, it just shows you how much you already have.",
+      "script": "The gym doesn't build discipline, it just shows you how much you already have.\n\nThere's a famous line people credit to Aristotle that's actually Will Durant summarizing him. We are what we repeatedly do. Excellence, then, is not an act, but a habit.\n\nYour body is basically that sentence made visible. It's not the one insane workout. It's not the week you were really locked in. It's the average of all the boring Tuesdays.\n\nThat's what I find kind of humbling about it. I can't fake a physique. I can't talk my way into a bigger lift. It just keeps a quiet record of what I actually did, not what I meant to do.\n\nA diary versus a security camera. My head keeps the diary. The gym is the camera.\n\nSo when I'm frustrated with how I look, the honest question isn't what's wrong with my body. It's what I've been repeating.\n\nThe mirror isn't showing you your body. It's showing you your habits.",
+      "about": "Will Durant, The Story of Philosophy (1926), summarizing Aristotle: \"We are what we repeatedly do. Excellence, then, is not an act, but a habit.\"",
+      "referenceUrl": "https://en.wikiquote.org/wiki/Will_Durant",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#12",
+      "number": 12,
+      "title": "Yap #12 · Detachment and intrinsic motivation (the game)",
+      "lane": "Detachment and intrinsic motivation (the game)",
+      "pillar": "lifestyle",
+      "hook": "The fastest way to ruin something you love is to start getting paid for it.",
+      "script": "The fastest way to ruin something you love is to start getting paid for it.\n\nThere's a study from the seventies with preschoolers who loved drawing. Some of them were told they'd get a reward for drawing. Later, when nobody was rewarding anything, those kids drew less than the ones who never expected a prize.\n\nIt's called the overjustification effect. An outside reward can quietly replace the reason you were doing it in the first place.\n\nI think about this with trading. I got into it because I genuinely like the puzzle. Reading price, being patient, being right for the right reasons. The days I'm thinking about the money are the days I trade worst, because it stops being a game and starts being a job I'm scared of losing.\n\nSame with the gym. Lifting for the pump is fun. Lifting for likes is exhausting.\n\nIt's not that money is bad. It's that it's a terrible reason.\n\nPlay it because you like the game. The score takes care of itself, or it doesn't.",
+      "about": "The overjustification effect: preschoolers who expected a reward for drawing with markers later drew less in free play (Lepper, Greene & Nisbett, 1973, JPSP).",
+      "referenceUrl": "https://en.wikipedia.org/wiki/Overjustification_effect",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#13",
+      "number": 13,
+      "title": "Yap #13 · Time and routine",
+      "lane": "Time and routine",
+      "pillar": "lifestyle",
+      "hook": "This year felt shorter than last year, and it's not your imagination, it's math.",
+      "script": "This year felt shorter than last year, and it's not your imagination, it's math.\n\nThere's an old idea called Janet's Law, from a French philosopher in the 1800s. A year feels as long as the fraction of your life it represents. When you're five, a year is twenty percent of your life. At fifty, it's two percent.\n\nSo every year really does shrink. And the part I didn't expect is that routine makes it worse. Days that are all the same collapse into one memory. A month of identical days feels like a week when you look back.\n\nThat's the trap with discipline, honestly. You build a routine to get better, and the routine eats your memory of the time.\n\nI don't think the answer is less routine. I'm not quitting the gym to go find myself. It's keeping the routine, and putting one new thing in every week, something worth remembering.\n\nYou can't make the year longer. You can make it worth remembering.",
+      "about": "Janet's Law (Paul Janet, 1877): a period feels as long as the fraction of your life it represents; at 5 a year is 20% of your life, at 50 it's 2%.",
+      "referenceUrl": "https://en.wikipedia.org/wiki/Time_perception",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#14",
+      "number": 14,
+      "title": "Yap #14 · Experiment: training my mind (the rules)",
+      "lane": "Experiment",
+      "pillar": "lifestyle",
+      "hook": "Your brain physically rebuilds itself around whatever you practice, so I'm choosing what to practice.",
+      "script": "Your brain physically rebuilds itself around whatever you practice, so I'm choosing what to practice.\n\nThere's a study on London taxi drivers. To get licensed they have to memorize the whole city. Researchers scanned their brains, and the part tied to spatial memory was bigger than in other people. The longer they'd been driving, the bigger it was.\n\nThat's what made me take this seriously. Attention isn't some fixed thing you're born with. It's more like anything else you train.\n\nSo here are the rules of my experiment. Every morning before the market opens, a few minutes of sitting and bringing my focus back when it drifts. No apps telling me I'm enlightened. No expecting it to make me money. I'm writing down one line after every session, and one line after every trading day: was I actually there or not.\n\nI'm not promising this works. I'm promising to tell you honestly whether it does.\n\nWhatever you repeat, your brain gets better at. Might as well pick on purpose.",
+      "about": "Maguire et al. (2000, PNAS): London taxi drivers had larger posterior hippocampi than controls, and the size correlated with years driving (correlational; a later study followed trainees). Note: posts Sunday as the \"rules of the experiment\" follow-up to #8. Honest framing: these are the rules, not results. Fill in the real practice and length before recording.",
+      "referenceUrl": "https://www.pnas.org/doi/10.1073/pnas.070039597",
+      "spare": false
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#15",
+      "number": 15,
+      "title": "Yap #15 · Trading: discipline vs. emotion",
+      "lane": "Trading",
+      "pillar": "trading",
+      "hook": "The best trades I've ever taken felt boring, and the worst ones felt amazing.",
+      "script": "The best trades I've ever taken felt boring, and the worst ones felt amazing.\n\nThere's an old idea in psychology called the Yerkes–Dodson law. Performance tends to go up with arousal, with being amped up, but only to a point. After that it drops. And the harder the task, the earlier it drops.\n\nTrading is a hard task. So the window where adrenaline helps me is tiny.\n\nWhen I'm locked in on a good trade, it honestly feels like nothing. I wait, it shows up, I take it, I follow the plan. The trades where my heart's pounding and I'm sitting on the edge of the chair? Those are almost always the ones where I'm too big, or I'm chasing, or I'm trying to make back a loss.\n\nIt's like driving. A good driver on a highway looks bored. The guy who looks thrilled is the one you should worry about.\n\nCalm isn't the absence of skill. It's usually what skill looks like from the outside.\n\nIf it feels exciting, ask yourself if it's a trade or a thrill.",
+      "about": "Yerkes–Dodson law (1908): performance tends to rise with arousal up to a point, then fall, and the peak comes earlier on harder tasks.",
+      "referenceUrl": "https://en.wikipedia.org/wiki/Yerkes%E2%80%93Dodson_law",
+      "spare": true
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#16",
+      "number": 16,
+      "title": "Yap #16 · Validation and peace",
+      "lane": "Validation and peace",
+      "pillar": "lifestyle",
+      "hook": "If you want to get good at anything, you have to be willing to look like an idiot for a while.",
+      "script": "If you want to get good at anything, you have to be willing to look like an idiot for a while.\n\nEpictetus, the Stoic, said it almost two thousand years ago. If you want to improve, be content to be thought foolish and stupid with regard to external things.\n\nI post my red days. I post sets where my form isn't perfect yet. And every time, part of me wants to only show the clean version. The win, the PR, the physique on a good lighting day.\n\nBut the clean version is how you stop learning. If I only show what makes me look good, I'll slowly start only doing what makes me look good. Safe trades. Easy weights. Nothing new.\n\nIt's the beginner at the gym who's too embarrassed to ask how the machine works. He looks fine. He also never figures out the machine.\n\nLooking stupid isn't the cost of getting better. It's the actual process.\n\nYou can look smart or get better. Pick one for now.",
+      "about": "Epictetus, Enchiridion 13: \"If you want to improve, be content to be thought foolish and stupid with regard to external things.\"",
+      "referenceUrl": "https://cts.perseids.org/read/greekLit/tlg0557/tlg002/perseus-eng3/13",
+      "spare": true
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#17",
+      "number": 17,
+      "title": "Yap #17 · Resistance as proof of progress",
+      "lane": "Resistance as proof of progress",
+      "pillar": "lifestyle",
+      "hook": "The thing blocking you is usually the exact skill you were supposed to be practicing.",
+      "script": "The thing blocking you is usually the exact skill you were supposed to be practicing.\n\nMarcus Aurelius wrote this in his private journal, which became Meditations. The impediment to action advances action.\n\nFor a long time my biggest obstacle in trading was that I couldn't sit still. I'd see nothing happening and I'd make something happen. And I kept treating that like a problem standing between me and the real work.\n\nIt wasn't between me and the work. It was the work. Learning to do nothing when there's nothing to do is most of the job.\n\nSame in the gym. The lift I'm weakest at isn't stopping my progress. It's showing me exactly where the progress is.\n\nIt's not bad luck. It's not unfair. It's not a sign to quit. It's just the next thing to get good at, showing up in the most annoying possible form.\n\nThe obstacle isn't in the way. It's the next rep.",
+      "about": "Marcus Aurelius, Meditations 5.20 (tr. Gregory Hays): \"The impediment to action advances action.\"",
+      "referenceUrl": "https://lexundria.com/m_aur_med/5.20/lg",
+      "spare": true
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#18",
+      "number": 18,
+      "title": "Yap #18 · Time and routine",
+      "lane": "Time and routine",
+      "pillar": "lifestyle",
+      "hook": "Having more free time made me less productive, and that's not a willpower problem.",
+      "script": "Having more free time made me less productive, and that's not a willpower problem.\n\nThere's a line from a 1955 essay in The Economist, and it became known as Parkinson's Law. Work expands so as to fill the time available for its completion.\n\nWhen I've got class, the gym, trading, and everything in between, I somehow get it all done. When I've got a whole empty day, the workout takes three hours, I check charts that don't matter, and I go to bed feeling behind.\n\nIt's like a fish tank. The goldfish doesn't decide how big to get. It grows to fit the tank.\n\nThe empty day isn't a gift. It's not a reward. It's a trap, because there's no edge to push against.\n\nSo now I give things smaller boxes on purpose. The gym gets an hour. Market prep gets twenty minutes. When the box is small, I stop decorating and just do the thing.\n\nGive a task all day and it'll take all day. So don't.",
+      "about": "Parkinson's Law (C. Northcote Parkinson, The Economist, 1955): \"Work expands so as to fill the time available for its completion.\"",
+      "referenceUrl": "https://en.wikipedia.org/wiki/Parkinson%27s_law",
+      "spare": true
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#19",
+      "number": 19,
+      "title": "Yap #19 · Discipline vs. emotion (fear)",
+      "lane": "Discipline vs. emotion (fear)",
+      "pillar": "lifestyle",
+      "hook": "Almost everything I've been scared of in trading and lifting hurt less than the time I spent dreading it.",
+      "script": "Almost everything I've been scared of in trading and lifting hurt less than the time I spent dreading it.\n\nSeneca wrote to a friend about this two thousand years ago. There are more things likely to frighten us than there are to crush us. We suffer more often in imagination than in reality.\n\nThe heaviest part of a top set is standing over the bar thinking about it. The rep itself takes five seconds. The dread took five minutes.\n\nTrading is the same. Taking a loss that's already defined, with the stop where I planned it, is small. What hurts is the twenty minutes I spent staring at it, hoping, imagining every way it could get worse.\n\nIt's not that the fear is lying exactly. It's that it's charging me for the same pain over and over before it even happens.\n\nThe rep is never as heavy as the walk up to the bar.",
+      "about": "Seneca, Letters to Lucilius 13.4 (tr. Gummere, 1920): \"There are more things, Lucilius, likely to frighten us than there are to crush us; we suffer more often in imagination than in reality.\"",
+      "referenceUrl": "https://standardebooks.org/ebooks/seneca/moral-letters-to-lucilius/richard-m-gummere/text/letter-13",
+      "spare": true
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#20",
+      "number": 20,
+      "title": "Yap #20 · Experiment: training my mind (day {{N}} check-in)",
+      "lane": "Experiment",
+      "pillar": "lifestyle",
+      "hook": "{{N}} days of training my focus, and the most useful thing so far has nothing to do with feeling calm.",
+      "script": "{{N}} days of training my focus, and the most useful thing so far has nothing to do with feeling calm.\n\nThere's a phrase from neuroscience, Carla Shatz's summary of an old idea from Donald Hebb. Cells that fire together wire together. Whatever you do over and over, your brain makes easier to do again.\n\nSo I've been doing a few minutes every morning of just noticing when my mind drifts and bringing it back. That's the whole practice. Notice, come back.\n\nHere's what's actually changed so far. {{one honest observation from the trading log, e.g. \"I catch myself drifting during a trade sooner\"}}. And here's what hasn't. {{one honest non-result}}.\n\nIt's not meditation as a personality. It's not some morning routine aesthetic. It's a rep. The rep is coming back.\n\n{{close in his words}}",
+      "about": "\"Cells that fire together wire together\" (Carla Shatz, Scientific American, 1992, summarizing Donald Hebb's 1949 rule). Note: record on the actual day, not this weekend. The `{{…}}` parts are his real observations; never invent them. Delete the bracketed guidance before recording.",
+      "referenceUrl": "https://languagelog.ldc.upenn.edu/nll/?p=25194",
+      "spare": true
+    }
+  ],
+  "hooks": [
+    {
+      "sourceKey": "yap-2026-11-16-#1-alt",
+      "text": "The most expensive emotion in trading isn't greed.",
+      "pillar": "trading",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#2-alt",
+      "text": "Judging your decisions by the result is how you train yourself to gamble.",
+      "pillar": "trading",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#3-alt",
+      "text": "Two hundred pounds doesn't care how motivated you feel today.",
+      "pillar": "gym",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#4-alt",
+      "text": "If it was easy to start, it probably wasn't the important thing.",
+      "pillar": "lifestyle",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#5-alt",
+      "text": "Any number you chase long enough stops measuring what you wanted it to.",
+      "pillar": "trading",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#6-alt",
+      "text": "The harshest voice in your head isn't the one making you better.",
+      "pillar": "lifestyle",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#7-alt",
+      "text": "Cutting a winner early and holding a loser too long are the same mistake.",
+      "pillar": "trading",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#8-alt",
+      "text": "Day one of treating focus like a muscle instead of a personality trait.",
+      "pillar": "lifestyle",
+      "pattern": "challenge"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#9-alt",
+      "text": "Nobody wakes up as the person they want to be; they vote their way there.",
+      "pillar": "lifestyle",
+      "pattern": "contrarian"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#10-alt",
+      "text": "The audience you're performing for mostly isn't watching.",
+      "pillar": "lifestyle",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#11-alt",
+      "text": "Your physique is a pretty honest summary of your last six months of Tuesdays.",
+      "pillar": "gym",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#12-alt",
+      "text": "The game gets more fun the less it matters.",
+      "pillar": "lifestyle",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#13-alt",
+      "text": "Routine doesn't make time go faster; it makes it disappear.",
+      "pillar": "lifestyle",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#14-alt",
+      "text": "Focus isn't a personality trait; it's a part of your brain you either train or don't.",
+      "pillar": "lifestyle",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#15-alt",
+      "text": "If your heart's pounding in a trade, your size is already wrong.",
+      "pillar": "trading",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#16-alt",
+      "text": "The price of improving is looking worse than the people who never try.",
+      "pillar": "lifestyle",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#17-alt",
+      "text": "Every obstacle I hate turned out to be the lesson.",
+      "pillar": "lifestyle",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#18-alt",
+      "text": "The busiest semester I've had was my most consistent one.",
+      "pillar": "lifestyle",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#19-alt",
+      "text": "The worst part of a heavy set is the thirty seconds before you pick it up.",
+      "pillar": "lifestyle",
+      "pattern": "statement"
+    },
+    {
+      "sourceKey": "yap-2026-11-16-#20-alt",
+      "text": "Day {{N}}: the honest results of training my mind for trading.",
+      "pillar": "lifestyle",
+      "pattern": "challenge"
+    }
+  ]
+}

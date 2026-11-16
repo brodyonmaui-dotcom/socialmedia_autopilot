@@ -36,7 +36,7 @@ describe("discoveryUrl", () => {
   it("builds one nested request with the field list, encoded, token not in the URL", () => {
     const url = discoveryUrl("demo_lifter", { igUserId: "17841405309211844", limit: 10 });
     expect(url.startsWith("https://graph.facebook.com/v25.0/17841405309211844?fields=")).toBe(true);
-    expect(decodeURIComponent(url)).toContain("business_discovery.username(demo_lifter){followers_count,media_count,media.limit(10){id,caption,like_count,comments_count,view_count,media_type,media_product_type,timestamp}}");
+    expect(decodeURIComponent(url)).toContain("business_discovery.username(demo_lifter){followers_count,media_count,media.limit(10){id,caption,like_count,comments_count,view_count,media_type,media_product_type,timestamp,permalink}}");
   });
   it("refuses handles that could inject into the field expansion, and caps the limit", () => {
     expect(() => discoveryUrl("bad){id}", { igUserId: "1" })).toThrow(/handle/);

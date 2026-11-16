@@ -142,7 +142,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
           }
         >
           {hasActivity(bars) ? (
-            <BarChart data={bars} series={SERIES} label={`${metric === "views" ? "Views" : "Engagement"} per day, by platform`} unit={metric === "views" ? "views" : "interactions"} />
+            <BarChart data={bars} series={SERIES} label={`${metric === "views" ? "Views" : "Engagement"} per day, by platform`} unit={metric === "views" ? "views" : "interactions"} height={200} />
           ) : (
             <EmptyState
               icon="analytics"
@@ -153,7 +153,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
                   Open the calendar
                 </ButtonLink>
               }
-              className="flex-1 justify-center py-6"
+              className="flex-1 justify-center py-2"
             />
           )}
         </Card>
@@ -210,7 +210,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
                   Open the library
                 </ButtonLink>
               }
-              className="flex-1 justify-center py-6"
+              className="flex-1 justify-center py-2"
             />
           ) : (
             <DataList label="Edits waiting for approval">
@@ -256,7 +256,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
                   Open the inbox
                 </ButtonLink>
               }
-              className="flex-1 justify-center py-6"
+              className="flex-1 justify-center py-2"
             />
           ) : (
             <DataList label="Comments waiting for a reply">

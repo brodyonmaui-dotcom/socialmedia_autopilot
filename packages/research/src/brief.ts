@@ -16,6 +16,8 @@ export interface SnapshotPost {
   views: number | null;
   mediaType: "reel" | "video" | "image" | "carousel";
   postedAt: string;
+  /** Public permalink (Business Discovery `permalink`); the only link we keep. */
+  permalink?: string | null;
 }
 export interface CreatorSnapshot {
   creatorId: string;

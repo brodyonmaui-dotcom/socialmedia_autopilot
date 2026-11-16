@@ -13,7 +13,7 @@ export function AlertCard({ alert, when, ackWhen }: { alert: AlertView; index?: 
   const src = sourceGlyph(alert.source);
   const headingId = `alert-${alert.id}`;
   return (
-    <li aria-labelledby={headingId} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-start">
+    <li aria-labelledby={headingId} className="grid grid-cols-[36px_minmax(0,1fr)] gap-x-3 gap-y-3 py-4 first:pt-0 last:pb-0 sm:grid-cols-[36px_minmax(0,1fr)_auto]">
       <span
         aria-hidden="true"
         className={cx(
@@ -45,7 +45,7 @@ export function AlertCard({ alert, when, ackWhen }: { alert: AlertView; index?: 
         </p>
       </div>
       {open || alert.batchId ? (
-        <div className="flex shrink-0 gap-2 sm:flex-col sm:items-stretch">
+        <div className="col-start-2 flex shrink-0 gap-2 sm:col-start-3 sm:row-start-1 sm:flex-col sm:items-stretch">
           {open ? (
             <form action={acknowledgeAction}>
               <input type="hidden" name="id" value={alert.id} />

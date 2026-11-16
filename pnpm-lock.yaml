@@ -261,9 +261,15 @@ importers:
 
   packages/research:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^1.6.0
+        version: 1.6.0(zod@4.6.7)
       '@autopilot/core':
         specifier: workspace:*
         version: link:../core
+      zod:
+        specifier: ^4.1.0
+        version: 4.6.7
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
