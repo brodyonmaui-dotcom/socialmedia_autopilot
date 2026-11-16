@@ -35,7 +35,8 @@ export const ANALYTICS_INGEST_LIMIT = 50;
 export const ANALYTICS_LOOKBACK_DAYS = 30;
 
 export interface AnalyticsSourcesEnv {
-  instagram?: { accessToken: string; graphVersion: string };
+  /** igUserId (IG_USER_ID) is only needed by the account-wide ingest (account-ingest.ts). */
+  instagram?: { accessToken: string; graphVersion: string; igUserId?: string };
   youtube?: { clientId: string; clientSecret: string; refreshToken: string };
   tiktok?: { apiKey: string };
 }
@@ -43,7 +44,7 @@ export interface AnalyticsSourcesEnv {
 /** Env → sources config. TikTok (Zernio analytics) only with ZERNIO_ANALYTICS=1: off on the free plan. Never logs values. */
 export function analyticsSourcesFromEnv(env: NodeJS.ProcessEnv = process.env): AnalyticsSourcesEnv {
   const cfg: AnalyticsSourcesEnv = {};
-  if (env.META_ACCESS_TOKEN) cfg.instagram = { accessToken: env.META_ACCESS_TOKEN, graphVersion: env.META_GRAPH_VERSION || "v25.0" };
+  if (env.META_ACCESS_TOKEN) cfg.instagram = { accessToken: env.META_ACCESS_TOKEN, graphVersion: env.META_GRAPH_VERSION || "v25.0", ...(env.IG_USER_ID ? { igUserId: env.IG_USER_ID } : {}) };
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.YT_REFRESH_TOKEN) {
     cfg.youtube = { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET, refreshToken: env.YT_REFRESH_TOKEN };
   }
@@ -92,8 +93,8 @@ export function formatIngestLine(res: IngestResult): string {
   return `[analytics] captured ${res.captured} · failed ${res.failed}${per.length ? ` (${per.join(", ")})` : ""} · no-source ${res.skippedNoSource}`;
 }
 
-/** One open 'metrics-health' row per platform: skipped while an unacknowledged one exists. */
-async function raiseMetricsHealthAlert(pool: OutboxPool, platform: Platform, message: string, now: Date): Promise<boolean> {
+/** One open 'metrics-health' row per platform: skipped while an unacknowledged one exists. Also used by account-ingest.ts. */
+export async function raiseMetricsHealthAlert(pool: Pick<OutboxPool, "query">, platform: Platform, message: string, now: Date): Promise<boolean> {
   const { rows } = await pool.query(
     `insert into alerts (kind, batch_item_id, platform, message, created_at)
      select $1, null, $2, $3, $4

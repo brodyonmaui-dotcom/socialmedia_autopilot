@@ -1,0 +1,19 @@
+{
+  "kind": "youtube#videoListResponse",
+  "etag": "fakeetag4",
+  "items": [
+    {
+      "kind": "youtube#video", "etag": "v2", "id": "vidAAAAAAA2",
+      "snippet": { "publishedAt": "2026-11-13T17:58:00Z", "channelId": "UCaaaaaaaaaaaaaaaaaaaaaa", "title": "Full push day, every set", "description": "Full push day, every set.\n\n#gym #gymbro", "channelTitle": "Demo Channel", "categoryId": "17" },
+      "statistics": { "viewCount": "2410", "likeCount": "131", "dislikeCount": "0", "favoriteCount": "0", "commentCount": "12" },
+      "contentDetails": { "duration": "PT42S", "dimension": "2d", "definition": "hd", "caption": "false", "licensedContent": false, "projection": "rectangular" }
+    },
+    {
+      "kind": "youtube#video", "etag": "v3", "id": "vidAAAAAAA3",
+      "snippet": { "publishedAt": "2026-11-01T22:00:00Z", "channelId": "UCaaaaaaaaaaaaaaaaaaaaaa", "title": "Red day recap", "description": "Not financial advice.", "channelTitle": "Demo Channel", "categoryId": "22" },
+      "statistics": { "viewCount": "380", "commentCount": "1" },
+      "contentDetails": { "duration": "PT1M5S" }
+    }
+  ],
+  "pageInfo": { "totalResults": 2, "resultsPerPage": 2 }
+}

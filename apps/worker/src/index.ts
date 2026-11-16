@@ -7,6 +7,7 @@ import { registerOutboxJob } from "./jobs/register-outbox.js";
 import { registerTokenHealthJob, tokenHealthConfigFromEnv } from "./jobs/token-health.js";
 import { registerAlertPushJob } from "./jobs/alert-push.js";
 import { analyticsSourcesFromEnv, analyticsStartupLine, registerAnalyticsIngestJob } from "./jobs/analytics-ingest.js";
+import { accountStartupLine, registerAccountIngestJob } from "./jobs/account-ingest.js";
 import { buildCommentSources, commentCredentialsFromEnv, createInstagramDmSource, credentialsFromEnv } from "@autopilot/adapters";
 import { killEnvFromEnv } from "@autopilot/engagement";
 import { PgEngagementStore } from "./jobs/engagement-store.js";
@@ -52,6 +53,8 @@ await registerTokenHealthJob(boss, pool, tokenHealthConfigFromEnv(process.env));
 // Analytics ingest (F9): read-only, so it runs regardless of DRY_RUN / the live key.
 const analyticsCfg = analyticsSourcesFromEnv(process.env);
 await registerAnalyticsIngestJob(boss, pool, analyticsCfg);
+// Account-wide analytics (all recent IG/YT posts, incl. ones posted by hand): read-only, every 6 h.
+await registerAccountIngestJob(boss, pool, analyticsCfg, timeZone);
 // Alert push (F8): private notifications to the creator, so it runs in dry-run too. No VAPID → one log line, not registered.
 await registerAlertPushJob(boss, pool, process.env);
 
@@ -75,6 +78,7 @@ const engagementSettings = await new PgEngagementStore(pool).loadSettings();
 const configured = (["instagram", "youtube", "tiktok"] as const).filter((p) => credentials[p]);
 console.log(`worker started · dry_run=${dryRun} · platforms=${Object.keys(CAPABILITIES).join(",")} · adapters=${configured.join(",") || "none"}`);
 console.log(analyticsStartupLine(analyticsCfg));
+console.log(accountStartupLine(analyticsCfg));
 console.log(`${engagementStartupLine(engagementSettings, live, killEnvFromEnv(process.env))} · comment sources=${[...commentSources.keys()].join(",") || "none"} · dm=${dmSource ? "read-only" : "none"}`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
