@@ -1,191 +1,138 @@
-# UI system v2 · Warm Industrial
+# UI system v3 · Quiet dashboard
 
-v2 replaces v1's dark + Times New Roman look with the creator's chosen direction. The palette is warm gray (#EBEBE8). Inter carries the structure and Playfair Display italic adds editorial accents, over a visible 12-column grid. Labels are tiny tracked caps, readouts are monospace, and everything is sharp and rectangular with 1 px lines. There's one blue accent.
-- Tokens: `apps/web/app/globals.css` (the `design system v2` block).
-- Components: `apps/web/components/ui/`.
-- Live guide: `/app/design` (`?view=home|batch|components`, `&theme=dark` for Night).
-- Screenshots: `docs/design/ui-shots/`. `*-light.png` = Day (default), unsuffixed = Night; plus `home-phone-full-light.png`, `reveal-hover-desktop.png` and `approve-sheet-phone.png`.
-- Agent: `.claude/agents/designer.md`.
+v3 replaces v2 ("Warm Industrial"). The creator used v2 on his phone and called it clunky and decorative. v3 keeps what he liked (the warm palette, thin hairlines, an open and wide feel, high contrast, symmetry, a little italic display text) and removes everything that was decoration: background grid lines, marquees, the rotating footer logo, the centred logo, giant hero numbers, outline text, debug-style labels and the monospace readouts.
 
-## Principles
-1. **The grid is visible and binding.** Twelve faint vertical lines (four on phones) run the full page height. Every box and text edge sits on a line.
-2. **Structure, not decoration.** Lines separate things, never shadows. Corners are square. Only CTA pills, badges, toggles and status dots are round.
-3. **Editorial contrast.** Heavy Inter 900 and outline (stroke) display type sit beside Playfair italic. Labels are 10 px bold caps, tracked 0.22em. Machine facts are monospace readouts.
-4. **Numbers stay the heroes.** The week's approval count is the hero headline, and every count uses tabular numerals.
-5. **One accent.** Blue (#2F7BFF, a touch lighter than #0066FF) is for stars, live dots, progress, active state and focus, and nothing else. The primary button is black.
-6. **Motion has inertia.** Everything moving uses `cubic-bezier(0.16, 1, 0.3, 1)`: 300 ms for hovers, 600 ms for clip-path reveals. `prefers-reduced-motion` stops marquees and pulses.
-7. **Phone first.** It's designed at 390 px. There's a bottom tab bar for the thumb, tap targets are ≥ 44 px, and hover reveals have a tap/visible fallback.
+- Tokens: `apps/web/app/globals.css` (the `design system v3` block).
+- Components: `apps/web/components/ui/` (import from `index.ts`).
+- Screenshots: `docs/design/ui-shots/v3/` (`<screen>-phone.png`, `-phone-night.png`, `-desktop.png`, `-desktop-night.png`).
 
-## Source → app mapping
-The reference is a SaaS marketing page. Each of its sections becomes a real job in the app:
+## Hard rules (a screen that breaks one is not done)
+1. **One font and one style per phrase.** A heading, label, button or sentence is entirely display or entirely sans. Never "Up *next*". No overlapping text, ever.
+2. **Nothing moves unless the user caused it.** No marquees, no pulses, no rotating or parallax elements. Allowed motion: the sidebar slide, pop-over/dialog fade (150 ms), hover colour changes. `prefers-reduced-motion` removes the slide.
+3. **No decoration without function.** No background grid, noise, glass, outline (stroke) text, index labels like "02 /", feature ids like "F12", or "Week 46" style debug text. Weeks are written as dates ("Nov 16 – 22").
+4. **Nothing draws over content.** Lines belong to a card's own border or a table's own row divider, never to the page behind.
+5. **No monospace.** Numbers use Inter with tabular numerals.
+6. **The word "batch" never appears in the UI.** It is "this week", "the calendar", "posts".
+7. Every screen works on the seed data and has an empty state that names the next action with one button.
+8. Text contrast is AA in Day and Night. Tap targets are ≥ 44 px on phones. Hover-only information is also reachable by tap and by keyboard focus.
+9. No green (the creator's standing rule). Positive = accent blue or plain ink with a word.
 
-| Reference section | In this app |
-|---|---|
-| Sticky header (nav · centered logo · pill CTA) | `SiteHeader`: desktop nav links in tiny caps; logo `run` (Playfair italic) + `MYSOCIALS` (Inter 900); pill CTA "New batch". Phone: logo + CTA only; nav moves to the bottom tab bar. |
-| Split hero (status · 3-line display · readouts · Start) | Home `Hero`: the "Autopilot on" pulse; display `WEEK 47` (stroke) / *approved* (serif) / `18/24` (solid); readouts for pending, next post, alerts and outbox; a black rectangular "Review batch →" button. |
-| Hero image + glass status card | The next post's thumbnail in grayscale with a 20 px inner frame, overlaid by a glass card with one status bar per platform plus mono IDs. |
-| Marquee ticker | `Marquee`: platforms and this week's pillars, stroke sans alternating with serif, separated by blue ✦. |
-| Project list (hover italic + clip-path reveal) | `RevealList`: "Up next", one row per scheduled post (index, time, title, platform logo). Hover/focus turns the title italic and wipes in the thumbnail. On a phone the thumbnail is always visible, small. |
-| Philosophical parallax | `Statement`: one large serif-italic line from the weekly report ("Short hooks under 2 s held 31% longer."). |
-| Technical journal | `Journal`: dated mono entries in a numbers grid (views, flagged, auto-replied, alerts), the posting calendar and the weekly-report items. |
-| Massive footer | `FooterBand`: black band, a big "Inbox — 7 waiting →" link, a 20vw background marquee "RUNMYSOCIALS" at 10%, and a status row with "Worker operational" pulse + version. |
-
-## Tokens
-
-### Colour roles · Day (default)
-| Token | Hex | Role | Contrast |
+## Type
+| Role | Font | Spec | Used for |
 |---|---|---|---|
-| `ds-bg` / `ds-frame` | #EBEBE8 | page, header, tab bar: keep everywhere | — |
-| `ds-card` | #F4F4F2 | panels, marquee ribbon, sheets | — |
-| `ds-raised` | #E2E2DE | inputs, wells, row hover | — |
-| `ds-line` | #D4D4D8 | 1 px structure lines | decorative |
-| `ds-line-strong` | #71717A | control borders | 4.1:1 on bg (UI ✓) |
-| `ds-grid` | #18181B @ 10% | 12-column background lines | decorative |
-| `ds-text` | #18181B | text, stroke-text outline | 14.8:1 |
-| `ds-muted` | #52525B | secondary text | 6.5:1 |
-| `ds-faint` | #5F5F68 | helper, readout keys | 5.3:1 on bg, 4.9:1 on raised |
-| `ds-invert` / `ds-on-invert` | #18181B / #EBEBE8 | black button, footer band | 14.8:1 |
-| `ds-accent` | #2F7BFF | stars, dots, bars, active marks | 3.3:1 on bg (graphic ✓); ink label 4.6:1 |
-| `ds-accent-fg` / `ds-focus` | #0057D9 | blue text/icons, focus ring | 5.2:1 on bg, 5.7:1 on card |
-| `ds-warn` / `ds-danger` | #8A5300 / #B42318 | warnings, destructive (with icon/word) | 5.9 / 5.6:1 |
+| Display | **Imbue** (variable, OFL, self-hosted via `@fontsource-variable/imbue`, `opsz` axis on) | weight 400, uppercase off, letter-spacing 0, line-height 1.0 | the logo, page titles (40 px phone / 56 px desktop), card titles (22–24 px), post titles (20–22 px), KPI numbers are **not** display |
+| Sans | Inter variable | 400 body, 600 labels and buttons, 700 KPI numbers | everything else |
+| Editorial italic | Playfair Display italic | whole sentences only, 20–28 px | one pull-quote per screen at most ("what worked" headline, an empty-state line). Never inside a phrase with another font. |
 
-### Night (`data-theme="dark"`, opt-in)
-| Role | Hex | Contrast |
-|---|---|---|
-| bg/frame, card, raised | #18181B, #1F1F23, #27272A | — |
-| line, line-strong | #3F3F46, #71717A | line-strong 3.7:1 |
-| text, muted, faint | #EBEBE8, #A1A1AA, #8B8B94 | 14.8 / 6.9 / 5.3:1 |
-| invert / on-invert | #EBEBE8 / #18181B | 14.8:1 |
-| accent (= accent-fg, focus) | #6AA2FF | 6.9:1; ink label 6.9:1 |
-| warn, danger | #F2B544, #F0716B | 9+ / 5.9:1 |
+Imbue is a tall, condensed, high-contrast didone: the closest free match to the magazine masthead reference. If it fails to load the fallback stack is `"Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif`.
 
-**Deviation: the status pulse is blue, not green.** The reference uses #22C55E, but the creator's standing rule is no green. "Live/operational" uses `ds-accent` plus the word. To switch, change `StatusPulse`'s `tone` default; it's a one-line change.
+Sizes (phone / desktop):
+- page title 40 / 56 display;
+- section or card title 22 / 24 display;
+- KPI number 28 / 32 Inter 700 tabular;
+- body 15 / 15;
+- label 12 / 12 Inter 600, sentence case, `ds-muted` (no tracked caps walls; caps only for 1–2 word tags such as GYM, TRADING, at 11 px tracked 0.06em);
+- helper 13.
 
-### Type
-| Role | Spec | Utility |
-|---|---|---|
-| Display (hero) | Inter 900, `clamp(56px, 13vw, 160px)`, line 0.88, -0.05em | `ds-display` (+ `ds-stroke` for outline lines, `ds-serif` for italic lines) |
-| Section title | Inter 900, 40 px phone / 64 px desktop, -0.04em, often with one serif word | — |
-| Row title (RevealList) | Inter 700, 28 px phone / 48 px desktop, -0.03em; becomes `ds-serif` on hover | — |
-| Big number | Inter 900, 40–64 px, -0.04em, `ds-num` | — |
-| Body | Inter 400, 16 px / 1.5 | — |
-| Note | Inter 400, 15 px / 1.375, `ds-muted` (card notes, explanations) | `ds-note` |
-| Label | 10 px (11 px on phone) Inter 700 caps, 0.22em | `ds-caps` |
-| Readout | system mono 10 px (11 px on phone), `KEY · VALUE` | `ds-mono` |
-| Editorial | Playfair Display italic 400 | `ds-serif` |
+## Colour (unchanged palette, new roles)
+Day: page `#EBEBE8`, card `#F4F4F2`, raised/hover `#E2E2DE`, hairline `#D4D4D8`, control border `#71717A`, text `#18181B`, muted `#52525B`, accent `#2F7BFF` (text use `#0057D9`), warn `#8A5300`, danger `#B42318`.
+Night: page `#18181B`, card `#1F1F23`, raised `#27272A`, hairline `#3F3F46` (the thin light lines he likes come from `#EBEBE8` at 14% on cards), text `#EBEBE8`, muted `#A1A1AA`, accent `#6AA2FF`, warn `#F2B544`, danger `#F0716B`.
 
-**Fonts** are self-hosted from npm (`@fontsource-variable/inter`, `@fontsource/playfair-display` latin italic, both pinned). There are no requests to Google; mono uses the system stack.
+New tokens:
+- `ds-tint-1..4`: four very soft tile tints for the KPI row (Day: `#E4E9F2` blue-gray, `#EDE8DF` sand, `#E6E6EA` cool gray, `#E9E4E4` rose-gray; Night: the same hues at 12% over card). Text on tints stays `ds-text`.
+- Chart series (fixed order, never cycled): Instagram = accent blue, YouTube = ink (`ds-text`), TikTok = slate `#8A8F98`, Snapchat = sand `#B08D57` (Night: `#C9A56B`). Every multi-series chart has a legend with the platform glyph and name; colour is never the only key.
 
-### Space, grid, shape, motion
-- **Grid:**
-  - 12 columns at ≥ 1024 px (max 1600 px, centred, 32 px gutters);
-  - 4 columns on phones and tablets (16 px gutters);
-  - lines are `ds-grid`, fixed, behind content (`GridLines`);
-  - content uses `grid-cols-4 lg:grid-cols-12` with `gap-0`, so cell borders sit on the lines.
-- **Sections** are full-bleed bands separated by 1 px `ds-line` borders. Inside them, cells have 24 px padding (phone) / 32 px (desktop).
-- **Corners:** radius tokens are 0. Only `rounded-full` is allowed: on pill CTAs (`ButtonLink variant="pill"`), badges, toggles, status dots and the "View" cursor circle.
-- **Elevation:** none. `shadow-ds-pop` is for sheets/tooltips only.
-- **Noise:** a fixed fractal-noise SVG at 4% opacity over everything (`NoiseOverlay`, `pointer-events: none`).
-- **Motion:**
-  - all transitions use `ease-ds` = `cubic-bezier(0.16,1,0.3,1)`, at 150 / 300 / 600 ms;
-  - the marquee runs 28 s linear;
-  - the pulse is 2 s;
-  - reduced motion turns all of it off.
+## Shape and space
+- Radius: cards and dialogs 12 px, controls and thumbnails 8 px, pills (nav active item, badges, toggles) full.
+- Cards: `ds-card` fill, 1 px hairline, no shadow. Pop-overs, menus, the drawer and dialogs: 1 px hairline plus `shadow-ds-pop`.
+- Spacing scale 4 / 8 / 12 / 16 / 24 / 32. Page gutter 16 px phone, 32 px desktop. Card padding 16 phone, 20 desktop. Gap between cards 12 phone, 16 desktop.
+- Content max width 1280 px, centred. Layout is a simple 12-column CSS grid with gaps (cards never share borders).
+- Symmetry: KPI tiles are equal width; two-column rows are 8 + 4 or 6 + 6; a row's cards stretch to equal height.
 
-## Components (`apps/web/components/ui`, import from `index.ts`)
-Server components unless marked **client**.
+## Shell
+```
+┌──────────────────────────────────────────────────────────────┐
+│ [≡] Logo                                  [⌕] [☾] [✉ 3] [🔔 2] │  top bar, 56 px, sticky, page colour, hairline below
+├──────────────────────────────────────────────────────────────┤
+│  Page title (display)                     [This week ▾]      │
+│  cards…                                                      │
+```
+- **Top bar.** Left: menu button (44 px square, icon only) then the logo: the word "My Socials" in Imbue, 26 px, linking Home. Right: exactly four 40 px square icon buttons with 8 px radius and a hairline border: Search, Day/Night, Inbox (count badge), Notifications (count badge). Nothing else: no profile block, no CTA.
+- **Sidebar** (`Sidebar`, client). 264 px wide, card fill, hairline right edge, pop shadow. Logo at the top-left in the same position as the top-bar logo, so opening it doesn't shift the mark. Items, each with a 20 px line icon and an Inter 600 15 px label; the active item is a soft pill (`ds-raised`):
+  Home · Calendar · Inbox · Analytics (expandable: Overview, Instagram, YouTube, TikTok, Snapchat) · Research · Library (expandable: All clips, Touch-up) · Platforms (expandable: Instagram, YouTube, TikTok, Snapchat) · Settings. "Log out" sits at the bottom. Groups expand in place; the group containing the current page starts open.
+  - **Desktop (≥ 1024 px, fine pointer):** hidden by default. A 12 px invisible hot zone on the left screen edge opens it on `pointerenter`; the menu button and keyboard focus also open it. It stays open while the pointer or focus is inside, and closes **2.5 s after the pointer leaves** (timer cancelled on re-entry). Esc closes at once. It overlays content and never reflows the page.
+  - **Phone / touch:** the menu button opens it as a drawer with a scrim; tap the scrim, a link or Esc to close. Focus is trapped while open and returns to the menu button.
+- **Search** opens `CommandPalette` (dialog, top-anchored, 560 px max): one input; results grouped as Pages, Posts, Ideas, Clips; arrow keys + Enter; `⌘K` / `Ctrl K` and `/` open it. Data comes from the session-guarded `GET /app/api/search?q=`.
+- **Notifications** opens a pop-over (full-width sheet on phones): the newest 6 open alerts, each with its message, age and an Acknowledge button, then "See all" → `/notifications`. The badge is the open count. This replaces the Alerts tab.
+- **Inbox** links to `/inbox`; the badge is flagged comments + DMs waiting.
+- No bottom tab bar, no "More" page, no footer band.
 
-**Frame**
-- `AppShell`:
-  - `.ds-root` + `NoiseOverlay` + `GridLines` + `SiteHeader` + `<main>` + phone `TabBar` (+ optional `FooterBand`);
-  - theme prop (Day default);
-  - replaces v1's sidebar.
-- `SiteHeader`:
-  - sticky, 64 / 80 px, `bg-ds-bg/80` + `backdrop-blur-[10px]`, 1 px bottom line;
-  - nav (≥ lg) left, logo absolute-centred, pill CTA + theme toggle right.
-- `TabBar`: phone only. Five items, square cells divided by 1 px lines, 10 px caps labels; the active item has a 2 px blue top rule plus bold text.
-- `GridLines`, `NoiseOverlay`: decorative, `aria-hidden`.
+## Core components
+Keep and restyle by tokens: `Button` (solid ink, outline, ghost, icon; sentence-case labels, 8 px radius), `Badge`, `Chip`, `Toggle`, `Checkbox`, `Radio`, `Input`, `Select`, `Stepper`, `ProgressBar`, `Sheet`, `EmptyState`, `Tooltip`, `PlatformLogo`, `ThemeToggle`, `Sparkline`, `AreaChart`, `Donut`, `MiniBars`.
 
-**Editorial**
-- `Display`: lines of `{ text, style: 'solid'|'stroke'|'serif' }`, rendered as one `<h1>`.
-- `Readout`: mono `KEY · VALUE` list.
-- `StatusPulse`: 6 px dot + ring pulse + caps label.
-- `Marquee`: items alternate stroke/serif with blue ✦; duplicated track `aria-hidden`; reduced motion stops it; `size="xl"` (7xl ribbon, 120 px) or `"bg"` (20vw, 10%).
-- `RevealList` / `RevealRow` **client**:
-  - rows show an index, mono meta, a big title and a trailing platform logo;
-  - the `clip-path` image reveal runs from `inset(0 0 0 100%)` to `inset(0)` over 600 ms, grayscale with a blue 20% multiply;
-  - a "View" circle follows the cursor (pointer: fine only) and otherwise sits on the right;
-  - phone: 120 px rows with a visible 64 px thumbnail.
-- `FramedImage`: grayscale image or placeholder with a 20 px inner frame line. Variant `video` (F12/10): a same-origin or `blob:` clip as a muted, inline, grayscale `<video controls>` over the placeholder pattern (used by /handoff once the clip is prepared; never autoplays, never a remote URL). `GlassCard`: `bg-ds-card/60` + `backdrop-blur-md` + 1 px line, sharp.
-- `StatusBars`: labelled mono bars (platform → %).
-- `Statement`: big serif line with a small caps source.
-- `FooterBand`: inverted band, big link with an underline grow, background marquee, and a status row.
-- `SectionHead`: caps index "02 / UP NEXT" + title with optional serif word + right-side meta.
+New:
+- `AppShell` v3 (top bar + sidebar + `<main>`), `Sidebar`, `TopBar`, `IconButton` (with `badge`), `CommandPalette`, `NotificationsPopover`.
+- `Popover` and `Menu` (click to open, Esc/outside click to close, arrow-key navigation, anchored, flips at the viewport edge), `Dropdown` (a button showing the current value plus a `Menu`; used for "This week ▾" range pickers; it is a link list, so it works without JS state).
+- `Dialog` (centred on desktop, bottom sheet at ≤ 640 px; focus trap; URL-driven when it shows server data, e.g. `?day=2026-11-18`).
+- `PageHeader` (display title, optional one-line sans subtitle, right-side slot for a Dropdown or one button).
+- `Card` (title in display, optional right-side action or `Menu`), `StatTile` (icon, label, number, delta "▲ 12% vs last week" in accent or muted; optional tint), `Thumb` (9:16 poster from `/app/media/poster/<mediaId>`, 8 px radius, neutral placeholder with a film icon when missing; never a striped pattern).
+- `PostCard` (compact, horizontal; see Calendar).
+- `BarChart` (per-day bars, optional stacked series, value on hover/focus and in a visually hidden table), `LineChart` (multi-series with legend), `HeatRow` if needed. Charts have y-axis ticks in Inter 11 px, no gradients, 2 px lines, bars with 3 px top radius.
+- `DataRow` (icon or thumb, title, meta, right-side value or action) for list cards.
 
-**Controls (v1, restyled by tokens + small edits)**
-- `Button`:
-  - `solid` = black rectangle (`ds-invert`), caps label, arrow slot that rotates −45° on hover;
-  - `accent` = blue fill with ink label;
-  - `outline` = 1 px line;
-  - `ghost`; `icon` (44 px square);
-  - `pill` = rounded-full 1 px border with 10 px caps, used for header CTAs.
-- The rest:
-  - `Toggle` (pill track allowed);
-  - `Checkbox` / `Radio` (sharp squares);
-  - `Tabs` (bordered cells, active = black fill);
-  - `SegmentBar` + `SegmentButton` (F12/4): the Tabs strip with real `<button>`s (`aria-pressed`) for a setting such as a mode switch; each button submits its own `formAction` or opens a confirm Sheet; `TabLinks layout="grid"` (F12/9) = the same cells in a wrapping grid for long filter lists (2 columns on phones, an odd last cell spans both; one equal row from lg; 1 px lines drawn by the ds-text gap);
-  - `Badge` (pill) / `Chip` (sharp, 1 px line; `wrap` = sentence-length chip that wraps, min 32 px, icon top-aligned — warnings, the F11 auto-check result, "Past time");
-  - `Input` / `SearchField` (sharp, raised fill, 1 px line on focus);
-  - `Select`, `Stepper`;
-  - `ProgressBar` (4 px, square ends, blue);
-  - `Slider`;
-  - `Sheet` (sharp top edge, 1 px top line);
-  - `AlertCard` (1 px line, caps title);
-  - `EmptyState`, `Tooltip`, `PageDots` (square dashes);
-  - `Card` (a bordered cell, no fill by default), `StatTile`, `ListRow` (`children` = a full-width body under the one-line head: wrapping text, a reply well, ≥ 44 px actions; F12/4);
-  - charts (blue line, no fill gradients, mono axis labels): `Sparkline`, `MiniBars`, `AreaChart` (variant `zeroBased` (F12/6): y starts at 0 instead of the series minimum, for totals like views per week so a small dip doesn't read as a crash), `Donut` (largest share = accent, the rest text/muted/line-strong grays), `MonthCalendar` (square today marker);
-  - `PlatformLogo`, `ThemeToggle` (Day/Night).
+Removed (delete the files and their exports): `GridLines`, `NoiseOverlay`, `Marquee`, `FooterBand`, `Display`, `Readout`, `StatusPulse`, `RevealList`, `GlassCard`, `Statement`, `StatusBars`, `SectionHead`, `SiteHeader`, `TabBar`, `HeaderMenu`, `FramedImage` (replaced by `Thumb` / a plain rounded `<video>`), and the `/design` page.
 
-Rules:
-- One black solid button per view. Secondary actions are outline/ghost.
-- No shadows, gradients (except the image tint) or rounded rectangles.
-- Labels are always caps (`ds-caps`). Values are tabular. Machine values (IDs, times, counts in readouts) are mono.
-- Hover-only information must also show on focus and on phones.
+## Screens
+Routes are under the `/app` base path. Old routes redirect: `/batches` and `/batches/[id]` → `/calendar` (the latter with `?d=<week start>&view=week`), `/alerts` → `/notifications`, `/more` and `/more/settings` → `/settings`, `/handoff` → `/platforms/snapchat`, `/touch-up` → `/library/touch-up`.
 
-## Layout rules
-**Phone (< 1024 px):**
-- The 64 px sticky header has the logo centred, the pill CTA right and the theme icon left.
-- There are 4 grid lines and sections stack.
-- The hero display is 56–64 px; the hero image goes below the text at 4:5.
-- The 64 px bottom TabBar has 5 items, and content gets bottom padding for it.
-- The footer band sits above the tab bar.
+### Home `/`
+A quick dashboard, one screen on desktop.
+1. `PageHeader` "Home" + range Dropdown (This week / Last week / Last 30 days).
+2. Four `StatTile`s (2 × 2 on phone): Followers (all platforms, change in the range), Views, Engagement (likes + comments + shares), Posts published. Each compares with the previous period. A metric with no data yet shows "–" and a one-line reason, not 0.
+3. Row 8 + 4: **Activity** card (`BarChart` of views per day stacked by platform, with its own metric Dropdown: Views / Engagement) and **This week** card (seven rows or columns Mon–Sun with the number of posts scheduled per day as small bars; today marked; each day links to `/calendar?day=`).
+4. Row 6 + 6: **From your editors** (up to 4 compact `PostCard`s waiting for approval with Approve; "See all" → calendar filtered to drafts) and **Needs a reply** (up to 4 flagged inbox items: who, the comment, the drafted reply, "Approve & send" and "Open").
+5. Only when relevant: a single-line strip for "Snapchat: today's Spotlight is ready" → `/platforms/snapchat`.
 
-**Desktop (≥ 1024 px):**
-- The 80 px header has nav on the left (Home, Batches, Inbox, Analytics, Research), the logo centred and CTA + theme on the right.
-- There are 12 grid lines.
-- The hero splits 7 columns / 5 columns, the numbers band is 4 × 3 columns, and the journal is 8 + 4.
-- There's no tab bar.
+### Calendar `/calendar`
+- `PageHeader` "Calendar" + month/week segmented control + prev / today / next + "Approve all N" (solid, only when drafts exist in view, goes through a confirm Dialog).
+- **Month view:** a 7-column grid of day cells inside one card; cells are separated by the card's own hairlines only. A cell shows the day number and, on desktop, up to three one-line entries (platform glyph, time, truncated title) then "+N more"; on phone, the day number and up to four small platform dots plus a count. Days outside the month are muted. Today has an ink ring. A day with something needing him (draft, failed, unknown) has a small accent dot beside the number.
+- **Week view:** desktop = seven columns of compact entries; phone = a vertical agenda grouped by day.
+- **Day Dialog** (`?day=YYYY-MM-DD`): title = the date in display font; a list of `PostCard`s, one per clip (its platforms grouped), ordered by first time.
+- **`PostCard`** (about 112 px tall): `Thumb` 63 × 112 on the left; then the title in display 20 px (one line), the caption (two lines, clamped), and a bottom row: platform logos (each with its time and a status dot), the niche tag (GYM / TRADING), and a status Badge. A `Menu` (⋯) on the right: Approve, Edit text, Move…, Reject, and Retry / Record as posted for failed or unknown. Hovering or focusing the thumbnail (tap on phone) opens a `Popover` with a larger preview, the full caption and each platform's own text.
+- Every action is a server action through the existing `planTransition` gates; the F11 reset and record flows keep their confirm steps. Snapchat items appear like the others and their menu has "Open handoff".
+- Empty month: "Nothing scheduled yet. Drop renders into the editor folder or plan the week." + button to Library.
 
-## Restyle plan (F12) — one Opus designer task each, in order
-Every task:
-- wraps the page in `AppShell` (it adds the header, grid, noise and tab bar);
-- uses `SectionHead` + bordered grid cells;
-- keeps all data loading, server actions, `requireSession()` and tests.
+### Inbox `/inbox`
+- `PageHeader` "Inbox" + filter Dropdown (Needs you / Drafted · shadow / Sent / Ignored) + a Comments | DMs segmented control.
+- Each item is a `DataRow` card: avatar initial, name, platform glyph, age; the comment; the drafted reply in a raised well (editable); "Approve & send" (solid), "Edit", "Ignore". Triage reason as one Chip.
+- The Ignored filter lists promo-spam with the matched rule and "Not spam" (moves it back) / "Always ignore this account".
+- `/inbox/item/[id]` is the push-notification landing page: the single item, large "Approve & send".
+- The kill switch and per-platform modes move to Settings; the Inbox shows one status line ("Replies are drafts only" or "Auto-reply is on for Instagram") linking there.
 
-Shared acceptance:
-- `pnpm typecheck && pnpm test` and the web build pass;
-- a 390 px phone shot plus a 1440 desktop shot have been reviewed, in Day and Night;
-- there's no `rounded-` except `rounded-full` on allowed elements, no shadows, and no green;
-- text contrast is AA;
-- edges align to the grid lines.
+### Analytics `/analytics`, `/analytics/[platform]`
+- Overview: range Dropdown (7 / 30 / 60 days); four `StatTile`s; views-per-day `LineChart` by platform; "Top posts" list (Thumb, title, platform, views, engagement rate, a "posted by hand" Chip for unmatched posts); **What worked** card (each finding one sentence with "n = 14 posts"; fewer than 5 posts in a group shows "not enough posts yet"); four platform cards linking to the sub-pages.
+- Platform page: follower `LineChart`, views `BarChart` per day, posts table, best posting hours, that platform's findings. TikTok page explains: "TikTok numbers aren't collected on the free plan. Add them by hand here or upgrade later." with the manual entry form if it exists.
 
-1. **Shell + Home** (`app/layout.tsx` body bg → `ds-bg`, `app/page.tsx`). Uses the Hero, Marquee, Up next RevealList, numbers band, Statement and FooterBand. Accept: it matches `/design?view=home` with real data, and logout moves into the header menu.
-2. **Batches list.** Uses RevealList rows per week (index = week number, meta = counts, Badge status). Accept: the status words are mapped (approved → accent badge). **Done (run 3):** `AppFrame` + "This & next" / "Earlier weeks" sections; failed+unknown add a danger "N need you" badge. Mapping in `lib/batches/card-view.ts`.
-3. **Batch detail / approval grid.** Uses "Batch card (proposed)" as a bordered grid cell, Chips, `Button solid` Approve, ProgressBar and ConfirmSheet. Accept: approve-all goes through the Sheet; actions are ≥ 44 px. **Done (run 3):** header band (W-index, "Week of *date*", status badges) → Approval cell (count, ProgressBar, Readout) + Actions cell (solid "Approve all N" → Sheet, Fill times, Add clip) → one caps row per day with post cards as bordered cells. failed/unknown cards carry the F11 panel and ResetSheet; a past-time draft shows a wrapping warn Chip.
-4. **Inbox + DMs.** Uses Tabs, Toggle (kill switch with ConfirmSheet), ListRow cells, StatusPulse for live mode, Readouts for limits. **Done (run 3):** shared hero "Inbox / *needs you* / N" (flagged + open DMs) with the kill-switch Toggle in the right cell (toggle on = killed; it only opens a Sheet, the Sheet's form calls `setKillAction`; resume still needs "resume" typed) → Comments / DMs `TabLinks` → Flagged / Shadow / Sent sub-tabs (same `?tab=` URLs). Comments and DM threads are `ListRow`s with a body; triage = Chip (no green: positive is neutral), sent status = Badge. 8 + 4 split on desktop: list | per-platform mode (`SegmentBar`, live → Sheet, `StatusPulse` live = blue) + limits Readout (used/left in the last 24 h, counted from the Sent list). View logic in `lib/inbox/view.ts`.
-5. **Library + touch-up.** Uses a grid of FramedImage cells (4 / 12 cols), Badge "file missing" (danger) and SearchField.
-6. **Analytics.** Uses SectionHead, a numbers band, AreaChart, Donut, Statement (top insight) and Journal (report items). **Done (run 3):** hero (stroke `WEEK n` / *in review* / views) + Readout + prev/next → numbers band (views, likes, comments, shares StatTiles) + zero-based AreaChart (views per posting week) + Donut (posts by platform; posts, not views, since views aren't comparable across platforms) → Statement (strongest recommendation, n shown) → per-platform cells with top 3 → recommendation ListRows (n, lift, up/down icon) → trial rows with verdict badge + reason → data gaps as warn Chips. View logic in `lib/analytics/view.ts`.
-7. **Research.** Uses Tabs (link mode), RevealList for ideas/hooks, Input/Select forms and warn Chips. **Done (run 3):** shared `ResearchFrame` (hero "Research / *this week* / N ideas", Overview/Creators/Ideas/Hooks `TabLinks`, ?error= band); overview stage counts + Film next `RevealList`; ideas per stage `RevealList` + "Move forward" ListRows with Input/Button forms; hooks `RevealList` + wrapping warn Chips for voice warnings; creators `ListRow` + `PlatformLogo`. Logic in `lib/research/view.ts`.
-8. **Login.** Centred Display "Sign *in*", one black solid "Use passkey" button, GridLines + Noise, no tab bar.
-9. **Alerts** (F8, merged). Uses AlertCard rows, StatusPulse, and ghost "Acknowledge" buttons; the open count shows on the tab-bar badge. **Done (run 3):** hero "Alerts / *open now* / N" + StatusPulse (danger = urgent open, warn = notices only, blue = all clear) + Readout; state `TabLinks` + kind `TabLinks layout="grid"`; one band per alert (kind 3 | message, platform glyph, age 6 | outline Acknowledge + ghost Open batch 3); "Acknowledge all N" (shown ids only) through the ui `ConfirmSheet`; push block with StatusPulse and the one solid button. Logic in `lib/alerts/view.ts`.
-10. **Snapchat handoff** (F10, merged). Uses FramedImage preview, `Button solid` "Share to Snapchat", ProgressBar (1/day), and ConfirmSheet for posted/skip.
+### Research `/research`
+Tabs as links: Ideas · Hooks · Creators · Already used.
+- Idea card: title in display; "What it's about"; "How to adapt it" ; the reference link ("Watch the reference", opens the platform); source creator; a **Used** checkbox (moves it to Already used; undo there).
+- Creators: add / remove only. Shows when ideas were last refreshed and the next run.
+
+### Library `/library`, `/library/touch-up`
+- Library: search field, filter Dropdown (pillar, status), a responsive grid of `Thumb` cards (2 columns on phone, 6 on desktop) with title, duration and tags (e.g. "No sound yet").
+- Touch-up: only clips with a real issue. Each card: Thumb, the issue in plain words, "Fix it" (solid) and "Dismiss"; a "Fix all N" button on top. After a fix: before → after thumbs and durations, "Keep the fix" / "Keep the original". "Find in library" links to `/library?q=<label>` and highlights the clip.
+
+### Platforms `/platforms/[platform]`
+One page per platform: how posts go out (one sentence), connection and token health, today's count against the daily cap, the next 5 scheduled posts, the engagement mode, links to its analytics and (Snapchat) the share-sheet handoff with the video preview, "Share to Snapchat", "Mark posted", "Skip today".
+
+### Settings `/settings`
+Sections as cards: Daily posts per platform (Steppers), Replies (per-platform mode: Off / Drafts only / Auto; DM drafts toggle; pause-all switch), Promo-spam accounts (list + add), Research (refresh schedule, AI notes toggle with the monthly budget shown), Notifications (push enable + test), Appearance (Day / Night), Security (Log out everywhere, with confirm). Anything that changes what goes public or costs money shows "Needs your OK in chat" instead of a live control.
+
+### Notifications `/notifications`
+Open / Acknowledged filter; rows with icon, message, age, Acknowledge; "Acknowledge all" via confirm.
+
+### Login `/login`
+Centred card: logo in display, one solid "Use passkey" button. No shell.
+
+## Review checklist (per screen, before commit)
+Phone 390 px and desktop 1440 px, Day and Night: no horizontal scroll; no clipped or overlapping text; equal card heights in a row; one solid button per view; empty state present; hard rules 1–9 hold.

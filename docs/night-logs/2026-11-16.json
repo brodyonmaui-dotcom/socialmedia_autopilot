@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-16",
+  "startedAt": "2026-11-16T01:40:00Z",
+  "endedAt": null,
+  "model": "lead + Opus designers/implementers",
+  "session": "cloud · fable run 4",
+  "backlogItem": "Run 4 · usable, functional, beautiful (UI v3 + calendar, all-posts analytics, inbox triage, research, fix-it, settings)",
+  "summary": "In progress. Safety hunks reviewed (three small fixes delegated). UI system v3 spec written. Wave 1 building: shell + Home, poster frames, all-posts analytics.",
+  "needsAttention": [],
+  "done": [
+    "Reviewed the run-4 brief hunks: tick lock, scheduler window/sameDay, editor write, ready plan, one-tap approve, move to tomorrow, YouTube findExisting, migration 0009",
+    "docs/design/ui-system.md v3 (the spec for every screen)",
+    "Briefs for the next wave: docs/prep/run-4-briefs/{inbox,research,touchup}.md"
+  ],
+  "notDone": [
+    "Wave 1 (running): v3 shell + Home; poster frames + 3 safety fixes; analytics for all posts",
+    "Wave 2: calendar (replaces batches), inbox backend, research backend",
+    "Wave 3: touch-up fix-it backend; pages for analytics, inbox, research, library, platforms, settings",
+    "Close-out: delete old components, ui-shots v3, run-5 plan, PR"
+  ],
+  "decisions": [
+    "Review: outbox tick lock approved as written",
+    "Review: scheduler window path approved; grid-slot loop gets the same same-instant guard as the flex loop (gap 0 case)",
+    "Review: editor write approved (conflict target matches the 0009 partial index; alerts/events only for inserted rows)",
+    "Review: move-to-tomorrow ignored the editor's earliest time because it is stored as HH:MM, not ISO; fixed to accept both",
+    "Review: YouTube findExisting stays (a miss behaves as before); page size 25 -> 50",
+    "Brief decision c: caption.missing keeps applying to all items",
+    "Display font: Imbue (OFL, tall condensed didone), self-hosted; Inter for everything else; one font per phrase",
+    "Research generation runs as a worker job with code-written notes (no AI cost); Haiku notes are an opt-in setting with a monthly token budget, default off",
+    "Fix-it runs in the worker (always on, reads R2); originals are kept; a fix is a new media row"
+  ],
+  "blocked": [],
+  "tests": { "passed": null, "failed": null, "notes": "baseline before the run: 1589 passing on main per the build-run log" },
+  "commits": 1,
+  "prUrl": null,
+  "nextPickup": [
+    "If agents from wave 1 were cut off: check `git status`, run `pnpm typecheck` and `pnpm test` with DATABASE_URL, then re-brief from docs/design/ui-system.md and docs/prep/run-4-agent-rules.md",
+    "Launch wave 2 from docs/prep/run-4-briefs/inbox.md and research.md (implementer, Opus) and the calendar designer task (spec: ui-system.md, Calendar section)",
+    "Then touchup.md, then the page designers (analytics, inbox, research, library, platforms, settings)"
+  ]
+}
