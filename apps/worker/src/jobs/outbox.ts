@@ -307,7 +307,7 @@ export async function runOutboxOnce(pool: OutboxPool, cfg: OutboxConfig): Promis
 export async function runOutboxWith(pool: OutboxPool, adapters: Partial<Record<Platform, PlatformAdapter>>, cfg: OutboxConfig): Promise<TickResult> {
   const log = cfg.log ?? ((line: string) => console.log(sanitizeForLog(line)));
   if (!cfg.timeZone && !cfg.dryRun) throw new Error("TZ_CREATOR is required for a live outbox run (daily caps are per creator-local day)");
-  // Fable to review: outbox tick lock (F13 T2)
+  // Reviewed in run 4 (2026-11-16): outbox tick lock (F13 T2)
   // The lock comes FIRST, before the media-base check: a config-skip tick writes an alert, and the
   // whole tick (including that path) must be serialised the same way, so nothing below ever races a
   // second tick. The TZ check above is a pure throw with no DB effect, so it doesn't need the lock.

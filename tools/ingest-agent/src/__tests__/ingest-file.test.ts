@@ -8,6 +8,8 @@ function deps(over: Partial<IngestFileDeps> = {}) {
   const uploads: Array<{ key: string; path: string }> = [];
   const inserts: unknown[][] = [];
   const touched: Array<{ from: string; to: string }> = [];
+  const posters: Array<{ key: string; path: string }> = [];
+  const logs: string[] = [];
   const d: IngestFileDeps = {
     runQa: async () => qa as never,
     touchUp: async (from, { outPath }) => {
@@ -20,11 +22,18 @@ function deps(over: Partial<IngestFileDeps> = {}) {
     insert: async (row) => {
       inserts.push(row);
     },
+    makePoster: async () => {},
+    uploadPoster: async (key, path) => {
+      posters.push({ key, path });
+    },
+    log: (line) => {
+      logs.push(line);
+    },
     tmpDir: () => "/tmp/ingest-test-dir",
     cleanup: () => {},
     ...over,
   };
-  return { d, uploads, inserts, touched };
+  return { d, uploads, inserts, touched, posters, logs };
 }
 
 describe("createIngestFile (F7 C1/C2)", () => {
@@ -62,5 +71,43 @@ describe("createIngestFile (F7 C1/C2)", () => {
     const err = (await createIngestFile(d)(file, "h").catch((e: unknown) => e)) as Error;
     expect(err.message).toContain("2 keys");
     expect(err.message).not.toContain("/clips/ready");
+  });
+
+  it("makes a poster from the clean copy, uploads it under posters/<hash>.jpg and stores poster_key ($10)", async () => {
+    const made: Array<{ from: string; to: string; durationS: number }> = [];
+    const { d, posters, inserts } = deps({
+      makePoster: async (from, to, o) => {
+        made.push({ from, to, durationS: o.durationS });
+      },
+    });
+    await createIngestFile(d)(file, "abc123");
+    expect(made).toEqual([{ from: "/tmp/ingest-test-dir/clean.mp4", to: "/tmp/ingest-test-dir/poster.jpg", durationS: 12.3 }]);
+    expect(posters).toEqual([{ key: "posters/abc123.jpg", path: "/tmp/ingest-test-dir/poster.jpg" }]);
+    expect(inserts[0]![9]).toBe("posters/abc123.jpg");
+  });
+
+  it("a poster failure (ffmpeg throws) never fails the ingest: one log line, poster_key null", async () => {
+    const { d, uploads, inserts, logs, posters } = deps({
+      makePoster: async () => {
+        throw new Error("poster: ffmpeg wrote no frame");
+      },
+    });
+    const line = await createIngestFile(d)(file, "abc123");
+    expect(line).toMatch(/^INGESTED leg-day\.mp4/);
+    expect(uploads).toHaveLength(1);
+    expect(posters).toEqual([]);
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]![9]).toBeNull();
+    expect(logs).toEqual(["POSTER skipped leg-day.mp4 — poster: ffmpeg wrote no frame"]);
+  });
+
+  it("a poster upload failure also leaves poster_key null and still ingests", async () => {
+    const { d, inserts } = deps({
+      uploadPoster: async () => {
+        throw new Error("network down");
+      },
+    });
+    await createIngestFile(d)(file, "abc123");
+    expect(inserts[0]![9]).toBeNull();
   });
 });

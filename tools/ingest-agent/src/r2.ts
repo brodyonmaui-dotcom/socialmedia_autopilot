@@ -16,13 +16,13 @@ export function createR2Client(cfg: R2Config): S3Client {
   });
 }
 
-export async function uploadToR2(client: S3Client, bucket: string, key: string, filePath: string): Promise<void> {
+export async function uploadToR2(client: S3Client, bucket: string, key: string, filePath: string, contentType = "video/mp4"): Promise<void> {
   await client.send(
     new PutObjectCommand({
       Bucket: bucket,
       Key: key,
       Body: readFileSync(filePath),
-      ContentType: "video/mp4",
+      ContentType: contentType,
     }),
   );
 }

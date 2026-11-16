@@ -8,6 +8,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createPool, migrate } from "../../packages/db/src/index.js";
 import { assertLocalDatabaseUrl, assertNoRealData, buildSeedRows, DEMO_HASH_PREFIX } from "./lib/seed.js";
+import { seedDemoPosters } from "./lib/seed-posters.js";
 
 if (existsSync(".env")) process.loadEnvFile(".env");
 
@@ -177,6 +178,7 @@ try {
       client.release();
     }
   }
+  await seedDemoPosters(pool); // synthetic thumbnails in logs/dev-posters (serve with DEV_POSTER_DIR)
 } catch (e) {
   console.error(`dev:seed: FAIL ${(e as Error).message.replace(/^dev:seed: /, "")}`);
   process.exitCode = 1;

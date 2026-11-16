@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { DEFAULT_CADENCE, localDate, type Platform } from "@autopilot/core";
+import { DEFAULT_CADENCE, localDate, localToUtc, type Platform } from "@autopilot/core";
 import { computeWarnings } from "../../batches/warnings.js";
 import type { BatchItemView, BatchView, EditorMeta } from "../../batches/types.js";
 import { makeBatch, makeItem } from "../../batches/__tests__/fixtures.js";
@@ -141,6 +141,25 @@ describe("Move to tomorrow", () => {
     expect(r.ok && Date.parse(r.slots.a!) >= Date.parse(earliest)).toBe(true);
     expect(planTomorrow([{ id: "a", platform: "instagram", status: "approved", origin: "editor", earliest: null }], { now: NOW, timeZone: TZ, cadence: DEFAULT_CADENCE, existing: [] }).ok).toBe(false);
     expect(planTomorrow([{ id: "a", platform: "instagram", status: "draft", origin: null, earliest: null }], { now: NOW, timeZone: TZ, cadence: DEFAULT_CADENCE, existing: [] }).ok).toBe(false);
+  });
+
+  it("HH:MM earliest (creator-local, as the ingest writes it) narrows tomorrow's window", () => {
+    const zone = "America/New_York"; // fixture zone, not the creator's
+    const tw = tomorrowWindow(NOW, zone);
+    const one = (earliest: string | null) => planTomorrow([{ id: "a", platform: "instagram", status: "draft", origin: "editor", earliest }], { now: NOW, timeZone: zone, cadence: DEFAULT_CADENCE, existing: [] });
+    const free = one(null);
+    const late = one("17:00");
+    expect(free.ok && late.ok).toBe(true);
+    if (!free.ok || !late.ok) return;
+    const cut = localToUtc(tw.date, "17:00", zone).getTime();
+    expect(Date.parse(free.slots.a!)).toBeLessThan(cut);
+    expect(Date.parse(late.slots.a!)).toBeGreaterThanOrEqual(cut);
+    expect(Date.parse(late.slots.a!)).toBeLessThan(tw.notAfter.getTime());
+  });
+
+  it("HH:MM earliest so late that nothing fits returns the all-or-nothing error", () => {
+    const r = planTomorrow(items(["instagram", "youtube"]).map((i) => ({ ...i, earliest: "23:59" })), { now: NOW, timeZone: TZ, cadence: DEFAULT_CADENCE, existing: [] });
+    expect(r).toEqual({ ok: false, error: "no free IG time tomorrow; nothing changed" });
   });
 
   it("planEdits writes edit {scheduledFor} via planTransition, all or nothing", () => {

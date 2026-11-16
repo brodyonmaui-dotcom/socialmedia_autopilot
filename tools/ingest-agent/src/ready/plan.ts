@@ -57,7 +57,7 @@ export function mondayOf(ymd: string): string {
   return addCalendarDays(ymd, -weekdayIndex(ymd));
 }
 
-// Fable to review: F15 editor slotting (plan)
+// Reviewed in run 4 (2026-11-16): F15 editor slotting (plan)
 /**
  * `when` → [notBefore, notAfter) as instants, all through localToUtc on calendar dates (DST-safe):
  *  - today:     [max(now, today earliest), start of tomorrow)

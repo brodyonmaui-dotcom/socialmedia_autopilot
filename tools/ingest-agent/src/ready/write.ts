@@ -26,19 +26,23 @@ export interface MediaRow {
   pillar: string;
   qa: unknown;
   capturedAt: string | null;
+  /** R2 key of the poster JPEG; null/absent when it couldn't be made. */
+  posterKey?: string | null;
 }
 
 /**
- * Upsert by content hash. A row from the old ingest keeps its values; only a missing r2_key is filled.
+ * Upsert by content hash. A row from the old ingest keeps its values; only a missing r2_key or poster_key is filled.
  * `returning` yields no row when the `where` blocks the update, so then the id is selected.
  */
 export async function upsertMedia(db: Queryable, m: MediaRow): Promise<string> {
   const ins = await db.query(
-    `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, qa, captured_at)
-     values ($1, $2, $3, $4, $5, $6, $7, 'ready', $8::jsonb, $9)
-     on conflict (content_hash) do update set r2_key = excluded.r2_key, updated_at = now() where media.r2_key is null
+    `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, qa, captured_at, poster_key)
+     values ($1, $2, $3, $4, $5, $6, $7, 'ready', $8::jsonb, $9, $10)
+     on conflict (content_hash) do update
+       set r2_key = coalesce(media.r2_key, excluded.r2_key), poster_key = coalesce(media.poster_key, excluded.poster_key), updated_at = now()
+       where media.r2_key is null or (media.poster_key is null and excluded.poster_key is not null)
      returning id`,
-    [m.contentHash, m.sourcePath, m.r2Key, m.durationS, m.width, m.height, m.pillar, JSON.stringify(m.qa ?? null), m.capturedAt],
+    [m.contentHash, m.sourcePath, m.r2Key, m.durationS, m.width, m.height, m.pillar, JSON.stringify(m.qa ?? null), m.capturedAt, m.posterKey ?? null],
   );
   if (ins.rows[0]?.id) return ins.rows[0].id as string;
   const sel = await db.query(`select id from media where content_hash = $1`, [m.contentHash]);
@@ -100,7 +104,7 @@ export function alertMessage(sidecar: Sidecar, platform: Platform): string {
   return `New from ${sidecar.source}: ${sidecar.pillar} · ${platform}`;
 }
 
-// Fable to review: F15 editor item write (idempotency)
+// Reviewed in run 4 (2026-11-16): F15 editor item write (idempotency)
 /**
  * One transaction per render:
  *  1. Per week (sorted, so two writers never lock in opposite orders): pg_advisory_xact_lock on
