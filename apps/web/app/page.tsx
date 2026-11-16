@@ -17,25 +17,22 @@ import {
   PLATFORM_NAME,
   PlatformLogo,
   StatTile,
-  Thumb,
   cx,
   type ChartSeries,
   type IconName,
   type StatTint,
 } from "../components/ui/index.js";
-import { approveEditorRender } from "./editor/actions.js";
+import { PostCard } from "../components/calendar/index.js";
 import { sendManualAction } from "./inbox/actions.js";
 import { requireSession } from "../lib/auth/require.js";
-import { formatDuration } from "../lib/batches/view-model.js";
 import { getPool } from "../lib/db.js";
-import { loadEditorRenders } from "../lib/editor/queries.js";
+import { loadEditorEntries } from "../lib/calendar/load.js";
 import { listInbox, relativeTime } from "../lib/engagement/queries.js";
 import { handoffContext, listHandoff } from "../lib/handoff/store.js";
 import {
   activityBars,
   buildKpis,
   DEFAULT_RANGE,
-  editorTiles,
   hasActivity,
   kpiText,
   loadHome,
@@ -82,7 +79,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const [counts, home, editors, flagged, snapToday] = await Promise.all([
     loadFrameCounts(pool),
     loadHome(pool, now, tz, range),
-    loadEditorRenders(pool, now),
+    loadEditorEntries(pool, now),
     listInbox(pool, "flagged", 4),
     // Snapchat "today" needs the creator zone; without it there is no strip (never guess "today").
     zone ? listHandoff(pool, now, zone, handoffContext().blocklist).then((h) => h.today.length) : Promise.resolve(0),
@@ -94,7 +91,6 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const week = weekSchedule(home.scheduled, home.today);
   const weekMax = Math.max(1, ...week.map((d) => d.count));
   const weekTotal = week.reduce((s, d) => s + d.count, 0);
-  const tiles = editorTiles(editors.renders);
   const replies = replyTiles(flagged);
   const days = periods.current.days;
   const rangeLabel = RANGES.find((r) => r.id === range)!.label;
@@ -197,11 +193,11 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
         <Card
           title="From your editors"
           titleId="editors"
-          subtitle={tiles.length ? `${editors.renders.length === 1 ? "1 clip" : `${editors.renders.length} clips`} waiting for your OK` : undefined}
+          subtitle={editors.total ? `${editors.total === 1 ? "1 clip" : `${editors.total} clips`} waiting for your OK` : undefined}
           className="lg:col-span-6"
-          action={tiles.length ? <CardLink href="/calendar?status=draft">See all</CardLink> : undefined}
+          action={editors.total ? <CardLink href="/calendar?status=draft">See all</CardLink> : undefined}
         >
-          {tiles.length === 0 ? (
+          {editors.total === 0 ? (
             <EmptyState
               icon="film"
               title="Nothing to review"
@@ -214,29 +210,13 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
               className="flex-1 justify-center py-2"
             />
           ) : (
-            <DataList label="Edits waiting for approval">
-              {tiles.map((t) => (
-                <DataRow
-                  key={t.key}
-                  leading={<Thumb mediaId={t.mediaId} alt={`${t.title} poster`} duration={formatDuration(t.durationS) || null} className="w-9" />}
-                  title={t.title}
-                  meta={t.meta}
-                  trailing={
-                    t.blocked ? (
-                      <ButtonLink href="/calendar?status=draft" variant="ghost" size="sm">
-                        Fix first
-                      </ButtonLink>
-                    ) : (
-                      <form action={approveEditorRender.bind(null, t.batchId, t.approvableIds, "home")}>
-                        <Button type="submit" variant="outline" size="sm" aria-label={`Approve ${t.title}`}>
-                          Approve
-                        </Button>
-                      </form>
-                    )
-                  }
-                />
+            <ul className="flex flex-col gap-2" aria-label="Edits waiting for approval">
+              {editors.entries.map((e) => (
+                <li key={e.key}>
+                  <PostCard entry={e} back="/" actions="approve" />
+                </li>
               ))}
-            </DataList>
+            </ul>
           )}
         </Card>
 

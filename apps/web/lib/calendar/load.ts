@@ -2,7 +2,7 @@
 // drafts) through PgBatchStore.loadBatch, fills fresh warnings exactly as the batch screen did
 // (loadWarningContext + computeWarnings), and groups the items into entries. Read-only.
 import type { Pool } from "pg";
-import { addCalendarDays, localDate } from "@autopilot/core";
+import { addCalendarDays, assertTimeZone, localDate } from "@autopilot/core";
 import { loadWarningContext } from "../batches/context.js";
 import { PgBatchStore } from "../batches/pg-store.js";
 import type { BatchView } from "../batches/types.js";
@@ -25,6 +25,18 @@ export interface CalendarData {
   timeZoneSource: "env" | "fallback";
 }
 
+/** The creator zone the calendar uses: TZ_CREATOR when valid, else UTC (flagged as a fallback). Same rule as loadWarningContext. */
+export function creatorZone(env: NodeJS.ProcessEnv = process.env): { timeZone: string; source: "env" | "fallback" } {
+  if (env.TZ_CREATOR) {
+    try {
+      return { timeZone: assertTimeZone(env.TZ_CREATOR), source: "env" };
+    } catch {
+      /* invalid zone: UTC fallback */
+    }
+  }
+  return { timeZone: "UTC", source: "fallback" };
+}
+
 /** A batch freshly loaded with server-side warnings (the form's view is never trusted). */
 export async function loadBatchFresh(pool: Pool, batchId: string, now: Date): Promise<{ batch: BatchView; ctx: WarningContext & { timeZoneSource: "env" | "fallback" } } | null> {
   const batch = await new PgBatchStore(pool).loadBatch(batchId);
@@ -40,28 +52,12 @@ export async function loadCalendar(pool: Pool, opts: { from: string; to: string;
   const { rows } = await pool.query(CALENDAR_SQL.batches, [new Date(`${addCalendarDays(opts.from, -1)}T00:00:00Z`), new Date(`${addCalendarDays(opts.to, 2)}T00:00:00Z`)]);
   const batches: BatchView[] = [];
   const ctxByBatch = new Map<string, WarningContext>();
-  let timeZone = "UTC";
-  let timeZoneSource: "env" | "fallback" = "fallback";
+  const { timeZone, source: timeZoneSource } = creatorZone();
   for (const r of rows as Array<{ batch_id: string }>) {
     const fresh = await loadBatchFresh(pool, r.batch_id, opts.now);
     if (!fresh) continue;
     batches.push(fresh.batch);
     ctxByBatch.set(fresh.batch.id, fresh.ctx);
-    timeZone = fresh.ctx.timeZone;
-    timeZoneSource = fresh.ctx.timeZoneSource;
-  }
-  if (batches.length === 0) {
-    // No rows: still report the zone the page would use.
-    const zone = process.env.TZ_CREATOR;
-    if (zone) {
-      try {
-        new Intl.DateTimeFormat("en-US", { timeZone: zone });
-        timeZone = zone;
-        timeZoneSource = "env";
-      } catch {
-        /* fallback */
-      }
-    }
   }
   const items = batches.flatMap((b) => b.items).filter((i) => {
     if (!i.scheduledFor) return i.status === "draft";
@@ -70,4 +66,28 @@ export async function loadCalendar(pool: Pool, opts: { from: string; to: string;
   });
   const all = groupEntries(items, { timeZone, now: opts.now, showRejected: opts.showRejected });
   return { entries: all.filter((e) => e.day), untimed: all.filter((e) => !e.day), batches, ctxByBatch, timeZone, timeZoneSource };
+}
+
+/**
+ * Home "From your editors": editor drafts (origin 'editor', status draft) as calendar entries, newest
+ * first, with fresh warnings. Read-only. `total` = all such entries; `entries` = the first `limit`.
+ */
+export async function loadEditorEntries(pool: Pool, now: Date, limit = 4): Promise<{ entries: Entry[]; total: number }> {
+  const { rows } = await pool.query(
+    `select batch_id, max(created_at) as newest from batch_items where origin = 'editor' and status = 'draft' group by batch_id order by newest desc limit 8`,
+  );
+  const { timeZone } = creatorZone();
+  const items = [];
+  for (const r of rows as Array<{ batch_id: string }>) {
+    const fresh = await loadBatchFresh(pool, r.batch_id, now);
+    if (fresh) items.push(...fresh.batch.items.filter((i) => i.origin === "editor" && i.status === "draft"));
+  }
+  const newest = new Map<string, string>();
+  for (const i of items) {
+    const k = i.mediaId;
+    const c = i.createdAt ?? "";
+    if (!newest.has(k) || c > newest.get(k)!) newest.set(k, c);
+  }
+  const entries = groupEntries(items, { timeZone, now }).sort((a, b) => (newest.get(b.mediaId) ?? "").localeCompare(newest.get(a.mediaId) ?? ""));
+  return { entries: entries.slice(0, limit), total: entries.length };
 }

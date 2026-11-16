@@ -2,7 +2,7 @@ import type { Platform } from "@autopilot/core";
 import { approveItemsAction } from "../../app/calendar/actions.js";
 import { formatDuration } from "../../lib/batches/view-model.js";
 import type { Entry, PlatformEntry, Tone } from "../../lib/calendar/model.js";
-import { Badge, Button, cx, Menu, PLATFORM_NAME, PlatformLogo, type MenuItem } from "../ui/index.js";
+import { Badge, Button, ButtonLink, cx, Menu, PLATFORM_NAME, PlatformLogo, type MenuItem } from "../ui/index.js";
 import { PostHoverPreview, type PreviewData } from "./PostHoverPreview.js";
 
 /** Status dot colour per platform item (a word always sits next to it in the accessible name). */
@@ -114,6 +114,13 @@ export function PostCard({
             {e.statusLabel}
           </Badge>
         </div>
+        {actions === "approve" && approvable.length === 0 && e.day ? (
+          <div className="pt-2">
+            <ButtonLink href={`/calendar?status=draft&day=${e.day}&d=${e.day}`} variant="ghost" size="sm">
+              Fix in the calendar
+            </ButtonLink>
+          </div>
+        ) : null}
         {actions === "approve" && approvable.length ? (
           <form action={approveItemsAction} className="pt-2">
             <input type="hidden" name="back" value={back} />

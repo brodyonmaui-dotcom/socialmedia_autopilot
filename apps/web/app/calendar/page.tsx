@@ -16,7 +16,7 @@ import {
 import { Button, ButtonLink, Card, EmptyState, IconLink, InlineNotice, PageHeader, TabLinks, cx } from "../../components/ui/index.js";
 import { requireSession } from "../../lib/auth/require.js";
 import { getPool } from "../../lib/db.js";
-import { loadCalendar } from "../../lib/calendar/load.js";
+import { creatorZone, loadCalendar } from "../../lib/calendar/load.js";
 import {
   calendarHref,
   dayEntries,
@@ -47,15 +47,11 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
   await requireSession();
   const sp = await searchParams;
   const now = new Date();
-  const zoneEnv = process.env.TZ_CREATOR;
-  // The loader reports the zone it really used (TZ_CREATOR or the UTC fallback); "today" follows it.
-  const probeToday = localDate(now, "UTC");
-  const state0 = parseCalendarState(sp, probeToday);
-  const range0 = viewRange(state0.view, state0.d);
-  const data = await loadCalendar(getPool(), { from: range0.from, to: range0.to, now, showRejected: state0.showRejected });
-  const today = localDate(now, data.timeZone);
-  const state = sp.d || sp.day ? state0 : { ...state0, d: today };
+  const zone = creatorZone();
+  const today = localDate(now, zone.timeZone);
+  const state = parseCalendarState(sp, today);
   const range = viewRange(state.view, state.d);
+  const data = await loadCalendar(getPool(), { from: range.from, to: range.to, now, showRejected: state.showRejected });
   const entries = data.entries.filter((e) => e.day! >= range.from && e.day! <= range.to);
 
   const here = calendarHref(state);
@@ -91,7 +87,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
         subtitle={state.drafts ? "Showing what needs your approval" : undefined}
         action={
           draftCount > 0 ? (
-            <ButtonLink href={calendarHref(state, { approveAll: true })} variant="solid" scroll={false}>
+            <ButtonLink href={calendarHref(state, { approveAll: true })} variant="solid">
               Approve all {draftCount}
             </ButtonLink>
           ) : undefined
@@ -99,7 +95,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
       />
 
       <div className="flex flex-col gap-3 lg:gap-4">
-        {data.timeZoneSource === "fallback" && !zoneEnv ? (
+        {zone.source === "fallback" ? (
           <InlineNotice tone="warn" href="/settings" linkLabel="Settings">
             Times are shown in UTC because your time zone isn&rsquo;t set yet.
           </InlineNotice>
