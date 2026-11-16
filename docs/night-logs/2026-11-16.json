@@ -5,7 +5,7 @@
   "model": "lead + Opus designers/implementers",
   "session": "cloud · fable run 4",
   "backlogItem": "Run 4 · usable, functional, beautiful (UI v3 + calendar, all-posts analytics, inbox triage, research, fix-it, settings)",
-  "summary": "In progress. Safety review done and fixes merged; poster frames and all-posts analytics committed. Running: v3 shell + Home, inbox triage backend, research backend. A 5-hour limit pause happened at about 02:40 UTC; work resumed 06:41 UTC with nothing lost.",
+  "summary": "In progress. Done and reviewed: safety fixes, poster frames, all-posts analytics backend, UI v3 foundation (shell, search, notifications, Home), inbox backend, research backend. Running: calendar, inbox pages, touch-up backend. Two 5-hour limit pauses so far (resumed 06:41 and 14:30 UTC), nothing lost.",
   "needsAttention": [],
   "done": [
     "Reviewed the run-4 brief hunks: tick lock, scheduler window/sameDay, editor write, ready plan, one-tap approve, move to tomorrow, YouTube findExisting, migration 0009",
@@ -14,13 +14,16 @@
     "Review fixes: same-instant guard, HH:MM earliest on move-to-tomorrow, YouTube lookup page 50",
     "Poster frames: ingest, backfill command, session-guarded proxy, migration 0010",
     "Analytics for all account posts: IG + YouTube ingest, matching, findings with sample sizes, loaders, migration 0011",
-    "Briefs: calendar.md, pages.md"
+    "Briefs: calendar.md, pages.md",
+    "UI v3 foundation: tokens, Imbue display font, shell with edge-reveal sidebar, search palette, notifications pop-over, Home dashboard, /notifications, /settings move, login",
+    "Inbox backend: promo-spam bucket, recalibrated rules (calibration: praise ok 98.3%, promo 26/26, location 20/20, hide 10/10), pings, one-tap approve & send, migration 0012",
+    "Research backend: automatic ideas and hooks, used archive, 20 scripts imported, migration 0013",
+    "docs/prep/run-5-plan.md (kept current)"
   ],
   "notDone": [
-    "Running: v3 shell + Home (designer), inbox backend (0012), research backend (0013)",
-    "Next: calendar (docs/prep/run-4-briefs/calendar.md), touch-up fix-it backend (touchup.md, 0014)",
-    "Then pages A-E in docs/prep/run-4-briefs/pages.md",
-    "Close-out: delete old components, ui-shots v3, run-5 plan, PR"
+    "Running: calendar + Home fixes (designer), inbox pages (designer), touch-up backend 0014 (implementer)",
+    "Open: pages.md sections A (analytics), C (research), D (library + touch-up), E (platforms + settings)",
+    "Close-out: delete v2 components, full ui-shots v3, PR"
   ],
   "decisions": [
     "Review: outbox tick lock approved as written",
@@ -33,19 +36,22 @@
     "Research generation runs as a worker job with code-written notes (no AI cost); Haiku notes are an opt-in setting with a monthly token budget, default off",
     "Fix-it runs in the worker (always on, reads R2); originals are kept; a fix is a new media row",
     "Screenshots and the app run on a separate clean DB (autopilot_demo); tests keep autopilot_dev, because a db test leaves rows that make the seed refuse the DB",
-    "Default daily caps become his choice (IG 6, YT 10, TikTok 7, Snapchat 1) in the Settings task"
+    "Default daily caps become his choice (IG 6, YT 10, TikTok 7, Snapchat 1) in the Settings task",
+    "reply-ready pushes are on by default, paced by engagement.pings (default hourly digest)",
+    "Location and blocklist hits beat the promo rule, so a spam account asking where he trains still reaches him"
   ],
   "blocked": [],
   "tests": {
-    "passed": null,
-    "failed": null,
-    "notes": "baseline before the run: 1589 passing on main per the build-run log"
+    "passed": 2050,
+    "failed": 0,
+    "notes": "full suite with DATABASE_URL at the research review; typecheck clean"
   },
-  "commits": 4,
+  "commits": 9,
   "prUrl": null,
   "nextPickup": [
-    "Check git status: uncommitted files belong to the shell/Home, inbox and research agents. Resume them by SendMessage if this session still has them; otherwise re-brief from docs/prep/run-4-briefs/*.md (they list files and acceptance)",
-    "Start Postgres (bash scripts/dev/local-stack.sh), demo DB = autopilot_demo with DEV_POSTER_DIR=logs/dev-posters",
-    "Then calendar.md (designer), touchup.md (implementer), pages.md sections A-E (designers, max 3 at once)"
+    "State table: docs/prep/run-5-plan.md",
+    "Uncommitted or snapshot-only work belongs to: calendar (apps/web/app/calendar, components/calendar, lib/calendar), inbox pages (apps/web/app/inbox, components/inbox), touch-up backend (packages/media, 0014, worker media-fix). Resume by SendMessage or re-brief from docs/prep/run-4-briefs/",
+    "Then pages.md A, C, D, E with Opus designers, max 3 at once",
+    "Then clean-up, shots, PR"
   ]
 }
