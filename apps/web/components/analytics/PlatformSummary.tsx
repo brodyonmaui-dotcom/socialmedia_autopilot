@@ -12,7 +12,7 @@ function Stat({ label, value }: { label: string; value: string | null }) {
 }
 
 /** One platform on the overview: its numbers for the range, or why there are none; links to its page. */
-export function PlatformSummary({ card, href }: { card: PlatformCard; href: string }) {
+export function PlatformSummary({ card, href, days }: { card: PlatformCard; href: string; days: number }) {
   const name = PLATFORM_LABEL[card.platform];
   const fd = card.followersDelta;
   return (
@@ -22,7 +22,7 @@ export function PlatformSummary({ card, href }: { card: PlatformCard; href: stri
       subtitle={
         <span className="inline-flex items-center gap-1.5">
           <PlatformLogo platform={card.platform} size={14} className="text-ds-text" />
-          {card.collected ? (fd != null && fd !== 0 ? `${fd > 0 ? "+" : "−"}${fmtInt(Math.abs(fd))} followers` : "Numbers collected daily") : "Not collected"}
+          {card.collected ? (fd != null && fd !== 0 ? `${fd > 0 ? "+" : "−"}${fmtInt(Math.abs(fd))} followers in ${days} days` : "Numbers collected daily") : "Not collected"}
         </span>
       }
       action={<CardLink href={href}>{card.collected ? "Details" : "Why"}</CardLink>}

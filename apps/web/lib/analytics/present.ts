@@ -32,10 +32,11 @@ export function parseSort(v: string | string[] | undefined): PostSort {
 }
 
 /** "/analytics", "/analytics?days=7", "/analytics/instagram?days=60&sort=views" (defaults left out). */
-export function analyticsHref(opts: { platform?: Platform; days?: RangeDays; sort?: PostSort } = {}): string {
+export function analyticsHref(opts: { platform?: Platform; days?: RangeDays; sort?: PostSort; all?: boolean } = {}): string {
   const q = new URLSearchParams();
   if (opts.days && opts.days !== DEFAULT_DAYS) q.set("days", String(opts.days));
   if (opts.sort && opts.sort !== "date") q.set("sort", opts.sort);
+  if (opts.all) q.set("all", "1");
   const s = q.toString();
   return `/analytics${opts.platform ? `/${opts.platform}` : ""}${s ? `?${s}` : ""}`;
 }
@@ -264,6 +265,9 @@ export function hourBars(hours: HourStat[]): HourBar[] {
     };
   });
 }
+
+/** Posts shown before "Show all N posts". */
+export const POSTS_SHOWN = 10;
 
 export function sortPosts(posts: PlatformPostRow[], sort: PostSort): PlatformPostRow[] {
   if (sort === "date") return posts;

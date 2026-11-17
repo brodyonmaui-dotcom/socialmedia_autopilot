@@ -42,7 +42,8 @@ describe("parseLoudnormMeasurement", () => {
 	"input_tp" : "-1.90",
 	"input_lra" : "4.20",
 	"input_thresh" : "-39.40",
-	"output_i" : "-14.00"
+	"output_i" : "-14.00",
+	"target_offset" : "0.25"
 }
 `;
     expect(parseLoudnormMeasurement(stderr)).toEqual({
@@ -50,6 +51,7 @@ describe("parseLoudnormMeasurement", () => {
       inputTruePeak: -1.9,
       inputLra: 4.2,
       inputThreshold: -39.4,
+      targetOffset: 0.25,
     });
   });
 

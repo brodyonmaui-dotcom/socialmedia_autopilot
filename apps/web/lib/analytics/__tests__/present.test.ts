@@ -63,6 +63,7 @@ describe("params and links", () => {
     expect(analyticsHref()).toBe("/analytics");
     expect(analyticsHref({ days: 7 })).toBe("/analytics?days=7");
     expect(analyticsHref({ platform: "instagram", days: 30, sort: "views" })).toBe("/analytics/instagram?sort=views");
+    expect(analyticsHref({ platform: "youtube", days: 7, all: true })).toBe("/analytics/youtube?days=7&all=1");
   });
 });
 
