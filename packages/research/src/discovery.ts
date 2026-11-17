@@ -29,7 +29,17 @@ export interface DiscoveryConfig {
   limit?: number;
 }
 
-const FIELDS = "id,caption,like_count,comments_count,view_count,media_type,media_product_type,timestamp";
+const FIELDS = "id,caption,like_count,comments_count,view_count,media_type,media_product_type,timestamp,permalink";
+/** Graph throttling codes (same set as packages/analytics instagram-account.ts). */
+const RATE_LIMIT_CODES = new Set([4, 17, 32, 613, 80002]);
+
+/** A rate limit ends a research run cleanly (the job stops asking; the next run continues). */
+export class DiscoveryRateLimitError extends Error {
+  constructor(detail: string) {
+    super(`business discovery: rate limited (${detail})`);
+    this.name = "DiscoveryRateLimitError";
+  }
+}
 const HANDLE = /^[a-z0-9._]{1,30}$/;
 
 type Json = Record<string, unknown>;
@@ -66,6 +76,7 @@ export function toSnapshot(creatorId: string, body: unknown): CreatorSnapshot {
         comments: num(m.comments_count) ?? 0,
         views: num(m.view_count),
         mediaType: mediaType(m),
+        permalink: typeof m.permalink === "string" && /^https:\/\/(www\.)?instagram\.com\//.test(m.permalink) ? m.permalink : null,
         postedAt: new Date(m.timestamp.replace(/([+-]\d{2})(\d{2})$/, "$1:$2")).toISOString(),
       },
     ];
@@ -79,6 +90,8 @@ export async function fetchCreatorSnapshot(creator: Creator, cfg: DiscoveryConfi
   const body = await res.json();
   if (res.status !== 200) {
     const e = isObj(body) && isObj(body.error) ? body.error : {};
+    const code = num(e.code);
+    if (res.status === 429 || (code !== null && RATE_LIMIT_CODES.has(code))) throw new DiscoveryRateLimitError(`HTTP ${res.status}${code !== null ? ` code ${code}` : ""}`);
     throw new Error(`business discovery: HTTP ${res.status}${e.code !== undefined ? ` code ${String(e.code)}` : ""}${typeof e.message === "string" ? ` ${e.message}` : ""}`);
   }
   return toSnapshot(creator.id, body);

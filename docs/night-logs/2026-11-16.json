@@ -1,0 +1,92 @@
+{
+  "date": "2026-11-16",
+  "startedAt": "2026-11-16T01:40:00Z",
+  "endedAt": "2026-11-17T22:50:23Z",
+  "model": "lead + Opus designers/implementers",
+  "session": "cloud · fable run 4",
+  "backlogItem": "Run 4 · usable, functional, beautiful (UI v3 + calendar, all-posts analytics, inbox triage, research, fix-it, settings)",
+  "summary": "Run 4 is built and green; PR #23 is ready for review. Every screen is rebuilt in the v3 design; the calendar replaces batches; analytics covers all posts; promo-spam is ignored and replies can be approved from a push; research fills itself; touch-up fixes clips. Migrations 0010-0014 and a deploy are needed.",
+  "needsAttention": [
+    {
+      "priority": 1,
+      "title": "Review PR #23 on your phone",
+      "detail": "Checklist in the PR and in docs/prep/run-5-plan.md"
+    },
+    {
+      "priority": 2,
+      "title": "Back up, apply migrations 0010-0014, deploy",
+      "detail": "Worker image now installs ffmpeg; untested Docker build"
+    },
+    {
+      "priority": 3,
+      "title": "Set env names",
+      "detail": "Worker: R2_* for Fix it. Web: DRY_RUN, ENGAGEMENT_KILL, PRIVACY_BLOCKLIST"
+    },
+    {
+      "priority": 4,
+      "title": "Laptop: pnpm ingest:posters --write",
+      "detail": "Thumbnails for existing clips"
+    },
+    {
+      "priority": 5,
+      "title": "Decide in chat",
+      "detail": "Research AI notes (off), auto-send per platform (off); reply pings default to an hourly digest"
+    }
+  ],
+  "done": [
+    "Reviewed the run-4 brief hunks: tick lock, scheduler window/sameDay, editor write, ready plan, one-tap approve, move to tomorrow, YouTube findExisting, migration 0009",
+    "docs/design/ui-system.md v3 (the spec for every screen)",
+    "Briefs for the next wave: docs/prep/run-4-briefs/{inbox,research,touchup}.md",
+    "Review fixes: same-instant guard, HH:MM earliest on move-to-tomorrow, YouTube lookup page 50",
+    "Poster frames: ingest, backfill command, session-guarded proxy, migration 0010",
+    "Analytics for all account posts: IG + YouTube ingest, matching, findings with sample sizes, loaders, migration 0011",
+    "Briefs: calendar.md, pages.md",
+    "UI v3 foundation: tokens, Imbue display font, shell with edge-reveal sidebar, search palette, notifications pop-over, Home dashboard, /notifications, /settings move, login",
+    "Inbox backend: promo-spam bucket, recalibrated rules (calibration: praise ok 98.3%, promo 26/26, location 20/20, hide 10/10), pings, one-tap approve & send, migration 0012",
+    "Research backend: automatic ideas and hooks, used archive, 20 scripts imported, migration 0013",
+    "docs/prep/run-5-plan.md (kept current)",
+    "Calendar replaces batches: month/week, day dialog with compact post cards, hover preview, approve/approve-all/edit/move/reject/retry through planTransition; old /batches redirects",
+    "Inbox screens v3 and the push landing page; push click opens the inbox item",
+    "Home fixes: rolling 7/30-day ranges, larger card titles, no misleading -100% deltas",
+    "Library + Touch-up screens, Platforms + Settings screens (caps 6/10/7/1), Snapchat handoff under Platforms",
+    "Clean-up: v2 components and CSS aliases removed; ui-system.md v3 matches what was built",
+    "docs/prep/run-5-plan.md (next run, phone checklist, needs-you list)"
+  ],
+  "notDone": [
+    "F14 weekly loop",
+    "Small follow-ups listed in docs/prep/run-5-plan.md item 4",
+    "Real-data verification of the new ingest/research/fix jobs (needs a deploy)"
+  ],
+  "decisions": [
+    "Review: outbox tick lock approved as written",
+    "Review: scheduler window path approved; grid-slot loop gets the same same-instant guard as the flex loop (gap 0 case)",
+    "Review: editor write approved (conflict target matches the 0009 partial index; alerts/events only for inserted rows)",
+    "Review: move-to-tomorrow ignored the editor's earliest time because it is stored as HH:MM, not ISO; fixed to accept both",
+    "Review: YouTube findExisting stays (a miss behaves as before); page size 25 -> 50",
+    "Brief decision c: caption.missing keeps applying to all items",
+    "Display font: Imbue (OFL, tall condensed didone), self-hosted; Inter for everything else; one font per phrase",
+    "Research generation runs as a worker job with code-written notes (no AI cost); Haiku notes are an opt-in setting with a monthly token budget, default off",
+    "Fix-it runs in the worker (always on, reads R2); originals are kept; a fix is a new media row",
+    "Screenshots and the app run on a separate clean DB (autopilot_demo); tests keep autopilot_dev, because a db test leaves rows that make the seed refuse the DB",
+    "Default daily caps become his choice (IG 6, YT 10, TikTok 7, Snapchat 1) in the Settings task",
+    "reply-ready pushes are on by default, paced by engagement.pings (default hourly digest)",
+    "Location and blocklist hits beat the promo rule, so a spam account asking where he trains still reaches him",
+    "Log out everywhere signs out sessions only; passkeys stay (revoking them from the phone would lock him out)",
+    "One solid button per card or view section",
+    "Research and analytics loaders read only official APIs; no thumbnails or media URLs from other creators are stored"
+  ],
+  "blocked": [
+    "Weekly usage limit hit on Nov 16 about 16:00 UTC; resumed Nov 17 22:00 UTC"
+  ],
+  "tests": {
+    "passed": 2096,
+    "failed": 0,
+    "notes": "184 files with DATABASE_URL; typecheck 0; simulate-week and simulate-engagement OK; web build OK; leak scan ok. The count dropped from 2226 because tests of deleted v2 components went with them."
+  },
+  "commits": 27,
+  "prUrl": "https://github.com/brodyonmaui-dotcom/socialmedia_autopilot/pull/23",
+  "nextPickup": [
+    "Read docs/prep/run-5-plan.md",
+    "Collect his phone feedback on PR #23 first"
+  ]
+}

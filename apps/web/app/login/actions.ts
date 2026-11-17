@@ -78,11 +78,3 @@ export async function logoutAction(): Promise<void> {
   await clearSessionCookie();
   redirect("/login");
 }
-
-/** Signs out every device and revokes every passkey; re-enrol with `pnpm auth:enroll` on the server. */
-export async function logoutEverywhereAction(): Promise<void> {
-  await requireSession();
-  await getAuthStore().revokeAll(new Date());
-  await clearSessionCookie();
-  redirect("/login");
-}

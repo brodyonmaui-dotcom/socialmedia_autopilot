@@ -82,6 +82,7 @@ export const ALERT_KINDS = [
   "config", // worker misconfiguration, e.g. PUBLIC_MEDIA_BASE (page-only)
   "ready-for-approval", // F15: an editor render landed as draft items (pushed)
   "settings-change", // F15: audit row for a Settings edit (caps, DM drafts); inserted acknowledged, never pushed
+  "reply-ready", // run 4: a drafted/flagged comment waits (paced by settings engagement.pings); pushed with a privacy-linted line
 ] as const;
 export type AlertKind = (typeof ALERT_KINDS)[number];
 
@@ -99,6 +100,7 @@ export type AlertSource = Platform | "web" | "meta" | "zernio" | "all";
 export const PUSH_KINDS_DEFAULT: readonly AlertKind[] = [
   "engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth",
   "ready-for-approval", // F15; "settings-change" is never pushed
+  "reply-ready", // run 4; volume capped by engagement.pings (each ≤ 6/h, hourly digest, off)
 ];
 
 /** Raised by the outbox for anything a human must look at. Delivered by an AlertSink (log, DB, push). */

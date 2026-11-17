@@ -50,3 +50,12 @@ Costs are monthly USD, checked 2026-11-09 (see the verification log in `research
 
 ## Total (recommended picks)
 VPS ~$6.5 + domain ~$1 + R2 $0 + Zernio $0 + Haiku ~$1–2 = **≈ $9–10/mo**, leaving ~$10 of headroom (for example, for Upload-Post if Zernio fails, paid annually).
+
+## Addendum to §4 (2026-11-16): research runs itself
+Decided by the lead (run 4). §4 above stands; this adds one server-side job.
+- **Ideas and hooks are automatic and recurring.** The worker job `research-refresh` runs every 3 days (cron `17 5 */3 * *`, UTC) and once at worker start if it never ran, because the server is always on and the laptop isn't. Tracked creators stay manual (add / remove = set inactive).
+- **Sources:** up to 10 active Instagram creators per run via Business Discovery (official, read-only GETs; a failed creator is one line in the run note; a rate limit ends the run cleanly), his own niches (evergreen prompts in `packages/research/data/niche-prompts.json`, 3 new per run, never repeated), and the yap scripts bundle (`packages/research/data/yap-2026-11-16.json`, upserted idempotently). With no Instagram credentials it still does niche + scripts and says so.
+- **No AI needed, cost $0:** ranking (engagement vs. that creator's own median, recency-weighted, top 3 above 1.25× per creator) and the "what it's about / how to adapt it" text are written by code.
+- **Optional AI notes** (Haiku rewrites the two notes in his voice): setting `research.aiNotes`, **default off**, plus env `RESEARCH_AI_NOTES=1`. Hard monthly budget `research.aiMonthlyTokens` (default 300 000 tokens) counted in `ai_token_usage`; at Haiku 5.5's $0.10 in / $0.50 out per M tokens (docs/research.md) that is at most $0.15/month even if every token were output. Budget used up → silent fallback to the code notes. Output that fails the privacy/voice lint or quotes more than the hook line is discarded. Turning it on is budget-affecting: needs his OK in chat.
+- **No copying:** from other creators we store only the first caption line (the hook, ≤ 140 chars, privacy-linted; a line naming a place is dropped) as a quoted, attributed reference, plus the permalink. Never full captions, media files, media URLs or thumbnails. Ideas link out.
+- **Dry-run:** allowed in dry-run (reads from the platform, writes only our own tables), same as analytics ingest.

@@ -32,7 +32,10 @@ beforeEach(() => {
 describe("inbox actions without a session", () => {
   it("exports the expected actions", () => {
     expect(exported.map(([n]) => n).sort()).toEqual(
-      ["blockAuthorAction", "copyDraftAction", "markHandledAction", "promoteShadowAction", "sendManualAction", "setDmDraftsAction", "setKillAction", "setModeAction"].sort(),
+      [
+        "approveAndSendAction", "blockAuthorAction", "copyDraftAction", "ignoreAccountAction", "markHandledAction", "notSpamAction", "promoteShadowAction",
+        "removePromoAccountAction", "sendManualAction", "setDmDraftsAction", "setKillAction", "setModeAction", "setPingsAction",
+      ].sort(),
     );
   });
 
@@ -44,6 +47,7 @@ describe("inbox actions without a session", () => {
       });
       const fd = new FormData();
       fd.set("confirm", "resume");
+      fd.set("pings", "each");
       // Arguments that would otherwise pass validation, so only the session check can stop them.
       const args: Record<string, unknown[]> = {
         markHandledAction: [COMMENT, fd],
@@ -53,6 +57,11 @@ describe("inbox actions without a session", () => {
         setKillAction: [false, fd],
         setModeAction: ["instagram", "live", fd],
         copyDraftAction: [COMMENT],
+        approveAndSendAction: [COMMENT, fd],
+        ignoreAccountAction: ["comment", COMMENT, fd],
+        notSpamAction: ["comment", COMMENT, fd],
+        removePromoAccountAction: [COMMENT, fd],
+        setPingsAction: [fd],
       };
       await expect(fn(...(args[name] ?? [COMMENT, fd]))).rejects.toBe(NO_SESSION);
       expect(db.getPool).not.toHaveBeenCalled();

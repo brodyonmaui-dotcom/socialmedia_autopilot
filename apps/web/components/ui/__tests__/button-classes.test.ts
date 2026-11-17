@@ -5,42 +5,26 @@ const tokens = (s: string) => s.split(/\s+/);
 const ALL: ButtonVariant[] = ["solid", "accent", "outline", "white", "ghost", "icon", "pill"];
 const roundedTokens = (s: string) => tokens(s).filter((t) => /(^|:)rounded/.test(t));
 
-describe("buttonClasses (v2 Warm Industrial)", () => {
-  it("solid (default) is the black invert rectangle with caps label", () => {
+describe("buttonClasses (v3)", () => {
+  it("solid (default) is the ink fill, 8px radius, sentence-case 600", () => {
     const c = tokens(buttonClasses());
-    expect(c).toEqual(
-      expect.arrayContaining(["bg-ds-invert", "text-ds-on-invert", "ds-caps", "h-12", "px-6", "hover:bg-ds-accent", "hover:text-ds-ink"]),
-    );
-    expect(c).not.toContain("bg-ds-accent");
+    expect(c).toEqual(expect.arrayContaining(["bg-ds-invert", "text-ds-on-invert", "rounded-ds-sm", "font-semibold", "h-11"]));
+    expect(c).not.toContain("ds-caps");
+    expect(c).not.toContain("uppercase");
   });
 
-  it("accent is blue fill with ink label", () => {
-    expect(tokens(buttonClasses({ variant: "accent" }))).toEqual(expect.arrayContaining(["bg-ds-accent", "text-ds-ink"]));
+  it("outline is a control-border hairline that fills raised on hover", () => {
+    expect(tokens(buttonClasses({ variant: "outline" }))).toEqual(expect.arrayContaining(["border", "border-ds-line-strong", "text-ds-text", "hover:bg-ds-raised"]));
   });
 
-  it("outline is a 1px text line that inverts on hover", () => {
-    expect(tokens(buttonClasses({ variant: "outline" }))).toEqual(
-      expect.arrayContaining(["border", "border-ds-text/80", "text-ds-text", "hover:bg-ds-text", "hover:text-ds-bg"]),
-    );
+  it("ghost is ink text with a raised hover", () => {
+    expect(tokens(buttonClasses({ variant: "ghost" }))).toEqual(expect.arrayContaining(["text-ds-text", "hover:bg-ds-raised"]));
   });
 
-  it("white is a card fill with a 1px line; ghost is accent text", () => {
-    expect(tokens(buttonClasses({ variant: "white" }))).toEqual(expect.arrayContaining(["bg-ds-card", "border", "border-ds-line"]));
-    expect(tokens(buttonClasses({ variant: "ghost" }))).toContain("text-ds-accent-fg");
-  });
-
-  it("pill is rounded-full, 1px border, 44px tall caps", () => {
-    const c = tokens(buttonClasses({ variant: "pill" }));
-    expect(c).toEqual(expect.arrayContaining(["rounded-full", "border", "border-ds-text", "h-11", "px-5", "ds-caps"]));
-    expect(c).not.toContain("h-12");
-  });
-
-  it("only pill is round: no rounded-* on any other variant, and pill only uses rounded-full", () => {
+  it("radius: pill is rounded-full, every other variant rounded-ds-sm", () => {
     for (const variant of ALL) {
       for (const tone of ["default", "danger"] as const) {
-        const r = roundedTokens(buttonClasses({ variant, tone }));
-        if (variant === "pill") expect(r).toEqual(["rounded-full"]);
-        else expect(r).toEqual([]);
+        expect(roundedTokens(buttonClasses({ variant, tone }))).toEqual([variant === "pill" ? "rounded-full" : "rounded-ds-sm"]);
       }
     }
   });
@@ -56,38 +40,27 @@ describe("buttonClasses (v2 Warm Industrial)", () => {
     }
   });
 
-  it("icon is a 44px bordered square", () => {
-    const c = tokens(buttonClasses({ variant: "icon" }));
-    expect(c).toEqual(expect.arrayContaining(["size-11", "border", "border-ds-line"]));
-    expect(c).not.toContain("h-12");
-  });
-
-  it("sm is 44px tall", () => {
-    expect(tokens(buttonClasses({ size: "sm" }))).toContain("h-11");
+  it("tap targets: md and sm are 44px tall on phones; sm tightens to 36px on desktop", () => {
+    expect(tokens(buttonClasses())).toContain("h-11");
+    expect(tokens(buttonClasses({ size: "sm" }))).toEqual(expect.arrayContaining(["h-11", "lg:h-9"]));
+    expect(tokens(buttonClasses({ variant: "icon" }))).toContain("size-11");
   });
 
   it("danger tone swaps colours instead of stacking them", () => {
     const o = tokens(buttonClasses({ variant: "outline", tone: "danger" }));
-    expect(o).toEqual(expect.arrayContaining(["text-ds-danger", "border-ds-danger/50"]));
+    expect(o).toEqual(expect.arrayContaining(["text-ds-danger", "border-ds-danger/60"]));
     expect(o).not.toContain("text-ds-text");
     expect(tokens(buttonClasses({ variant: "ghost", tone: "danger" }))).toContain("text-ds-danger");
-    expect(tokens(buttonClasses({ variant: "icon", tone: "danger" }))).toContain("text-ds-danger");
-    expect(tokens(buttonClasses({ variant: "pill", tone: "danger" }))).toEqual(expect.arrayContaining(["rounded-full", "text-ds-danger"]));
   });
 
-  it("arrow adds the hover group", () => {
-    expect(tokens(buttonClasses({ arrow: true }))).toContain("group");
-    expect(tokens(buttonClasses())).not.toContain("group");
+  it("block, disabled, arrow group and className", () => {
+    const s = buttonClasses({ block: true, disabled: true, arrow: true, className: "mt-4" });
+    expect(tokens(s)).toEqual(expect.arrayContaining(["w-full", "opacity-50", "cursor-not-allowed", "group", "mt-4"]));
   });
 
-  it("block, disabled and className", () => {
-    const s = buttonClasses({ block: true, disabled: true, className: "mt-4" });
-    expect(tokens(s)).toEqual(expect.arrayContaining(["w-full", "opacity-50", "cursor-not-allowed", "mt-4"]));
-  });
-
-  it("has a focus ring and a 300ms ease-ds colour transition", () => {
+  it("has a focus ring and a colour-only transition", () => {
     const s = buttonClasses({ variant: "ghost" });
     expect(s).toContain("focus-visible:outline-2");
-    expect(tokens(s)).toEqual(expect.arrayContaining(["transition-colors", "duration-300", "ease-ds"]));
+    expect(tokens(s)).toEqual(expect.arrayContaining(["transition-colors", "ease-ds"]));
   });
 });

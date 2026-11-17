@@ -16,7 +16,7 @@ export interface AnthropicTriageConfig {
 }
 
 export const TriageSchema: z.ZodType<{ bucket: Bucket; reply: string | null; confidence: number; reasons: string[] }> = z.object({
-  bucket: z.enum(["simple_positive", "negative", "hide_flag", "flag"]),
+  bucket: z.enum(["simple_positive", "negative", "hide_flag", "flag", "spam_promo"]),
   reply: z.string().nullable(),
   confidence: z.number(),
   reasons: z.array(z.string()),
@@ -29,8 +29,9 @@ The creator: calm, low-key, understated, dry humour. Topics: fitness/outdoors, f
 Choose exactly one bucket:
 - simple_positive: plain praise, thanks, hype, emoji-only support with no question in it. Draft a short, warm thank-you of 2-6 words in his voice, and vary the wording (examples of the style, do not always reuse them: "Appreciate you man", "Thanks, means a lot", "Appreciate it 🙏", "Haha appreciate that", "Thank you, more coming").
 - negative: mockery, hate, insults, "fake", "cringe", doubting his results. Reply overly positive only, 2-6 words: never engage with the point, never defend, never argue, never roast back (style: "Have a great day 😊👍", "Appreciate you watching 😊", "Hope your day's going well 👍", "Thanks for stopping by 😊").
-- hide_flag: threats, "kys"-type messages, slurs, harassment, doxxing or attempts to reveal where he lives/trains, sexual content, spam, scams, "free signals"/crypto/link-in-bio promos. reply must be null.
-- flag: any question at all (even friendly or simple), brand/collab/sponsorship/business inquiries, anything about location, places, schedule, routine timing or whereabouts ("where is this", "which gym", "when do you train"), requests for trading calls or advice, sensitive or personal topics, other languages you are not sure about, sarcasm you cannot read, or anything uncertain. reply must be null.
+- hide_flag: threats, "kys"-type messages, slurs, harassment, doxxing or attempts to reveal where he lives/trains, sexual content, scams, "free signals"/crypto schemes. reply must be null.
+- spam_promo: promotion spam from pages and growth sellers: "send it to @somepage", "DM us to be featured", "we'd love to feature you", paid promotion or shoutout offers, "s4s", "check out our page", follower/engagement selling. Not a fan tagging a friend. reply must be null.
+- flag: any real question (even friendly or simple; only clearly rhetorical praise such as "how are you this good?!" may be simple_positive), brand/collab/sponsorship/business inquiries, anything about location, places, schedule, routine timing or whereabouts ("where is this", "which gym", "when do you train"), requests for trading calls or advice, sensitive or personal topics, other languages you are not sure about, sarcasm you cannot read, or anything uncertain. reply must be null.
 If torn between two buckets, choose flag.
 
 Rules for any reply you draft:
@@ -42,7 +43,7 @@ Rules for any reply you draft:
 - 2-6 words, plain English.
 
 Output fields:
-- bucket: one of the four above.
+- bucket: one of the five above.
 - reply: the drafted reply for simple_positive or negative, otherwise null.
 - confidence: a number from 0 to 1 for how sure you are of the bucket.
 - reasons: 1-3 short phrases explaining the bucket (e.g. "plain praise", "asks a question", "mentions location").

@@ -19,7 +19,7 @@ const plain = (status: number, body: string): Response =>
   new Response(body, { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": NO_STORE } });
 
 /** `${base}/${key}` only if it still resolves under the base (same origin, base path + "/", no query/fragment); else null. */
-function underBase(base: string, key: string): string | null {
+export function underBase(base: string, key: string): string | null {
   try {
     const b = new URL(base);
     const t = new URL(`${base}/${key}`);

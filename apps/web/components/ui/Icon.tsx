@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 
-/** Inline line icons, 24-unit grid, 1.5 stroke, currentColor. Decorative by default (aria-hidden). */
+/** Inline line icons, 24-unit grid, 1.5 stroke, 20 px default, currentColor. Decorative by default (aria-hidden). */
 const PATHS = {
   home: "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z",
   batches: "M4 5h16v4H4zM4 11h16v4H4zM4 17h10v3H4z",
@@ -38,6 +38,12 @@ const PATHS = {
   arrowUpRight: "M7 17 17 7M8 7h9v9",
   arrowRight: "M4 12h16M14 6l6 6-6 6",
   star: "M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z",
+  film: "M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4",
+  users: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2.5 20a6.5 6.5 0 0 1 13 0M16 3.6a4 4 0 0 1 0 7.3M18.5 14.4a6.5 6.5 0 0 1 3 5.6",
+  platforms: "M5 4h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM15 4h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM5 14h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1zM15 14h4a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z",
+  sliders: "M4 7h10M18 7h2M4 17h4M12 17h8M16 5v4M10 15v4",
+  dots: "M6 12h.01M12 12h.01M18 12h.01",
+  reply: "M10 8 5 12l5 4M5 12h9a5 5 0 0 1 5 5v1",
 } as const;
 
 export type IconName = keyof typeof PATHS;

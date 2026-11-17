@@ -13,4 +13,4 @@ su postgres -c "psql -tAc \"select 1 from pg_database where datname='autopilot_d
 export DATABASE_URL="$URL" DEV_DATABASE_URL="$URL"
 pnpm -s --filter @autopilot/db migrate | tail -1
 pnpm -s dev:seed | tail -1
-echo "local-stack: ok · export DATABASE_URL=$URL"
+echo "local-stack: ok · export DATABASE_URL=$URL · thumbnails: DEV_POSTER_DIR=$(cd "$(dirname "$0")/../.." && pwd)/logs/dev-posters"

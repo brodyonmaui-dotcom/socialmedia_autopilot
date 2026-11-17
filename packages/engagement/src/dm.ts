@@ -2,7 +2,8 @@
 // deliberately has no way to send anything. Drafts are template-first; a TriageClient may only pick
 // the bucket (and, for fans, a short lead-in), never the text of a brand reply.
 import { lintText } from "@autopilot/research";
-import type { DmThreadInput, DmWindow, InboundComment, TriageClient } from "./types.js";
+import { promoRule, type PromoHit } from "./rules.js";
+import type { DmThreadInput, DmWindow, InboundComment, PromoAccount, TriageClient } from "./types.js";
 
 /** Instagram's standard messaging window: 24 h after the person's last message. */
 export const DM_WINDOW_MS = 24 * 3_600_000;
@@ -35,6 +36,22 @@ export function classifyDm(text: string): DmKind {
   if (text.includes("?")) return "question";
   if (FAN.test(text)) return "fan";
   return "other";
+}
+
+/** Inbound text since our last outbound message (what a draft would answer). */
+export function inboundSinceLastOut(thread: DmThreadInput): string {
+  const lastOut = thread.messages.map((m) => m.dir).lastIndexOf("out");
+  return thread.messages.slice(lastOut + 1).filter((m) => m.dir === "in").map((m) => m.text).join("\n");
+}
+
+/**
+ * Run 4: the same promo rule as comments. A promo thread is ignored (dm_threads.ignored_reason), gets no
+ * draft, and is hidden from the main DM list. Pure.
+ */
+export function dmPromoVerdict(thread: DmThreadInput, promoAccounts: readonly PromoAccount[] = []): PromoHit | null {
+  const last = thread.messages.at(-1);
+  if (!last || last.dir !== "in") return null;
+  return promoRule(inboundSinceLastOut(thread), { platform: "instagram", authorId: thread.participantId, authorHandle: thread.handle }, promoAccounts);
 }
 
 export interface DmDraftInput {
@@ -70,9 +87,7 @@ export async function buildDmDraft(
   if (!last || last.dir !== "in") return null;
 
   // Everything they sent since our last outbound message.
-  const lastOut = thread.messages.map((m) => m.dir).lastIndexOf("out");
-  const inbound = thread.messages.slice(lastOut + 1).filter((m) => m.dir === "in");
-  const text = inbound.map((m) => m.text).join("\n");
+  const text = inboundSinceLastOut(thread);
   const reasons: string[] = [];
 
   let bucket: string = classifyDm(text);

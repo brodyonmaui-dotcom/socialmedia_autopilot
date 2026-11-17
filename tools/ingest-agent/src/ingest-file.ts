@@ -1,15 +1,16 @@
 import { join } from "node:path";
-import type { QaResult, TouchUpOptions } from "@autopilot/media";
+import { mediaInsertParams, qaAfterTouchUp, type QaResult, type TouchUpOptions } from "@autopilot/media";
+import { tryPoster, type PosterDeps } from "./poster.js";
 import type { FoundFile } from "./scan.js";
 
 /** Everything with side effects is injected so the strip → verify → upload order is testable. */
-export interface IngestFileDeps {
+export interface IngestFileDeps extends PosterDeps {
   runQa(filePath: string, platform: "reels"): Promise<QaResult>;
   touchUp(filePath: string, opts: TouchUpOptions): Promise<void>;
   /** Location-capable tag keys still present (packages/media `probeLocationTagKeys`). */
   locationTagKeys(filePath: string): Promise<string[]>;
   upload(key: string, cleanPath: string): Promise<void>;
-  /** Insert params: content_hash, source_path, r2_key, duration_s, width, height, pillar, qa json, captured_at. */
+  /** Insert params: content_hash, source_path, r2_key, duration_s, width, height, pillar, qa json, captured_at, poster_key. */
   insert(params: unknown[]): Promise<void>;
   tmpDir(): string;
   cleanup(dir: string): void;
@@ -19,11 +20,15 @@ export interface IngestFileDeps {
  * One new file: QA → touchUp into a temp clean copy → re-probe the clean copy (F7 C1) → upload the
  * clean copy only (F7 C2: never `file.path`) → record it. A lingering location tag throws, so
  * runIngest logs `ERROR <name> — …`, counts it failed, and writes no row (the next run retries).
+ * After the upload, a poster frame is made from the clean copy; a poster failure only logs one line and
+ * stores poster_key = null (`pnpm ingest:posters` can fill it later), it never fails the ingest.
  */
 export function createIngestFile(d: IngestFileDeps): (file: FoundFile, hash: string) => Promise<string> {
   return async (file, hash) => {
     const base = file.path.split(/[\\/]/).pop();
-    const qa = await d.runQa(file.path, "reels");
+    // QA v2 runs on the original (it still has the capture date); qaAfterTouchUp drops the metadata and
+    // loudness issues that touchUp fixes below, so the stored result describes the clean copy.
+    const qa = qaAfterTouchUp(await d.runQa(file.path, "reels"));
     const tmp = d.tmpDir();
     const cleanPath = join(tmp, "clean.mp4");
     try {
@@ -36,7 +41,21 @@ export function createIngestFile(d: IngestFileDeps): (file: FoundFile, hash: str
       // Key = content hash, so a retried upload overwrites the same object (idempotent).
       const key = `library/${hash}.mp4`;
       await d.upload(key, cleanPath);
-      await d.insert([hash, file.path, key, qa.probe.durationS, qa.probe.width, qa.probe.height, file.pillar, JSON.stringify(qa), qa.probe.capturedAt ?? null]);
+      const posterKey = await tryPoster(d, { videoPath: cleanPath, tmpDir: tmp, cleanKey: key, durationS: qa.probe.durationS, name: base ?? "file" });
+      await d.insert(
+        mediaInsertParams({
+          contentHash: hash,
+          sourcePath: file.path,
+          r2Key: key,
+          durationS: qa.probe.durationS,
+          width: qa.probe.width,
+          height: qa.probe.height,
+          pillar: file.pillar,
+          qa,
+          capturedAt: qa.probe.capturedAt ?? null,
+          posterKey,
+        }),
+      );
       return `INGESTED ${base} · ${file.pillar} · ${qa.probe.durationS.toFixed(1)}s · ${qa.warnings.length} warning(s)`;
     } finally {
       d.cleanup(tmp);

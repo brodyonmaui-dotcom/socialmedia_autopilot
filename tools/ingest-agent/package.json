@@ -6,6 +6,7 @@
   "scripts": {
     "ingest": "tsx src/index.ts",
     "ready": "tsx src/ready-cli.ts",
+    "posters": "tsx src/posters-cli.ts",
     "test": "vitest run"
   },
   "dependencies": {

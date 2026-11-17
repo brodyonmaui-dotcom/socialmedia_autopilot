@@ -12,7 +12,7 @@ export interface RenderApprovePlan {
   stayed: Array<{ itemId: string; platform: Platform; reason: string }>;
 }
 
-// Fable to review: F15 "Approve & schedule" (one tap, only items without a block warning)
+// Reviewed in run 4 (2026-11-16): F15 "Approve & schedule" (one tap, only items without a block warning)
 /**
  * Pure. `batch` must carry fresh warnings (computeWarnings on the server, never the form's). Each id is
  * checked with planTransition 'approve' on its own, so the exact same block path as the batch screen

@@ -50,11 +50,11 @@ export function Toggle({
   return (
     <div className={cx("flex min-h-11 items-center justify-between gap-4", disabled && "opacity-50", className)}>
       <div className={cx("min-w-0", hideLabel && "sr-only")}>
-        <span id={labelId} className="block text-[16px] font-medium leading-snug text-ds-text">
+        <span id={labelId} className="block text-[15px] font-semibold leading-snug text-ds-text">
           {label}
         </span>
         {description && (
-          <span id={descId} className="mt-0.5 block ds-mono leading-snug text-ds-faint">
+          <span id={descId} className="mt-0.5 block text-[13px] leading-snug text-ds-muted">
             {description}
           </span>
         )}

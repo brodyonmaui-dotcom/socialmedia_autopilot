@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_CADENCE, localToUtc } from "@autopilot/core";
 import { lintText } from "@autopilot/research";
 import { runReady, readySummaryLine, type ReadyDeps, type ReadyFs } from "../ready/run.js";
-import type { WriteInput } from "../ready/write.js";
+import type { MediaRow, WriteInput } from "../ready/write.js";
 
 const TZ = "America/New_York";
 const DIR = join("ready-to-post");
@@ -52,6 +52,7 @@ function setup(files: Record<string, string>, over: Partial<ReadyDeps> = {}, dbO
   const calls: string[] = [];
   const writes: WriteInput[] = [];
   const lines: string[] = [];
+  const media: MediaRow[] = [];
   const d: ReadyDeps = {
     dir: DIR,
     dryRun: false,
@@ -67,13 +68,15 @@ function setup(files: Record<string, string>, over: Partial<ReadyDeps> = {}, dbO
     locationTagKeys: async () => (calls.push("locationTagKeys"), []),
     upload: async (key) => void calls.push(`upload ${key}`),
     headObject: async () => (calls.push("head"), { size: 1234 }),
+    makePoster: async () => void calls.push("poster"),
+    uploadPoster: async (key) => void calls.push(`upload ${key}`),
     tmpDir: () => "tmp",
     cleanup: () => void calls.push("cleanup"),
     db: {
       existingKeys: async (ks) => ks.filter((k) => keys.has(k)),
       loadCadence: async () => DEFAULT_CADENCE,
       existingPosts: async () => [],
-      upsertMedia: async () => (calls.push("media"), "media-1"),
+      upsertMedia: async (row) => (calls.push("media"), media.push(row), "media-1"),
       writeItems: async (input) => {
         calls.push("write");
         writes.push(input);
@@ -87,7 +90,7 @@ function setup(files: Record<string, string>, over: Partial<ReadyDeps> = {}, dbO
     log: (l) => lines.push(l),
     ...over,
   };
-  return { d, fs, keys, calls, writes, lines };
+  return { d, fs, keys, calls, writes, lines, media };
 }
 
 const pair = (name = "clip", sc = sidecarJson()) => ({ [join(DIR, `${name}.mp4`)]: "video", [join(DIR, `${name}.post.json`)]: sc });
@@ -98,7 +101,18 @@ describe("runReady", () => {
     const { d, fs, calls, writes, lines } = setup(pair());
     const s = await runReady(d);
     expect(s).toEqual({ new: 1, skipped: 0, wait: 0, fail: 0 });
-    expect(calls).toEqual(["qa", "touchUp", "locationTagKeys", "upload library/hash-clip.mp4-0123456789.mp4", "head", "media", "cleanup", "write"]);
+    expect(calls).toEqual([
+      "qa",
+      "touchUp",
+      "locationTagKeys",
+      "upload library/hash-clip.mp4-0123456789.mp4",
+      "head",
+      "poster",
+      "upload posters/hash-clip.mp4-0123456789.jpg",
+      "media",
+      "cleanup",
+      "write",
+    ]);
     expect(writes[0]!.items.map((i) => i.platform)).toEqual(["instagram", "tiktok"]);
     expect(writes[0]!.mediaId).toBe("media-1");
     expect(inPlace(fs)).toBe(false);
@@ -223,5 +237,26 @@ describe("static guarantees (ready/*.ts)", () => {
     }
     expect(sql.find((s) => s.includes("insert into batch_items"))).toMatch(/'draft', 'editor'/);
     for (const f of files) expect(src(f)).not.toMatch(/planTransition|approveBatch|\.apply\(/);
+  });
+});
+
+describe("runReady: poster frame", () => {
+  it("stores the poster key on the media row", async () => {
+    const { d, media } = setup(pair());
+    await runReady(d);
+    expect(media[0]!.posterKey).toBe("posters/hash-clip.mp4-0123456789.jpg");
+  });
+
+  it("a poster failure (ffmpeg throws) never fails the render: NEW, poster_key null, one POSTER line", async () => {
+    const { d, fs, media, lines } = setup(pair(), {
+      makePoster: async () => {
+        throw new Error("poster: ffmpeg wrote no frame");
+      },
+    });
+    const s = await runReady(d);
+    expect(s).toEqual({ new: 1, skipped: 0, wait: 0, fail: 0 });
+    expect(media[0]!.posterKey).toBeNull();
+    expect(inPlace(fs)).toBe(false);
+    expect(lines.filter((l) => l.startsWith("POSTER"))).toEqual(["POSTER skipped clip.mp4 — poster: ffmpeg wrote no frame"]);
   });
 });

@@ -46,9 +46,10 @@ export interface CadenceSettings {
  * Defaults, each traceable to docs:
  *  - windows: the 0002_settings.sql seed.
  *  - slotsPerDay 4: decisions.md §5 (3 trials + 1 regular reel a day).
- *  - dailyCaps 5 (IG/YT/TikTok): 3 weekly + 2 same-day; a stored cadence row overrides this (F15).
- *    All well under the platform limits in CAP_LIMITS. Weekly items still use only the 4 grid slots;
- *    the 5th post a day comes from an editor (sameDay) item on the flex grid.
+ *  - dailyCaps Instagram 6, YouTube 10, TikTok 7: the creator's choice (run 4); a stored cadence row
+ *    overrides this (F15). All within the platform limits in CAP_LIMITS (YouTube sits at its limit).
+ *    Weekly items still use only the 4 grid slots; posts beyond that come from editor (sameDay) items
+ *    on the flex grid.
  *  - Snapchat cap 1: decisions.md §3, 1 Spotlight a day (assisted; the scheduler never fires it).
  *  - stagger: Instagram anchors; YouTube the next slot the same day; TikTok the next day's matching
  *    slot; Snapchat two days later (it's the proven performer per decisions.md §3).
@@ -61,7 +62,7 @@ export const DEFAULT_CADENCE: CadenceSettings = {
     { start: "20:00", end: "21:00" },
   ],
   slotsPerDay: 4,
-  dailyCaps: { instagram: 5, youtube: 5, tiktok: 5, snapchat: 1 }, // 3 weekly + 2 same-day; a stored cadence row overrides this
+  dailyCaps: { instagram: 6, youtube: 10, tiktok: 7, snapchat: 1 }, // the creator's choice; a stored cadence row overrides this
   stagger: {
     instagram: { days: 0, slots: 0 },
     youtube: { days: 0, slots: 1 },

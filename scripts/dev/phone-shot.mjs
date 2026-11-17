@@ -39,7 +39,9 @@ if (typeof opts["--theme"] === "string") {
   await context.addCookies([{ name: "ds-theme", value: opts["--theme"], domain: "localhost", path: "/" }]);
 }
 const page = await context.newPage();
-const res = await page.goto(`http://localhost:${port}${path}`, { waitUntil: "networkidle" });
+// "load" + a short settle, not "networkidle": the shell prefetches routes and a pending RSC prefetch can keep the network busy.
+const res = await page.goto(`http://localhost:${port}${path}`, { waitUntil: "load" });
+await page.waitForTimeout(1500);
 // Hide the Next.js dev-mode indicator so shots from `next dev` look like production.
 await page.addStyleTag({ content: "nextjs-portal{display:none!important}" }).catch(() => {});
 await page.screenshot({ path: out, fullPage: opts["--full"] === true });

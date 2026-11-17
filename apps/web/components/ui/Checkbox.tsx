@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { cx } from "./cx.js";
 
 export type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "children"> & {
@@ -8,7 +8,7 @@ export type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" |
 
 /** Shared box: sharp 22px square, black (invert) fill when checked; the mark is the sibling SVG. */
 export const CHOICE_BOX =
-  "peer size-[22px] shrink-0 appearance-none border border-ds-line-strong bg-ds-bg transition-colors duration-300 ease-ds " +
+  "peer size-[22px] shrink-0 appearance-none rounded-ds-xs border border-ds-line-strong bg-ds-card transition-colors duration-[var(--ds-dur)] ease-ds " +
   "checked:border-ds-invert checked:bg-ds-invert disabled:cursor-not-allowed " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-focus";
 
@@ -41,7 +41,7 @@ export function ChoiceRow({
       </span>
       <span className="min-w-0">
         <span className="block text-[16px] font-medium leading-snug text-ds-text">{label}</span>
-        {description && <span className="mt-0.5 block ds-mono leading-snug text-ds-faint">{description}</span>}
+        {description && <span className="mt-0.5 block text-[13px] leading-snug text-ds-muted">{description}</span>}
       </span>
     </label>
   );
@@ -72,5 +72,40 @@ export function Checkbox({ label, description, className, disabled, ...rest }: C
         </svg>
       }
     />
+  );
+}
+
+/**
+ * A submit button that looks like a labelled checkbox: for "tick it and it's saved" rows (Research "Used").
+ * It is a real <button type="submit"> with aria-pressed, so the form works without JS and keyboard users
+ * get a button. Put it in a small <form> whose hidden fields carry the new value.
+ */
+export function CheckButton({ checked, label, className, ...rest }: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "type"> & { checked: boolean; label: string }) {
+  return (
+    <button
+      type="submit"
+      aria-pressed={checked}
+      className={cx(
+        "-mx-2 inline-flex min-h-11 shrink-0 items-center gap-2.5 rounded-ds-sm px-2 text-[15px] font-semibold text-ds-text transition-colors duration-[var(--ds-dur)] ease-ds hover:bg-ds-raised lg:min-h-9",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-focus",
+        className,
+      )}
+      {...rest}
+    >
+      <span
+        aria-hidden="true"
+        className={cx(
+          "inline-flex size-[22px] shrink-0 items-center justify-center rounded-ds-xs border",
+          checked ? "border-ds-invert bg-ds-invert text-ds-on-invert" : "border-ds-line-strong bg-ds-card",
+        )}
+      >
+        {checked ? (
+          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="square" strokeLinejoin="miter" focusable="false">
+            <path d="M5 12.5 10 17 19 7" />
+          </svg>
+        ) : null}
+      </span>
+      {label}
+    </button>
   );
 }

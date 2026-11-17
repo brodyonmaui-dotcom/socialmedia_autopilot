@@ -51,7 +51,7 @@ export interface EditorMeta {
   pillar: string | null;
   /** The sidecar's "when" (e.g. "today", "tomorrow", "this-week"). */
   when: string | null;
-  /** ISO; not before this instant. */
+  /** HH:MM creator-local (or a legacy ISO instant); not before this time. */
   earliest: string | null;
   /** The ingest writes the approval instant (ISO) or true; both mean "approved in the editor". */
   approvedInEditor: boolean;

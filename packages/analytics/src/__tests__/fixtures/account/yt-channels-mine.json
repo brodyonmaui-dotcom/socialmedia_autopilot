@@ -1,0 +1,14 @@
+{
+  "kind": "youtube#channelListResponse",
+  "etag": "fakeetag",
+  "pageInfo": { "totalResults": 1, "resultsPerPage": 5 },
+  "items": [
+    {
+      "kind": "youtube#channel",
+      "etag": "fakeetag2",
+      "id": "UCaaaaaaaaaaaaaaaaaaaaaa",
+      "contentDetails": { "relatedPlaylists": { "likes": "", "uploads": "UUaaaaaaaaaaaaaaaaaaaaaa" } },
+      "statistics": { "viewCount": "48210", "subscriberCount": "312", "hiddenSubscriberCount": false, "videoCount": "57" }
+    }
+  ]
+}

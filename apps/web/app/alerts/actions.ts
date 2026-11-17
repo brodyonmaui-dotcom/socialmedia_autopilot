@@ -7,7 +7,7 @@ import { acknowledge, cleanIds } from "../../lib/alerts/queries.js";
 
 export type AckResult = { ok: true; count: number } | { ok: false; reason: string };
 
-/** Runs an acknowledge; DB errors become a fixed message (never echoed), then /alerts and home refresh. */
+/** Runs an acknowledge; DB errors become a fixed message (never echoed), then /notifications and every shell refresh. */
 async function run(name: string, fn: () => Promise<number>): Promise<AckResult> {
   let out: AckResult;
   try {
@@ -16,8 +16,9 @@ async function run(name: string, fn: () => Promise<number>): Promise<AckResult> 
     console.error(`alerts ${name} failed: ${(err as Error).name}`);
     out = { ok: false, reason: "something went wrong" };
   }
-  revalidatePath("/alerts");
-  revalidatePath("/");
+  // Every page's shell shows the open count and the newest alerts, so refresh the whole layout.
+  revalidatePath("/notifications");
+  revalidatePath("/", "layout");
   return out;
 }
 

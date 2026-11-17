@@ -89,19 +89,21 @@ describe("when → window", () => {
 });
 
 describe("caps and no-slot", () => {
+  // A stored 5/day cadence row (the code defaults are Instagram 6, YouTube 10, TikTok 7).
+  const CAP5 = normalizeCadence({ dailyCaps: { instagram: 5, youtube: 5, tiktok: 5, snapchat: 1 } });
   it("5th post on a day with 4 grid posts goes to the flex grid; a 6th is no-slot (cap 5)", () => {
     const now = at(WED, "08:00");
     const four = posts("instagram", WED, ["10:38", "13:00", "16:30", "20:30"]);
-    const fifth = plan({ now, existing: four })[0]!;
+    const fifth = plan({ now, cadence: CAP5, existing: four })[0]!;
     expect(fifth.scheduledFor).not.toBeNull();
     expect(fifth.flags).toEqual([]);
     const five = [...four, { platform: "instagram" as const, scheduledFor: fifth.scheduledFor! }];
-    const sixth = plan({ now, existing: five })[0]!;
+    const sixth = plan({ now, cadence: CAP5, existing: five })[0]!;
     expect(sixth).toMatchObject({ scheduledFor: null, flags: ["no-slot"], weekStart: "2026-11-16" });
   });
 
   it("today full → no-slot, never rolled into tomorrow", () => {
-    const item = plan({ existing: posts("instagram", WED, ["09:30", "10:38", "13:00", "16:30", "20:30"]) })[0]!;
+    const item = plan({ cadence: CAP5, existing: posts("instagram", WED, ["09:30", "10:38", "13:00", "16:30", "20:30"]) })[0]!;
     expect(item.scheduledFor).toBeNull();
     expect(item.flags).toContain("no-slot");
   });

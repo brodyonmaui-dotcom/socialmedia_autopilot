@@ -10,7 +10,7 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createPool } from "@autopilot/db";
-import { probeLocationTagKeys, runQa, sha256File, touchUp } from "@autopilot/media";
+import { makePoster, probeLocationTagKeys, runQa, sha256File, touchUp } from "@autopilot/media";
 import { parseIngestRoots } from "./config.js";
 import { createIngestFile } from "./ingest-file.js";
 import { createR2Client, uploadToR2 } from "./r2.js";
@@ -68,10 +68,13 @@ const summary = await runIngest({
       withRetry(() => uploadToR2(r2!, bucket, key, cleanPath), {
         onRetry: (n, err) => console.log(`RETRY ${key} upload attempt ${n + 1} — ${(err as Error).message}`),
       }),
+    makePoster,
+    uploadPoster: (key, jpgPath) => withRetry(() => uploadToR2(r2!, bucket, key, jpgPath, "image/jpeg")),
+    log: (line) => console.log(line),
     insert: async (params) => {
       await pool.query(
-        `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, qa, captured_at)
-         values ($1, $2, $3, $4, $5, $6, $7, 'ready', $8, $9)`,
+        `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, qa, captured_at, poster_key, qa_checked_at)
+         values ($1, $2, $3, $4, $5, $6, $7, 'ready', $8, $9, $10, now())`,
         params,
       );
     },

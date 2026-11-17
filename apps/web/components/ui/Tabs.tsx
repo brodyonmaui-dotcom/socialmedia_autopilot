@@ -3,9 +3,6 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cx, FOCUS } from "./cx.js";
 import { TAB_BAR, TAB_GRID, tabGridCell, tabSegment, TabCount } from "./tab-styles.js";
 
-/** Client tabs (role=tablist, arrow keys) live in TabsClient.tsx so this module stays a server module. */
-export { Tabs, type TabItem, type TabsProps } from "./TabsClient.js";
-
 export interface TabLinkItem {
   href: string;
   label: string;

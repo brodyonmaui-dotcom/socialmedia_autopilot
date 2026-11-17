@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { isValidElement, type ReactNode } from "react";
 import { cx, FOCUS } from "./cx.js";
-import { Icon } from "./Icon.js";
 
 export type CardLinkAction = { href: string; label: string };
 
@@ -15,101 +14,96 @@ const SPAN: Record<1 | 2 | 3, string> = {
   3: "sm:col-span-2 xl:col-span-3",
 };
 
+/** Small text link used as a card's corner action ("See all"). */
+export function CardLink({ href, children, className }: { href: string; children: ReactNode; className?: string }) {
+  return (
+    <Link
+      href={href}
+      className={cx(
+        "-my-2 -mr-2 inline-flex min-h-11 shrink-0 items-center rounded-ds-sm px-2 text-[14px] font-semibold text-ds-accent-fg hover:bg-ds-raised lg:min-h-9",
+        FOCUS,
+        className,
+      )}
+    >
+      {children}
+    </Link>
+  );
+}
+
 /**
- * v2 bordered cell: 1px ds-line border, no fill (`fill` → bg-ds-card), square corners, no shadow.
- * Header = caps label (optional mono `index` like "01") + a thin corner action.
- * `hero` = inverted (black) band on top, `bleed` = content flush to the bottom/left/right edges (charts).
- * `span` widens it in a CardGrid.
+ * v3 card: card fill, 1 px hairline, 12 px radius, no shadow; padding 16 phone / 20 desktop.
+ * Header = display title (22 / 24 px) + optional right-side action (a CardLink, a Dropdown, a Menu or
+ * `{ href, label }`). The card stretches to its row's height (`h-full`), so a row's cards are equal.
+ * `bleed` = content flush to the card's edges under the body (charts, tables). `footer` = a bottom row.
+ * Legacy v2 props (`index`, `hero`, `fill`, `span`) still compile; `index` is ignored.
  */
 export function Card({
   title,
-  index,
+  titleId,
+  subtitle,
   action,
+  footer,
   hero,
   bleed,
-  fill = false,
   className,
+  bodyClassName,
   as: Tag = "section",
   span = 1,
   children,
 }: {
   title?: string;
-  /** Mono index shown before the title, e.g. "01". */
-  index?: string;
+  /** id on the title (for aria-labelledby). Defaults to none. */
+  titleId?: string;
+  /** One short muted line under the title. */
+  subtitle?: ReactNode;
   action?: ReactNode | CardLinkAction;
+  footer?: ReactNode;
+  /** @deprecated v2 inverted band; rendered as a plain top block. */
   hero?: ReactNode;
   bleed?: ReactNode;
-  /** Fill the cell with ds-card instead of the transparent default. */
+  /** @deprecated v2: index labels are gone in v3. */
+  index?: string;
+  /** @deprecated v2: v3 cards are always filled. */
   fill?: boolean;
   className?: string;
-  as?: "section" | "div";
+  bodyClassName?: string;
+  as?: "section" | "div" | "article" | "li";
   span?: 1 | 2 | 3;
   children?: ReactNode;
 }) {
-  const actionEl = isLinkAction(action) ? (
-    <Link
-      href={action.href}
-      aria-label={action.label}
-      title={action.label}
-      className={cx(
-        "-mr-3 -mt-3 inline-flex size-11 shrink-0 items-center justify-center text-ds-muted transition-colors duration-300 ease-ds hover:text-ds-accent-fg",
-        FOCUS,
-      )}
-    >
-      <Icon name="plus" size={20} strokeWidth={1.25} />
-    </Link>
-  ) : (
-    (action as ReactNode)
-  );
-  const hasHeader = Boolean(title) || index != null || action != null;
-  const hasBody = hasHeader || children != null;
+  const actionEl = isLinkAction(action) ? <CardLink href={action.href}>{action.label}</CardLink> : (action as ReactNode);
+  const hasHeader = Boolean(title) || action != null;
   return (
     <Tag
-      className={cx(
-        "flex flex-col overflow-hidden border border-ds-line",
-        fill ? "bg-ds-card" : "bg-transparent",
-        SPAN[span],
-        className,
-      )}
+      aria-labelledby={Tag === "section" && titleId ? titleId : undefined}
+      className={cx("flex h-full min-w-0 flex-col overflow-hidden rounded-ds-lg border border-ds-line bg-ds-card text-ds-text", SPAN[span], className)}
     >
-      {hero != null && <div className="bg-ds-invert p-6 text-ds-on-invert lg:p-8">{hero}</div>}
-      {hasBody && (
-        <div className="flex-1 p-6 lg:p-8">
+      {hero != null && <div className="border-b border-ds-line p-4 lg:p-5">{hero}</div>}
+      {(hasHeader || children != null) && (
+        <div className={cx("flex flex-1 flex-col p-4 lg:p-5", bodyClassName)}>
           {hasHeader && (
-            <div className={cx("flex items-start justify-between gap-3", children != null && "mb-5")}>
-              {title || index ? (
-                <h2 className="flex min-w-0 items-baseline gap-3 ds-caps text-ds-text">
-                  {index && <span className="ds-mono font-normal tracking-[0.04em] text-ds-faint">{index}</span>}
-                  {title && <span className="min-w-0">{title}</span>}
-                </h2>
-              ) : (
-                <span />
-              )}
-              {actionEl}
+            <div className={cx("flex items-start justify-between gap-3", children != null && "mb-4")}>
+              <div className="min-w-0">
+                {title && (
+                  <h2 id={titleId} className="ds-heading text-ds-text">
+                    {title}
+                  </h2>
+                )}
+                {subtitle != null && <p className="mt-1 text-[13px] text-ds-muted">{subtitle}</p>}
+              </div>
+              {actionEl != null && <div className="flex shrink-0 items-center gap-1">{actionEl}</div>}
             </div>
           )}
           {children}
         </div>
       )}
       {bleed != null && <div className="overflow-hidden">{bleed}</div>}
+      {footer != null && <div className="border-t border-ds-line px-4 py-3 lg:px-5">{footer}</div>}
     </Tag>
   );
 }
 
-/**
- * Card grid: 1 col phone, 2 cols ≥640px, 3 cols ≥1280px, gap-0 with collapsed borders.
- * Collapse method: every direct child gets `-ml-px -mt-px` so neighbouring 1px borders overlap
- * into a single line; the wrapper's `pl-px pt-px` puts the outer edge back on its grid line.
- */
+/** Card grid (v3): cards never share borders. 1 col phone, 2 ≥ 640 px, 3 ≥ 1280 px; gap 12 / 16. */
 export function CardGrid({ className, children }: { className?: string; children: ReactNode }) {
-  return (
-    <div
-      className={cx(
-        "grid grid-cols-1 gap-0 pl-px pt-px sm:grid-cols-2 xl:grid-cols-3 [&>*]:-ml-px [&>*]:-mt-px",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
+  return <div className={cx("grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-3", className)}>{children}</div>;
 }

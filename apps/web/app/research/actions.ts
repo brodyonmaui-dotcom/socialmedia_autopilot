@@ -14,6 +14,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getPool } from "../../lib/db.js";
+import { markHookUsed, markIdeaUsed, removeCreator } from "../../lib/research/ideas.js";
 import { requireSession } from "../../lib/auth/require.js";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "");
@@ -98,4 +99,33 @@ export async function addHookAction(fd: FormData): Promise<void> {
       blocklistFromEnv(),
     ),
   );
+}
+
+// ---------- 0013: research that runs itself ----------
+const notFound = () => Object.assign(new Error("not found; reload"), { name: "ValidationError" });
+/** Forms post used=true|false; the redirect target is the page they came from (default /research/ideas). */
+const backTo = (fd: FormData, fallback: string) => {
+  const p = str(fd, "back");
+  return /^\/research(\/[a-z-]+)?$/.test(p) ? p : fallback;
+};
+
+/** The "Used" checkbox on an idea: used=true → Already used archive, used=false → back to Ideas. */
+export async function markIdeaUsedAction(fd: FormData): Promise<void> {
+  await requireSession();
+  await run(backTo(fd, "/research/ideas"), async () => {
+    if (!(await markIdeaUsed(getPool(), str(fd, "id"), str(fd, "used") === "true"))) throw notFound();
+  });
+}
+
+export async function markHookUsedAction(fd: FormData): Promise<void> {
+  await requireSession();
+  await run(backTo(fd, "/research/hooks"), async () => {
+    if (!(await markHookUsed(getPool(), str(fd, "id"), str(fd, "used") === "true"))) throw notFound();
+  });
+}
+
+/** Remove = set inactive (kept for history, never deleted); re-adding the handle re-activates it. */
+export async function removeCreatorAction(fd: FormData): Promise<void> {
+  await requireSession();
+  await run("/research/creators", () => removeCreator(getPool(), str(fd, "id")));
 }

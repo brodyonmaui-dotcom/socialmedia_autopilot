@@ -48,6 +48,9 @@ importers:
       '@autopilot/research':
         specifier: workspace:*
         version: link:../../packages/research
+      '@fontsource-variable/imbue':
+        specifier: 5.3.0
+        version: 5.3.0
       '@fontsource-variable/inter':
         specifier: 5.2.8
         version: 5.2.8
@@ -112,9 +115,15 @@ importers:
       '@autopilot/engagement':
         specifier: workspace:*
         version: link:../../packages/engagement
+      '@autopilot/media':
+        specifier: workspace:*
+        version: link:../../packages/media
       '@autopilot/research':
         specifier: workspace:*
         version: link:../../packages/research
+      '@aws-sdk/client-s3':
+        specifier: ^3.700.0
+        version: 3.1166.0
       pg:
         specifier: ^8.13.0
         version: 8.23.1
@@ -258,9 +267,15 @@ importers:
 
   packages/research:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^1.6.0
+        version: 1.6.0(zod@4.6.7)
       '@autopilot/core':
         specifier: workspace:*
         version: link:../core
+      zod:
+        specifier: ^4.1.0
+        version: 4.6.7
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
@@ -555,6 +570,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource-variable/imbue@5.3.0':
+    resolution: {integrity: sha512-qc3gGfmVET/YX2fuas4O70Wq8QxpSIjt79yTjGE02xw0JzFQmv7LikC098k3BTLvXzBOyNaQ2zr3E5Jvh1G3QA==}
 
   '@fontsource-variable/inter@5.2.8':
     resolution: {integrity: sha512-kOfP2D+ykbcX/P3IFnokOhVRNoTozo5/JxhAIVYLpea/UBmCQ/YWPBfWIDuBImXX/15KH+eKh4xpEUyS2sQQGQ==}
@@ -1981,6 +1999,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@fontsource-variable/imbue@5.3.0': {}
 
   '@fontsource-variable/inter@5.2.8': {}
 

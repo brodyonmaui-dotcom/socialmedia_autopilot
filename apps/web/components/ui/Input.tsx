@@ -2,10 +2,10 @@ import { useId, type InputHTMLAttributes, type ReactNode } from "react";
 import { cx, FOCUS } from "./cx.js";
 import { Icon } from "./Icon.js";
 
-/** Shared look for text fields and selects (v2): sharp raised well with a 2px underline that turns accent on focus. */
+/** Shared look for text fields and selects (v3): card-fill box, 8 px radius, control-border hairline; 16 px text (no iOS zoom). */
 export const FIELD =
-  "block h-12 w-full bg-ds-raised px-4 text-[16px] text-ds-text placeholder:text-ds-faint " +
-  "border-0 border-b-2 border-ds-line-strong transition-colors duration-300 ease-ds hover:border-ds-text focus:border-ds-accent " +
+  "block h-11 w-full rounded-ds-sm border border-ds-line-strong bg-ds-card px-3 text-[16px] text-ds-text placeholder:text-ds-muted " +
+  "transition-colors duration-[var(--ds-dur)] ease-ds hover:border-ds-text focus:border-ds-accent " +
   "disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-ds-danger";
 
 export interface FieldMetaProps {
@@ -48,7 +48,7 @@ export function FieldShell({
 }) {
   return (
     <div className={cx("flex flex-col gap-1.5", className)}>
-      <label htmlFor={fieldId} className={cx("ds-caps text-ds-muted", hideLabel && "sr-only")}>
+      <label htmlFor={fieldId} className={cx("ds-label text-ds-muted", hideLabel && "sr-only")}>
         {label}
       </label>
       {children}
@@ -59,7 +59,7 @@ export function FieldShell({
         </p>
       )}
       {helper && (
-        <p id={helperId} className="ds-mono text-ds-faint">
+        <p id={helperId} className="text-[13px] leading-snug text-ds-muted">
           {helper}
         </p>
       )}

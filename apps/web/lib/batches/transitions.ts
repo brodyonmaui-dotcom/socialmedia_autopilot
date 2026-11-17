@@ -61,7 +61,7 @@ function resolveIds(batch: BatchView, ids: string[]): BatchItemView[] | Fail {
   const out: BatchItemView[] = [];
   for (const id of new Set(ids)) {
     const item = byId.get(id);
-    if (!item) return { ok: false, reason: `item ${id} is not in this batch`, itemId: id };
+    if (!item) return { ok: false, reason: `that post isn't in this week any more, reload`, itemId: id };
     out.push(item);
   }
   return out;
@@ -83,7 +83,7 @@ function approveBlocker(item: BatchItemView, now: Date): string | null {
 const OUTBOX_DONE: ReadonlySet<ItemStatus> = new Set<ItemStatus>(["failed", "unknown"]);
 
 function findItem(batch: BatchView, itemId: string): BatchItemView | Fail {
-  return batch.items.find((i) => i.id === itemId) ?? { ok: false, reason: `item ${itemId} is not in this batch`, itemId };
+  return batch.items.find((i) => i.id === itemId) ?? { ok: false, reason: `that post isn't in this week any more, reload`, itemId };
 }
 
 /** Why `item` can't be reset to draft with these ticks, or null. */
@@ -161,7 +161,7 @@ export function planTransition(batch: BatchView, action: BatchAction, now: Date)
 
     case "edit": {
       const item = batch.items.find((i) => i.id === action.itemId);
-      if (!item) return { ok: false, reason: `item ${action.itemId} is not in this batch`, itemId: action.itemId };
+      if (!item) return { ok: false, reason: `that post isn't in this week any more, reload`, itemId: action.itemId };
       if (deriveFlags(item).handedOff) return { ok: false, reason: `can't edit: already handed to the platform (${item.status})`, itemId: item.id };
       if (item.status !== "draft" && item.status !== "approved") return { ok: false, reason: `can't edit: item is ${item.status}`, itemId: item.id };
 

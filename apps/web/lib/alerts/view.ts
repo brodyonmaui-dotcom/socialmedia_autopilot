@@ -19,7 +19,7 @@ export function alertsHref(state: AlertState, kind?: AlertKind): string {
   if (state === "acknowledged") q.set("state", state);
   if (kind) q.set("kind", kind);
   const s = q.toString();
-  return s ? `/alerts?${s}` : "/alerts";
+  return s ? `/notifications?${s}` : "/notifications";
 }
 
 export const total = (counts: Counts) => Object.values(counts).reduce((a: number, n) => a + (n ?? 0), 0);

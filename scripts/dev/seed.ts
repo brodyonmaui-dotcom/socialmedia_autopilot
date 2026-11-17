@@ -8,6 +8,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createPool, migrate } from "../../packages/db/src/index.js";
 import { assertLocalDatabaseUrl, assertNoRealData, buildSeedRows, DEMO_HASH_PREFIX } from "./lib/seed.js";
+import { seedDemoPosters } from "./lib/seed-posters.js";
 
 if (existsSync(".env")) process.loadEnvFile(".env");
 
@@ -177,6 +178,13 @@ try {
       client.release();
     }
   }
+  console.log(`dev:seed: OK ${await (await import("./lib/seed-touchup.js")).seedTouchUp(pool)}`); // touch-up QA v2 + fix states demo (0014)
+  await seedDemoPosters(pool); // synthetic thumbnails in logs/dev-posters (serve with DEV_POSTER_DIR)
+  console.log(`dev:seed: OK ${await (await import("./lib/seed-account-posts.js")).seedAccountPosts(pool)}`); // account-wide analytics demo (0011)
+  console.log(`dev:seed: OK ${await (await import("./lib/seed-research.js")).seedResearch(pool)}`); // research-refresh demo on fixture data (0013)
+  console.log(`dev:seed: OK ${await (await import("./lib/seed-inbox.js")).seedDemoInbox(pool)}`); // inbox filters + promo demo (0012)
+  console.log(`dev:seed: OK ${await (await import("./lib/seed-shell.js")).seedShellDemo(pool)}`); // v3 shell + Home demo (alerts, editor drafts)
+  console.log(`dev:seed: OK ${await (await import("./lib/seed-calendar.js")).seedCalendarDemo(pool)}`); // calendar demo (approved, drafts, failed, check it, Snapchat daily)
 } catch (e) {
   console.error(`dev:seed: FAIL ${(e as Error).message.replace(/^dev:seed: /, "")}`);
   process.exitCode = 1;

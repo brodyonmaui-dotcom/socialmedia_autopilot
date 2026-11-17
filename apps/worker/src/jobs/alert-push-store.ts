@@ -24,7 +24,9 @@ export class PgAlertPushStore implements AlertPushStore {
                       limit $4
                       for update skip locked)
           and pushed_at is null
-        returning id, kind, platform`,
+        returning id, kind, platform,
+                  case when kind = 'reply-ready' then message end as message,
+                  case when kind = 'reply-ready' then comment_id end as comment_id`,
       [[...kinds], since, now, limit],
     );
     return rows as ClaimedAlert[];

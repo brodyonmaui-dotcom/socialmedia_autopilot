@@ -27,7 +27,8 @@
     "simulate-engagement": "tsx scripts/simulate-engagement.ts",
     "schedule-batch": "tsx scripts/schedule-batch.ts",
     "preflight": "tsx scripts/preflight.ts",
-    "ingest:ready": "pnpm --filter @autopilot/ingest-agent ready"
+    "ingest:ready": "pnpm --filter @autopilot/ingest-agent ready",
+    "ingest:posters": "pnpm --filter @autopilot/ingest-agent posters"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

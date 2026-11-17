@@ -10,7 +10,7 @@ export interface SlotItem {
   platform: Platform;
   status: string;
   origin: string | null;
-  /** trial.editor.earliest (ISO) or null. */
+  /** trial.editor.earliest: HH:MM creator-local (or a legacy ISO instant), or null. */
   earliest: string | null;
 }
 
@@ -22,7 +22,20 @@ export function tomorrowWindow(now: Date, timeZone: string): { date: string; not
   return { date, notBefore: localToUtc(date, "00:00", timeZone), notAfter: localToUtc(addCalendarDays(date, 1), "00:00", timeZone) };
 }
 
-// Fable to review: F15 "Move to tomorrow" slotting (window = tomorrow, sameDay, existing posts, caps)
+// Reviewed in run 4 (2026-11-16): F15 "Move to tomorrow" slotting (window = tomorrow, sameDay, existing posts, caps)
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * Start of tomorrow's window for one item. The laptop ingest writes `earliest` as a creator-local
+ * "HH:MM" (that time tomorrow); a legacy ISO instant still counts, but only when later than tomorrow's start.
+ */
+function earliestStart(earliest: string | null, date: string, notBefore: Date, timeZone: string): Date {
+  if (!earliest) return notBefore;
+  if (HHMM.test(earliest)) return localToUtc(date, earliest, timeZone);
+  const t = Date.parse(earliest);
+  return Number.isFinite(t) && t > notBefore.getTime() ? new Date(t) : notBefore;
+}
+
 /**
  * Pure: a slot tomorrow for every item, or an error and no slots at all (all-or-nothing, so one render
  * never ends up half moved). Each item is its own ScheduleItem (key = item id, one platform) with
@@ -42,8 +55,7 @@ export function planTomorrow(items: SlotItem[], ctx: { now: Date; timeZone: stri
     weekStart: date,
     days: 1,
     items: items.map((i) => {
-      const earliest = i.earliest ? Date.parse(i.earliest) : NaN;
-      const start = Number.isFinite(earliest) && earliest > notBefore.getTime() ? new Date(earliest) : notBefore;
+      const start = earliestStart(i.earliest, date, notBefore, ctx.timeZone);
       return { key: i.id, platforms: [i.platform], sameDay: true, window: { notBefore: start.toISOString(), notAfter: notAfter.toISOString() } };
     }),
     cadence: ctx.cadence,

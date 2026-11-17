@@ -56,7 +56,7 @@ describe("every DB page/action/route requires a session", () => {
   it("finds the existing pages", () => {
     expect(files).toContain("app/library/page.tsx");
     expect(files).toContain("app/research/actions.ts");
-    expect(files).toContain("app/batches/[id]/actions.ts");
+    expect(files).toContain("app/calendar/actions.ts");
     expect(files).toContain("app/inbox/actions.ts");
     expect(files).toContain("app/alerts/push-actions.ts");
   });

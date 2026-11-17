@@ -141,7 +141,8 @@ export function createYouTubeAdapter(cfg: YouTubeAdapterConfig): PlatformAdapter
     /**
      * Does this post already sit on the channel? GET-only, read-only (youtube.upload/force-ssl cover it):
      *   1. channels.list?part=contentDetails&mine=true → contentDetails.relatedPlaylists.uploads (cached)
-     *   2. playlistItems.list?part=snippet,status&playlistId=<uploads>&maxResults=25 (one page, no paging)
+     *   2. playlistItems.list?part=snippet,status&playlistId=<uploads>&maxResults=50 (one page, no paging; 50 is the API
+     *      maximum, and with the 10-uploads/day cap and uploads about a day ahead it covers several days)
      * Match: normalised snippet.title === normalised youtubeTitle(post) AND snippet.publishedAt (upload time)
      * inside YT_LOOKUP_WINDOW. Quota: list calls cost 1 unit each per Google's quota table as recorded in
      * research.md (not re-read this session) → 2 units on the first lookup, 1 after (cached playlist id).
@@ -170,7 +171,7 @@ export function createYouTubeAdapter(cfg: YouTubeAdapterConfig): PlatformAdapter
 
       const pl = await getJson<PlaylistItemList>(
         fetchImpl,
-        `${API}/playlistItems?part=snippet,status&playlistId=${encodeURIComponent(uploadsPlaylistId)}&maxResults=25`,
+        `${API}/playlistItems?part=snippet,status&playlistId=${encodeURIComponent(uploadsPlaylistId)}&maxResults=50`,
         { method: "GET", headers: auth },
         signal,
       );

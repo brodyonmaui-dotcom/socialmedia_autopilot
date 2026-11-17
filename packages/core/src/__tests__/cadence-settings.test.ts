@@ -31,8 +31,9 @@ describe("normalizeCadence", () => {
 });
 
 describe("daily caps (F15)", () => {
-  it("defaults to 5/day IG/YT/TikTok and 1 Snapchat", () => {
-    expect(DEFAULT_CADENCE.dailyCaps).toEqual({ instagram: 5, youtube: 5, tiktok: 5, snapchat: 1 });
+  it("defaults to the creator's choice: Instagram 6, YouTube 10, TikTok 7, Snapchat 1 (all within CAP_LIMITS)", () => {
+    expect(DEFAULT_CADENCE.dailyCaps).toEqual({ instagram: 6, youtube: 10, tiktok: 7, snapchat: 1 });
+    for (const [p, n] of Object.entries(DEFAULT_CADENCE.dailyCaps)) expect(n).toBeLessThanOrEqual(CAP_LIMITS[p as keyof typeof CAP_LIMITS]);
   });
 
   it("a stored cadence row with caps 4 still yields 4", () => {

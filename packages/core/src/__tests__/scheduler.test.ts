@@ -116,7 +116,7 @@ describe("assignSlots", () => {
 });
 
 describe("assignSlots: F15 editor slotting (window / sameDay / flex grid)", () => {
-  const caps5 = DEFAULT_CADENCE; // 5/day IG/YT/TikTok
+  const caps5 = normalizeCadence({ dailyCaps: { instagram: 5, youtube: 5, tiktok: 5, snapchat: 1 } }); // a stored 5/day row (defaults are 6/10/7)
   const TUE = "2026-11-10";
   const day = (ymd: string, from = "00:00") => ({ notBefore: localToUtc(ymd, from, TZ).toISOString(), notAfter: localToUtc(addCalendarDays(ymd, 1), "00:00", TZ).toISOString() });
   const gridPosts = (ymd: string, platform: Platform) => daySlotTimes(caps5).map((t) => ({ platform, scheduledFor: localToUtc(ymd, t, TZ).toISOString() }));
@@ -193,5 +193,17 @@ describe("assignSlots: F15 editor slotting (window / sameDay / flex grid)", () =
     expect(by.g!.scheduledFor).toBe("2026-11-01T18:00:00.000Z"); // 13:00 EST (UTC-5)
     expect(by.x!.scheduledFor).toBe("2026-11-01T14:30:00.000Z"); // flex 09:30 EST
     for (const a of r.assignments) expect(a.localDate).toBe(SUN);
+  });
+
+  it("minGapMinutes 0: an existing post on a grid slot's instant blocks that slot (never two posts at one instant)", () => {
+    const noGap = normalizeCadence({ ...caps5, minGapMinutes: 0 });
+    const first = localToUtc(TUE, daySlotTimes(noGap)[0]!, TZ).toISOString();
+    const existing = [{ platform: "instagram" as Platform, scheduledFor: first }];
+    for (const sameDay of [true, false]) {
+      const r = assignSlots({ weekStart: "2026-11-09", items: [{ key: "z", platforms: ["instagram"], window: day(TUE), sameDay }], cadence: noGap, timeZone: TZ, existing });
+      expect(r.unplaced).toEqual([]);
+      expect(r.assignments).toHaveLength(1);
+      expect(r.assignments[0]!.scheduledFor).not.toBe(first);
+    }
   });
 });

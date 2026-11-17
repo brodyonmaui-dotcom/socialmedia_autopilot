@@ -1,0 +1,72 @@
+{
+  "_note": "DEMO Business Discovery responses (documented shape, see discovery.ts) for the seeded fake Instagram creators. Invented handles, captions and numbers; obviously-fake permalinks. Per creator: 3 posts well above their usual (become ideas), 1 strong post whose first line names a place (dropped by the location lint), 1 with hidden likes, 6 ordinary ones.",
+  "demo_lifter_one": {
+    "business_discovery": {
+      "followers_count": 48000,
+      "media_count": 310,
+      "media": {
+        "data": [
+          { "id": "90000000000000101", "caption": "Why does nobody warm up their upper back before bench?\nThree drops of honesty below #gym #bench", "like_count": 4200, "comments_count": 180, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-14T18:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO1/" },
+          { "id": "90000000000000102", "caption": "3 mistakes I made on every pull day for a year. Number two hurts 😅 #gymbro", "like_count": 3600, "comments_count": 140, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-12T18:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO2/" },
+          { "id": "90000000000000103", "caption": "Stop chasing the pump. Chase the logbook.", "like_count": 3100, "comments_count": 95, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-10T18:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO3/" },
+          { "id": "90000000000000104", "caption": "Leg day at Ironside Fitness hit different", "like_count": 5000, "comments_count": 200, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-09T18:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO4/" },
+          { "id": "90000000000000105", "caption": "Back day check-in", "comments_count": 900, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-08T18:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO5/" },
+          { "id": "90000000000000106", "caption": "Same warm-up, heavier top set.", "like_count": 900, "comments_count": 20, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-07T18:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO6/" },
+          { "id": "90000000000000107", "caption": "Pull day, slow negatives", "like_count": 1000, "comments_count": 25, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-06T18:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO7/" },
+          { "id": "90000000000000108", "caption": "Deload week, no shame", "like_count": 950, "comments_count": 18, "media_type": "VIDEO", "media_product_type": "FEED", "timestamp": "2026-11-05T18:00:00+0000", "permalink": "https://www.instagram.com/p/DEMO8/" },
+          { "id": "90000000000000109", "caption": "Rest day stretch", "like_count": 1100, "comments_count": 30, "media_type": "IMAGE", "media_product_type": "FEED", "timestamp": "2026-11-04T18:00:00+0000", "permalink": "https://www.instagram.com/p/DEMO9/" },
+          { "id": "90000000000000110", "caption": "Weekly split, nothing fancy", "like_count": 1050, "comments_count": 22, "media_type": "CAROUSEL_ALBUM", "media_product_type": "FEED", "timestamp": "2026-11-03T18:00:00+0000", "permalink": "https://www.instagram.com/p/DEMO10/" },
+          { "id": "90000000000000111", "caption": "Grip gave out before my back did", "like_count": 980, "comments_count": 21, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-02T18:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO11/" }
+        ]
+      },
+      "id": "90000000000000001"
+    },
+    "id": "90000000000000000"
+  },
+  "demo_trader_four": {
+    "business_discovery": {
+      "followers_count": 21000,
+      "media_count": 180,
+      "media": {
+        "data": [
+          { "id": "90000000000000201", "caption": "I used to move my stop every time a trade went red.\nHere is what changed", "like_count": 2400, "comments_count": 160, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-15T21:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO21/" },
+          { "id": "90000000000000202", "caption": "Day 30 of journaling every session, honest check-in #daytrading", "like_count": 2100, "comments_count": 120, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-13T21:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO22/" },
+          { "id": "90000000000000203", "caption": "How to stop revenge trading after a loss, from someone who did it for months", "like_count": 1900, "comments_count": 110, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-11T21:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO23/" },
+          { "id": "90000000000000204", "caption": "Right now at Harbor Point Mall trading on my phone", "like_count": 3000, "comments_count": 150, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-10T21:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO24/" },
+          { "id": "90000000000000205", "caption": "Red day, followed the plan", "comments_count": 400, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-09T21:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO25/" },
+          { "id": "90000000000000206", "caption": "Journal page from today", "like_count": 500, "comments_count": 12, "media_type": "IMAGE", "media_product_type": "FEED", "timestamp": "2026-11-08T21:00:00+0000", "permalink": "https://www.instagram.com/p/DEMO26/" },
+          { "id": "90000000000000207", "caption": "Sat on my hands most of the session", "like_count": 520, "comments_count": 15, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-07T21:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO27/" },
+          { "id": "90000000000000208", "caption": "Desk reset before the week", "like_count": 480, "comments_count": 10, "media_type": "IMAGE", "media_product_type": "FEED", "timestamp": "2026-11-06T21:00:00+0000", "permalink": "https://www.instagram.com/p/DEMO28/" },
+          { "id": "90000000000000209", "caption": "Patience is most of the job", "like_count": 550, "comments_count": 14, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-05T21:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO29/" },
+          { "id": "90000000000000210", "caption": "Closed the laptop early today", "like_count": 510, "comments_count": 11, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-04T21:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO30/" },
+          { "id": "90000000000000211", "caption": "Weekly review notes", "like_count": 490, "comments_count": 9, "media_type": "CAROUSEL_ALBUM", "media_product_type": "FEED", "timestamp": "2026-11-03T21:00:00+0000", "permalink": "https://www.instagram.com/p/DEMO31/" }
+        ]
+      },
+      "id": "90000000000000002"
+    },
+    "id": "90000000000000000"
+  },
+  "demo_mindset_five": {
+    "business_discovery": {
+      "followers_count": 9000,
+      "media_count": 95,
+      "media": {
+        "data": [
+          { "id": "90000000000000301", "caption": "Motivation is overrated. Systems are boring and they work.", "like_count": 1300, "comments_count": 70, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-15T15:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO41/" },
+          { "id": "90000000000000302", "caption": "POV: you finally keep a routine for a whole semester", "like_count": 1150, "comments_count": 55, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-13T15:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO42/" },
+          { "id": "90000000000000303", "caption": "What would change if you stopped waiting to feel ready?", "like_count": 1000, "comments_count": 60, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-12T15:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO43/" },
+          { "id": "90000000000000304", "caption": "Sunrise walk on Maple Trail every morning", "like_count": 1600, "comments_count": 80, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-10T15:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO44/" },
+          { "id": "90000000000000305", "caption": "Slow Sunday", "comments_count": 300, "media_type": "IMAGE", "media_product_type": "FEED", "timestamp": "2026-11-09T15:00:00+0000", "permalink": "https://www.instagram.com/p/DEMO45/" },
+          { "id": "90000000000000306", "caption": "Meal prep, same as always", "like_count": 300, "comments_count": 8, "media_type": "CAROUSEL_ALBUM", "media_product_type": "FEED", "timestamp": "2026-11-08T15:00:00+0000", "permalink": "https://www.instagram.com/p/DEMO46/" },
+          { "id": "90000000000000307", "caption": "Phone in the other room today", "like_count": 320, "comments_count": 9, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-07T15:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO47/" },
+          { "id": "90000000000000308", "caption": "Reading before bed again", "like_count": 290, "comments_count": 7, "media_type": "IMAGE", "media_product_type": "FEED", "timestamp": "2026-11-06T15:00:00+0000", "permalink": "https://www.instagram.com/p/DEMO48/" },
+          { "id": "90000000000000309", "caption": "Small wins list", "like_count": 310, "comments_count": 10, "media_type": "CAROUSEL_ALBUM", "media_product_type": "FEED", "timestamp": "2026-11-05T15:00:00+0000", "permalink": "https://www.instagram.com/p/DEMO49/" },
+          { "id": "90000000000000310", "caption": "Busy week, kept the basics", "like_count": 305, "comments_count": 6, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-04T15:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO50/" },
+          { "id": "90000000000000311", "caption": "Water, sleep, walk", "like_count": 315, "comments_count": 8, "media_type": "VIDEO", "media_product_type": "REELS", "timestamp": "2026-11-03T15:00:00+0000", "permalink": "https://www.instagram.com/reel/DEMO51/" }
+        ]
+      },
+      "id": "90000000000000003"
+    },
+    "id": "90000000000000000"
+  }
+}

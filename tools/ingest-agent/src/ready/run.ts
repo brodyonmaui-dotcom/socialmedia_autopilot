@@ -1,7 +1,8 @@
 import { join } from "node:path";
 import { localDate, localHHMM, type CadenceSettings, type Platform } from "@autopilot/core";
 import type { LintResult } from "@autopilot/research";
-import type { QaResult, TouchUpOptions } from "@autopilot/media";
+import { qaAfterTouchUp, type QaResult, type TouchUpOptions } from "@autopilot/media";
+import { tryPoster, type PosterDeps } from "../poster.js";
 import { existingRange, ingestKey, planReadyItems, readyWindow, type PlannedItem, type ReadyExisting } from "./plan.js";
 import { parseSidecar, type Sidecar } from "./sidecar.js";
 import type { MediaRow, WriteInput, WriteResult } from "./write.js";
@@ -9,7 +10,7 @@ import type { MediaRow, WriteInput, WriteResult } from "./write.js";
 /**
  * `pnpm ingest:ready` (F15 "Laptop side"): one pass over INGEST_READY_DIR (top level only).
  * Every side effect is injected so the order (validate → skip check → QA → strip → location check
- * → upload → HEAD verify → media → plan → write → move) is testable without a DB, R2 or ffmpeg.
+ * → upload → HEAD verify → poster → media → plan → write → move) is testable without a DB, R2 or ffmpeg.
  * Files are moved to `_ingested/` only after the upload is verified AND the DB write succeeded;
  * on any failure both stay where they are. Nothing is ever deleted.
  */
@@ -33,7 +34,7 @@ export interface ReadyDb {
   writeItems(input: WriteInput): Promise<WriteResult>;
 }
 
-export interface ReadyDeps {
+export interface ReadyDeps extends PosterDeps {
   dir: string;
   dryRun: boolean;
   timeZone: string;
@@ -186,6 +187,8 @@ export async function runReady(d: ReadyDeps): Promise<ReadySummary> {
       await stage("upload", () => d.upload(r2Key, cleanPath));
       const head = await stage("verify-upload", () => d.headObject(r2Key));
       if (!head || !(head.size > 0)) throw new StageError("verify-upload", "object missing or empty");
+      // Poster frame from the clean copy: a failure logs one line and leaves poster_key null, never a FAIL.
+      const posterKey = await tryPoster(d, { videoPath: cleanPath, tmpDir: tmp, cleanKey: r2Key, durationS: qa.probe.durationS ?? null, name: mp4 });
       mediaId = await stage("media", () =>
         d.db.upsertMedia({
           contentHash: hash,
@@ -195,8 +198,9 @@ export async function runReady(d: ReadyDeps): Promise<ReadySummary> {
           width: qa.probe.width ?? null,
           height: qa.probe.height ?? null,
           pillar: sidecar.pillar,
-          qa,
+          qa: qaAfterTouchUp(qa), // touchUp already stripped metadata and normalised loudness
           capturedAt: qa.probe.capturedAt ?? null,
+          posterKey,
         }),
       );
     } finally {

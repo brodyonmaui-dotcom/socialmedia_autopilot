@@ -1,0 +1,11 @@
+{
+  "kind": "youtube#playlistItemListResponse",
+  "etag": "fakeetag3",
+  "pageInfo": { "totalResults": 4, "resultsPerPage": 50 },
+  "items": [
+    { "kind": "youtube#playlistItem", "etag": "e1", "id": "pi1", "contentDetails": { "videoId": "vidAAAAAAA1" } },
+    { "kind": "youtube#playlistItem", "etag": "e2", "id": "pi2", "contentDetails": { "videoId": "vidAAAAAAA2", "videoPublishedAt": "2026-11-14T18:00:00Z" } },
+    { "kind": "youtube#playlistItem", "etag": "e3", "id": "pi3", "contentDetails": { "videoId": "vidAAAAAAA3", "videoPublishedAt": "2026-11-01T23:44:00Z" } },
+    { "kind": "youtube#playlistItem", "etag": "e4", "id": "pi4", "contentDetails": { "videoId": "vidAAAAAAA4", "videoPublishedAt": "2026-07-01T12:00:00Z" } }
+  ]
+}

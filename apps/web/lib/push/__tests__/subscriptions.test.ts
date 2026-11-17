@@ -60,7 +60,7 @@ describe("storage SQL", () => {
   });
 
   it("no delete anywhere in the push code", () => {
-    for (const rel of ["../subscriptions.ts", "../../../app/alerts/push-actions.ts", "../../../app/alerts/ui/EnablePush.tsx"]) {
+    for (const rel of ["../subscriptions.ts", "../../../app/alerts/push-actions.ts", "../../../components/notifications/EnablePush.tsx"]) {
       expect(read(rel), rel).not.toMatch(/\bdelete\s+from\b/i);
     }
   });

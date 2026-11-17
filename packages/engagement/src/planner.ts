@@ -19,6 +19,8 @@ export async function planActions(
   now: Date,
 ): Promise<PlannedAction[]> {
   if (c.isOwn) return [{ kind: "none", reason: "own comment" }];
+  // Promo spam: no reply of any kind, no hide, no flag. The triage row is all it gets (shown under "Ignored").
+  if (t.bucket === "spam_promo") return [{ kind: "none", reason: "promo spam" }];
   const platform = c.platform;
   if (s.mode[platform] === "off") return [{ kind: "none", reason: "mode off" }];
   const notBefore = new Date(now.getTime() + s.minDelayMin * MIN).toISOString();

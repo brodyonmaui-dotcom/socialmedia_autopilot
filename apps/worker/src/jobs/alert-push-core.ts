@@ -13,6 +13,9 @@
 //  - 404/410 → that subscription is revoked (revoked_at; never deleted). Revoked subscriptions are skipped.
 //  - Push also runs in dry-run: it is a private notification to the creator, not a public action.
 //  - Payload: {count, kinds, sources, url:"/app/alerts"} only. Never message text, ids, tokens, endpoints.
+//    One exception (run 4): a push of exactly one 'reply-ready' alert carries its message as `body` (written
+//    by the triage job, already privacy-linted: places become "A comment needs you") and a deep link to
+//    /app/inbox/item/<commentId>. Only reply-ready pushes → url /app/inbox. Mixed pushes stay as before.
 //  - Logs: counts only. Never an endpoint, key, message or error text (error text can carry the endpoint).
 import { ALERT_KINDS, PUSH_KINDS_DEFAULT, isAlertKind, type AlertKind, type AlertSource } from "@autopilot/core";
 import type { AlertRow, PushSubscriptionRow } from "@autopilot/db";
@@ -29,7 +32,9 @@ export const ALERT_PUSH_SETTING = "alert_push";
 /** Settings key the web "Send test notification" action writes: {"requested_at": iso}. */
 export const ALERT_PUSH_TEST_SETTING = "alert_push_test";
 
-export type ClaimedAlert = Pick<AlertRow, "id" | "kind" | "platform">;
+export type ClaimedAlert = Pick<AlertRow, "id" | "kind" | "platform"> & { message?: string; comment_id?: string | null };
+export const REPLY_READY_INBOX_URL = "/app/inbox" as const;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type Urgency = "high" | "normal";
 
 export interface PushTarget {
@@ -45,7 +50,9 @@ export interface PushPayload {
   count: number;
   kinds: AlertKind[];
   sources: AlertSource[];
-  url: typeof ALERT_PUSH_URL;
+  url: typeof ALERT_PUSH_URL | typeof REPLY_READY_INBOX_URL | `/app/inbox/item/${string}`;
+  /** reply-ready only (see header). */
+  body?: string;
   test?: true;
 }
 
@@ -110,12 +117,18 @@ export function isPushable(
 }
 
 /** Pure; built from kind + source only, so no message text, id or URL can reach a push service. */
-export function buildPayload(alerts: ReadonlyArray<Pick<AlertRow, "kind" | "platform">>): PushPayload {
+export function buildPayload(alerts: ReadonlyArray<Pick<AlertRow, "kind" | "platform"> & { message?: string; comment_id?: string | null }>): PushPayload {
   const kinds: AlertKind[] = [];
   const sources: AlertSource[] = [];
   for (const a of alerts) {
     if (isAlertKind(a.kind) && !kinds.includes(a.kind)) kinds.push(a.kind);
     if ((SOURCES as readonly string[]).includes(a.platform) && !sources.includes(a.platform)) sources.push(a.platform);
+  }
+  if (alerts.length > 0 && alerts.every((a) => a.kind === "reply-ready")) {
+    const one = alerts.length === 1 ? alerts[0]! : null;
+    const id = one?.comment_id && UUID.test(one.comment_id) ? one.comment_id : null;
+    const body = one && typeof one.message === "string" ? one.message.slice(0, 200) : undefined;
+    return { count: alerts.length, kinds, sources, url: id ? `/app/inbox/item/${id}` : REPLY_READY_INBOX_URL, ...(body ? { body } : {}) };
   }
   return { count: alerts.length, kinds, sources, url: ALERT_PUSH_URL };
 }

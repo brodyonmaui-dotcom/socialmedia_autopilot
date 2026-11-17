@@ -76,6 +76,17 @@ describe.skipIf(!url)("writeReadyItems (db)", () => {
     expect(m).toEqual({ r2_key: `library/${HASH}.mp4`, pillar: "workout-log" });
   });
 
+  it("media upsert fills a missing poster_key once, and never overwrites an existing one", async () => {
+    await upsertMedia(pool, { contentHash: HASH, sourcePath: "x", r2Key: "library/other.mp4", durationS: 1, width: 1, height: 1, pillar: "other", qa: null, capturedAt: null, posterKey: `posters/${HASH}.jpg` });
+    const first = (await pool.query(`select poster_key, r2_key from media where id = $1`, [mediaId])).rows[0];
+    expect(first.poster_key).not.toBeNull();
+    expect(first.r2_key).toBe(`library/${HASH}.mp4`);
+    const again = await upsertMedia(pool, { contentHash: HASH, sourcePath: "x", r2Key: "library/other.mp4", durationS: 1, width: 1, height: 1, pillar: "other", qa: null, capturedAt: null, posterKey: "posters/other.jpg" });
+    expect(again).toBe(mediaId);
+    const m = (await pool.query(`select poster_key, r2_key, pillar from media where id = $1`, [mediaId])).rows[0];
+    expect(m).toEqual({ poster_key: first.poster_key, r2_key: `library/${HASH}.mp4`, pillar: "workout-log" });
+  });
+
   it("two concurrent writes of the same render → one row per platform, one batch for the week, one alert each", async () => {
     const now = new Date();
     const [a, b] = await Promise.all([

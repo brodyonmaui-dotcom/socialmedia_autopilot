@@ -24,6 +24,8 @@ export interface AuthStore {
   revokeSession(id: string, now: Date): Promise<void>;
   /** Revokes all sessions and credentials. */
   revokeAll(now: Date): Promise<void>;
+  /** Revokes every session (all devices signed out); passkeys and push devices stay. */
+  revokeAllSessions(now: Date): Promise<void>;
   /** Non-revoked credentials. */
   listCredentials(): Promise<StoredCredential[]>;
   saveCredential(c: StoredCredential): Promise<void>;

@@ -1,9 +1,15 @@
 /* autopilot service worker (F8): Web Push only. No fetch handler, no caching, no data stored.
  * Served at /app/sw.js with scope /app/ (public/ under basePath /app; the middleware lets it through).
  * The payload carries only {count, kinds[], sources[], url} (never alert text), so the notification
- * shows a count + kind names; a tap always opens /app/alerts, whatever the payload says. */
+ * shows a count + kind names; a tap opens /app/notifications. One exception (run 4): a push made only of
+ * `reply-ready` alerts may carry a privacy-linted `body` (shown as the text) and an inbox `url`, which a tap
+ * opens only when it is a same-app path under /app/inbox. Anything else opens the default. */
 
-const ALERTS_URL = "/app/alerts";
+const DEFAULT_URL = "/app/notifications";
+/** Same-origin app path under /app/inbox (no scheme, no //, no ..), else null. */
+function inboxUrl(u) {
+  return typeof u === "string" && /^\/app\/inbox(\/[A-Za-z0-9_-]+)*\/?$/.test(u) ? u : null;
+}
 // Same labels as apps/web/lib/alerts/queries.ts (a test keeps them in sync).
 const KIND_LABELS = {
   "final-failure": "Failed",
@@ -20,14 +26,20 @@ const KIND_LABELS = {
   config: "Configuration",
   "ready-for-approval": "Ready for approval",
   "settings-change": "Settings change",
+  "reply-ready": "Reply ready",
 };
 
 function notificationView(data) {
   const d = data && typeof data === "object" ? data : {};
-  if (d.test === true) return { title: "Test notification", body: "Alerts will arrive like this." };
+  if (d.test === true) return { title: "Test notification", body: "Alerts will arrive like this.", url: DEFAULT_URL };
   const count = Number.isInteger(d.count) && d.count > 0 ? d.count : 1;
-  const kinds = Array.isArray(d.kinds) ? d.kinds.filter((k) => Object.prototype.hasOwnProperty.call(KIND_LABELS, k)).map((k) => KIND_LABELS[k]) : [];
-  return { title: count === 1 ? "1 new alert" : `${count} new alerts`, body: kinds.length ? kinds.join(" · ") : "Open alerts" };
+  const raw = Array.isArray(d.kinds) ? d.kinds.filter((k) => Object.prototype.hasOwnProperty.call(KIND_LABELS, k)) : [];
+  if (raw.length > 0 && raw.every((k) => k === "reply-ready")) {
+    const body = typeof d.body === "string" && d.body.trim() ? d.body.trim().slice(0, 200) : count === 1 ? "A comment is waiting for your reply." : `${count} comments are waiting for your reply.`;
+    return { title: count === 1 ? "Reply ready" : `${count} replies ready`, body, url: inboxUrl(d.url) || DEFAULT_URL };
+  }
+  const kinds = raw.map((k) => KIND_LABELS[k]);
+  return { title: count === 1 ? "1 new alert" : `${count} new alerts`, body: kinds.length ? kinds.join(" · ") : "Open alerts", url: DEFAULT_URL };
 }
 
 self.addEventListener("install", () => {
@@ -52,27 +64,29 @@ self.addEventListener("push", (event) => {
       tag: "autopilot-alerts",
       renotify: true,
       icon: "/app/icons/icon-192.png",
-      data: { url: ALERTS_URL },
+      data: { url: view.url },
     }),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const data = event.notification.data;
+  const target = inboxUrl(data && data.url) || DEFAULT_URL;
   event.waitUntil(
     (async () => {
       const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const w of wins) {
         if (typeof w.navigate === "function" && typeof w.focus === "function") {
           try {
-            await w.navigate(ALERTS_URL); // throws for a window this worker doesn't control
+            await w.navigate(target); // throws for a window this worker doesn't control
             return await w.focus();
           } catch (_) {
             /* try the next window, else open one */
           }
         }
       }
-      return self.clients.openWindow(ALERTS_URL);
+      return self.clients.openWindow(target);
     })(),
   );
 });

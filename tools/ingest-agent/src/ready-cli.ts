@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { assertTimeZone } from "@autopilot/core";
 import { createPool, loadCadence } from "@autopilot/db";
-import { probeLocationTagKeys, runQa, sha256File, touchUp } from "@autopilot/media";
+import { makePoster, probeLocationTagKeys, runQa, sha256File, touchUp } from "@autopilot/media";
 import { blocklistFromEnv, lintText } from "@autopilot/research";
 import { createR2Client, uploadToR2 } from "./r2.js";
 import { readySummaryLine, runReady } from "./ready/run.js";
@@ -78,6 +78,8 @@ const summary = await runReady({
     withRetry(() => uploadToR2(r2!, bucket, key, cleanPath), {
       onRetry: (n, err) => console.log(`RETRY ${key} upload attempt ${n + 1} — ${(err as Error).message}`),
     }),
+  makePoster,
+  uploadPoster: (key, jpgPath) => withRetry(() => uploadToR2(r2!, bucket, key, jpgPath, "image/jpeg")),
   headObject: async (key) => {
     try {
       const res = await withRetry(() => r2!.send(new HeadObjectCommand({ Bucket: bucket, Key: key })));

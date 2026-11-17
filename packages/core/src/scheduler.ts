@@ -175,7 +175,7 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
     assignments.push({ key, platform, scheduledFor: at.toISOString(), localDate: date, localTime: slotTimes[slotIndex]!, dayIndex, slotIndex, pinned: false });
   }
 
-  // Fable to review: F15 editor slotting (window/sameDay/flex grid)
+  // Reviewed in run 4 (2026-11-16): F15 editor slotting (window/sameDay/flex grid)
   // Everything from here to the matching end marker only runs for items with `window` or `sameDay`;
   // items without them never reach it, so the weekly batch keeps its exact pre-F15 placement.
   const gapMs = cadence.minGapMinutes * 60_000;
@@ -222,6 +222,7 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
         sawUnderCap = true;
         if (taken.has(`${platform}|${dayIndex}|${slot}`)) continue;
         if (!gapOk(platform, at.getTime())) continue;
+        if (instants.get(platform)!.includes(at.getTime())) continue; // existing posts only bump, never mark taken: never two posts at one instant
         place(key, platform, dayIndex, slot, at);
         return null;
       }
@@ -262,7 +263,7 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
   }
   // End of F15 editor slotting helpers.
 
-  /** F15 (Fable to review): "cap" when every future grid time in the window is on a capped day, else "no-slot". */
+  /** F15 (reviewed in run 4, 2026-11-16): "cap" when every future grid time in the window is on a capped day, else "no-slot". */
   function windowReason(platform: Platform, w: { start: number; end: number }, minDay: number): UnplacedReason {
     let saw = false;
     for (const date of windowDates(w)) {
@@ -334,7 +335,7 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
       continue;
     }
 
-    // F15 (Fable to review): editor items. sameDay ignores stagger: each platform independently, earliest first.
+    // F15 (reviewed in run 4, 2026-11-16): editor items. sameDay ignores stagger: each platform independently, earliest first.
     const win = windowOf(item);
     if (win && item.sameDay) {
       for (const platform of wanted) {
@@ -343,7 +344,9 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
       }
       continue;
     }
-    const allow = win ? (at: Date): boolean => at.getTime() >= win.start && at.getTime() < win.end : undefined;
+    // Window items only (undefined otherwise, so the weekly placement is unchanged): also refuse an instant an existing post already holds.
+    const allowFor = (platform: Platform): ((at: Date) => boolean) | undefined =>
+      win ? (at: Date): boolean => at.getTime() >= win.start && at.getTime() < win.end && !instants.get(platform)!.includes(at.getTime()) : undefined;
 
     // Anchor: Instagram if wanted, else the first wanted platform.
     const anchorPlatform: Platform = wanted.includes("instagram") ? "instagram" : wanted[0]!;
@@ -357,15 +360,15 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
     });
     let anchor: { dayIndex: number; slotIndex: number; at: Date } | null = null;
     for (const d of dayOrder) {
-      const candidate = nextFree(anchorPlatform, d, 0, minDay, allow);
+      const candidate = nextFree(anchorPlatform, d, 0, minDay, allowFor(anchorPlatform));
       if (candidate && candidate.dayIndex === d) {
         anchor = candidate;
         break;
       }
     }
-    if (!anchor) anchor = nextFree(anchorPlatform, minDay, 0, minDay, allow); // spill past the plan rather than drop
+    if (!anchor) anchor = nextFree(anchorPlatform, minDay, 0, minDay, allowFor(anchorPlatform)); // spill past the plan rather than drop
     if (!anchor && win) {
-      // F15 (Fable to review): a window item never spills outside its window; same reasons as sameDay.
+      // F15 (reviewed in run 4, 2026-11-16): a window item never spills outside its window; same reasons as sameDay.
       const why = windowReason(anchorPlatform, win, minDay);
       for (const platform of wanted) unplaced.push({ key: item.key, platform, reason: why, detail: `no ${anchorPlatform} slot inside the window` });
       continue;
@@ -387,7 +390,7 @@ export function assignSlots(input: ScheduleInput): ScheduleResult {
         slot -= slotTimes.length;
         day++;
       }
-      const spot = nextFree(platform, day, slot, minDay, allow);
+      const spot = nextFree(platform, day, slot, minDay, allowFor(platform));
       if (!spot && win) {
         unplaced.push({ key: item.key, platform, reason: windowReason(platform, win, minDay), detail: `no ${platform} slot inside the window after the stagger` });
         continue;

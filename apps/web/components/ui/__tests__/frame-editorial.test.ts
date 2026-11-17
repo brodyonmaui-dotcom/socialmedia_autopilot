@@ -1,126 +1,91 @@
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { AppShell } from "../AppShell.js";
-import { Display } from "../Display.js";
-import { FooterBand } from "../FooterBand.js";
-import { GridLines } from "../GridLines.js";
-import { Marquee } from "../Marquee.js";
-import { RevealList } from "../RevealList.js";
-import { StatusBars } from "../StatusBars.js";
-import { StatusPulse } from "../StatusPulse.js";
-import { TabBar } from "../TabBar.js";
+import { IconButton, badgeText, labelWithCount } from "../IconButton.js";
+import { NotificationsPopover } from "../NotificationsPopover.js";
+import { PageHeader, Wordmark } from "../PageHeader.js";
+import { MenuButton, Sidebar, SidebarProvider } from "../Sidebar.js";
 import { ThemeToggle } from "../ThemeToggle.js";
+import { sidebarNav } from "../../app-nav.js";
 
 const count = (html: string, s: string) => html.split(s).length - 1;
+const noop = async () => {};
 
-describe("Display", () => {
-  it("renders every line inside one h1 with the right style classes", () => {
-    const html = renderToStaticMarkup(
-      h(Display, { lines: [{ text: "WEEK 47", style: "stroke" }, { text: "approved", style: "serif" }, { text: "18/24" }] }),
+describe("PageHeader / Wordmark", () => {
+  it("display title, sans subtitle, right slot", () => {
+    const html = renderToStaticMarkup(h(PageHeader, { title: "Home", subtitle: "Nov 16 – 22", action: h("button", null, "This week") }));
+    expect(html).toContain('<h1 class="ds-title text-ds-text">Home</h1>');
+    expect(html).toContain("Nov 16 – 22");
+    expect(html).toContain(">This week<");
+  });
+  it("the logo is 'My Socials' in the display face", () => {
+    const html = renderToStaticMarkup(h(Wordmark));
+    expect(html).toContain("ds-font-display");
+    expect(html).toContain(">My Socials<");
+  });
+});
+
+describe("IconButton", () => {
+  it("is a labelled 40px hairline square with a count badge in its name", () => {
+    const html = renderToStaticMarkup(h(IconButton, { icon: "inbox", label: "Inbox", badge: 3, badgeNoun: "waiting" }));
+    expect(html).toContain('aria-label="Inbox, 3 waiting"');
+    expect(html).toContain("lg:size-10");
+    expect(html).toContain("rounded-ds-sm");
+    expect(html).toContain("border border-ds-line");
+    expect(html).toContain(">3<");
+  });
+  it("badge text caps at 99+ and hides zero", () => {
+    expect(badgeText(0)).toBeNull();
+    expect(badgeText(undefined)).toBeNull();
+    expect(badgeText(7)).toBe("7");
+    expect(badgeText(250)).toBe("99+");
+    expect(labelWithCount("Notifications", 0)).toBe("Notifications");
+  });
+  it("ThemeToggle uses the same icon button and labels the target theme", () => {
+    const html = renderToStaticMarkup(h(ThemeToggle, { initial: "dark" }));
+    expect(html).toContain('aria-label="Switch to day theme"');
+    expect(html).toContain("rounded-ds-sm");
+  });
+});
+
+describe("Sidebar (server markup)", () => {
+  const nav = sidebarNav({ flagged: 2 });
+  const render = (currentHref: string, openGroups: string[]) =>
+    renderToStaticMarkup(
+      h(SidebarProvider, null, h(MenuButton), h(Sidebar, { nav, currentHref, openGroups, logoutAction: noop })),
     );
-    expect(count(html, "<h1")).toBe(1);
-    expect(html).toMatch(/^<h1 class="ds-display"/);
-    for (const t of ["WEEK 47", "approved", "18/24"]) expect(html).toContain(t);
-    expect(html).toContain("ds-stroke font-black");
-    expect(html).toContain("ds-serif font-normal");
-    expect(html).toContain("font-black ds-num");
-  });
-  it("can render as h2", () => {
-    expect(renderToStaticMarkup(h(Display, { as: "h2", lines: [{ text: "x" }] }))).toMatch(/^<h2/);
-  });
-});
 
-describe("Marquee", () => {
-  const items = [{ text: "Instagram", style: "stroke" as const }, { text: "hooks", style: "serif" as const }];
-  it("xl: renders items twice, the second copy aria-hidden, labelled", () => {
-    const html = renderToStaticMarkup(h(Marquee, { items, label: "Instagram, hooks" }));
-    expect(count(html, "Instagram<")).toBe(2);
-    expect(html).toContain('aria-label="Instagram, hooks"');
-    expect(html).toContain("animate-ds-marquee");
-    const second = html.indexOf("Instagram<", html.indexOf("Instagram<") + 1);
-    const before = html.slice(0, second);
-    expect(before.lastIndexOf('aria-hidden="true" class="flex shrink-0')).toBeGreaterThan(before.indexOf("Instagram<"));
-    expect(html.slice(0, html.indexOf("Instagram<"))).not.toContain('aria-hidden="true" class="flex shrink-0');
+  it("is a real nav, closed (inert) by default, with a labelled menu button", () => {
+    const html = render("/", []);
+    expect(html).toContain('<nav aria-label="Main"');
+    expect(html).toContain('aria-label="Open menu"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('aria-controls="app-sidebar"');
+    expect(html).toContain("inert");
+    expect(html).toContain("-translate-x-[calc(100%_+_48px)]");
+    expect(html).toContain(">Log out<");
+    expect(html).toContain(">My Socials<");
   });
-  it("bg: entirely aria-hidden and non-interactive", () => {
-    const html = renderToStaticMarkup(h(Marquee, { items, size: "bg", label: "ignored" }));
-    expect(html).toMatch(/^<div aria-hidden="true" class="pointer-events-none select-none/);
-    expect(html).not.toContain("ignored");
-    expect(html).toContain("text-[20vw]");
-  });
-});
 
-describe("StatusPulse", () => {
-  it("defaults to the accent tone and never uses green", () => {
-    const html = renderToStaticMarkup(h(StatusPulse, { label: "Autopilot on" }));
-    expect(html).toContain("bg-ds-accent text-ds-accent");
-    expect(html).toContain("animate-ds-pulse");
-    expect(html).toContain("Autopilot on");
-    expect(html).not.toMatch(/green/i);
-  });
-  it("footer status row has no green either", () => {
-    const html = renderToStaticMarkup(
-      h(FooterBand, { link: { href: "/inbox", label: "Inbox" }, status: "Worker operational", meta: "v0.1" }),
-    );
-    expect(html).not.toMatch(/green/i);
-    expect(html).toContain("RUNMYSOCIALS");
-  });
-});
-
-describe("RevealList", () => {
-  const items = [
-    { id: "a", index: "01", title: "Hook test", meta: "MON 18:00", href: "/post/a", image: { alt: "Hook test thumbnail" } },
-    { id: "b", index: "02", title: "Behind the scenes", meta: "TUE 12:00", image: { src: "/t.jpg", alt: "BTS" } },
-    { id: "c", index: "03", title: "No image", meta: "WED 09:00" },
-  ];
-  it("renders one li per item with a hidden clip-path reveal and an always-visible phone thumbnail", () => {
-    const html = renderToStaticMarkup(h(RevealList, { items, label: "Up next" }));
-    expect(html).toContain('aria-label="Up next"');
-    expect((html.match(/<li[ >]/g) ?? []).length).toBe(3);
-    expect(count(html, "[clip-path:inset(0_0_0_100%)]")).toBe(2);
-    expect(count(html, "size-16 -translate-y-1/2 lg:hidden")).toBe(2);
-    expect(html).toContain('href="/post/a"');
-    expect(html).toContain("grayscale");
-    expect(html).toContain("repeating-linear-gradient");
-    // View circle only appears client-side on fine pointers.
-    expect(html).not.toContain(">View<");
-  });
-});
-
-describe("GridLines", () => {
-  it("renders 12 columns with 8 hidden below lg", () => {
-    const html = renderToStaticMarkup(h(GridLines));
-    expect(html).toMatch(/^<div aria-hidden="true" class="pointer-events-none fixed inset-0 z-0"/);
-    expect(count(html, "border-l border-ds-grid")).toBe(12);
-    expect(count(html, "hidden lg:block")).toBe(8);
-  });
-});
-
-describe("frame", () => {
-  const nav = [
-    { id: "home", label: "Home", href: "/", icon: "home" as const },
-    { id: "batches", label: "Batches", href: "/batches", icon: "batches" as const, badge: 3 },
-  ];
-  it("AppShell defaults to Day and renders header, main and tab bar", () => {
-    const html = renderToStaticMarkup(h(AppShell, { nav, active: "home", cta: { href: "/new", label: "New batch" }, children: "hi" }));
-    expect(html).toContain('data-theme="light"');
-    expect(html).toContain('<main id="main"');
-    expect(html).toContain("MYSOCIALS");
-    expect(html).toContain('aria-label="New batch"');
-    expect(html).toContain('aria-label="Switch to night theme"');
-  });
-  it("TabBar marks the active item", () => {
-    const html = renderToStaticMarkup(h(TabBar, { nav, active: "batches" }));
+  it("marks exactly one link as the current page and opens its group", () => {
+    const html = render("/analytics/youtube", ["analytics"]);
     expect(count(html, 'aria-current="page"')).toBe(1);
-    expect(html).toContain("bg-ds-accent");
+    expect(html).toMatch(/aria-current="page"[^>]*href="[^"]*\/analytics\/youtube"/);
+    // Analytics group open, Library group closed.
+    expect(html).toMatch(/aria-expanded="true"[^>]*>.*?Analytics/);
+    expect(count(html, 'aria-expanded="false"')).toBe(1 + 2); // menu button + Library + Platforms
   });
-  it("ThemeToggle labels the target theme", () => {
-    expect(renderToStaticMarkup(h(ThemeToggle, { initial: "dark" }))).toContain('aria-label="Switch to day theme"');
+
+  it("shows the inbox count", () => {
+    expect(render("/", [])).toContain(">2<");
   });
-  it("StatusBars exposes meters", () => {
-    const html = renderToStaticMarkup(h(StatusBars, { rows: [{ label: "IG", value: 140 }] }));
-    expect(html).toContain('role="meter"');
-    expect(html).toContain('aria-valuenow="100"');
+});
+
+describe("NotificationsPopover (closed)", () => {
+  it("is a bell button with the open count and a dialog popup", () => {
+    const html = renderToStaticMarkup(h(NotificationsPopover, { items: [], openCount: 2, ackAction: noop }));
+    expect(html).toContain('aria-label="Notifications, 2 open"');
+    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).toContain('aria-expanded="false"');
   });
 });

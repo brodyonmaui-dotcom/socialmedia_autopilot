@@ -10,7 +10,7 @@ describe("simulateEngagement", () => {
     expect(r.replies).toBeGreaterThan(0);
     expect(r.duplicatesIgnored).toBeGreaterThan(0);
     expect(Object.values(r.invariants).every((v) => v === 0)).toBe(true);
-    expect(r.summary).toMatch(/^simulate-engagement \(shadow\): OK 200 comments · replies \d+ · hides 0 · flags \d+ · sent 0 · 0 double-replies · 0 limit breaches · 0 location leaks · kill: not tripped$/);
+    expect(r.summary).toMatch(/^simulate-engagement \(shadow\): OK 200 comments · replies \d+ · hides 0 · flags \d+ · sent 0 · 0 double-replies · 0 limit breaches · 0 location leaks · 0 promo replies · kill: not tripped$/);
   });
 
   it("live-fake: OK, sends, retries, one unknown at most once, and the late Action Blocked trips the kill", async () => {
@@ -42,5 +42,17 @@ describe("simulateEngagement", () => {
   it("the same bad triage is caught by preRules/postRules in the normal pipeline", async () => {
     const r = await simulateEngagement({ mode: "live-fake", triage: bad });
     expect(r.ok, r.summary).toBe(true);
+  });
+
+  it("promo spam: always spam_promo, never an action; a model that thanks promo is overruled by the rules", async () => {
+    const thanksPromo = createFakeTriageClient([[/featured|send it to|s4s|our page/i, "simple_positive", "Appreciate you man"], ...DEFAULT_FAKE_RULES]);
+    const ok = await simulateEngagement({ mode: "live-fake", triage: thanksPromo });
+    expect(ok.ok, ok.summary).toBe(true);
+    expect(ok.categories.promo).toBeGreaterThan(0);
+    expect(ok.invariants.promoActions).toBe(0);
+    expect(ok.invariants.promoMissed).toBe(0);
+    const bad = await simulateEngagement({ mode: "live-fake", triage: thanksPromo, unsafeSkipRules: true });
+    expect(bad.ok).toBe(false);
+    expect(bad.invariants.promoActions).toBeGreaterThan(0);
   });
 });

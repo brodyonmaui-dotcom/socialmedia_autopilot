@@ -9,7 +9,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@autopilot/core": "workspace:*"
+    "@autopilot/core": "workspace:*",
+    "@anthropic-ai/sdk": "^1.6.0",
+    "zod": "^4.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

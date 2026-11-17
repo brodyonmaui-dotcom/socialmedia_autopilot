@@ -9,6 +9,19 @@ export interface ProbeResult {
   hasLocationTags: boolean;
   /** When the camera recorded a capture timestamp. A date, not a place — fine to keep internally. */
   capturedAt?: string;
+  /** Format facts for the touch-up QA (v2). Optional so older stored results still type-check. */
+  videoCodec?: string;
+  audioCodec?: string;
+  pixFmt?: string;
+  /** ffprobe `format_name` ("mov,mp4,m4a,3gp,3g2,mj2" for both MOV and MP4). */
+  container?: string;
+  /** Display rotation in degrees (display matrix side data or the legacy `rotate` tag); 0 = none. */
+  rotation?: number;
+  /** Overall bitrate, bits per second (0 = unknown). */
+  bitRate?: number;
+  audioSampleRate?: number;
+  /** Camera/phone make/model/software tags present (keys only matter, values are never kept). */
+  hasDeviceTags?: boolean;
 }
 
 /**
@@ -26,6 +39,26 @@ export function findLocationTagKeys(ffprobeJson: { format?: { tags?: Record<stri
     ...(ffprobeJson.streams ?? []).flatMap((s) => Object.keys(s.tags ?? {})),
   ];
   return [...new Set(keys.filter((k) => LOCATION_KEY.test(k)))];
+}
+
+/** Device-identifying keys: make/model/software (Apple's com.apple.quicktime.*, Android's com.android.*). */
+const DEVICE_KEY = /(^|[._-])(make|model|software)$|^com\.android\.(version|manufacturer|model|capture)/i;
+
+export function findDeviceTagKeys(ffprobeJson: { format?: { tags?: Record<string, unknown> }; streams?: Array<{ tags?: Record<string, unknown> }> }): string[] {
+  const keys = [
+    ...Object.keys(ffprobeJson.format?.tags ?? {}),
+    ...(ffprobeJson.streams ?? []).flatMap((s) => Object.keys(s.tags ?? {})),
+  ];
+  return [...new Set(keys.filter((k) => DEVICE_KEY.test(k)))];
+}
+
+/** Display rotation (degrees, normalised to 0/90/180/270) from the display matrix side data or the old `rotate` tag. */
+export function rotationOf(video: Record<string, unknown>): number {
+  const side = (video.side_data_list as Array<Record<string, unknown>> | undefined) ?? [];
+  const fromSide = side.find((s) => typeof s.rotation === "number" || typeof s.rotation === "string")?.rotation;
+  const raw = Number(fromSide ?? (video.tags as Record<string, unknown> | undefined)?.rotate ?? 0);
+  if (!Number.isFinite(raw)) return 0;
+  return (((Math.round(raw / 90) * 90) % 360) + 360) % 360;
 }
 
 async function ffprobeJson(filePath: string) {
@@ -69,5 +102,13 @@ export async function probe(filePath: string): Promise<ProbeResult> {
     hasAudio: !!audio,
     hasLocationTags,
     capturedAt,
+    videoCodec: video.codec_name ? String(video.codec_name) : undefined,
+    audioCodec: audio?.codec_name ? String(audio.codec_name) : undefined,
+    pixFmt: video.pix_fmt ? String(video.pix_fmt) : undefined,
+    container: data.format?.format_name ? String(data.format.format_name) : undefined,
+    rotation: rotationOf(video),
+    bitRate: Number(data.format?.bit_rate ?? 0) || 0,
+    audioSampleRate: audio?.sample_rate ? Number(audio.sample_rate) : undefined,
+    hasDeviceTags: findDeviceTagKeys(data).length > 0,
   };
 }

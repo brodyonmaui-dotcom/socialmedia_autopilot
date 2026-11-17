@@ -52,7 +52,7 @@ export function planFillTimes(batch: BatchView, ctx: FillTimesContext): FillTime
   for (const a of res.assignments) {
     const [first, ...rest] = ids(a.key, a.platform);
     if (first) patches.push({ itemId: first, scheduledFor: a.scheduledFor });
-    for (const id of rest) unplaced.push({ itemId: id, reason: `duplicate: same clip already on ${a.platform} in this batch` });
+    for (const id of rest) unplaced.push({ itemId: id, reason: `duplicate: same clip already on ${a.platform} this week` });
   }
   for (const u of res.unplaced) for (const id of ids(u.key, u.platform)) unplaced.push({ itemId: id, reason: `${u.reason}: ${u.detail}` });
   return { patches, unplaced };

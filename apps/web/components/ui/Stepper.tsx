@@ -56,7 +56,7 @@ export function Stepper({
     <div
       role="group"
       aria-label={label}
-      className={cx("inline-flex items-stretch divide-x divide-ds-line border border-ds-line", disabled && "opacity-50", className)}
+      className={cx("inline-flex items-stretch divide-x divide-ds-line overflow-hidden rounded-ds-sm border border-ds-line-strong bg-ds-card", disabled && "opacity-50", className)}
     >
       <button
         type="button"

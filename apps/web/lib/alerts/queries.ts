@@ -52,7 +52,8 @@ function stateWhere(state: AlertState, now: Date, params: unknown[]): string {
   return `a.acknowledged_at >= $${params.length}`;
 }
 
-export async function listAlerts(pool: Pool, opts: { state: AlertState; kind?: AlertKind; now?: Date }): Promise<AlertView[]> {
+/** `limit` (1..LIST_LIMIT, default LIST_LIMIT): the shell's Notifications pop-over asks for the newest 6. */
+export async function listAlerts(pool: Pool, opts: { state: AlertState; kind?: AlertKind; now?: Date; limit?: number }): Promise<AlertView[]> {
   const now = opts.now ?? new Date();
   const kind = parseKind(opts.kind);
   const params: unknown[] = [];
@@ -61,7 +62,7 @@ export async function listAlerts(pool: Pool, opts: { state: AlertState; kind?: A
     params.push(kind);
     where += ` and a.kind = $${params.length}`;
   }
-  params.push(LIST_LIMIT);
+  params.push(Math.min(Math.max(Math.floor(opts.limit ?? LIST_LIMIT), 1), LIST_LIMIT));
   const order = opts.state === "open" ? "a.created_at desc, a.id" : "a.acknowledged_at desc, a.id";
   const { rows } = await pool.query(
     `select a.id, a.kind, a.platform, a.message, a.created_at, a.acknowledged_at, a.batch_item_id, bi.batch_id
@@ -136,6 +137,7 @@ const KIND_LABEL: Record<AlertKind, string> = {
   config: "Configuration",
   "ready-for-approval": "Ready for approval",
   "settings-change": "Settings change",
+  "reply-ready": "Reply ready",
 };
 
 export function kindLabel(kind: AlertKind): string {

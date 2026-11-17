@@ -111,7 +111,7 @@ describe("YouTube findExisting", () => {
     const { r, adapter } = lookup();
     expect(await adapter.findExisting!(post)).toEqual(hit);
     expect(r.calls.find((c) => isChannels(c.url))!.url).toBe("https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true");
-    expect(r.calls.find((c) => isItems(c.url))!.url).toBe("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,status&playlistId=UUfakeChannelId000000000&maxResults=25");
+    expect(r.calls.find((c) => isItems(c.url))!.url).toBe("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,status&playlistId=UUfakeChannelId000000000&maxResults=50");
   });
 
   it("falls back to the caption's first line when the post has no title (same as publish)", async () => {

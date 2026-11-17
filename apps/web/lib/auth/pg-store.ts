@@ -44,6 +44,10 @@ export class PgAuthStore implements AuthStore {
     await this.db.query("update auth_sessions set revoked_at = $2 where id = $1 and revoked_at is null", [id, now]);
   }
 
+  async revokeAllSessions(now: Date): Promise<void> {
+    await this.db.query("update auth_sessions set revoked_at = $1 where revoked_at is null", [now]);
+  }
+
   async revokeAll(now: Date): Promise<void> {
     await revokeAllAuth(this.db, now);
   }

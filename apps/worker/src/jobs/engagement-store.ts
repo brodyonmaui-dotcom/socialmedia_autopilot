@@ -15,6 +15,8 @@ import {
   type DmThreadInput,
   type InboundComment,
   type LimitCounts,
+  type PingState,
+  type PromoAccount,
   type TriageContext,
   type TriageResult,
 } from "@autopilot/engagement";
@@ -33,6 +35,8 @@ export interface UntriagedComment {
   id: string;
   comment: InboundComment;
   ctx: TriageContext;
+  /** The creator said "Not spam": re-triage without the promo rule (and never accept a model promo verdict). */
+  skipPromo?: boolean;
 }
 
 export interface CursorRow {
@@ -57,6 +61,19 @@ export interface EngagementJobStore extends EngagementStore {
   upsertDmThreads(threads: DmThreadInput[], igUserId: string | null, now: Date): Promise<UpsertedDmThread[]>;
   latestDraft(threadId: string): Promise<{ id: string; forPlatformMessageId: string | null } | null>;
   insertDmDraft(threadId: string, forPlatformMessageId: string | null, text: string, bucket: string | null): Promise<void>;
+}
+
+/** Run 4 (0012): promo list, ignored DM threads, reply-ready pings. Optional on the job stores so older fakes keep working. */
+export interface InboxJobStore {
+  loadPromoAccounts(): Promise<PromoAccount[]>;
+  /** Open promo-spam verdicts from this author (by id, else lower-cased handle) on this platform. */
+  promoHitCount(platform: EngagementPlatform, authorId: string | null, handle: string | null): Promise<number>;
+  /** True when a new open row was added (an open row for the same key wins: on conflict do nothing). */
+  addPromoAccount(platform: EngagementPlatform, authorKey: string, displayHandle: string | null, source: "manual" | "rule", now: Date): Promise<boolean>;
+  /** Marks a promo thread ignored. False = the creator said "Not spam" for it: draft as usual. */
+  ignoreDmThread(threadId: string, reason: string, now: Date): Promise<boolean>;
+  pingState(now: Date): Promise<PingState>;
+  insertReplyReadyAlert(commentId: string | null, platform: string, message: string, now: Date): Promise<void>;
 }
 
 interface ActionDbRow {
@@ -99,7 +116,7 @@ function toActionRow(r: ActionDbRow): EngagementActionRow {
 const SENT_AT = "coalesce(a.sent_at, a.updated_at)";
 const FROM_ACTIONS = "from engagement_actions a join comments c on c.id = a.comment_id";
 
-export class PgEngagementStore implements EngagementJobStore {
+export class PgEngagementStore implements EngagementJobStore, InboxJobStore {
   constructor(private readonly pool: OutboxPool) {}
 
   // ---- settings ----
@@ -319,15 +336,15 @@ export class PgEngagementStore implements EngagementJobStore {
   async listUntriaged(limit: number): Promise<UntriagedComment[]> {
     const { rows } = await this.pool.query(
       `select c.id, c.platform, c.platform_comment_id, c.platform_media_id, c.parent_platform_id, c.author_id, c.author_handle,
-              c.text, c.is_own, c.commented_at, bi.caption, m.pillar,
+              c.text, c.is_own, c.commented_at, bi.caption, m.pillar, (t.not_spam_at is not null) as not_spam,
               coalesce((select json_agg(json_build_object('platformCommentId', o.platform_comment_id, 'text', o.text, 'createdAt', o.commented_at) order by o.commented_at)
                           from comments o where o.platform = c.platform and o.parent_platform_id = c.platform_comment_id and o.is_own), '[]'::json) as own_replies
          from comments c
          left join comment_triage t on t.comment_id = c.id
          left join batch_items bi on bi.id = c.batch_item_id
          left join media m on m.id = bi.media_id
-        where t.comment_id is null and not c.is_own
-        order by c.commented_at desc limit $1`,
+        where (t.comment_id is null or t.retriage_requested_at is not null) and not c.is_own
+        order by (t.retriage_requested_at is not null) desc, c.commented_at desc limit $1`,
       [limit],
     );
     return rows.map((r: any): UntriagedComment => {
@@ -345,14 +362,17 @@ export class PgEngagementStore implements EngagementJobStore {
         ownRepliesInThread: own.map((o) => ({ platformCommentId: o.platformCommentId, text: o.text, createdAt: iso(o.createdAt)! })),
       };
       const ctx: TriageContext = { ...(r.caption ? { postCaption: r.caption } : {}), pillar: r.pillar ?? null };
-      return { id: r.id, comment, ctx };
+      return { id: r.id, comment, ctx, ...(r.not_spam ? { skipPromo: true } : {}) };
     });
   }
 
   async saveTriage(commentId: string, result: TriageResult, now: Date): Promise<void> {
     await this.pool.query(
       `insert into comment_triage (comment_id, bucket, confidence, draft_reply, reasons, model, refused, decided_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8) on conflict (comment_id) do nothing`,
+       values ($1, $2, $3, $4, $5, $6, $7, $8)
+       on conflict (comment_id) do update set bucket = excluded.bucket, confidence = excluded.confidence, draft_reply = excluded.draft_reply,
+              reasons = excluded.reasons, model = excluded.model, refused = excluded.refused, decided_at = excluded.decided_at, retriage_requested_at = null
+        where comment_triage.retriage_requested_at is not null`,
       [commentId, result.bucket, result.confidence, result.reply, result.reasons, result.model, result.refused ?? false, now],
     );
   }
@@ -430,5 +450,70 @@ export class PgEngagementStore implements EngagementJobStore {
        values ($1, (select id from dm_messages where platform_message_id = $2), $3, $4)`,
       [threadId, forPlatformMessageId, text, bucket],
     );
+  }
+
+  // ---- inbox (run 4, migration 0012) ----
+  async loadPromoAccounts(): Promise<PromoAccount[]> {
+    const { rows } = await this.pool.query(`select platform, author_key from engagement_promo_accounts where removed_at is null`);
+    return rows.map((r: { platform: EngagementPlatform; author_key: string }) => ({ platform: r.platform, authorKey: r.author_key }));
+  }
+
+  async promoHitCount(platform: EngagementPlatform, authorId: string | null, handle: string | null): Promise<number> {
+    if (!authorId && !handle) return 0;
+    const { rows } = await this.pool.query(
+      `select count(*)::int as n from comments c join comment_triage t on t.comment_id = c.id
+        where c.platform = $1 and t.bucket = 'spam_promo' and t.not_spam_at is null
+          and (($2::text is not null and c.author_id = $2) or ($2::text is null and $3::text is not null and lower(c.author_handle) = $3))`,
+      [platform, authorId, handle ? handle.replace(/^@+/, "").toLowerCase() : null],
+    );
+    return Number(rows[0]?.n ?? 0);
+  }
+
+  async addPromoAccount(platform: EngagementPlatform, authorKey: string, displayHandle: string | null, source: "manual" | "rule", now: Date): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      `insert into engagement_promo_accounts (platform, author_key, display_handle, source, created_at) values ($1, $2, $3, $4, $5)
+       on conflict (platform, author_key) where removed_at is null do nothing returning id`,
+      [platform, authorKey, displayHandle, source, now],
+    );
+    return rows.length === 1;
+  }
+
+  /** False when the creator marked the thread "Not spam" (ignored_reason 'not-spam'): then it drafts normally. */
+  async ignoreDmThread(threadId: string, reason: string, now: Date): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      `select ignored_at is not null as ignored, coalesce(ignored_reason, '') = 'not-spam' as not_spam from dm_threads where id = $1`,
+      [threadId],
+    );
+    if (rows[0]?.not_spam) return false;
+    if (!rows[0]?.ignored) await this.pool.query(`update dm_threads set ignored_reason = $2, ignored_at = $3 where id = $1 and ignored_at is null`, [threadId, reason, now]);
+    return true;
+  }
+
+  async pingState(now: Date): Promise<PingState> {
+    const { rows } = await this.pool.query(
+      `with p as (select max(created_at) as last_ping, max(created_at) filter (where comment_id is null) as last_digest,
+                         count(*) filter (where created_at > $1::timestamptz - interval '1 hour')::int as last_hour
+                    from alerts where kind = 'reply-ready')
+       select p.last_ping, p.last_digest, p.last_hour,
+              (select count(*)::int from engagement_actions a join comment_triage t on t.comment_id = a.comment_id
+                where a.kind = 'reply' and a.status = 'shadow' and t.handled_at is null) as drafted,
+              (select count(*)::int from comment_triage where bucket in ('flag','hide_flag') and handled_at is null) as flagged,
+              (select count(*)::int from comment_triage t where t.handled_at is null and t.decided_at > coalesce(p.last_ping, '-infinity'::timestamptz)
+                  and (t.bucket in ('flag','hide_flag') or exists (select 1 from engagement_actions a where a.comment_id = t.comment_id and a.kind = 'reply' and a.status = 'shadow'))) as fresh
+         from p`,
+      [now],
+    );
+    const r = rows[0] ?? {};
+    return {
+      sentLastHour: Number(r.last_hour ?? 0),
+      lastPingAt: r.last_ping ? new Date(r.last_ping) : null,
+      lastDigestAt: r.last_digest ? new Date(r.last_digest) : null,
+      waiting: { drafted: Number(r.drafted ?? 0), flagged: Number(r.flagged ?? 0) },
+      newSinceLastPing: Number(r.fresh ?? 0),
+    };
+  }
+
+  async insertReplyReadyAlert(commentId: string | null, platform: string, message: string, now: Date): Promise<void> {
+    await this.pool.query(`insert into alerts (kind, platform, message, comment_id, created_at) values ('reply-ready', $1, $2, $3, $4)`, [platform, message, commentId, now]);
   }
 }

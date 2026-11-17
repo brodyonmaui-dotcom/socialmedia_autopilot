@@ -3,6 +3,11 @@ import { classifyHook, firstLine } from "@autopilot/research";
 import { engagementRate, fmtInt, fmtPct, fmtX, lengthBucket, localHour, median, timeBucket } from "./stats.js";
 import { recommendTrialShares, TRIAL_RULES, type TrialRecommendation } from "./trials.js";
 import type { PostRecord } from "./types.js";
+import { buildFindings, selectFindings, FINDING_MIN_N, type Finding } from "./account-report.js";
+import type { AccountPostRecord } from "./account-types.js";
+
+/** Days of account posts the account-wide "What worked" looks at (everything the account ingest keeps). */
+export const ACCOUNT_FINDINGS_DAYS = 60;
 
 /** Group size below which we say "too early to tell" instead of recommending. */
 export const MIN_GROUP = 3;
@@ -64,6 +69,8 @@ export interface WeeklyReport {
   tooEarly: Platform[];
   trials: { baselineN: number; olderUnshared: number; recommendations: TrialRecommendation[] };
   dataGaps: string[];
+  /** Account-wide findings (all posts, matched or by hand), when account posts were passed in. */
+  findings?: Finding[];
   markdown: string;
 }
 
@@ -96,6 +103,11 @@ export interface ReportOptions {
   /** Creator's zone for time-of-day buckets (TZ_CREATOR). Never printed. */
   timeZone: string;
   now?: Date;
+  /**
+   * Every post on the account (account_posts + latest snapshots). When given, "What worked" runs over
+   * these (last ACCOUNT_FINDINGS_DAYS days up to the report week's end) instead of the app items only.
+   */
+  accountPosts?: AccountPostRecord[];
 }
 
 export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): WeeklyReport {
@@ -221,6 +233,12 @@ export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): Wee
 
   const trials = recommendTrialShares(posts, now);
 
+  const accountWindow = opts.accountPosts?.filter((p) => {
+    const t = Date.parse(p.publishedAt);
+    return t >= end - ACCOUNT_FINDINGS_DAYS * DAY && t < end;
+  });
+  const findings = accountWindow ? selectFindings(buildFindings(accountWindow, { timeZone: opts.timeZone })) : undefined;
+
   // ---- data gaps: say what's missing instead of guessing ----
   const dataGaps: string[] = [];
   for (const pw of platforms) {
@@ -242,12 +260,22 @@ export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): Wee
     if (extra.length) lines.push(`  - ${extra.join(", ")}`);
     for (const t of p.top) lines.push(`  - "${t.hook}": ${fmtInt(t.views)} views, ER ${fmtPct(t.er)}`);
   }
-  lines.push("", `## What worked (last ${COMPARISON_DAYS} days, within each platform)`);
-  if (recommendations.length) for (const r of recommendations) lines.push(`- ${r.text}`);
-  else lines.push("- Nothing stands out yet.");
-  if (hiddenRecommendations) lines.push(`- (+${hiddenRecommendations} weaker signal(s) not shown)`);
-  if (tooEarly.length) lines.push(`- Too early to tell on ${tooEarly.join(", ")} (fewer than ${MIN_PLATFORM} posts with metrics).`);
-  lines.push("", `Groups (and the rest of the posts) need n≥${MIN_GROUP} and a lift of ≥${fmtX(LIFT_UP)} or ≤${fmtX(LIFT_DOWN)}. These are correlations, not causes.`);
+  if (findings) {
+    const nPosts = accountWindow!.filter((p) => p.metrics?.views != null).length;
+    lines.push("", `## What worked (all posts on the account, last ${ACCOUNT_FINDINGS_DAYS} days)`);
+    const ok = findings.filter((f) => f.status === "ok");
+    if (ok.length) for (const f of ok) lines.push(`- ${f.text}`);
+    else lines.push("- Not enough posts yet.");
+    for (const f of findings.filter((x) => x.status === "insufficient")) lines.push(`- ${f.text}`);
+    lines.push("", `Each group is compared with the rest of that platform's posts (${nPosts} with views). Groups need n ≥ ${FINDING_MIN_N} on both sides. These are correlations, not causes.`);
+  } else {
+    lines.push("", `## What worked (last ${COMPARISON_DAYS} days, within each platform)`);
+    if (recommendations.length) for (const r of recommendations) lines.push(`- ${r.text}`);
+    else lines.push("- Nothing stands out yet.");
+    if (hiddenRecommendations) lines.push(`- (+${hiddenRecommendations} weaker signal(s) not shown)`);
+    if (tooEarly.length) lines.push(`- Too early to tell on ${tooEarly.join(", ")} (fewer than ${MIN_PLATFORM} posts with metrics).`);
+    lines.push("", `Groups (and the rest of the posts) need n≥${MIN_GROUP} and a lift of ≥${fmtX(LIFT_UP)} or ≤${fmtX(LIFT_DOWN)}. These are correlations, not causes.`);
+  }
   lines.push("", "## Trial reels (share manually in the Instagram app)");
   if (!trials.recommendations.length) lines.push("- No unshared trial reels.");
   if (trials.olderUnshared) lines.push(`- ${trials.olderUnshared} older unshared trial(s) not listed (over ${TRIAL_RULES.listDays} days).`);
@@ -269,6 +297,7 @@ export function buildWeeklyReport(posts: PostRecord[], opts: ReportOptions): Wee
     tooEarly,
     trials,
     dataGaps,
+    ...(findings ? { findings } : {}),
     markdown: lines.join("\n") + "\n",
   };
 }

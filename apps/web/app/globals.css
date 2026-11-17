@@ -1,79 +1,84 @@
 @import "tailwindcss";
 
-/* === design system v2 · Warm Industrial === (docs/design/ui-system.md) — edit tokens here only */
-/* Self-hosted fonts (npm, no third-party request): Inter variable + Playfair Display italic, latin. */
+/* === design system v3 · Quiet dashboard === (docs/design/ui-system.md) — edit tokens here only */
+/* Self-hosted fonts (npm, no third-party request): Imbue variable (opsz + wght axes) for display,
+   Inter variable for everything else, Playfair Display italic for one pull-quote sentence per screen. */
+@import "@fontsource-variable/imbue/opsz.css";
 @import "@fontsource-variable/inter/wght.css";
 @import "@fontsource/playfair-display/latin-400-italic.css";
 
 @theme {
-  /* Day (default): warm industrial grays. Names are roles; values change per theme below. */
-  --color-ds-frame: #ebebe8;      /* header, tab bar (same as page; separated by 1px lines) */
-  --color-ds-bg: #ebebe8;         /* page — keep everywhere */
-  --color-ds-card: #f4f4f2;       /* panels, ribbon (marquee), sheets */
-  --color-ds-raised: #e2e2de;     /* inputs, wells, row hover */
-  --color-ds-line: #d4d4d8;       /* 1px structure lines (zinc-300) */
-  --color-ds-line-strong: #71717a;/* control borders: 4.1:1 on bg (UI ≥3 ✓) */
-  --color-ds-grid: rgb(24 24 27 / 0.1); /* 12-column background lines */
+  /* Day (default). Names are roles; values change per theme below. */
+  --color-ds-frame: #ebebe8;      /* top bar (same as page; a hairline below) */
+  --color-ds-bg: #ebebe8;         /* page */
+  --color-ds-card: #f4f4f2;       /* cards, sidebar, pop-overs, dialogs */
+  --color-ds-raised: #e2e2de;     /* hover, active nav pill, wells */
+  --color-ds-line: #d4d4d8;       /* 1px hairlines (card borders, row dividers) */
+  --color-ds-line-strong: #71717a;/* control borders: 4.1:1 on bg, 4.5:1 on card (UI ≥ 3 ✓) */
   /* Text */
-  --color-ds-text: #18181b;       /* 14.8:1 on bg */
-  --color-ds-muted: #52525b;      /* 6.5:1 on bg */
-  --color-ds-faint: #5f5f68;      /* 5.3:1 on bg, 4.9:1 on raised */
-  --color-ds-ink: #18181b;        /* text on accent / paper fills */
-  --color-ds-invert: #18181b;     /* solid (black) buttons, footer band */
-  --color-ds-on-invert: #ebebe8;  /* text on invert: 14.8:1 */
-  --color-ds-paper: #f4f4f2;      /* tab bar, light alert */
-  --color-ds-paper-2: #e2e2de;
-  --color-ds-paper-muted: #52525b;
-  /* The one accent: a touch lighter than #0066FF */
-  --color-ds-accent: #2f7bff;     /* fills, stars, bars, dots: 3.3:1 on bg (graphic ✓); ink label 4.6:1 */
+  --color-ds-text: #18181b;       /* 14.8:1 on bg, 16.1:1 on card */
+  --color-ds-muted: #52525b;      /* 6.5:1 on bg, 7.0:1 on card, 5.9:1 on raised */
+  --color-ds-faint: #5f5f68;      /* legacy alias of muted-ish: 5.3:1 on bg */
+  --color-ds-ink: #18181b;        /* text on accent fills */
+  --color-ds-invert: #18181b;     /* the one solid button per view */
+  --color-ds-on-invert: #ebebe8;  /* 14.8:1 on invert */
+  --color-ds-paper: #f4f4f2;      /* legacy */
+  --color-ds-paper-2: #e2e2de;    /* legacy */
+  --color-ds-paper-muted: #52525b;/* legacy */
+  /* The one accent */
+  --color-ds-accent: #2f7bff;     /* graphics (bars, lines, dots): 3.3:1 on bg (graphic ✓) */
   --color-ds-accent-hi: #5a96ff;  /* hover fill */
-  --color-ds-accent-lo: #0057d9;  /* = accent-fg (kept for v1 callers) */
+  --color-ds-accent-lo: #0057d9;  /* legacy = accent-fg */
   --color-ds-accent-fg: #0057d9;  /* blue text/icons: 5.2:1 on bg, 5.7:1 on card */
   --color-ds-focus: #0057d9;
   /* Status (never the only signal) */
-  --color-ds-warn: #8a5300;       /* 5.9:1 on bg */
-  --color-ds-danger: #b42318;     /* 5.6:1 on bg */
+  --color-ds-warn: #8a5300;       /* 5.9:1 on bg, 6.4:1 on card */
+  --color-ds-danger: #b42318;     /* 5.6:1 on bg, 6.0:1 on card */
+  --color-ds-scrim: rgb(24 24 27 / 0.4); /* behind dialogs and the phone drawer */
+  /* KPI tile tints (text on them stays ds-text: ≥ 14:1; muted ≥ 6.1:1) */
+  --color-ds-tint-1: #e4e9f2;     /* blue-gray */
+  --color-ds-tint-2: #ede8df;     /* sand */
+  --color-ds-tint-3: #e6e6ea;     /* cool gray */
+  --color-ds-tint-4: #e9e4e4;     /* rose-gray */
+  /* Chart series, fixed order, never cycled. Graphic contrast on card: IG 3.6, YT 16.1, TT 3.2, SC 3.0. */
+  --color-ds-series-instagram: #2f7bff;
+  --color-ds-series-youtube: #18181b;
+  --color-ds-series-tiktok: #8a8f98;
+  --color-ds-series-snapchat: #b08d57;
 
   --font-ds: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display-ds: "Imbue Variable", "Bodoni Moda", "Didot", "Bodoni 72", Georgia, serif;
   --font-serif-ds: "Playfair Display", "Times New Roman", Times, serif;
-  --font-mono-ds: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 
-  /* Sharp by rule: only CTA pills, badges, toggles and dots are round (rounded-full). */
-  --radius-ds-sm: 0px;
-  --radius-ds-md: 0px;
-  --radius-ds-lg: 0px;
-  --radius-ds-xl: 0px;
+  /* Radius: controls and thumbnails 8, cards and dialogs 12; pills use rounded-full. */
+  --radius-ds-xs: 5px;            /* small marks inside controls: checkbox box, segment pills */
+  --radius-ds-sm: 8px;
+  --radius-ds-md: 8px;
+  --radius-ds-lg: 12px;
+  --radius-ds-xl: 12px;
+  --radius-ds-bar: 3px;           /* chart bar tops */
 
-  /* No elevation: structure comes from 1px lines. Pop is for sheets/tooltips only. */
+  /* Cards have no shadow. Pop-overs, menus, the drawer and dialogs: hairline + pop. */
   --shadow-ds-card: 0 0 #0000;
-  --shadow-ds-pop: 0 24px 64px -24px rgb(24 24 27 / 0.35);
+  --shadow-ds-pop: 0 1px 2px rgb(24 24 27 / 0.06), 0 12px 32px -8px rgb(24 24 27 / 0.18);
   --shadow-ds-glow: 0 0 #0000;
 
-  --ease-ds: cubic-bezier(0.16, 1, 0.3, 1); /* high-inertia, all transforms + clip-paths */
-
-  --animate-ds-marquee: ds-marquee 28s linear infinite;
-  --animate-ds-pulse: ds-pulse 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-  @keyframes ds-marquee {
-    from { transform: translateX(0); }
-    to { transform: translateX(-50%); }
-  }
-  @keyframes ds-pulse {
-    0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent); }
-    100% { box-shadow: 0 0 0 8px transparent; }
-  }
+  --ease-ds: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root {
-  --ds-dur-fast: 150ms;
-  --ds-dur: 300ms;
-  --ds-dur-slow: 600ms;
-  --ds-header-h: 64px;            /* 80px ≥ lg (set below) */
-  --ds-tabbar-h: 64px;
-  --ds-max: 1600px;
+  --ds-dur-fast: 150ms;           /* pop-over / dialog fade */
+  --ds-dur: 200ms;                /* hover colour, sidebar slide */
+  --ds-dur-slow: 300ms;
+  --ds-topbar-h: 56px;
+  --ds-header-h: 56px;            /* legacy name (sticky offsets in older pages) */
+  --ds-tabbar-h: 0px;             /* legacy: there is no tab bar in v3 */
+  --ds-sidebar-w: 264px;
+  --ds-max: 1280px;
   --ds-gutter: 16px;              /* 32px ≥ lg */
 }
 @media (min-width: 1024px) {
-  :root { --ds-header-h: 80px; --ds-gutter: 32px; }
+  :root { --ds-gutter: 32px; }
 }
 
 /* Night: same roles on zinc-900. Opt-in per device (ThemeToggle → data-theme="dark"). */
@@ -84,21 +89,30 @@
   --color-ds-card: #1f1f23;
   --color-ds-raised: #27272a;
   --color-ds-line: #3f3f46;
-  --color-ds-line-strong: #71717a;/* 3.7:1 on bg */
-  --color-ds-grid: rgb(235 235 232 / 0.07);
-  --color-ds-text: #ebebe8;       /* 14.8:1 */
-  --color-ds-muted: #a1a1aa;      /* 6.9:1 */
+  --color-ds-line-strong: #71717a;/* 3.7:1 on bg, 3.4:1 on card */
+  --color-ds-text: #ebebe8;       /* 14.8:1 on bg, 13.6:1 on card */
+  --color-ds-muted: #a1a1aa;      /* 6.9:1 on bg, 6.4:1 on card, 5.8:1 on raised */
   --color-ds-faint: #8b8b94;      /* 5.3:1 */
   --color-ds-invert: #ebebe8;
   --color-ds-on-invert: #18181b;
-  --color-ds-accent: #6aa2ff;     /* 6.9:1 on bg; ink label 6.9:1 */
+  --color-ds-accent: #6aa2ff;     /* 6.9:1 on bg */
   --color-ds-accent-hi: #8db8ff;
   --color-ds-accent-lo: #6aa2ff;
-  --color-ds-accent-fg: #6aa2ff;
+  --color-ds-accent-fg: #6aa2ff;  /* 6.9:1 on bg, 6.3:1 on card */
   --color-ds-focus: #6aa2ff;
-  --color-ds-warn: #f2b544;
-  --color-ds-danger: #f0716b;
-  --shadow-ds-pop: 0 24px 64px -24px rgb(0 0 0 / 0.8);
+  --color-ds-warn: #f2b544;       /* 9.9:1 on bg */
+  --color-ds-danger: #f0716b;     /* 5.9:1 on bg */
+  --color-ds-scrim: rgb(0 0 0 / 0.6);
+  /* Same hues at 12% over card */
+  --color-ds-tint-1: color-mix(in srgb, #6aa2ff 12%, #1f1f23);
+  --color-ds-tint-2: color-mix(in srgb, #c9a56b 12%, #1f1f23);
+  --color-ds-tint-3: color-mix(in srgb, #a1a1aa 12%, #1f1f23);
+  --color-ds-tint-4: color-mix(in srgb, #d49a9a 12%, #1f1f23);
+  --color-ds-series-instagram: #6aa2ff;
+  --color-ds-series-youtube: #ebebe8;
+  --color-ds-series-tiktok: #8a8f98; /* 5.2:1 on card */
+  --color-ds-series-snapchat: #c9a56b;
+  --shadow-ds-pop: 0 1px 2px rgb(0 0 0 / 0.4), 0 16px 40px -8px rgb(0 0 0 / 0.6);
 }
 .ds-root[data-theme="dark"] .ds-root { color-scheme: dark; }
 
@@ -107,7 +121,7 @@
     font-family: var(--font-ds);
     background: var(--color-ds-bg);
     color: var(--color-ds-text);
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -120,59 +134,85 @@
   }
   .ds-root * {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-ds-accent) transparent;
+    scrollbar-color: var(--color-ds-line-strong) transparent;
   }
-  .ds-root ::-webkit-scrollbar { width: 6px; height: 6px; }
-  .ds-root ::-webkit-scrollbar-thumb { background: var(--color-ds-accent); }
-  .ds-root ::-webkit-scrollbar-track { background: transparent; }
 }
 
+/* Numbers: Inter with tabular, lining figures (never a fixed-width face). */
 @utility ds-num {
   font-variant-numeric: tabular-nums lining-nums;
 }
-/* Labels and small UI: 10px bold caps, wide tracking (11px on phones for legibility). */
-@utility ds-caps {
+/* Display face (Imbue): one family, weight 400, no tracking, line-height 1. Size comes from ds-title / ds-heading. */
+@utility ds-font-display {
+  font-family: var(--font-display-ds);
+  font-weight: 400;
+  font-optical-sizing: auto;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: none;
+}
+/* Page title: 40 px phone / 56 px desktop. */
+@utility ds-title {
+  font-family: var(--font-display-ds);
+  font-weight: 400;
+  font-optical-sizing: auto;
+  letter-spacing: 0;
+  line-height: 1;
+  font-size: 40px;
+  @media (min-width: 1024px) { font-size: 56px; }
+}
+/* Card / section title: 26 px phone / 28 px desktop, weight 500 (400 is too thin at this size). */
+@utility ds-heading {
+  font-family: var(--font-display-ds);
+  font-weight: 500;
+  font-optical-sizing: auto;
+  letter-spacing: 0;
+  line-height: 1.05;
+  font-size: 26px;
+  @media (min-width: 1024px) { font-size: 28px; }
+}
+/* Labels: 12 px Inter 600, sentence case. */
+@utility ds-label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+/* One- or two-word tags only (GYM, TRADING): 11 px caps tracked 0.06em. */
+@utility ds-tag {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.22em;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.3;
-  @media (min-width: 640px) { font-size: 10px; }
 }
-@utility ds-mono {
-  font-family: var(--font-mono-ds);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-  @media (min-width: 640px) { font-size: 10px; }
-}
-@utility ds-serif {
+/* Editorial italic: whole sentences only, one per screen (20–28 px). */
+@utility ds-quote {
   font-family: var(--font-serif-ds);
   font-style: italic;
   font-weight: 400;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
 }
-/* Secondary prose (card notes, empty-state bodies, explanations): 15px muted. */
+/* Secondary prose: 15 px muted. Helper text: 13 px muted. */
 @utility ds-note {
   font-size: 15px;
-  line-height: 1.375;
+  line-height: 1.4;
   color: var(--color-ds-muted);
 }
-/* Outline display text: lightness at massive sizes. */
-/* Outline type. Inter Variable has overlapping contours, so a plain transparent stroke draws their
-   inner seams. Instead: a 2px stroke painted under a fill in the surface colour, so only the outer
-   1px shows. Set --ds-stroke-fill on a container whose surface isn't ds-bg (e.g. Marquee on ds-card). */
-@utility ds-stroke {
-  color: var(--ds-stroke-fill, var(--color-ds-bg));
-  -webkit-text-stroke: 2px var(--color-ds-text);
-  paint-order: stroke fill;
+@utility ds-helper {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-ds-muted);
 }
-/* Display scale: 56px on a phone → 160px on wide screens, -0.05em. */
-@utility ds-display {
-  font-size: clamp(56px, 13vw, 160px);
-  line-height: 0.88;
-  letter-spacing: -0.05em;
-  font-weight: 900;
+
+/* Pop-over / dialog fade (150 ms). Only motion besides the sidebar slide and hover colours. */
+@keyframes ds-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@utility ds-fade {
+  animation: ds-fade-in var(--ds-dur-fast) ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -181,4 +221,4 @@
     animation: none !important;
   }
 }
-/* === end design system v2 === */
+/* === end design system v3 === */
