@@ -55,3 +55,59 @@ export function linePoints(values: Array<number | null>, top: number, w: number,
     })
     .join(" ");
 }
+
+/** Nice step (1, 2, 2.5 or 5 × 10^k) that splits `span` into about `count` parts. */
+function niceStep(span: number, count: number): number {
+  const raw = span / Math.max(1, count);
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? 10 * mag;
+}
+
+/**
+ * Ticks for a line chart that doesn't start at 0 (e.g. followers 1,700 → 1,760): nice ticks around
+ * [min, max]. Bars always use `niceTicks` (from 0). No finite values → [0, 1].
+ */
+export function niceRange(values: Array<number | null | undefined>, count = 4): number[] {
+  const xs = values.filter((v): v is number => v != null && Number.isFinite(v));
+  if (!xs.length) return [0, 1];
+  let lo = Math.min(...xs);
+  let hi = Math.max(...xs);
+  if (hi === lo) {
+    const pad = Math.max(1, Math.abs(hi) * 0.05);
+    lo -= pad;
+    hi += pad;
+  }
+  const step = niceStep(hi - lo, count);
+  const start = Math.max(Math.min(...xs) >= 0 ? 0 : -Infinity, Math.floor(lo / step + 1e-9) * step);
+  const out: number[] = [];
+  for (let v = start; v <= Math.ceil(hi / step - 1e-9) * step + step / 2; v += step) out.push(Number(v.toPrecision(12)));
+  return out.length >= 2 ? out : [start, start + step];
+}
+
+/** Percent position (0–100) of a value on an axis from `lo` to `hi`. */
+export function pctIn(value: number, lo: number, hi: number): number {
+  if (!(hi > lo) || !Number.isFinite(value)) return 0;
+  return Math.min(100, Math.max(0, ((value - lo) / (hi - lo)) * 100));
+}
+
+/**
+ * Polyline point strings for one series, split at nulls (a missing day is a gap, never a drop to 0).
+ * x spreads the indexes over `w`; y uses the axis [lo, hi] on `h` (0 at the bottom).
+ */
+export function lineSegments(values: Array<number | null>, lo: number, hi: number, w: number, h: number): string[] {
+  const n = values.length;
+  const out: string[] = [];
+  let cur: string[] = [];
+  values.forEach((v, i) => {
+    if (v == null || !Number.isFinite(v)) {
+      if (cur.length) out.push(cur.join(" "));
+      cur = [];
+      return;
+    }
+    const x = n === 1 ? w / 2 : (i / (n - 1)) * w;
+    const y = h - (pctIn(v, lo, hi) / 100) * h;
+    cur.push(`${Number(x.toFixed(2))},${Number(y.toFixed(2))}`);
+  });
+  if (cur.length) out.push(cur.join(" "));
+  return out;
+}

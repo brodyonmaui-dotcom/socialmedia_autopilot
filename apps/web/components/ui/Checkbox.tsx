@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { cx } from "./cx.js";
 
 export type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "children"> & {
@@ -72,5 +72,40 @@ export function Checkbox({ label, description, className, disabled, ...rest }: C
         </svg>
       }
     />
+  );
+}
+
+/**
+ * A submit button that looks like a labelled checkbox: for "tick it and it's saved" rows (Research "Used").
+ * It is a real <button type="submit"> with aria-pressed, so the form works without JS and keyboard users
+ * get a button. Put it in a small <form> whose hidden fields carry the new value.
+ */
+export function CheckButton({ checked, label, className, ...rest }: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "type"> & { checked: boolean; label: string }) {
+  return (
+    <button
+      type="submit"
+      aria-pressed={checked}
+      className={cx(
+        "-mx-2 inline-flex min-h-11 shrink-0 items-center gap-2.5 rounded-ds-sm px-2 text-[15px] font-semibold text-ds-text transition-colors duration-[var(--ds-dur)] ease-ds hover:bg-ds-raised lg:min-h-9",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-focus",
+        className,
+      )}
+      {...rest}
+    >
+      <span
+        aria-hidden="true"
+        className={cx(
+          "inline-flex size-[22px] shrink-0 items-center justify-center rounded-ds-xs border",
+          checked ? "border-ds-invert bg-ds-invert text-ds-on-invert" : "border-ds-line-strong bg-ds-card",
+        )}
+      >
+        {checked ? (
+          <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="square" strokeLinejoin="miter" focusable="false">
+            <path d="M5 12.5 10 17 19 7" />
+          </svg>
+        ) : null}
+      </span>
+      {label}
+    </button>
   );
 }

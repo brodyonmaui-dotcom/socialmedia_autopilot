@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { QaResult, TouchUpOptions } from "@autopilot/media";
+import { mediaInsertParams, qaAfterTouchUp, type QaResult, type TouchUpOptions } from "@autopilot/media";
 import { tryPoster, type PosterDeps } from "./poster.js";
 import type { FoundFile } from "./scan.js";
 
@@ -26,7 +26,9 @@ export interface IngestFileDeps extends PosterDeps {
 export function createIngestFile(d: IngestFileDeps): (file: FoundFile, hash: string) => Promise<string> {
   return async (file, hash) => {
     const base = file.path.split(/[\\/]/).pop();
-    const qa = await d.runQa(file.path, "reels");
+    // QA v2 runs on the original (it still has the capture date); qaAfterTouchUp drops the metadata and
+    // loudness issues that touchUp fixes below, so the stored result describes the clean copy.
+    const qa = qaAfterTouchUp(await d.runQa(file.path, "reels"));
     const tmp = d.tmpDir();
     const cleanPath = join(tmp, "clean.mp4");
     try {
@@ -40,7 +42,20 @@ export function createIngestFile(d: IngestFileDeps): (file: FoundFile, hash: str
       const key = `library/${hash}.mp4`;
       await d.upload(key, cleanPath);
       const posterKey = await tryPoster(d, { videoPath: cleanPath, tmpDir: tmp, cleanKey: key, durationS: qa.probe.durationS, name: base ?? "file" });
-      await d.insert([hash, file.path, key, qa.probe.durationS, qa.probe.width, qa.probe.height, file.pillar, JSON.stringify(qa), qa.probe.capturedAt ?? null, posterKey]);
+      await d.insert(
+        mediaInsertParams({
+          contentHash: hash,
+          sourcePath: file.path,
+          r2Key: key,
+          durationS: qa.probe.durationS,
+          width: qa.probe.width,
+          height: qa.probe.height,
+          pillar: file.pillar,
+          qa,
+          capturedAt: qa.probe.capturedAt ?? null,
+          posterKey,
+        }),
+      );
       return `INGESTED ${base} · ${file.pillar} · ${qa.probe.durationS.toFixed(1)}s · ${qa.warnings.length} warning(s)`;
     } finally {
       d.cleanup(tmp);

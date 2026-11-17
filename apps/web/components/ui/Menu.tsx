@@ -15,6 +15,8 @@ export type MenuItem = {
   label: string;
   icon?: IconName;
   href?: string;
+  /** Links only: `false` keeps the scroll position (URL-driven dialogs such as `?move=`). */
+  scroll?: boolean;
   action?: (fd: FormData) => void | Promise<void>;
   /** Hidden inputs; an array value repeats the field (e.g. several `item` ids). */
   fields?: Record<string, string | string[]>;
@@ -62,7 +64,7 @@ export function MenuList({ items, label, close }: { items: MenuItem[]; label: st
         const cls = cx(ITEM, FOCUS, item.tone === "danger" && "text-ds-danger", item.disabled && "pointer-events-none opacity-50");
         if (item.href) {
           return (
-            <Link key={i} role="menuitem" href={item.href} aria-current={item.current ? "true" : undefined} className={cls} onClick={close}>
+            <Link key={i} role="menuitem" href={item.href} scroll={item.scroll} aria-current={item.current ? "true" : undefined} className={cls} onClick={close}>
               <ItemInner item={item} />
             </Link>
           );

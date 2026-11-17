@@ -30,6 +30,7 @@ export * from "./ListRow.js";
 export * from "./EmptyState.js";
 // Controls
 export * from "./Button.js";
+export * from "./CopyButton.js";
 export * from "./Toggle.js";
 export * from "./Checkbox.js";
 export * from "./Radio.js";

@@ -26,6 +26,7 @@ export function DataRow({
   meta,
   trailing,
   href,
+  external = false,
   children,
   className,
 }: {
@@ -35,6 +36,8 @@ export function DataRow({
   meta?: ReactNode;
   trailing?: ReactNode;
   href?: string;
+  /** `href` leaves the app (a platform permalink): opens in a new tab with rel="noopener noreferrer". */
+  external?: boolean;
   children?: ReactNode;
   className?: string;
 }) {
@@ -57,7 +60,12 @@ export function DataRow({
   return (
     <li className={cx("flex flex-col gap-3 py-3 first:pt-0 last:pb-0", className)}>
       <div className="flex min-h-11 items-center gap-3">
-        {href ? (
+        {href && external ? (
+          <a href={href} target="_blank" rel="noopener noreferrer" className={cx("-mx-1.5 flex min-w-0 flex-1 items-center gap-3 rounded-ds-sm px-1.5 py-1 hover:bg-ds-raised", FOCUS)}>
+            {head}
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        ) : href ? (
           <Link href={href} className={cx("-mx-1.5 flex min-w-0 flex-1 items-center gap-3 rounded-ds-sm px-1.5 py-1 hover:bg-ds-raised", FOCUS)}>
             {head}
           </Link>

@@ -10,7 +10,7 @@ const FILES = readdirSync(UI).filter((f) => /\.(tsx|ts)$/.test(f));
 /** v2 leftovers still exported for pages not rebuilt yet (ui-system.md "Removed"); not scanned. */
 const LEGACY = new Set(["RevealList.tsx", "FramedImage.tsx", "GlassCard.tsx", "Statement.tsx", "StatusBars.tsx", "SiteHeader.tsx", "HeaderMenu.tsx", "TabBar.tsx"]);
 /** Only overlays may lift off the page. */
-const POP_OK = new Set(["Sheet.tsx", "Tooltip.tsx", "Popover.tsx", "Dialog.tsx", "Sidebar.tsx", "BarChart.tsx"]);
+const POP_OK = new Set(["Sheet.tsx", "Tooltip.tsx", "Popover.tsx", "Dialog.tsx", "Sidebar.tsx", "BarChart.tsx", "LineChart.tsx"]);
 
 const src = (f: string) => readFileSync(join(UI, f), "utf8");
 /** Only string literals carry class names (comments may mention them in prose). */

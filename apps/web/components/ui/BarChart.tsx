@@ -60,6 +60,7 @@ export function BarChart({
   unit,
   height = 168,
   legend = true,
+  labelEvery = 1,
   className,
 }: {
   data: BarDatum[];
@@ -69,8 +70,12 @@ export function BarChart({
   unit: string;
   height?: number;
   legend?: boolean;
+  /** Show every nth x label (plus the last), for 30–60 day ranges on a phone. */
+  labelEvery?: number;
   className?: string;
 }) {
+  // Many bars (30–60 days) get thinner gaps so each bar keeps some width on a phone.
+  const gap = data.length > 31 ? "gap-px" : data.length > 14 ? "gap-0.5 sm:gap-1" : "gap-1.5 sm:gap-2";
   const ids = series.map((s) => s.id);
   const totals = data.map((d) => stackTotal(d.values, ids));
   const ticks = niceTicks(Math.max(0, ...totals), 4);
@@ -89,7 +94,7 @@ export function BarChart({
           {ticks.map((t) => (
             <span key={t} aria-hidden="true" className={cx("absolute inset-x-0 border-t", t === 0 ? "border-ds-line" : "border-dashed border-ds-line/70")} style={{ bottom: `${pct(t, top)}%` }} />
           ))}
-          <ul className="absolute inset-0 flex items-end gap-1.5 sm:gap-2" aria-label={label}>
+          <ul className={cx("absolute inset-0 flex items-end", gap)} aria-label={label}>
             {data.map((d, i) => {
               const total = totals[i]!;
               const name = d.title ?? d.label;
@@ -134,12 +139,15 @@ export function BarChart({
         </div>
       </div>
       <div className="flex gap-2 pl-10" aria-hidden="true">
-        <div className="flex min-w-0 flex-1 gap-1.5 sm:gap-2">
-          {data.map((d, i) => (
-            <span key={i} className={cx("min-w-0 flex-1 text-center text-[11px] leading-none", d.highlight ? "font-bold text-ds-text" : "text-ds-muted")}>
-              {d.label}
-            </span>
-          ))}
+        <div className={cx("flex min-w-0 flex-1", gap)}>
+          {data.map((d, i) => {
+            const shown = labelEvery <= 1 || i === data.length - 1 || (i % labelEvery === 0 && data.length - 1 - i >= labelEvery / 2);
+            return (
+              <span key={i} className={cx("flex min-w-0 flex-1 justify-center whitespace-nowrap text-[11px] leading-none", d.highlight ? "font-bold text-ds-text" : "text-ds-muted")}>
+                {shown ? d.label : null}
+              </span>
+            );
+          })}
         </div>
       </div>
       {legend && series.length > 1 ? <ChartLegend series={series} /> : null}

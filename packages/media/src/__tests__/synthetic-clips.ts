@@ -70,7 +70,7 @@ export async function makeClip(dir: string, name: ClipName): Promise<string> {
       ]);
       break;
     case "frozen-tail-3s":
-      await ff([...talkingVideo(5), "-filter_complex", `${talkingOverlay},tpad=stop_mode=clone:stop_duration=3[v]`, "-map", "[v]", ...h264, out]);
+      await ff([...talkingVideo(9), "-filter_complex", `${talkingOverlay},tpad=stop_mode=clone:stop_duration=3[v]`, "-map", "[v]", ...h264, out]);
       break;
     case "black-head-1s":
       await ff([...talkingVideo(7), "-filter_complex", `${talkingOverlay},tpad=start_mode=add:start_duration=1:color=black[v]`, "-map", "[v]", ...h264, out]);

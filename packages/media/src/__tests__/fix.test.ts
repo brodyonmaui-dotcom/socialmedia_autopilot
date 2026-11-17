@@ -138,18 +138,18 @@ describe.skipIf(!HAS_FFMPEG)("runFix (integration, needs ffmpeg)", () => {
   const dir = mkdtempSync(join(tmpdir(), "autopilot-fix-test-"));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-  const CASES: Array<[string, ClipName, FixOp[] | undefined, string]> = [
-    ["trim", "frozen-tail-3s", undefined, "frozen-tail"],
-    ["trim (black head)", "black-head-1s", undefined, "black-head"],
-    ["loudness", "quiet-30lufs", undefined, "loudness"],
-    ["reencode (format)", "hevc", undefined, "format"],
-    ["reencode (rotation bake)", "rotation", undefined, "rotation"],
-    ["pad", "four-five", undefined, "aspect"],
-    ["strip", "location-tag", undefined, "metadata"],
-    ["remove-gaps (opt-in)", "speech-gaps", ["remove-gaps"], "silence-gaps"],
+  const CASES: Array<[string, ClipName, string, FixOp[] | undefined]> = [
+    ["trim", "frozen-tail-3s", "frozen-tail", undefined],
+    ["trim (black head)", "black-head-1s", "black-head", undefined],
+    ["loudness", "quiet-30lufs", "loudness", undefined],
+    ["reencode (format)", "hevc", "format", undefined],
+    ["reencode (rotation bake)", "rotation", "rotation", undefined],
+    ["pad", "four-five", "aspect", undefined],
+    ["strip", "location-tag", "metadata", undefined],
+    ["remove-gaps (opt-in)", "speech-gaps", "silence-gaps", ["remove-gaps"]],
   ];
 
-  it.each(CASES)("%s: %s → %s gone", async (_label, clip, ops, code) => {
+  it.each(CASES)("%s: %s → %s gone", async (_label, clip, code, ops) => {
     const src = await makeClip(dir, clip);
     const qa = await runQa(src);
     expect(qa.issues.map((i) => i.code)).toContain(code);

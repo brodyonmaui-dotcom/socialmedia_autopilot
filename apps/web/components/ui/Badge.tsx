@@ -1,5 +1,6 @@
+import Link from "next/link";
 import type { HTMLAttributes, ReactNode } from "react";
-import { cx } from "./cx.js";
+import { cx, FOCUS } from "./cx.js";
 import { Icon, type IconName } from "./Icon.js";
 
 export type BadgeTone = "neutral" | "accent" | "warn" | "danger" | "solid";
@@ -65,5 +66,27 @@ export function Chip({ tone = "neutral", icon, wrap = false, className, children
       {shown && <Icon name={shown} size={14} className={wrap ? "mt-px shrink-0" : undefined} />}
       {wrap ? <span className="min-w-0">{children}</span> : children}
     </span>
+  );
+}
+
+/**
+ * Filter chip as a link (URL filters such as "From creators"). 44 px tall on phones, 36 px from lg; the
+ * current one is a raised well with an ink hairline and aria-current. Optional tabular count.
+ */
+export function ChipLink({ href, current = false, count, className, children }: { href: string; current?: boolean; count?: number; className?: string; children: ReactNode }) {
+  return (
+    <Link
+      href={href}
+      aria-current={current ? "page" : undefined}
+      className={cx(
+        "inline-flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-ds-sm border px-3 text-[14px] font-semibold transition-colors duration-[var(--ds-dur)] ease-ds lg:h-9",
+        current ? "border-ds-text bg-ds-raised text-ds-text" : "border-ds-line bg-ds-card text-ds-muted hover:bg-ds-raised hover:text-ds-text",
+        FOCUS,
+        className,
+      )}
+    >
+      {children}
+      {count !== undefined && <span className="ds-num font-normal">{count}</span>}
+    </Link>
   );
 }
