@@ -10,7 +10,7 @@ Branch `fable/run-4-2026-11-16`, PR #23. All checks green at the end: typecheck 
 | Safety review of the build-run hunks; fixes: same-instant guard, "Move to tomorrow" honours the editor's HH:MM earliest, YouTube lookup reads 50 uploads | `packages/core/src/scheduler.ts`, `apps/web/lib/editor/slotting.ts`, `packages/adapters/src/youtube.ts` |
 | Poster frames at ingest + backfill + session-guarded proxy (0010) | `packages/media/src/poster.ts`, `tools/ingest-agent/src/poster*.ts`, `apps/web/app/media/poster/` |
 | Analytics over all account posts, matching, findings with sample sizes (0011) | `packages/analytics/src/account-*.ts`, `sources/`, `apps/worker/src/jobs/account-ingest.ts`, `apps/web/lib/analytics/` |
-| UI v3: tokens, Imbue + Inter, edge-reveal sidebar, search palette, notifications pop-over, Home dashboard | `apps/web/components/ui/`, `apps/web/app/page.tsx`, `apps/web/lib/home/dashboard.ts` |
+| UI v3: tokens, Imbue + Inter, edge-reveal sidebar, search palette, notifications pop-over, Home dashboard | `apps/web/components/ui/`, `apps/web/app/page.tsx`, `dashboard.ts` (Home data, in apps/web/lib) |
 | Calendar replaces batches (all actions through `planTransition`) | `apps/web/app/calendar/`, `components/calendar/`, `lib/calendar/` |
 | Inbox: promo-spam bucket, recalibrated rules, pings, one-tap approve & send from a push (0012) | `packages/engagement/src/rules.ts`, `pings.ts`, `apps/web/lib/inbox/`, `components/inbox/` |
 | Research: automatic ideas and hooks, used archive, the 20 scripts (0013) | `packages/research/src/auto/`, `apps/worker/src/jobs/research-refresh.ts`, `components/research/` |
