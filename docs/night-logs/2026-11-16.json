@@ -5,7 +5,7 @@
   "model": "lead + Opus designers/implementers",
   "session": "cloud · fable run 4",
   "backlogItem": "Run 4 · usable, functional, beautiful (UI v3 + calendar, all-posts analytics, inbox triage, research, fix-it, settings)",
-  "summary": "In progress. Done and reviewed: safety fixes, poster frames, all-posts analytics backend, UI v3 foundation (shell, search, notifications, Home), inbox backend, research backend. Running: calendar, inbox pages, touch-up backend. Two 5-hour limit pauses so far (resumed 06:41 and 14:30 UTC), nothing lost.",
+  "summary": "In progress. Done and reviewed: safety fixes, poster frames, all-posts analytics backend, UI v3 foundation + Home, inbox backend + screens, research backend, calendar (replaces batches). Running: touch-up backend, analytics screens, research screens. The weekly limit stopped the run on Nov 16; it resumed Nov 17 22:00 UTC on Opus (the Fable allowance ended Nov 16).",
   "needsAttention": [],
   "done": [
     "Reviewed the run-4 brief hunks: tick lock, scheduler window/sameDay, editor write, ready plan, one-tap approve, move to tomorrow, YouTube findExisting, migration 0009",
@@ -18,12 +18,15 @@
     "UI v3 foundation: tokens, Imbue display font, shell with edge-reveal sidebar, search palette, notifications pop-over, Home dashboard, /notifications, /settings move, login",
     "Inbox backend: promo-spam bucket, recalibrated rules (calibration: praise ok 98.3%, promo 26/26, location 20/20, hide 10/10), pings, one-tap approve & send, migration 0012",
     "Research backend: automatic ideas and hooks, used archive, 20 scripts imported, migration 0013",
-    "docs/prep/run-5-plan.md (kept current)"
+    "docs/prep/run-5-plan.md (kept current)",
+    "Calendar replaces batches: month/week, day dialog with compact post cards, hover preview, approve/approve-all/edit/move/reject/retry through planTransition; old /batches redirects",
+    "Inbox screens v3 and the push landing page; push click opens the inbox item",
+    "Home fixes: rolling 7/30-day ranges, larger card titles, no misleading -100% deltas"
   ],
   "notDone": [
-    "Running: calendar + Home fixes (designer), inbox pages (designer), touch-up backend 0014 (implementer)",
-    "Open: pages.md sections A (analytics), C (research), D (library + touch-up), E (platforms + settings)",
-    "Close-out: delete v2 components, full ui-shots v3, PR"
+    "Running: touch-up fix-it backend (0014), analytics screens (pages.md A), research screens (pages.md C)",
+    "Open: pages.md D (library + touch-up screens), E (platforms + settings, caps defaults 6/10/7/1, log out everywhere)",
+    "Close-out: delete v2 components, full ui-shots v3, final PR description"
   ],
   "decisions": [
     "Review: outbox tick lock approved as written",
@@ -40,18 +43,19 @@
     "reply-ready pushes are on by default, paced by engagement.pings (default hourly digest)",
     "Location and blocklist hits beat the promo rule, so a spam account asking where he trains still reaches him"
   ],
-  "blocked": [],
+  "blocked": [
+    "Weekly usage limit hit on Nov 16 about 16:00 UTC; resumed Nov 17 22:00 UTC"
+  ],
   "tests": {
     "passed": 2050,
     "failed": 0,
     "notes": "full suite with DATABASE_URL at the research review; typecheck clean"
   },
   "commits": 9,
-  "prUrl": null,
+  "prUrl": "https://github.com/brodyonmaui-dotcom/socialmedia_autopilot/pull/23",
   "nextPickup": [
-    "State table: docs/prep/run-5-plan.md",
-    "Uncommitted or snapshot-only work belongs to: calendar (apps/web/app/calendar, components/calendar, lib/calendar), inbox pages (apps/web/app/inbox, components/inbox), touch-up backend (packages/media, 0014, worker media-fix). Resume by SendMessage or re-brief from docs/prep/run-4-briefs/",
-    "Then pages.md A, C, D, E with Opus designers, max 3 at once",
-    "Then clean-up, shots, PR"
+    "State table: docs/prep/run-5-plan.md; draft PR #23",
+    "Resume or re-brief: touchup.md (implementer), pages.md A and C (designers); then D and E",
+    "Then clean-up, shots, PR description"
   ]
 }

@@ -16,11 +16,11 @@ Status words: **done** = built, reviewed by the lead, tests green, committed. **
 | UI v3 foundation: tokens, shell, search, notifications, Home | `docs/design/ui-system.md` | done |
 | Inbox backend: promo-spam, recalibration, one-tap approve (0012) | `docs/prep/run-4-briefs/inbox.md` | done |
 | Research backend: auto ideas/hooks, used archive, scripts (0013) | `docs/prep/run-4-briefs/research.md` | done |
-| Calendar (replaces batches) + Home fixes | `docs/prep/run-4-briefs/calendar.md` | in progress |
-| Inbox pages | `docs/prep/run-4-briefs/pages.md` §B | in progress |
+| Calendar (replaces batches) + Home fixes | `docs/prep/run-4-briefs/calendar.md` | done |
+| Inbox pages | `docs/prep/run-4-briefs/pages.md` §B | done |
 | Touch-up QA + Fix it backend (0014) | `docs/prep/run-4-briefs/touchup.md` | in progress |
-| Analytics pages | `pages.md` §A | open |
-| Research pages | `pages.md` §C | open |
+| Analytics pages | `pages.md` §A | in progress |
+| Research pages | `pages.md` §C | in progress |
 | Library + Touch-up pages | `pages.md` §D | open |
 | Platforms + Settings pages (caps defaults 6/10/7/1, log out everywhere) | `pages.md` §E | open |
 | Clean-up: delete v2 components and aliases, rename leftovers, all shots | `ui-system.md` "Removed" | open |
