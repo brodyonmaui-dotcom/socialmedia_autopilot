@@ -206,39 +206,6 @@
   color: var(--color-ds-muted);
 }
 
-/* ---- Legacy v2 utility names, re-pointed so pages not yet rebuilt follow the v3 rules. ----
-   Remove each once nothing uses it (the page tasks delete their uses). */
-/* Was 10 px tracked caps: now the v3 label. */
-@utility ds-caps {
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.35;
-  letter-spacing: 0;
-}
-/* Was a fixed-width readout: now Inter tabular (hard rule 5). */
-@utility ds-mono {
-  font-size: 12px;
-  font-variant-numeric: tabular-nums lining-nums;
-}
-/* Was an italic word inside a phrase: now inherits the phrase's font (hard rule 1). Use ds-quote for a sentence. */
-@utility ds-serif {
-  font-style: normal;
-}
-/* Was outline text: now plain text (hard rule 3). */
-@utility ds-stroke {
-  color: inherit;
-}
-/* Was the 160 px hero: now the page title. */
-@utility ds-display {
-  font-family: var(--font-display-ds);
-  font-weight: 400;
-  font-optical-sizing: auto;
-  letter-spacing: 0;
-  line-height: 1;
-  font-size: 40px;
-  @media (min-width: 1024px) { font-size: 56px; }
-}
-
 /* Pop-over / dialog fade (150 ms). Only motion besides the sidebar slide and hover colours. */
 @keyframes ds-fade-in {
   from { opacity: 0; }

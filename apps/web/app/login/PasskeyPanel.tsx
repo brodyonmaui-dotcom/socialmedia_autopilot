@@ -2,7 +2,7 @@
 
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { useState } from "react";
-import { AlertCard, Button, Icon, Input } from "../../components/ui/index.js";
+import { Button, Icon, InlineNotice, Input } from "../../components/ui/index.js";
 import { beginLoginAction, beginRegistrationAction, finishLoginAction, finishRegistrationAction } from "./actions.js";
 
 /** Short, non-identifying device label for the passkey list. */
@@ -106,9 +106,9 @@ export function PasskeyPanel({ hasCredentials }: { hasCredentials: boolean }) {
       {(error || info) && (
         <div aria-live="polite">
           {error && (
-            <AlertCard title="Couldn't sign in" live>
-              {error}
-            </AlertCard>
+            <InlineNotice tone="danger" live>
+              Couldn't sign in: {error}
+            </InlineNotice>
           )}
           {info && (
             <p className="flex items-center gap-2 rounded-ds-sm bg-ds-raised px-3 py-2.5 text-[14px] text-ds-text">

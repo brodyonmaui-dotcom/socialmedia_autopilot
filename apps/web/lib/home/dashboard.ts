@@ -2,7 +2,6 @@
 import { addCalendarDays, localDate, PLATFORMS, weekdayIndex, type Platform } from "@autopilot/core";
 import type { Pool } from "pg";
 import { gainsByPlatformDay, loadAccountData, loadFollowerTotals } from "../analytics/overview.js";
-import type { EditorRender } from "../editor/view.js";
 
 // ---------------------------------------------------------------- ranges
 
@@ -241,40 +240,6 @@ export function weekSchedule(rows: ScheduledRow[], today: string): WeekDay[] {
       isToday: day === today,
       isPast: day < today,
       href: `/calendar?day=${day}`,
-    };
-  });
-}
-
-// ---------------------------------------------------------------- From your editors
-
-export interface EditorTile {
-  key: string;
-  batchId: string;
-  mediaId: string;
-  title: string;
-  meta: string;
-  durationS: number | null;
-  approvableIds: string[];
-  blocked: boolean;
-}
-
-const PLATFORM_NAME: Record<Platform, string> = { instagram: "Instagram", youtube: "YouTube", tiktok: "TikTok", snapchat: "Snapchat" };
-
-/** Up to 4 editor renders, newest first: title, "Instagram, YouTube · Tomorrow 18:30", what Approve would approve. */
-export function editorTiles(renders: EditorRender[], max = 4): EditorTile[] {
-  return renders.slice(0, max).map((r) => {
-    const first = r.lines.find((l) => l.slot !== "No slot");
-    const platforms = r.lines.map((l) => PLATFORM_NAME[l.platform]).join(", ");
-    return {
-      key: r.key,
-      batchId: r.batchId,
-      mediaId: r.mediaId,
-      // The clip's own words first (YouTube title, else the caption's first line), the file label last.
-      title: r.edits.find((e) => e.title?.trim())?.title?.trim() || r.captionLines[0] || r.label,
-      meta: [platforms, first ? first.slot : "No time yet"].join(" · "),
-      durationS: r.durationS,
-      approvableIds: r.approvableIds,
-      blocked: r.approvableIds.length === 0,
     };
   });
 }

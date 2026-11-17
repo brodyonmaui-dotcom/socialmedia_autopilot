@@ -41,7 +41,7 @@ export function ChoiceRow({
       </span>
       <span className="min-w-0">
         <span className="block text-[16px] font-medium leading-snug text-ds-text">{label}</span>
-        {description && <span className="mt-0.5 block ds-mono leading-snug text-ds-faint">{description}</span>}
+        {description && <span className="mt-0.5 block text-[13px] leading-snug text-ds-muted">{description}</span>}
       </span>
     </label>
   );

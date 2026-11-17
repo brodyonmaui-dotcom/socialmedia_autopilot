@@ -68,7 +68,7 @@ New tokens:
 - No bottom tab bar, no "More" page, no footer band.
 
 ## Core components
-Keep and restyle by tokens: `Button` (solid ink, outline, ghost, icon; sentence-case labels, 8 px radius), `Badge`, `Chip`, `Toggle`, `Checkbox`, `Radio`, `Input`, `Select`, `Stepper`, `ProgressBar`, `Sheet`, `EmptyState`, `Tooltip`, `PlatformLogo`, `ThemeToggle`, `Sparkline`, `AreaChart`, `Donut`, `MiniBars`.
+Kept and restyled by tokens: `Button` (solid ink, outline, ghost, icon; sentence-case labels, 8 px radius), `Badge`, `Chip`, `Toggle`, `Checkbox`, `Input`, `Select`, `Stepper`, `Sheet` / `ConfirmSheet`, `EmptyState`, `PlatformLogo`, `ThemeToggle`, `TabLinks` / `SegmentBar`.
 
 New:
 - `AppShell` v3 (top bar + sidebar + `<main>`), `Sidebar`, `TopBar`, `IconButton` (with `badge`), `CommandPalette`, `NotificationsPopover`.
@@ -78,9 +78,20 @@ New:
 - `Card` (title in display, optional right-side action or `Menu`), `StatTile` (icon, label, number, delta "▲ 12% vs last week" in accent or muted; optional tint), `Thumb` (9:16 poster from `/app/media/poster/<mediaId>`, 8 px radius, neutral placeholder with a film icon when missing; never a striped pattern).
 - `PostCard` (compact, horizontal; see Calendar).
 - `BarChart` (per-day bars, optional stacked series, value on hover/focus and in a visually hidden table), `LineChart` (multi-series with legend), `HeatRow` if needed. Charts have y-axis ticks in Inter 11 px, no gradients, 2 px lines, bars with 3 px top radius.
-- `DataRow` (icon or thumb, title, meta, right-side value or action) for list cards.
+- `DataRow` (icon or thumb, title, meta, right-side value or action) for list cards; `external` opens a platform permalink in a new tab (`rel="noopener noreferrer"`), `wrapMeta` lets a long meta line wrap instead of ending in an ellipsis. `InlineNotice` is the one-line status strip (info / warn / danger, optional link).
 
-Removed (delete the files and their exports): `GridLines`, `NoiseOverlay`, `Marquee`, `FooterBand`, `Display`, `Readout`, `StatusPulse`, `RevealList`, `GlassCard`, `Statement`, `StatusBars`, `SectionHead`, `SiteHeader`, `TabBar`, `HeaderMenu`, `FramedImage` (replaced by `Thumb` / a plain rounded `<video>`), and the `/design` page.
+Generic pieces added while building the screens:
+- `Textarea`: the `Input` look for multi-line text (16 px so iOS doesn't zoom, vertical resize only, label / helper / error wiring).
+- `ChipLink`: a filter chip that is a link (44 px on phones, 36 px from lg; current = raised well with `aria-current`, optional count).
+- `Chip size="sm"`: a quiet 24 px tag (12 px text) for dense grids such as library cards.
+- `CheckButton`: a submit button that looks like a labelled checkbox (`aria-pressed`), for "tick it and it's saved" rows (Research "Used").
+- `CopyButton`: copies text; the label reads "Copied" (announced) for 2 s; optional `onCopied` server action.
+- `MenuItem.scroll`: `false` on a link item keeps the scroll position (URL-driven dialogs such as `?move=`).
+- `LineChart`: client readout on hover / tap / focus (guide line, a dot per series, tooltip; arrow keys, Home / End, Esc); `xTitles` are the full day labels for the tooltip and hidden table; `baseline="auto"` fits the y axis to the data (followers), default starts at 0.
+- `BarChart` (and `LineChart`) `labelEvery`: show every nth x label plus the last, for 30–60 day ranges on a phone.
+- `Toggle` and `Checkbox` text: label 15 px Inter 600, description 13 px muted (the helper size); `Input` helpers are 13 px muted too.
+
+The v2 components, the `/design` page, the v2 alias utilities (`ds-caps`, `ds-mono`, `ds-serif`, `ds-stroke`, `ds-display`) and the unused generic ones (`Tooltip`, `Sparkline` / `AreaChart` / `MiniBars`, `Donut`, `ProgressBar`, `Radio`, `Slider`, `PageDots`, `ListRow`, `MonthCalendar`, `AlertCard`, client `Tabs`) were removed in run 4; `v2-static-scan.test.ts` keeps the v2 ones out.
 
 ## Screens
 Routes are under the `/app` base path. Old routes redirect: `/batches` and `/batches/[id]` → `/calendar` (the latter with `?d=<week start>&view=week`), `/alerts` → `/notifications`, `/more` and `/more/settings` → `/settings`, `/handoff` → `/platforms/snapchat`, `/touch-up` → `/library/touch-up`.
@@ -120,19 +131,25 @@ Tabs as links: Ideas · Hooks · Creators · Already used.
 
 ### Library `/library`, `/library/touch-up`
 - Library: search field, filter Dropdown (pillar, status), a responsive grid of `Thumb` cards (2 columns on phone, 6 on desktop) with title, duration and tags (e.g. "No sound yet").
-- Touch-up: only clips with a real issue. Each card: Thumb, the issue in plain words, "Fix it" (solid) and "Dismiss"; a "Fix all N" button on top. After a fix: before → after thumbs and durations, "Keep the fix" / "Keep the original". "Find in library" links to `/library?q=<label>` and highlights the clip.
+- Touch-up: `PageHeader` "Touch-up", subtitle "N clips need a touch-up. Originals are always kept." (empty: "Clips with something to fix show up here."). Only clips with a real issue. Each card: Thumb, the issue in plain words, "Fix it" (solid) and "Dismiss"; a "Fix all N" button on top. After a fix: before → after thumbs and durations, "Keep the fix" / "Keep the original". "Find in library" links to `/library?q=<label>` and highlights the clip.
 
 ### Platforms `/platforms/[platform]`
 One page per platform: how posts go out (one sentence), connection and token health, today's count against the daily cap, the next 5 scheduled posts, the engagement mode, links to its analytics and (Snapchat) the share-sheet handoff with the video preview, "Share to Snapchat", "Mark posted", "Skip today".
 
 ### Settings `/settings`
-Sections as cards: Daily posts per platform (Steppers), Replies (per-platform mode: Off / Drafts only / Auto; DM drafts toggle; pause-all switch), Promo-spam accounts (list + add), Research (refresh schedule, AI notes toggle with the monthly budget shown), Notifications (push enable + test), Appearance (Day / Night), Security (Log out everywhere, with confirm). Anything that changes what goes public or costs money shows "Needs your OK in chat" instead of a live control.
+Sections as cards: Daily posts per platform (Steppers), Replies (per-platform mode: Off / Drafts only / Auto; DM drafts toggle; pause-all switch), Promo-spam accounts (list + add), Research (refresh schedule, AI notes toggle with the monthly budget shown), Notifications (push enable + test), Appearance (Day / Night), Security (Log out everywhere, with confirm: it signs out every session, this device too; passkeys stay registered. The full lost-phone revoke, passkeys included, is the server command in the runbook). Anything that changes what goes public or costs money shows "Needs your OK in chat" instead of a live control.
 
 ### Notifications `/notifications`
-Open / Acknowledged filter; rows with icon, message, age, Acknowledge; "Acknowledge all" via confirm.
+Open / Acknowledged filter; rows with icon, message, age, Acknowledge; "Acknowledge all" via confirm; one line linking to Settings for phone notifications.
 
 ### Login `/login`
 Centred card: logo in display, one solid "Use passkey" button. No shell.
 
+## Decisions made while building
+- **One solid button per card or view section**, not per page. Touch-up may show "Fix all N" in the header and "Keep the fix" inside a review card.
+- **Home range:** Last 7 days is the default (also when `?range=` is missing or unknown).
+- **Push setup lives in Settings only.** `/notifications` links there with one line ("Phone notifications: Settings").
+- **"Log out everywhere"** signs out sessions only; passkeys stay. Revoking passkeys is the server command.
+
 ## Review checklist (per screen, before commit)
-Phone 390 px and desktop 1440 px, Day and Night: no horizontal scroll; no clipped or overlapping text; equal card heights in a row; one solid button per view; empty state present; hard rules 1–9 hold.
+Phone 390 px and desktop 1440 px, Day and Night: no horizontal scroll; no clipped or overlapping text; equal card heights in a row; one solid button per card or view section; empty state present; hard rules 1–9 hold.

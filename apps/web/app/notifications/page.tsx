@@ -1,22 +1,20 @@
+import Link from "next/link";
 import { AppFrame } from "../../components/AppFrame.js";
-import { ButtonLink, Card, EmptyState, PageHeader, TabLinks } from "../../components/ui/index.js";
+import { ButtonLink, Card, EmptyState, FOCUS, PageHeader, TabLinks, cx } from "../../components/ui/index.js";
 import { getPool } from "../../lib/db.js";
 import { requireSession } from "../../lib/auth/require.js";
 import { ACK_WINDOW_DAYS, countByKind, kindLabel, listAlerts, parseKind, parseState } from "../../lib/alerts/queries.js";
 import { ackAllCopy, alertsHref, plural, stateTabs, total } from "../../lib/alerts/view.js";
 import { relativeTime } from "../../lib/engagement/queries.js";
-import { countActiveSubscriptions } from "../../lib/push/subscriptions.js";
-import { AckAllSheet } from "../alerts/ui/AckAllSheet.js";
-import { AlertCard } from "../alerts/ui/AlertCard.js";
-import { EnablePush } from "../alerts/ui/EnablePush.js";
-import { isVapidPublicKey } from "../alerts/ui/push-client.js";
+import { AckAllSheet } from "../../components/notifications/AckAllSheet.js";
+import { AlertRow } from "../../components/notifications/AlertRow.js";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Notifications · My Socials" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-/** Notifications (replaces /alerts): Open / Acknowledged, one row per alert, Acknowledge all via confirm, push setup. */
+/** Notifications (replaces /alerts): Open / Acknowledged, one row per alert, Acknowledge all via confirm; push setup lives in Settings. */
 export default async function NotificationsPage({ searchParams }: { searchParams: SearchParams }) {
   await requireSession();
   const sp = await searchParams;
@@ -24,14 +22,11 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   const kind = parseKind(sp.kind); // unknown value → unfiltered
   const pool = getPool();
   const now = new Date();
-  const [counts, openCounts, alerts, devices] = await Promise.all([
+  const [counts, openCounts, alerts] = await Promise.all([
     countByKind(pool, state, now),
     state === "open" ? null : countByKind(pool, "open", now),
     listAlerts(pool, { state, kind, now }),
-    countActiveSubscriptions(pool),
   ]);
-  // Runtime env (not NEXT_PUBLIC_*): the public key is safe to send; the private key never leaves the worker.
-  const vapid = process.env.VAPID_PUBLIC_KEY?.trim();
   const openTotal = total(openCounts ?? counts);
   // "Acknowledge all" sends exactly the ids rendered below (alerts that arrive later stay open).
   const shownIds = state === "open" ? alerts.map((a) => a.id) : [];
@@ -78,15 +73,18 @@ export default async function NotificationsPage({ searchParams }: { searchParams
           ) : (
             <ol aria-label={state === "open" ? "Open alerts" : "Acknowledged alerts"} className="flex flex-col divide-y divide-ds-line">
               {alerts.map((a) => (
-                <AlertCard key={a.id} alert={a} when={relativeTime(a.createdAt, now)} ackWhen={a.acknowledgedAt ? relativeTime(a.acknowledgedAt, now) : undefined} />
+                <AlertRow key={a.id} alert={a} when={relativeTime(a.createdAt, now)} ackWhen={a.acknowledgedAt ? relativeTime(a.acknowledgedAt, now) : undefined} />
               ))}
             </ol>
           )}
         </Card>
 
-        <section id="push" aria-labelledby="push-title">
-          <EnablePush vapidPublicKey={isVapidPublicKey(vapid) ? vapid : null} activeCount={devices} />
-        </section>
+        <p className="text-[15px] text-ds-muted">
+          Phone notifications:{" "}
+          <Link href="/settings#push" className={cx("inline-flex min-h-11 items-center rounded-ds-sm font-semibold text-ds-accent-fg underline-offset-4 hover:underline lg:min-h-9", FOCUS)}>
+            Settings
+          </Link>
+        </p>
       </div>
     </AppFrame>
   );

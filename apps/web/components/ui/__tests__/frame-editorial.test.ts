@@ -1,44 +1,15 @@
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Display } from "../Display.js";
-import { FooterBand } from "../FooterBand.js";
-import { GridLines } from "../GridLines.js";
 import { IconButton, badgeText, labelWithCount } from "../IconButton.js";
-import { Marquee } from "../Marquee.js";
-import { NoiseOverlay } from "../NoiseOverlay.js";
 import { NotificationsPopover } from "../NotificationsPopover.js";
 import { PageHeader, Wordmark } from "../PageHeader.js";
-import { SectionHead } from "../SectionHead.js";
 import { MenuButton, Sidebar, SidebarProvider } from "../Sidebar.js";
-import { StatusPulse } from "../StatusPulse.js";
 import { ThemeToggle } from "../ThemeToggle.js";
 import { sidebarNav } from "../../app-nav.js";
 
 const count = (html: string, s: string) => html.split(s).length - 1;
 const noop = async () => {};
-
-describe("v2 decoration is gone (hard rules 2 and 3)", () => {
-  it("GridLines, NoiseOverlay, Marquee and FooterBand render nothing", () => {
-    expect(renderToStaticMarkup(h(GridLines))).toBe("");
-    expect(renderToStaticMarkup(h(NoiseOverlay))).toBe("");
-    expect(renderToStaticMarkup(h(Marquee, { items: [{ text: "Instagram" }], label: "x" }))).toBe("");
-    expect(renderToStaticMarkup(h(FooterBand, { link: { href: "/", label: "Home" }, status: "s", meta: "m" }))).toBe("");
-  });
-  it("StatusPulse is a static dot (no animation), never green", () => {
-    const html = renderToStaticMarkup(h(StatusPulse, { label: "On" }));
-    expect(html).not.toContain("animate");
-    expect(html).toContain("bg-ds-accent");
-    expect(html).not.toMatch(/green/i);
-  });
-  it("Display and SectionHead put the whole phrase in one font (no serif word, no outline, no index)", () => {
-    const d = renderToStaticMarkup(h(Display, { lines: [{ text: "Week 47", style: "stroke" }, { text: "approved", style: "serif" }] }));
-    expect(d).toBe('<h1 class="ds-title text-ds-text">Week 47 approved</h1>');
-    const s = renderToStaticMarkup(h(SectionHead, { index: "02", title: "Up", serif: "next" }));
-    expect(s).toContain(">Up next<");
-    expect(s).not.toContain("02");
-  });
-});
 
 describe("PageHeader / Wordmark", () => {
   it("display title, sans subtitle, right slot", () => {

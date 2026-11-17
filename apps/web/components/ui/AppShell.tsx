@@ -2,19 +2,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { CommandPalette } from "./CommandPalette.js";
 import { cx, FOCUS } from "./cx.js";
-import type { IconName } from "./Icon.js";
 import { IconLink } from "./IconButton.js";
 import { NotificationsPopover, type NotificationItem } from "./NotificationsPopover.js";
 import { Wordmark } from "./PageHeader.js";
-import type { Platform } from "./PlatformLogo.js";
 import { MenuButton, Sidebar, SidebarProvider, type SidebarEntry } from "./Sidebar.js";
 import type { Theme } from "./theme.js";
 import { ThemeToggle } from "./ThemeToggle.js";
-
-/** @deprecated v2 tab shape (SiteHeader / TabBar). The v3 shell uses SidebarEntry. */
-export type NavItem = { id: string; label: string; href: string; icon: IconName; badge?: number };
-/** @deprecated v1 sidebar account row. */
-export type AccountRow = { label: string; value: string; tone?: "accent" | "warn" | "muted"; href?: string; platform?: Platform };
 
 type Action = (fd: FormData) => void | Promise<void>;
 

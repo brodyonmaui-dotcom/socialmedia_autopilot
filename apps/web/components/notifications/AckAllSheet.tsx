@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ConfirmSheet, Icon, cx } from "../../../components/ui/index.js";
-import { acknowledgeShownAction } from "../actions.js";
+import { ConfirmSheet, Icon, cx } from "../ui/index.js";
+import { acknowledgeShownAction } from "../../app/alerts/actions.js";
 
 export interface AckAllCopy {
   trigger: string;

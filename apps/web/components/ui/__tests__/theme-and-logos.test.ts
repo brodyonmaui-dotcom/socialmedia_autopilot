@@ -1,7 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { MonthCalendar } from "../MonthCalendar.js";
 import { PlatformLogo, type Platform } from "../PlatformLogo.js";
 import { otherTheme, parseTheme, themeCookie } from "../theme.js";
 
@@ -31,16 +30,5 @@ describe("PlatformLogo", () => {
     const html = renderToStaticMarkup(createElement(PlatformLogo, { platform: "tiktok", title: "TikTok" }));
     expect(html).toContain('role="img"');
     expect(html).toContain('aria-label="TikTok"');
-  });
-});
-
-describe("MonthCalendar weekStartsOn", () => {
-  const headers = (html: string) => [...html.matchAll(/abbr="(\w+)"/g)].map((m) => m[1]);
-  it("is Monday-first by default and Sunday-first on request", () => {
-    const mon = renderToStaticMarkup(createElement(MonthCalendar, { year: 2026, month0: 10 }));
-    const sun = renderToStaticMarkup(createElement(MonthCalendar, { year: 2026, month0: 10, weekStartsOn: 0 }));
-    expect(headers(mon)[0]).toBe("Monday");
-    expect(headers(sun)[0]).toBe("Sunday");
-    expect(headers(sun)[6]).toBe("Saturday");
   });
 });

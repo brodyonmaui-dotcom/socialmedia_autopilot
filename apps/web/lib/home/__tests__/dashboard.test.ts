@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { EditorRender } from "../../editor/view.js";
 import {
   activityBars,
   buildKpis,
   deltaOf,
-  editorTiles,
   gainRows,
   hasActivity,
   kpiText,
@@ -147,33 +145,7 @@ describe("this week", () => {
   });
 });
 
-describe("editor and reply tiles", () => {
-  const render = (n: number, approvable: string[]): EditorRender =>
-    ({
-      key: `b:m${n}`,
-      batchId: "b",
-      mediaId: `m${n}`,
-      label: `Clip ${n}`,
-      durationS: 30,
-      pillar: "gym",
-      source: null,
-      captionLines: [],
-      lines: [
-        { itemId: "i1", platform: "instagram", slot: "No slot", blocked: false, blockReason: null },
-        { itemId: "i2", platform: "youtube", slot: "Tomorrow 18:30", blocked: false, blockReason: null },
-      ],
-      chips: [],
-      itemIds: ["i1", "i2"],
-      approvableIds: approvable,
-      edits: [],
-      newest: "2026-11-18T00:00:00Z",
-    }) as EditorRender;
-  it("max 4 editor tiles; meta = platforms + first slot; blocked when nothing approvable", () => {
-    const t = editorTiles([1, 2, 3, 4, 5].map((n) => render(n, n === 2 ? [] : ["i1"])));
-    expect(t).toHaveLength(4);
-    expect(t[0]).toMatchObject({ title: "Clip 1", meta: "Instagram, YouTube · Tomorrow 18:30", blocked: false });
-    expect(t[1]!.blocked).toBe(true);
-  });
+describe("reply tiles", () => {
   it("max 4 reply tiles; empty drafts become null (Open only)", () => {
     const rows = [1, 2, 3, 4, 5].map((n) => ({ commentId: `c${n}`, platform: "instagram", authorHandle: n === 1 ? null : `gym_fan_${n}`, text: "nice", commentedAt: "2026-11-18T00:00:00Z", draft: n === 2 ? "  " : "Thanks!" }));
     const r = replyTiles(rows);

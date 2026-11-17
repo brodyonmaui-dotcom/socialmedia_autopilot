@@ -31,8 +31,8 @@ import { loadResearchStatus } from "../../lib/research/ideas.js";
 import { loadCaps } from "../../lib/settings/caps.js";
 import { aiNotesLine, lastRunLine, PING_LABEL, PINGS, REPLY_PLATFORMS, shortDate, zoneNotice } from "../../lib/settings/replies.js";
 import { capHelper } from "../../lib/settings/view.js";
-import { EnablePush } from "../alerts/ui/EnablePush.js";
-import { isVapidPublicKey } from "../alerts/ui/push-client.js";
+import { EnablePush } from "../../components/notifications/EnablePush.js";
+import { isVapidPublicKey } from "../../components/notifications/push-client.js";
 import { logoutEverywhereAction, removePromoAccountAction, saveCapsAction, setPingsAction } from "./actions.js";
 
 export const dynamic = "force-dynamic";

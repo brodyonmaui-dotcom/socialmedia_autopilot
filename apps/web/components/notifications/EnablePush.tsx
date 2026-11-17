@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Card, Chip, Icon, StatusPulse, cx } from "../../../components/ui/index.js";
-import { pushPulse } from "../../../lib/alerts/view.js";
-import { sendTestAction, subscribeAction, unsubscribeAction, type PushActionResult } from "../push-actions.js";
+import { Button, Card, Chip, Icon, cx } from "../ui/index.js";
+import { pushPulse } from "../../lib/alerts/view.js";
+import { sendTestAction, subscribeAction, unsubscribeAction, type PushActionResult } from "../../app/alerts/push-actions.js";
 import { SW_SCOPE, SW_URL, deviceLabel, pushSupport, urlBase64ToUint8Array, type PushSupport } from "./push-client.js";
 
 const HINT: Record<Exclude<PushSupport, "ok">, string> = {
@@ -12,6 +12,9 @@ const HINT: Record<Exclude<PushSupport, "ok">, string> = {
   unsupported: "This browser can't receive push notifications.",
   denied: "Notifications are blocked for this app. Allow them in Settings → Notifications, then come back.",
 };
+
+/** Static status dot (hard rule 2: nothing pulses); the word next to it carries the meaning. */
+const DOT = { accent: "bg-ds-accent", warn: "bg-ds-warn", muted: "bg-ds-muted" } as const;
 
 /**
  * "Enable notifications" (F8). The subscription is only ever created from a tap (iOS requires a user
@@ -94,7 +97,10 @@ export function EnablePush({ vapidPublicKey, activeCount }: { vapidPublicKey: st
     <Card title="Push notifications" titleId="push-title" subtitle="Urgent alerts are pushed to the phone: how many and what kind, never the alert text.">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-col gap-3">
-          <StatusPulse tone={pulse.tone} label={pulse.label} className="text-ds-text" />
+          <span className="inline-flex items-center gap-2 text-[15px] font-semibold text-ds-text">
+            <span aria-hidden="true" className={cx("size-2 shrink-0 rounded-full", DOT[pulse.tone])} />
+            {pulse.label}
+          </span>
           {support && support !== "ok" ? (
             <Chip tone="warn" wrap>
               {HINT[support]}

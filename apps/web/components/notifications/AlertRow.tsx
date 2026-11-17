@@ -1,13 +1,13 @@
-import { Button, ButtonLink, Icon, PlatformLogo, cx } from "../../../components/ui/index.js";
-import { kindLabel, type AlertView } from "../../../lib/alerts/queries.js";
-import { isUrgent, shownMessage, sourceGlyph } from "../../../lib/alerts/view.js";
-import { acknowledgeAction } from "../actions.js";
+import { Button, ButtonLink, Icon, PlatformLogo, cx } from "../ui/index.js";
+import { kindLabel, type AlertView } from "../../lib/alerts/queries.js";
+import { isUrgent, shownMessage, sourceGlyph } from "../../lib/alerts/view.js";
+import { acknowledgeAction } from "../../app/alerts/actions.js";
 
 /**
  * One alert as a list row inside the Notifications card: icon, kind label, the message (plain text, as
  * stored: writers sanitise at write time), source + age, then Acknowledge (open alerts) and "Open in calendar".
  */
-export function AlertCard({ alert, when, ackWhen }: { alert: AlertView; index?: number; when: string; ackWhen?: string }) {
+export function AlertRow({ alert, when, ackWhen }: { alert: AlertView; index?: number; when: string; ackWhen?: string }) {
   const open = !alert.acknowledgedAt;
   const urgent = isUrgent(alert.kind) && open;
   const src = sourceGlyph(alert.source);

@@ -48,7 +48,7 @@ export function FieldShell({
 }) {
   return (
     <div className={cx("flex flex-col gap-1.5", className)}>
-      <label htmlFor={fieldId} className={cx("ds-caps text-ds-muted", hideLabel && "sr-only")}>
+      <label htmlFor={fieldId} className={cx("ds-label text-ds-muted", hideLabel && "sr-only")}>
         {label}
       </label>
       {children}
@@ -59,7 +59,7 @@ export function FieldShell({
         </p>
       )}
       {helper && (
-        <p id={helperId} className="ds-mono text-ds-faint">
+        <p id={helperId} className="text-[13px] leading-snug text-ds-muted">
           {helper}
         </p>
       )}
