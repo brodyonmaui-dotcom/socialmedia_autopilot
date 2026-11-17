@@ -1,5 +1,6 @@
 import type { Platform } from "@autopilot/core";
-import { Chip, FOCUS, Icon, cx } from "../ui/index.js";
+import Link from "next/link";
+import { FOCUS, Icon, cx } from "../ui/index.js";
 import type { PlatformPostRow } from "../../lib/analytics/platform.js";
 import { clock, fmtInt, fmtRate, shortDay, type PostSort } from "../../lib/analytics/present.js";
 import { PostLead } from "./PostRows.js";
@@ -33,16 +34,16 @@ export function PostsTable({
         <thead>
           <tr className="border-b border-ds-line">
             <th scope="col" className={th} aria-sort={sort === "date" ? "descending" : undefined}>
-              <a href={sortHref("date")} className={cx("-ml-1 inline-flex min-h-11 items-center gap-1 rounded-ds-sm px-1 hover:text-ds-text lg:min-h-8", sort === "date" && "text-ds-text", FOCUS)}>
+              <Link href={sortHref("date")} className={cx("-ml-1 inline-flex min-h-11 items-center gap-1 rounded-ds-sm px-1 hover:text-ds-text lg:min-h-8", sort === "date" && "text-ds-text", FOCUS)}>
                 Post · newest
                 {sort === "date" ? <Icon name="chevronDown" size={14} /> : null}
-              </a>
+              </Link>
             </th>
             <th scope="col" className={cx(th, "pl-3 text-right")} aria-sort={sort === "views" ? "descending" : undefined}>
-              <a href={sortHref("views")} className={cx("-mr-1 inline-flex min-h-11 items-center gap-1 rounded-ds-sm px-1 hover:text-ds-text lg:min-h-8", sort === "views" && "text-ds-text", FOCUS)}>
+              <Link href={sortHref("views")} className={cx("-mr-1 inline-flex min-h-11 items-center gap-1 rounded-ds-sm px-1 hover:text-ds-text lg:min-h-8", sort === "views" && "text-ds-text", FOCUS)}>
                 Views
                 {sort === "views" ? <Icon name="chevronDown" size={14} /> : null}
-              </a>
+              </Link>
             </th>
             <th scope="col" className={cx(th, "pl-3 text-right")}>
               Eng.<span className="sr-only">agement rate</span>
@@ -76,7 +77,7 @@ export function PostsTable({
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ds-muted">
                       <span className="ds-num">{shortDay(days[p.accountPostId] ?? p.publishedAt.slice(0, 10))}</span>
                       {p.durationS != null ? <span className="ds-num">· {clock(p.durationS)}</span> : null}
-                      {p.byHand ? <Chip className="h-6 px-2 text-[12px]">Posted by hand</Chip> : null}
+                      {p.byHand ? <span>· Posted by hand</span> : null}
                     </span>
                   </span>
                   <span className="sr-only"> (opens in a new tab)</span>
