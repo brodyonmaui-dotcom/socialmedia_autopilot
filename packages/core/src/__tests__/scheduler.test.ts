@@ -116,7 +116,7 @@ describe("assignSlots", () => {
 });
 
 describe("assignSlots: F15 editor slotting (window / sameDay / flex grid)", () => {
-  const caps5 = DEFAULT_CADENCE; // 5/day IG/YT/TikTok
+  const caps5 = normalizeCadence({ dailyCaps: { instagram: 5, youtube: 5, tiktok: 5, snapchat: 1 } }); // a stored 5/day row (defaults are 6/10/7)
   const TUE = "2026-11-10";
   const day = (ymd: string, from = "00:00") => ({ notBefore: localToUtc(ymd, from, TZ).toISOString(), notAfter: localToUtc(addCalendarDays(ymd, 1), "00:00", TZ).toISOString() });
   const gridPosts = (ymd: string, platform: Platform) => daySlotTimes(caps5).map((t) => ({ platform, scheduledFor: localToUtc(ymd, t, TZ).toISOString() }));
