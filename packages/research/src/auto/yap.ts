@@ -69,7 +69,7 @@ export function parseYapScripts(markdown: string, prefix = "yap-2026-11-16"): Ya
     ideas.push({
       sourceKey,
       number,
-      title: `Yap #${number} · ${heading}`.slice(0, 140),
+      title: `Yap #${number} · ${heading.replace(/\{\{\s*(\w+)\s*\}\}/g, "$1")}`.slice(0, 140),
       lane,
       pillar,
       hook,

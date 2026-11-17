@@ -50,6 +50,9 @@ export function LineChart({
   const lo = ticks[0]!;
   const hi = ticks[ticks.length - 1]!;
   const titles = xTitles ?? xLabels;
+  // Compact ticks ("1.3k") unless that makes two ticks read the same (a fitted axis): then full numbers.
+  const compact = ticks.map((t) => compactNumber(t));
+  const tickText = new Set(compact).size === compact.length ? compact : ticks.map((t) => fullNumber(t));
   const xPct = (i: number) => (n <= 1 ? 50 : (i / (n - 1)) * 100);
 
   const [active, setActive] = useState<number | null>(null);
@@ -89,9 +92,9 @@ export function LineChart({
     <figure className={cx("flex min-w-0 flex-col gap-3", className)}>
       <div className="flex min-w-0 gap-2">
         <div className="relative w-9 shrink-0" style={{ height }} aria-hidden="true">
-          {ticks.map((t) => (
-            <span key={t} className="ds-num absolute right-0 text-[11px] leading-none text-ds-muted" style={{ bottom: `${pctIn(t, lo, hi)}%`, transform: "translateY(50%)" }}>
-              {compactNumber(t)}
+          {ticks.map((t, i) => (
+            <span key={t} className="ds-num absolute right-0 whitespace-nowrap text-[11px] leading-none text-ds-muted" style={{ bottom: `${pctIn(t, lo, hi)}%`, transform: "translateY(50%)" }}>
+              {tickText[i]}
             </span>
           ))}
         </div>

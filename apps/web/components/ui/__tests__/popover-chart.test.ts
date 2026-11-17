@@ -2,7 +2,7 @@ import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { BarChart } from "../BarChart.js";
-import { compactNumber, fullNumber, linePoints, niceTicks, pct, stackTotal } from "../chart-scale.js";
+import { compactNumber, fullNumber, linePoints, lineSegments, niceRange, niceTicks, pct, pctIn, stackTotal } from "../chart-scale.js";
 import { isPaletteShortcut } from "../CommandPalette.js";
 import { LineChart } from "../LineChart.js";
 import { nextIndex, placePanel } from "../popover-position.js";
@@ -116,3 +116,27 @@ describe("charts (server markup)", () => {
 });
 
 const count = (html: string, s: string) => html.split(s).length - 1;
+
+describe("line chart scale (auto baseline, gaps)", () => {
+  it("niceRange fits the axis around the data, never below 0 for counts", () => {
+    expect(niceRange([1712, 1754])).toEqual([1700, 1720, 1740, 1760]);
+    expect(niceRange([5, 5])[0]).toBeGreaterThanOrEqual(0);
+    expect(niceRange([null])).toEqual([0, 1]);
+    expect(pctIn(15, 10, 20)).toBe(50);
+  });
+  it("lineSegments breaks the line at nulls instead of dropping to 0", () => {
+    expect(lineSegments([0, null, 100, 100], 0, 100, 300, 100)).toEqual(["0,100", "200,0 300,0"]);
+  });
+  it("LineChart: plot is focusable for reading values; nulls make gaps", () => {
+    const html = renderToStaticMarkup(
+      h(LineChart, { series: [{ id: "a", label: "A", platform: "instagram" as const }], values: { a: [1, null, 3, 4] }, xLabels: ["w", "x", "y", "z"], label: "F", unit: "followers", baseline: "auto" }),
+    );
+    expect(html).toContain('tabindex="0"');
+    expect(count(html, "<polyline")).toBe(2);
+  });
+  it("LineChart: a fitted axis whose compact ticks would repeat shows full numbers", () => {
+    const html = renderToStaticMarkup(h(LineChart, { series: [{ id: "a", label: "A" }], values: { a: [1282, 1371] }, xLabels: ["x", "y"], label: "F", unit: "followers", baseline: "auto" }));
+    expect(html).toContain(">1,300<");
+    expect(html).not.toContain(">1.3k<");
+  });
+});

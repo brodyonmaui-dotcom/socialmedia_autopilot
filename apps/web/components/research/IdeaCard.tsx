@@ -28,7 +28,7 @@ export function IdeaCard({ idea, back, hrefWith }: { idea: IdeaRow; back: string
           </div>
         ) : null}
       </div>
-      <h3 id={titleId} className="ds-heading mt-2 max-w-[34ch] text-ds-text [overflow-wrap:anywhere]">
+      <h3 id={titleId} className="ds-heading mt-2 max-w-[44ch] text-ds-text [overflow-wrap:anywhere]">
         {head.quoted ? <>&ldquo;{head.title}&rdquo;</> : head.title}
       </h3>
 

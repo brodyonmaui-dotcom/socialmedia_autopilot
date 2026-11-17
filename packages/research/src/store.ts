@@ -275,7 +275,7 @@ export async function listIdeaCards(pool: QueryPool, q: IdeaCardQuery): Promise<
     where.push(`i.source = $${params.length}`);
   }
   params.push(Math.max(1, Math.min(q.limit ?? 200, 500)));
-  const order = q.tab === "used" ? "i.used_at desc, i.created_at desc" : "(i.stage = 'scripted') desc, i.score desc nulls last, i.created_at desc, i.source_key";
+  const order = q.tab === "used" ? "i.used_at desc, i.created_at desc" : "(case i.source when 'creator' then 0 when 'niche' then 1 when 'manual' then 2 else 3 end), i.score desc nulls last, i.created_at desc, i.source_key";
   const { rows } = await pool.query(
     `select i.*, c.handle as creator_handle from ideas i left join creators c on c.id = i.source_creator_id
      where ${where.join(" and ")} order by ${order} limit $${params.length}`,
