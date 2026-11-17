@@ -58,7 +58,7 @@ describe("handoff actions", () => {
     });
   }
 
-  it("markPostedAction writes with the session id and revalidates /handoff", async () => {
+  it("markPostedAction writes with the session id and revalidates /platforms/snapchat", async () => {
     auth.requireSession.mockResolvedValue(SESSION);
     const fp = fakePool();
     db.getPool.mockReturnValue(fp.pool);
@@ -68,7 +68,7 @@ describe("handoff actions", () => {
     const ev = fp.calls.find((c) => /insert into batch_item_events/.test(c.sql))!;
     expect(ev.params).toContain("snap-posted");
     expect(ev.params).toContain(SESSION.id);
-    expect(nav.revalidatePath).toHaveBeenCalledWith("/handoff");
+    expect(nav.revalidatePath).toHaveBeenCalledWith("/platforms/snapchat");
   });
 
   it("skipAction refuses without TZ_CREATOR (no UTC guess) and never touches the pool", async () => {

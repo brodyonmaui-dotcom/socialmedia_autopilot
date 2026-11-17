@@ -1,4 +1,4 @@
-// Pure view logic for the Snapchat handoff page (app/handoff). No DB, no React. Tested in __tests__/view.test.ts.
+// Pure view logic for the Snapchat handoff (now on /platforms/snapchat). No DB, no React. Tested in __tests__/view.test.ts.
 import type { ActionResult, HandoffItem } from "./types.js";
 
 type Line = { text: string; style?: "solid" | "stroke" | "serif" };
@@ -54,11 +54,12 @@ export const durationLabel = (s: number | undefined): string | null => (s == nul
 
 /**
  * Visible label for the share button. The state machine (share-machine.ts) owns the action and the
- * enabled flag; this only renames: tap 1 "Prepare clip", tap 2 "Share to Snapchat · 2.5 MB".
+ * enabled flag; this only renames: tap 1 "Share to Snapchat" (downloads the clip), tap 2 "Share to Snapchat · 2.5 MB"
+ * (opens the share sheet inside a fresh tap, which iOS requires). The hint under the button says which tap is next.
  */
 export function shareLabel(machineLabel: string): string {
-  if (machineLabel === "Prepare") return "Prepare clip";
-  if (machineLabel === "Prepare again") return "Prepare again";
+  if (machineLabel === "Prepare") return "Share to Snapchat";
+  if (machineLabel === "Prepare again") return "Try again";
   if (machineLabel === "Share (blocked)") return "Share blocked";
   const mb = /^Share \(([\d.]+) MB\)$/.exec(machineLabel);
   if (mb) return `Share to Snapchat · ${mb[1]} MB`;
@@ -76,4 +77,13 @@ const NAME = { instagram: "Instagram", tiktok: "TikTok" } as const;
 /** Read-only suggestion row (nothing due): "2.4× the TikTok median · 12,400 views". */
 export function suggestionMeta(pick: { platform: keyof typeof NAME; score: number; views: number }): string {
   return `${pick.score.toFixed(1)}× the ${NAME[pick.platform]} median · ${pick.views.toLocaleString("en")} views`;
+}
+
+/** One line under the share button: what the next tap does. */
+export function shareHint(s: { kind: string; sizeMb?: string }): string | null {
+  if (s.kind === "idle") return "Two taps: the first gets the clip ready, the second opens the share sheet.";
+  if (s.kind === "preparing") return "Getting the clip ready…";
+  if (s.kind === "ready") return `Ready (${s.sizeMb} MB). Tap again to open the share sheet.`;
+  if (s.kind === "shared") return "Sent to the share sheet. Mark it posted once it's up.";
+  return null;
 }

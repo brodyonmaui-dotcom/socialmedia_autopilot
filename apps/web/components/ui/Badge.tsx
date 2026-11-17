@@ -47,24 +47,28 @@ export type ChipProps = HTMLAttributes<HTMLSpanElement> & {
   icon?: IconName;
   /** Sentence-length chip: wraps onto more lines (min 32 px tall, icon top-aligned) instead of nowrap. */
   wrap?: boolean;
+  /** `sm`: a quiet 24 px tag for dense grids (library cards); 12 px text, no icon unless given. */
+  size?: "md" | "sm";
   children: ReactNode;
 };
 
 /** 8 px-radius hairline tag (warnings, triage reason, "No sound yet"). Warn/danger default to the alert icon. */
-export function Chip({ tone = "neutral", icon, wrap = false, className, children, ...rest }: ChipProps) {
+export function Chip({ tone = "neutral", icon, wrap = false, size = "md", className, children, ...rest }: ChipProps) {
   const shown: IconName | undefined = icon ?? (tone === "warn" || tone === "danger" ? "alert" : undefined);
+  const sm = size === "sm" && !wrap;
   return (
     <span
       className={cx(
-        "inline-flex gap-1.5 rounded-ds-sm border bg-ds-card px-2.5 text-[13px]",
-        wrap ? "min-h-8 max-w-full items-start py-[8px] leading-[16px] [overflow-wrap:anywhere]" : "h-8 shrink-0 items-center whitespace-nowrap leading-none",
+        "inline-flex rounded-ds-sm border bg-ds-card",
+        sm ? "h-6 max-w-full gap-1 px-2 text-[12px]" : "gap-1.5 px-2.5 text-[13px]",
+        wrap ? "min-h-8 max-w-full items-start py-[8px] leading-[16px] [overflow-wrap:anywhere]" : cx(sm ? "min-w-0" : "h-8 shrink-0", "items-center whitespace-nowrap leading-none"),
         CHIP_TONE[tone],
         className,
       )}
       {...rest}
     >
-      {shown && <Icon name={shown} size={14} className={wrap ? "mt-px shrink-0" : undefined} />}
-      {wrap ? <span className="min-w-0">{children}</span> : children}
+      {shown && <Icon name={shown} size={sm ? 12 : 14} className={wrap ? "mt-px shrink-0" : "shrink-0"} />}
+      {wrap ? <span className="min-w-0">{children}</span> : sm ? <span className="min-w-0 overflow-hidden text-ellipsis">{children}</span> : children}
     </span>
   );
 }

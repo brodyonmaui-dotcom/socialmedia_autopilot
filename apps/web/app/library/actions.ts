@@ -20,7 +20,7 @@ async function guarded<T extends object>(name: string, fn: () => Promise<ActionR
     console.error(`library ${name} failed: ${(err as Error).name}`);
     out = { ok: false, reason: "something went wrong" };
   }
-  revalidatePath("/touch-up");
+  revalidatePath("/library/touch-up");
   revalidatePath("/library");
   return out;
 }

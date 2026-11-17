@@ -61,7 +61,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
     move: (key) => calendarHref(state, { day: state.day, move: key }),
     reject: (key) => calendarHref(state, { day: state.day, reject: key }),
     reset: (itemId) => calendarHref(state, { day: state.day, reset: itemId }),
-    handoff: "/handoff",
+    handoff: "/platforms/snapchat",
   };
   const dayHref = (day: string) => calendarHref(state, { day });
   const closeToDay = state.day ? calendarHref(state, { day: state.day }) : here;

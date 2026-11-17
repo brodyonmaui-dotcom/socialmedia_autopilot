@@ -19,6 +19,16 @@ describe("sidebarNav", () => {
     expect(nav.every((n) => n.badge === undefined)).toBe(true);
   });
 
+  it("Touch-up badge = clips with open touch-up issues; zero or unknown shows none", () => {
+    const touch = (c: Parameters<typeof sidebarNav>[0]) => sidebarNav(c).find((n) => n.id === "library")!.children!.find((c) => c.id === "library/touch-up")!.badge;
+    expect(touch({ touchUp: 4 })).toBe(4);
+    expect(touch({ touchUp: 0 })).toBeUndefined();
+    expect(touch({})).toBeUndefined();
+    expect(FRAME_COUNT_SQL.touchUp).toContain("@.severity == \"fix\"");
+    expect(FRAME_COUNT_SQL.touchUp).toContain("td.undone_at is null");
+    expect(FRAME_COUNT_SQL.touchUp).toContain("k.status in ('kept','discarded')");
+  });
+
   it("never says 'batch' or 'More'", () => {
     const words = sidebarNav().flatMap((n) => [n.label, ...(n.children ?? []).map((c) => c.label)]).join(" ");
     expect(words).not.toMatch(/batch|more/i);

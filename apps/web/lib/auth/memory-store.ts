@@ -81,6 +81,10 @@ export class MemoryAuthStore implements AuthStore {
     if (s && !s.revokedAt) s.revokedAt = new Date(now);
   }
 
+  async revokeAllSessions(now: Date): Promise<void> {
+    for (const s of this.sessions) if (!s.revokedAt) s.revokedAt = new Date(now);
+  }
+
   async revokeAll(now: Date): Promise<void> {
     for (const s of this.sessions) if (!s.revokedAt) s.revokedAt = new Date(now);
     for (const c of this.credentials) if (!c.revokedAt) c.revokedAt = new Date(now);

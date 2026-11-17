@@ -6,7 +6,7 @@ import { getPool } from "../../lib/db.js";
 import { dropItem, handoffContext, markPosted, skipToNextDay } from "../../lib/handoff/store.js";
 import type { ActionResult } from "../../lib/handoff/types.js";
 
-/** Runs a store write; DB errors become a fixed message (never echoed), then /handoff and home refresh. */
+/** Runs a store write; DB errors become a fixed message (never echoed), then the Snapchat page and home refresh. */
 async function run(name: string, fn: () => Promise<ActionResult>): Promise<ActionResult> {
   let out: ActionResult;
   try {
@@ -15,7 +15,7 @@ async function run(name: string, fn: () => Promise<ActionResult>): Promise<Actio
     console.error(`handoff ${name} failed: ${(err as Error).name}`);
     out = { ok: false, reason: "something went wrong" };
   }
-  revalidatePath("/handoff");
+  revalidatePath("/platforms/snapchat");
   revalidatePath("/");
   return out;
 }

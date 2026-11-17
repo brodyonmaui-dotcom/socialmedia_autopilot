@@ -24,6 +24,8 @@ export interface FrameCounts {
   /** DM threads waiting inside their 24 h window. */
   dmsOpen?: number;
   openAlerts?: number;
+  /** Clips with open Touch-up issues (same "flagged" as loadTouchUp). */
+  touchUp?: number;
 }
 
 const PLATFORM_LINKS = (base: string, idBase: string): NavLink[] => [
@@ -54,7 +56,7 @@ export function sidebarNav(counts: FrameCounts = {}): NavEntry[] {
       icon: "library",
       children: [
         { id: "library", label: "All clips", href: "/library" },
-        { id: "library/touch-up", label: "Touch-up", href: "/library/touch-up" },
+        { id: "library/touch-up", label: "Touch-up", href: "/library/touch-up", badge: badgeOf(counts.touchUp) },
       ],
     },
     { id: "platforms", label: "Platforms", href: "/platforms/instagram", icon: "platforms", children: PLATFORM_LINKS("/platforms", "platforms") },

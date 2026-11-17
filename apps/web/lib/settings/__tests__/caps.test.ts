@@ -22,6 +22,6 @@ describe("caps form", () => {
   it("helper says default or saved", () => {
     const base = { stored: {}, defaults: DEFAULT_CADENCE.dailyCaps, limits: CAP_LIMITS };
     expect(capHelper("instagram", base)).toBe("Default · max 25");
-    expect(capHelper("instagram", { ...base, stored: { instagram: 4 } })).toBe("Saved · default 5 · max 25");
+    expect(capHelper("instagram", { ...base, stored: { instagram: 4 } })).toBe("Saved · default 6 · max 25");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dailyProgress, heroLines, orderedChecklist, pulseFor, resultText, shareLabel, shareStep, suggestionMeta, todayMeta } from "../view.js";
+import { dailyProgress, heroLines, orderedChecklist, pulseFor, resultText, shareHint, shareLabel, shareStep, suggestionMeta, todayMeta } from "../view.js";
 
 const CHECKLIST = [
   "Share → Snapchat → Spotlight (not Story).",
@@ -49,7 +49,10 @@ describe("daily progress + hero", () => {
 
 describe("share button copy", () => {
   it("renames the machine labels without changing the two-tap flow", () => {
-    expect(shareLabel("Prepare")).toBe("Prepare clip");
+    expect(shareLabel("Prepare")).toBe("Share to Snapchat");
+    expect(shareLabel("Prepare again")).toBe("Try again");
+    expect(shareHint({ kind: "ready", sizeMb: "2.5" })).toBe("Ready (2.5 MB). Tap again to open the share sheet.");
+    expect(shareHint({ kind: "blocked" })).toBeNull();
     expect(shareLabel("Share (2.5 MB)")).toBe("Share to Snapchat · 2.5 MB");
     expect(shareLabel("Share (blocked)")).toBe("Share blocked");
     expect(shareLabel("Sharing…")).toBe("Sharing…");

@@ -27,6 +27,7 @@ export function DataRow({
   trailing,
   href,
   external = false,
+  wrapMeta = false,
   children,
   className,
 }: {
@@ -38,6 +39,8 @@ export function DataRow({
   href?: string;
   /** `href` leaves the app (a platform permalink): opens in a new tab with rel="noopener noreferrer". */
   external?: boolean;
+  /** Let a long meta line wrap instead of ending in an ellipsis (settings values, plain-word status lines). */
+  wrapMeta?: boolean;
   children?: ReactNode;
   className?: string;
 }) {
@@ -53,7 +56,9 @@ export function DataRow({
       {lead}
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="overflow-hidden text-ellipsis whitespace-nowrap text-[15px] font-semibold text-ds-text">{title}</span>
-        {meta != null && <span className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] text-ds-muted">{meta}</span>}
+        {meta != null && (
+          <span className={cx("mt-0.5 text-[13px] text-ds-muted", wrapMeta ? "leading-snug [overflow-wrap:anywhere]" : "overflow-hidden text-ellipsis whitespace-nowrap")}>{meta}</span>
+        )}
       </span>
     </>
   );
