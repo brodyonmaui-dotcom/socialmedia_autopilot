@@ -168,7 +168,7 @@ describe("platform page", () => {
     expect(sortPosts(rows, "views").map((r) => r.accountPostId)).toEqual(["c", "a", "b"]);
   });
   it("explains uncollected platforms without promising a form that isn't there", () => {
-    const t = notCollectedCopy("tiktok", "TikTok numbers aren't collected on the free plan. Add them by hand here or upgrade later.");
+    const t = notCollectedCopy("tiktok", "TikTok numbers aren't collected on the free plan. Check them in the TikTok app; a paid plan would let the app collect them.");
     expect(t.headline).toBe("TikTok numbers aren't collected on the free plan.");
     expect(t.turnOn).toContain("needs your OK");
     expect(notCollectedCopy("snapchat", "Snapchat has no metrics API. Check the numbers in the Snapchat app.").turnOn).toContain("Snapchat doesn't offer");

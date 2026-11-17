@@ -29,7 +29,7 @@ export const ALL_PLATFORMS: Platform[] = ["instagram", "youtube", "tiktok", "sna
 /** Platforms the account ingest collects. */
 export const COLLECTED: Platform[] = ["instagram", "youtube"];
 export const NOT_COLLECTED_REASON: Partial<Record<Platform, string>> = {
-  tiktok: "TikTok numbers aren't collected on the free plan. Add them by hand here or upgrade later.",
+  tiktok: "TikTok numbers aren't collected on the free plan. Check them in the TikTok app; a paid plan would let the app collect them.",
   snapchat: "Snapchat has no metrics API. Check the numbers in the Snapchat app.",
 };
 /** "What worked" always looks at this many days (short ranges hold too few posts to compare). */
