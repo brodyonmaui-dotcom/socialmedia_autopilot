@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { localDate, localHHMM, type CadenceSettings, type Platform } from "@autopilot/core";
 import type { LintResult } from "@autopilot/research";
-import type { QaResult, TouchUpOptions } from "@autopilot/media";
+import { qaAfterTouchUp, type QaResult, type TouchUpOptions } from "@autopilot/media";
 import { tryPoster, type PosterDeps } from "../poster.js";
 import { existingRange, ingestKey, planReadyItems, readyWindow, type PlannedItem, type ReadyExisting } from "./plan.js";
 import { parseSidecar, type Sidecar } from "./sidecar.js";
@@ -198,7 +198,7 @@ export async function runReady(d: ReadyDeps): Promise<ReadySummary> {
           width: qa.probe.width ?? null,
           height: qa.probe.height ?? null,
           pillar: sidecar.pillar,
-          qa,
+          qa: qaAfterTouchUp(qa), // touchUp already stripped metadata and normalised loudness
           capturedAt: qa.probe.capturedAt ?? null,
           posterKey,
         }),

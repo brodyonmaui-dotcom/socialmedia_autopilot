@@ -73,8 +73,8 @@ const summary = await runIngest({
     log: (line) => console.log(line),
     insert: async (params) => {
       await pool.query(
-        `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, qa, captured_at, poster_key)
-         values ($1, $2, $3, $4, $5, $6, $7, 'ready', $8, $9, $10)`,
+        `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, qa, captured_at, poster_key, qa_checked_at)
+         values ($1, $2, $3, $4, $5, $6, $7, 'ready', $8, $9, $10, now())`,
         params,
       );
     },
