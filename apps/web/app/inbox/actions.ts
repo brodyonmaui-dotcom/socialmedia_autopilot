@@ -9,7 +9,6 @@ import {
   blockAuthor,
   createManualAction,
   getComment,
-  INBOX_TABS,
   markDraftCopied,
   markHandled,
   promoteShadow,
@@ -19,6 +18,7 @@ import { setDmDrafts, setKilled, setMode } from "../../lib/engagement/settings.j
 import { approveAndSend, approveDepsFromEnv } from "../../lib/inbox/item.js";
 import { addPromoAccount, markNotSpam, removePromoAccount } from "../../lib/inbox/promo.js";
 import { setPings } from "../../lib/inbox/status.js";
+import { pathFrom } from "../../lib/inbox/view.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PLATFORMS: readonly EngagementPlatform[] = ["instagram", "youtube", "tiktok"];
@@ -29,13 +29,6 @@ class UserError extends Error {
 }
 
 const field = (fd: FormData | undefined, k: string) => (fd ? String(fd.get(k) ?? "") : "");
-
-/** Back to the tab the form came from (hidden "tab" field), else the flagged tab. */
-function pathFrom(fd: FormData | undefined): string {
-  const tab = field(fd, "tab");
-  if (tab === "dms") return "/inbox/dms";
-  return (INBOX_TABS as readonly string[]).includes(tab) && tab !== "flagged" ? `/inbox?tab=${tab}` : "/inbox";
-}
 
 /** Same pattern as research/actions.ts run(): errors come back as ?error=… (only our own messages). */
 async function run(path: string, fn: () => Promise<string | void>): Promise<void> {
@@ -164,9 +157,9 @@ export async function setDmDraftsAction(fd: FormData): Promise<void> {
 
 // ---- run 4: one-tap approve, promo list, pings ----
 
-/** Back to the item page by default (the push deep link), or to the list tab the form names. */
+/** Back to the item page by default (the push deep link), or to the list the form names (tab / filter). */
 function itemPath(commentId: string, fd: FormData | undefined): string {
-  return field(fd, "tab") ? pathFrom(fd) : `/inbox/item/${commentId}`;
+  return field(fd, "tab") || field(fd, "filter") ? pathFrom(fd) : `/inbox/item/${commentId}`;
 }
 
 /**
@@ -187,7 +180,7 @@ export async function approveAndSendAction(commentId: string, fd?: FormData): Pr
 /** "Always ignore this account" (kind = "comment" | "dm"). */
 export async function ignoreAccountAction(kind: string, id: string, fd?: FormData): Promise<void> {
   const session = await requireSession();
-  await run(kind === "dm" ? "/inbox/dms" : pathFrom(fd), async () => {
+  await run(pathFrom(fd, kind === "dm" ? "dms" : "comments"), async () => {
     if (!UUID.test(id) || (kind !== "comment" && kind !== "dm")) throw new UserError("unknown item");
     const r = await addPromoAccount(getPool(), kind === "dm" ? { threadId: id } : { commentId: id }, new Date());
     if (!r) throw new UserError("this item has no author to ignore");
@@ -198,7 +191,7 @@ export async function ignoreAccountAction(kind: string, id: string, fd?: FormDat
 /** "Not spam": one item back through normal triage; a rule-listed author comes off the list. */
 export async function notSpamAction(kind: string, id: string, fd?: FormData): Promise<void> {
   const session = await requireSession();
-  await run(kind === "dm" ? "/inbox/dms" : pathFrom(fd), async () => {
+  await run(pathFrom(fd, kind === "dm" ? "dms" : "comments"), async () => {
     if (!UUID.test(id) || (kind !== "comment" && kind !== "dm")) throw new UserError("unknown item");
     const r = await markNotSpam(getPool(), kind === "dm" ? { threadId: id } : { commentId: id }, new Date());
     if (!r.moved) return "already back in the inbox";

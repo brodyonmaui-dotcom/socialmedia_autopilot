@@ -6,7 +6,7 @@ import { getPool } from "../../lib/db.js";
 import { clearSessionCookie, getAuthStore, requireSession } from "../../lib/auth/require.js";
 import { writeEngagementAlert } from "../../lib/engagement/queries.js";
 import { setDmDrafts, setKilled, setMode } from "../../lib/engagement/settings.js";
-import { removePromoAccount } from "../../lib/inbox/promo.js";
+import { addPromoAccountByHandle, parsePromoHandle, removePromoAccount } from "../../lib/inbox/promo.js";
 import { setPings } from "../../lib/inbox/status.js";
 import { writeSettingsAudit } from "../../lib/settings/audit.js";
 import { parseCapsForm, updateCaps } from "../../lib/settings/caps.js";
@@ -115,6 +115,23 @@ export async function setPingsAction(fd: FormData): Promise<void> {
     const { before, after } = await setPings(pool, v as (typeof PINGS)[number]);
     if (before !== after) await writeSettingsAudit(pool, `reply pings ${before} → ${after}`);
     return after === "off" ? "Reply pings off" : after === "hourly" ? "Reply pings: once an hour" : "Reply pings: for each one";
+  });
+}
+
+/**
+ * "Add an account by handle" (form fields platform, handle). Same move as "Always ignore this account" on an
+ * inbox item: the account's open items go to Ignored and their pending replies are cancelled (sends less only).
+ */
+export async function addPromoAccountAction(fd: FormData): Promise<void> {
+  await requireSession();
+  await run("promo", async () => {
+    const parsed = parsePromoHandle(field(fd, "platform"), field(fd, "handle"));
+    if ("error" in parsed) throw new UserError(parsed.error);
+    const pool = getPool();
+    const r = await addPromoAccountByHandle(pool, parsed.platform, parsed.handle, new Date());
+    if (!r.added) return `@${parsed.handle} is already on the list`;
+    await writeSettingsAudit(pool, "promo account added to the always-ignore list", parsed.platform);
+    return `@${parsed.handle} added: the inbox ignores it from now on`;
   });
 }
 

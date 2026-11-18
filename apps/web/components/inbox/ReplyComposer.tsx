@@ -17,6 +17,7 @@ export function ReplyComposer({
   mode,
   draft,
   tab,
+  filter,
   error,
   size = "md",
   label = "Drafted reply",
@@ -26,6 +27,8 @@ export function ReplyComposer({
   mode: "approve" | "write";
   draft: string | null;
   tab?: string;
+  /** The list filter the form came from (hidden "filter" field; the action returns to that list). */
+  filter?: string;
   error?: string;
   size?: "md" | "lg";
   label?: string;
@@ -41,6 +44,7 @@ export function ReplyComposer({
     <div className="flex flex-col gap-3">
       <form id={formId} action={action}>
         {tab ? <input type="hidden" name="tab" value={tab} /> : null}
+        {filter ? <input type="hidden" name="filter" value={filter} /> : null}
         {open ? (
           <div className="rounded-ds-sm bg-ds-raised p-3">
             <Textarea

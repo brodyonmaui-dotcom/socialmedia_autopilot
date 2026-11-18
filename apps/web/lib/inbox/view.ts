@@ -193,7 +193,26 @@ export function inboxHref(kind: InboxKind, filter: InboxFilter, cursor?: string 
   return `${kind === "dms" ? "/inbox/dms" : "/inbox"}${s ? `?${s}` : ""}`;
 }
 
-/** Hidden "tab" form field so an action returns to (roughly) the list it came from. */
+const LEGACY_TAB_PATH: Record<string, string> = { shadow: "/inbox?tab=shadow", sent: "/inbox?tab=sent", dms: "/inbox/dms" };
+
+/**
+ * Where an inbox action redirects back to, from the form's hidden fields: "filter" (a filter id; "tab" = "dms"
+ * says the DMs list) wins, else the legacy "tab" value, else the list for `kind` (Needs you). Unknown values
+ * are ignored. Pure: reads the two fields only.
+ */
+export function pathFrom(fd: Pick<FormData, "get"> | undefined, kind: InboxKind = "comments"): string {
+  const get = (k: string) => {
+    const v = fd?.get(k);
+    return typeof v === "string" ? v : "";
+  };
+  const tab = get("tab");
+  const filter = get("filter");
+  const k: InboxKind = tab === "dms" ? "dms" : kind;
+  if ((FILTER_IDS as readonly string[]).includes(filter)) return inboxHref(k, filter as InboxFilter);
+  return LEGACY_TAB_PATH[tab] ?? inboxHref(k, "needs-you");
+}
+
+/** Hidden "tab" form field so an action returns to (roughly) the list it came from (the "filter" field is exact). */
 export function returnTab(kind: InboxKind, filter: InboxFilter): string {
   if (kind === "dms") return "dms";
   return filter === "drafted" ? "shadow" : filter === "sent" ? "sent" : "flagged";
