@@ -54,6 +54,15 @@ Plan the next run (always, before the final PR, even if the usage limit is near;
 At the end: open a PR with summary, per-item acceptance criteria, test results, what's NOT done, decisions, and a short "how to check it on my phone" list. If a SendUserFile tool exists, send the HTML report with status "proactive". Push notifications: at most two, one only if fully blocked on the creator, one when the PR is ready.
 ```
 
+## Token hygiene (the weekly limit goes fast; these are the cheap habits)
+- **Fresh session per task.** Context is re-sent on every turn, so a long chat costs more per message the longer it gets. Start a new session for each task; read `docs/STATE.md` instead of the history.
+- **Orchestrator chats get compacted or restarted** once a task is done (`/compact`, or a new session that starts from STATE.md and the last commit).
+- **Scouts summarize.** Lookups go to the Haiku `scout` with a word limit; the lead never reads whole packages or logs.
+- **Max 2–3 parallel agents.** More splits the same usage window and multiplies context loading for little gain.
+- **No screenshot spam.** One screenshot per changed screen, only when the change is visual; never commit screenshot series (they bloat every clone). Images in context are expensive.
+- **Don't re-read big docs.** `docs/research.md`, design docs and `docs/archive/` are opened only for a specific question, with Grep or an offset, not top to bottom.
+- **Scripts print one line.** Details go to `logs/`; read them only on FAIL.
+
 ## Lessons from earlier runs (keep these true)
 - **Run A (2026-11-12): Fable wrote all the code itself.** It shipped F1 + F4 but spent most of the budget typing. → Lead + subagents, as above.
 - **Run B overlapped run A's usage window** and stopped after 24 minutes with nothing pushed. → One run per 5-hour window; nothing else running.
