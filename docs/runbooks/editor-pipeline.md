@@ -131,7 +131,7 @@ Warnings:
 - "Add sound in app or post as-is" is advisory (the editor flagged `soundInApp`).
 - "No free slot today" means nothing fit your window. Tap Move to tomorrow.
 
-Settings has an **Editor approval counts** toggle, OFF by default. Turning it on is your action, with a confirm sheet. When ON, an editor item auto-approves only if its sidecar has `approvedInEditor`, it has zero block warnings (lint, location, cap, missing file) and its source is `trade-recaps` or `workout-assembly`. You get a push "Scheduled: <title> at <time>" and can pull it back from the calendar. Sidecars drafted by `/post-ready` have no `approvedInEditor`, so they always need your tap.
+Settings has an **Editor approval counts** toggle, OFF by default. Turning it on is your action, with a confirm sheet. When ON, an editor item auto-approves only if its sidecar has `approvedInEditor`, it has zero warnings of any kind (lint, location, cap, missing file, QA, sound, TikTok inbox draft) and its source is `trade-recaps` or `workout-assembly`. You get a push "Scheduled: <title> at <time>" and can pull it back from the calendar (open the item → Reject, or Move/Edit; an item you touched is never auto-approved again). Snapchat is never auto-approved. Sidecars drafted by `/post-ready` have no `approvedInEditor`, so they always need your tap.
 
 Approve & schedule approves the render's items that have no block warning and tells you which stayed. TikTok items with `soundInApp: true` go as Creator Inbox drafts: finish them inside TikTok (max 5 pending per 24 h; past that the item is flagged).
 
