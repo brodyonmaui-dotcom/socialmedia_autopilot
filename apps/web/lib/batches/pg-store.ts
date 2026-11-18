@@ -1,5 +1,5 @@
 import type { Pool } from "pg";
-import type { Platform } from "@autopilot/core";
+import type { AlertKind, Platform } from "@autopilot/core";
 import { canResetItem, countByStatus, deriveFlags, parseEditorMeta, type BatchItemView, type BatchView, type ItemStatus } from "./types.js";
 import type { ItemChange } from "./transitions.js";
 import { ConflictError, type BatchStore, type BatchSummary, type LibraryMedia } from "./store.js";
@@ -16,6 +16,11 @@ export function mediaLabel(sourcePath: string | null, id: string): string {
 function qaWarnings(qa: unknown): string[] {
   const w = (qa as { warnings?: unknown } | null)?.warnings;
   return Array.isArray(w) ? w.map(String) : [];
+}
+
+/** Optional extras written in the same transaction as the changes (used by the editor auto-approve runner). */
+export interface ApplyExtra {
+  alerts?: Array<{ kind: AlertKind; batchItemId: string; platform: Platform; message: string }>;
 }
 
 export class PgBatchStore implements BatchStore {
@@ -89,7 +94,14 @@ export class PgBatchStore implements BatchStore {
     return { id: batch.id, weekStart: batch.week_start, status: batch.status, approvedAt: iso(batch.approved_at), items, counts: countByStatus(items) };
   }
 
-  async apply(batchId: string, changes: ItemChange[], batchStatus: "draft" | "approved", sessionId: string | null, now: Date): Promise<void> {
+  async apply(
+    batchId: string,
+    changes: ItemChange[],
+    batchStatus: "draft" | "approved",
+    sessionId: string | null,
+    now: Date,
+    extra: ApplyExtra = {},
+  ): Promise<void> {
     const client = await this.pool.connect();
     try {
       await client.query("begin");
@@ -166,6 +178,14 @@ export class PgBatchStore implements BatchStore {
         [batchId, batchStatus, now],
       );
       if (b.rowCount !== 1) throw new ConflictError("that week isn't there any more, reload");
+      // Fable to review: editor approval counts — the 'auto-scheduled' alert commits with the approval or not at all.
+      for (const a of extra.alerts ?? []) {
+        if (!changes.some((c) => c.itemId === a.batchItemId)) throw new Error("apply: alert for an item this change doesn't touch");
+        await client.query(
+          `insert into alerts (kind, batch_item_id, platform, message, created_at) values ($1, $2, $3, $4, $5) on conflict (kind, batch_item_id) do nothing`,
+          [a.kind, a.batchItemId, a.platform, a.message.slice(0, 300), now],
+        );
+      }
       await client.query("commit");
     } catch (err) {
       await client.query("rollback").catch(() => {});

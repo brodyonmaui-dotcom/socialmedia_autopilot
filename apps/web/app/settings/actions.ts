@@ -10,6 +10,7 @@ import { addPromoAccountByHandle, parsePromoHandle, removePromoAccount } from ".
 import { setPings } from "../../lib/inbox/status.js";
 import { writeSettingsAudit } from "../../lib/settings/audit.js";
 import { parseCapsForm, updateCaps } from "../../lib/settings/caps.js";
+import { setEditorApprovalCounts } from "../../lib/settings/editor-approval.js";
 import { MODE_LABEL, parseModeChange, PINGS, resumeOk } from "../../lib/settings/replies.js";
 
 /**
@@ -102,6 +103,22 @@ export async function setDmDraftsAction(fd: FormData): Promise<void> {
     if (v !== "on" && v !== "off") throw new UserError("unknown setting");
     const { after } = await setDmDrafts(getPool(), v === "on");
     return after ? "DM drafts on: read-only, nothing is ever sent" : "DM drafts off";
+  });
+}
+
+// Fable to review: editor approval counts switch
+/**
+ * "Editor approval counts" (form field on = "on" | "off"). The UI asks first before turning it on (confirm
+ * sheet); turning it off is immediate. setEditorApprovalCounts writes the audit row on a change. Off restores
+ * the one-tap "Approve & schedule" as the only way an editor render is approved.
+ */
+export async function setEditorApprovalAction(fd: FormData): Promise<void> {
+  await requireSession();
+  await run("editor", async () => {
+    const v = field(fd, "on");
+    if (v !== "on" && v !== "off") throw new UserError("unknown setting");
+    const { after } = await setEditorApprovalCounts(getPool(), v === "on");
+    return after ? "Editor approval counts: on. Approved renders with zero warnings are scheduled for you." : "Editor approval counts: off. Every post needs your tap again.";
   });
 }
 

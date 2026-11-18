@@ -27,6 +27,7 @@ const KIND_LABELS = {
   "ready-for-approval": "Ready for approval",
   "settings-change": "Settings change",
   "reply-ready": "Reply ready",
+  "auto-scheduled": "Scheduled",
 };
 
 function notificationView(data) {

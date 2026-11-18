@@ -343,7 +343,7 @@ describe("job registration", () => {
 
   it("by default exactly the approved kinds are pushable; every other declared kind is page-only", () => {
     const pushable = ALERT_KINDS.filter((k) => isPushable({ kind: k, created_at: NOW, pushed_at: null, acknowledged_at: null }, cfg(), NOW));
-    expect(new Set(pushable)).toEqual(new Set(["engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth", "ready-for-approval", "reply-ready"]));
+    expect(new Set(pushable)).toEqual(new Set(["engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth", "ready-for-approval", "reply-ready", "auto-scheduled"]));
   });
 });
 

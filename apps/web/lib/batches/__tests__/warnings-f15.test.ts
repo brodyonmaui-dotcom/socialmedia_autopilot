@@ -72,12 +72,17 @@ describe("parseEditorMeta", () => {
       when: "today",
       earliest: null,
       approvedInEditor: true,
+      approvedInEditorAt: null,
       flags: ["needs-caption"],
+      unknownFlags: 1,
     });
   });
   it("accepts the ingest's ISO approval instant as approvedInEditor", () => {
     expect(parseEditorMeta({ editor: { approvedInEditor: "2098-01-01T00:00:00Z", flags: [] } })?.approvedInEditor).toBe(true);
     expect(parseEditorMeta({ editor: { approvedInEditor: false } })?.approvedInEditor).toBe(false);
+    expect(parseEditorMeta({ editor: { approvedInEditor: "2098-01-01T00:00:00Z", flags: [] } })?.approvedInEditorAt).toBe("2098-01-01T00:00:00Z");
+    expect(parseEditorMeta({ editor: { approvedInEditor: true } })?.approvedInEditorAt).toBeNull();
+    expect(parseEditorMeta({ editor: { flags: "lint-error" } })?.unknownFlags).toBe(1);
   });
   it("is null without an editor object", () => {
     expect(parseEditorMeta(null)).toBeNull();
