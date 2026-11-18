@@ -73,6 +73,21 @@ describe("public/sw.js", () => {
     expect(sw.shown[2]!.opts.data.url).toBe("/app/notifications");
   });
 
+  it("auto-scheduled pushes show the 'Scheduled: …' body and open the calendar", async () => {
+    const sw = loadSw();
+    await sw.push({ count: 1, kinds: ["auto-scheduled"], sources: ["instagram"], url: "/app/calendar", body: "Scheduled: Leg day basics at Fri 18:00" });
+    await sw.push({ count: 3, kinds: ["auto-scheduled"], url: "https://evil.example.com", body: "3 posts scheduled · Scheduled: A at Sat 09:00" });
+    await sw.push({ count: 2, kinds: ["auto-scheduled"] });
+    await sw.push({ count: 2, kinds: ["auto-scheduled", "auth"], url: "/app/calendar", body: "should not show" });
+    expect(sw.shown[0]!).toMatchObject({ title: "Scheduled", opts: { body: "Scheduled: Leg day basics at Fri 18:00", data: { url: "/app/calendar" } } });
+    expect(sw.shown[1]!).toMatchObject({ title: "Scheduled", opts: { body: "3 posts scheduled · Scheduled: A at Sat 09:00", data: { url: "/app/calendar" } } });
+    expect(sw.shown[2]!.opts.body).toBe("2 posts scheduled");
+    expect(sw.shown[3]!).toMatchObject({ title: "2 new alerts", opts: { body: "Scheduled · Login", data: { url: "/app/notifications" } } });
+    await sw.fire("notificationclick", { notification: { close: () => {}, data: { url: "/app/calendar" } } });
+    await sw.fire("notificationclick", { notification: { close: () => {}, data: { url: "/app/calendar/../settings" } } });
+    expect(sw.opened).toEqual(["/app/calendar", "/app/notifications"]);
+  });
+
   it("focuses an open app window instead of opening a new one", async () => {
     const sw = loadSw();
     const nav: string[] = [];

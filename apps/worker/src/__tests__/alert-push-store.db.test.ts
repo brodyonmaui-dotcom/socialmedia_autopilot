@@ -134,6 +134,19 @@ describe.skipIf(!url)("PgAlertPushStore (db)", () => {
     });
   });
 
+  it("returns the message for reply-ready and auto-scheduled only", async () => {
+    await inTx(async (c) => {
+      const at = new Date(T.getTime() + 100);
+      await c.query("insert into alerts (kind, platform, message, created_at) values ('auto-scheduled', 'instagram', $1, $2)", [`push-test ${run}: Scheduled: Clip at Fri 18:00`, at]);
+      const s = new PgAlertPushStore(c as unknown as OutboxPool);
+      const r = await s.claimUnpushed(["auth", "auto-scheduled"], new Date(at.getTime() - 1), T, 50);
+      expect(r.map((x) => [x.kind, x.message ?? null])).toEqual([["auto-scheduled", `push-test ${run}: Scheduled: Clip at Fri 18:00`]]);
+      const auth = await s.claimUnpushed(["auth"], since, T, 50);
+      expect(auth.length).toBe(3);
+      expect(auth.every((x) => x.message == null)).toBe(true);
+    });
+  });
+
   it("subscriptions: active list, success stamp, revoke by timestamp", async () => {
     await inTx(async (c) => {
       const s = new PgAlertPushStore(c as unknown as OutboxPool);
