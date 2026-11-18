@@ -9,6 +9,7 @@ COPY packages/research/package.json packages/research/package.json
 COPY packages/engagement/package.json packages/engagement/package.json
 COPY packages/adapters/package.json packages/adapters/package.json
 COPY packages/analytics/package.json packages/analytics/package.json
+COPY packages/media/package.json packages/media/package.json
 COPY apps/web/package.json apps/web/package.json
 RUN pnpm install --frozen-lockfile --filter @autopilot/web...
 COPY packages/core packages/core
@@ -17,6 +18,7 @@ COPY packages/research packages/research
 COPY packages/engagement packages/engagement
 COPY packages/adapters packages/adapters
 COPY packages/analytics packages/analytics
+COPY packages/media packages/media
 COPY apps/web apps/web
 WORKDIR /app/apps/web
 RUN pnpm build

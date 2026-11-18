@@ -1,6 +1,9 @@
 import { run } from "./exec.js";
 import { parseBlackSegments, parseFreezeSegments, parseLoudnormMeasurement, parseShowinfoPts, parseSilenceSegments } from "./parse.js";
 import { probe, type ProbeResult } from "./probe.js";
+import type { QaIssue, Segment } from "./qa-types.js";
+
+export type { QaIssue, QaIssueCode, QaSeverity, Segment } from "./qa-types.js";
 
 /**
  * QA v2 (touch-up): structured issues instead of loose warning strings. Only `fix` issues count as
@@ -8,43 +11,6 @@ import { probe, type ProbeResult } from "./probe.js";
  * Thresholds were calibrated so tripod gym clips, talking heads, music-later (silent) clips and screen
  * recordings come out clean (see qa-calibration.integration.test.ts).
  */
-
-export interface Segment {
-  start: number;
-  end: number;
-}
-
-export type QaSeverity = "fix" | "info";
-
-export type QaIssueCode =
-  | "frozen-head"
-  | "frozen-tail"
-  | "frozen-middle"
-  | "black-head"
-  | "black-tail"
-  | "black-middle"
-  | "no-sound"
-  | "loudness"
-  | "silence-gaps"
-  | "format"
-  | "rotation"
-  | "aspect"
-  | "landscape"
-  | "square"
-  | "tall"
-  | "metadata"
-  | "too-long"
-  /** Legacy rows only (web mapper): an old count without positions, waiting for media-recheck. */
-  | "recheck";
-
-export interface QaIssue {
-  code: QaIssueCode;
-  severity: QaSeverity;
-  fixable: boolean;
-  /** One plain sentence for the creator, no jargon. */
-  detail: string;
-  segments?: Segment[];
-}
 
 export interface QaLoudness {
   integratedLufs: number;
