@@ -11,7 +11,7 @@ export interface YouTubeCommentsConfig {
   /** Our channel id: `authorChannelId.value === channelId` marks our own comments. */
   channelId: string;
   fetch?: FetchLike;
-  /** comments.insert needs the youtube.force-ssl scope, which we probably don't have (research.md:196). Default false. */
+  /** comments.insert needs the youtube.force-ssl scope, which we probably don't have (research.md YouTube "Comments"). Default false. */
   canReply?: boolean;
   /** comments.setModerationStatus needs youtube.force-ssl too. Default false. */
   canModerate?: boolean;
@@ -127,7 +127,7 @@ export function createYouTubeCommentSource(cfg: YouTubeCommentsConfig): YouTubeC
     async fetchRecent(cursor, opts = {}) {
       const since = commentCursorSince(cursor);
       const sinceMs = since ? Date.parse(since) : -Infinity;
-      // verified 2026-11-12 docs/research.md:196: commentThreads.list costs 1 unit, readonly scope is enough.
+      // verified 2026-11-12 docs/research.md YouTube "Comments": commentThreads.list costs 1 unit, readonly scope is enough.
       const url = `${API}/commentThreads?part=snippet,replies&allThreadsRelatedToChannelId=${encodeURIComponent(cfg.channelId)}&maxResults=50&order=time`;
       const r = await call<YtList<YtThread>>("commentThreads.list", url, {}, opts.signal);
       const comments: InboundComment[] = [];
@@ -157,7 +157,7 @@ export function createYouTubeCommentSource(cfg: YouTubeCommentsConfig): YouTubeC
   };
 
   if (canReply) {
-    /** verified 2026-11-12 docs/research.md:196: comments.insert, snippet.parentId, 50 units, youtube.force-ssl. */
+    /** verified 2026-11-12 docs/research.md YouTube "Comments": comments.insert, snippet.parentId, 50 units, youtube.force-ssl. */
     source.reply = async (platformCommentId, text, opts) => {
       const parentId = await threadIdOf(platformCommentId, opts.signal);
       if (!parentId) throw new NonRetryableError(`youtube reply: comment ${platformCommentId} no longer exists`);
@@ -170,7 +170,7 @@ export function createYouTubeCommentSource(cfg: YouTubeCommentsConfig): YouTubeC
   }
 
   if (canModerate) {
-    /** verified 2026-11-12 docs/research.md:196: setModerationStatus heldForReview, 50 units, youtube.force-ssl. Never rejects/bans. */
+    /** verified 2026-11-12 docs/research.md YouTube "Comments": setModerationStatus heldForReview, 50 units, youtube.force-ssl. Never rejects/bans. */
     source.hide = async (platformCommentId, opts = {}) => {
       await call<YtError>("comments.setModerationStatus", `${API}/comments/setModerationStatus?id=${encodeURIComponent(platformCommentId)}&moderationStatus=heldForReview`, { method: "POST" }, opts.signal);
     };

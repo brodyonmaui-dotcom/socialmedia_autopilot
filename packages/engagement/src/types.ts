@@ -1,5 +1,5 @@
 // Shared types for engagement (F3). Pure: no pg, no fetch, no SDK here.
-// Design: docs/archive/design/F3.md + docs/archive/prep/run-2-decisions.md. Platform facts: docs/research.md:190-197.
+// Design: docs/archive/design/F3.md + docs/archive/prep/run-2-decisions.md. Platform facts: docs/research.md (Instagram + YouTube sections, comment API bullets).
 
 import type { AlertKind, Platform, RetryPolicy } from "@autopilot/core";
 

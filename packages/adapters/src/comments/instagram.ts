@@ -41,7 +41,7 @@ export interface InstagramCommentsCursor {
   since?: string;
 }
 
-// verified 2026-11-12 docs/research.md:192 (fields; `from` may be absent in Development mode)
+// verified 2026-11-12 docs/research.md Instagram "Comment API" (fields; `from` may be absent in Development mode)
 const REPLY_FIELDS = "id,text,timestamp,from{id,username},username";
 const COMMENT_FIELDS = `id,text,timestamp,parent_id,hidden,like_count,from{id,username},username,replies{${REPLY_FIELDS}}`;
 
@@ -102,7 +102,7 @@ export function createInstagramCommentSource(cfg: InstagramCommentsConfig): Comm
       platformCommentId: n.id,
       platformMediaId: mediaId,
       ...(parentId ? { parentId } : {}),
-      authorId: n.from?.id ?? null, // Development mode may omit `from` (research.md:192)
+      authorId: n.from?.id ?? null, // Development mode may omit `from` (research.md Instagram "Comment API")
       ...(handle ? { authorHandle: handle } : {}),
       text: n.text ?? "",
       createdAt: toIso(n.timestamp),
@@ -118,7 +118,7 @@ export function createInstagramCommentSource(cfg: InstagramCommentsConfig): Comm
     return out;
   }
 
-  /** The top-level comment a reply must target: IG replies are top-level only (research.md:193). */
+  /** The top-level comment a reply must target: IG replies are top-level only (research.md Instagram "Comment API"). */
   async function topLevelOf(id: string, signal?: AbortSignal): Promise<string> {
     const r = await get<IgCommentNode & GraphError>("comment lookup", `${id}?fields=id,parent_id`, signal);
     return r.body.parent_id ?? id;
@@ -135,7 +135,7 @@ export function createInstagramCommentSource(cfg: InstagramCommentsConfig): Comm
       const comments: InboundComment[] = [];
       let newest = since;
       for (const m of media.body.data ?? []) {
-        // verified 2026-11-12 docs/research.md:192: top-level only, newest first, max 50 per query.
+        // verified 2026-11-12 docs/research.md Instagram "Comment API": top-level only, newest first, max 50 per query.
         const r = await get<IgList<IgCommentNode>>("comments list", `${m.id}/comments?fields=${COMMENT_FIELDS}&limit=50`, opts.signal);
         for (const top of r.body.data ?? []) {
           for (const c of flatten(top, m.id, top.replies?.data ?? [])) {
@@ -162,14 +162,14 @@ export function createInstagramCommentSource(cfg: InstagramCommentsConfig): Comm
       if (r.status >= 300 || r.body.error) fail("comment lookup", r.status, r.body);
       const c = r.body;
       const threadRoot = c.parent_id ?? c.id;
-      // verified 2026-11-12 docs/research.md:193: existence check = GET /{ig-comment-id}/replies.
+      // verified 2026-11-12 docs/research.md Instagram "Comment API": existence check = GET /{ig-comment-id}/replies.
       const replies = await get<IgList<IgCommentNode>>("replies list", `${threadRoot}/replies?fields=${REPLY_FIELDS}`, opts.signal);
       const siblings = (replies.body.data ?? []).filter((x) => x.id !== c.id);
       return toInbound(c, c.media?.id ?? "", c.parent_id, own(siblings));
     },
 
     /**
-     * verified 2026-11-12 docs/research.md:193: POST /{ig-comment-id}/replies (message) → {id}.
+     * verified 2026-11-12 docs/research.md Instagram "Comment API": POST /{ig-comment-id}/replies (message) → {id}.
      * IG has no idempotency key: the caller's existence check is fetchThread().ownRepliesInThread.
      */
     async reply(platformCommentId, text, opts) {
@@ -179,7 +179,7 @@ export function createInstagramCommentSource(cfg: InstagramCommentsConfig): Comm
       return { platformReplyId: body.id };
     },
 
-    /** verified 2026-11-12 docs/research.md:194: POST /{ig-comment-id}?hide=true → {success:true}. */
+    /** verified 2026-11-12 docs/research.md Instagram "Comment API": POST /{ig-comment-id}?hide=true → {success:true}. */
     async hide(platformCommentId, opts = {}) {
       const body = await post<{ success?: boolean } & GraphError>("hide", platformCommentId, { hide: "true" }, opts.signal);
       if (body.success !== true) throw new PlatformRequestError("instagram", 200, body, "instagram hide did not return success");
