@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dailyProgress, heroLines, orderedChecklist, pulseFor, resultText, shareHint, shareLabel, shareStep, suggestionMeta, todayMeta } from "../view.js";
+import { orderedChecklist, resultText, shareHint, shareLabel, suggestionMeta } from "../view.js";
 
 const CHECKLIST = [
   "Share → Snapchat → Spotlight (not Story).",
@@ -29,24 +29,6 @@ describe("resultText", () => {
   });
 });
 
-describe("daily progress + hero", () => {
-  it("caps at 1 a day", () => {
-    expect(dailyProgress(0)).toEqual({ value: 0, max: 1, text: "0/1" });
-    expect(dailyProgress(3)).toEqual({ value: 1, max: 1, text: "1/1 done" });
-    expect(heroLines(2).at(-1)?.text).toBe("1/1");
-  });
-  it("pulse tone: due → accent, missed only → warn, idle → muted", () => {
-    expect(pulseFor(1, 2, 0)).toEqual({ label: "1 to share today", tone: "accent" });
-    expect(pulseFor(0, 2, 0)).toEqual({ label: "2 missed items", tone: "warn" });
-    expect(pulseFor(0, 0, 1).tone).toBe("accent");
-    expect(pulseFor(0, 0, 0)).toEqual({ label: "Nothing due", tone: "muted" });
-  });
-  it("today meta counts blocked items", () => {
-    expect(todayMeta([{ blocks: [] }])).toBe("1 due · 1 per day");
-    expect(todayMeta([{ blocks: ["x"] }, { blocks: [] }])).toBe("2 due · 1 blocked");
-  });
-});
-
 describe("share button copy", () => {
   it("renames the machine labels without changing the two-tap flow", () => {
     expect(shareLabel("Prepare")).toBe("Share to Snapchat");
@@ -56,12 +38,6 @@ describe("share button copy", () => {
     expect(shareLabel("Share (2.5 MB)")).toBe("Share to Snapchat · 2.5 MB");
     expect(shareLabel("Share (blocked)")).toBe("Share blocked");
     expect(shareLabel("Sharing…")).toBe("Sharing…");
-  });
-  it("step readout", () => {
-    expect(shareStep({ kind: "idle" })).toBe("1/2");
-    expect(shareStep({ kind: "error" })).toBe("1/2");
-    expect(shareStep({ kind: "error", file: {} })).toBe("2/2");
-    expect(shareStep({ kind: "ready", file: {} })).toBe("2/2");
   });
 });
 

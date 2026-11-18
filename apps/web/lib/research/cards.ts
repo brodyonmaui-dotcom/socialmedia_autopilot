@@ -106,6 +106,47 @@ export function withNote(path: string, note: string): string {
   return `${path}${path.includes("?") ? "&" : "?"}note=${encodeURIComponent(note.slice(0, 160))}`;
 }
 
+// ---------- form drafts (keep the typed text when validation fails) ----------
+
+/** Each echoed field is capped so the URL stays short. */
+export const DRAFT_MAX = 500;
+
+/** The fields each add form echoes back on a validation error (and only those). */
+export const DRAFT_FIELDS = {
+  idea: ["title", "hook", "pillar"],
+  hook: ["text", "pillar", "source"],
+  creator: ["handle", "platform", "pillar"],
+} as const;
+export type DraftForm = keyof typeof DRAFT_FIELDS;
+export type Draft<F extends DraftForm> = Partial<Record<(typeof DRAFT_FIELDS)[F][number], string>>;
+
+/** Picks the form's own fields out of the posted values (empty values are skipped). */
+export function draftFields<F extends DraftForm>(form: F, get: (k: string) => unknown): Draft<F> {
+  const out: Record<string, string> = {};
+  for (const k of DRAFT_FIELDS[form]) {
+    const v = get(k);
+    if (typeof v === "string" && v !== "") out[k] = v.slice(0, DRAFT_MAX);
+  }
+  return out as Draft<F>;
+}
+
+/**
+ * The redirect after a failed submit: `path` (may already carry a query) + error, the extra keys that
+ * reopen the form (e.g. add=1), and each draft field as `draft_<name>` (capped at DRAFT_MAX).
+ */
+export function errorRedirect(path: string, error: string, fields: Record<string, string | undefined> = {}, extra: Record<string, string> = {}): string {
+  const q = new URLSearchParams();
+  q.set("error", error.slice(0, 200));
+  for (const [k, v] of Object.entries(extra)) q.set(k, v);
+  for (const [k, v] of Object.entries(fields)) if (v) q.set(`draft_${k}`, v.slice(0, DRAFT_MAX));
+  return `${path}${path.includes("?") ? "&" : "?"}${q.toString()}`;
+}
+
+/** The draft values a page prefills its form with (`draft_<name>` keys of that form only, capped). */
+export function draftFrom<F extends DraftForm>(form: F, sp: Record<string, string | string[] | undefined>): Draft<F> {
+  return draftFields(form, (k) => sp[`draft_${k}`]);
+}
+
 // ---------- idea cards ----------
 
 /** The reference hook line inside a creator idea's `about` (between “ and ”), or null. */

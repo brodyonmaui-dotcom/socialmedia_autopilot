@@ -62,16 +62,25 @@ export async function addPromoAccount(pool: Pool, target: AddPromoTarget, now: D
   if (!src) return null;
   const key = promoAuthorKey(src.author_id, src.author_handle);
   if (!key) return null;
-  const platform = src.platform as EngagementPlatform;
+  return listAuthor(pool, src.platform as EngagementPlatform, key, src.author_handle ?? null, now, false);
+}
+
+/**
+ * Lists one author (source 'manual') and re-buckets their open items. `byHandle` (a key typed in Settings):
+ * comments match on the lower-cased handle even when they carry an author id, as the triage matcher does.
+ */
+async function listAuthor(pool: Pool, platform: EngagementPlatform, key: string, displayHandle: string | null, now: Date, byHandle: boolean): Promise<AddPromoResult> {
   return inTx(pool, async (c) => {
     const ins = await c.query(
       `insert into engagement_promo_accounts (platform, author_key, display_handle, source, created_at) values ($1, $2, $3, 'manual', $4)
        on conflict (platform, author_key) where removed_at is null do nothing returning id`,
-      [platform, key, src.author_handle ?? null, now],
+      [platform, key, displayHandle, now],
     );
     // An open 'rule' row becomes the creator's own decision.
     if (!ins.rows.length) await c.query(`update engagement_promo_accounts set source = 'manual' where platform = $1 and author_key = $2 and removed_at is null`, [platform, key]);
-    const author = `c.platform = $1 and ((c.author_id is not null and c.author_id = $2) or (c.author_id is null and lower(c.author_handle) = $2))`;
+    const author = byHandle
+      ? `c.platform = $1 and not c.is_own and lower(regexp_replace(c.author_handle, '^@+', '')) = $2`
+      : `c.platform = $1 and ((c.author_id is not null and c.author_id = $2) or (c.author_id is null and lower(c.author_handle) = $2))`;
     const cancelled = await c.query(
       `update engagement_actions a set status = 'cancelled', last_error = 'author ignored as promo', updated_at = $3
          from comments c where c.id = a.comment_id and ${author} and a.status in ('shadow','planned')
@@ -92,6 +101,35 @@ export async function addPromoAccount(pool: Pool, target: AddPromoTarget, now: D
     );
     return { added: ins.rows.length === 1, authorKey: key, platform, commentsMoved: moved.rows.length, threadsIgnored: threads.rows.length, repliesCancelled: cancelled.rows.length };
   });
+}
+
+const PROMO_PLATFORMS: readonly EngagementPlatform[] = ["instagram", "youtube", "tiktok"];
+const HANDLE = /^[a-z0-9._-]{1,40}$/;
+
+/**
+ * A handle typed in Settings ("Add an account by handle"). Trims, drops leading @s, lower-cases. Only the
+ * platforms with comments here; a pasted link is refused (out of scope), as is anything but [a-z0-9._-]{1,40}.
+ */
+export function parsePromoHandle(platform: string, raw: string): { platform: EngagementPlatform; handle: string } | { error: string } {
+  if (!(PROMO_PLATFORMS as readonly string[]).includes(platform)) return { error: "Pick Instagram, YouTube or TikTok." };
+  const h = raw.trim().replace(/^@+/, "").trim().toLowerCase();
+  if (!h) return { error: "Type a handle first." };
+  if (/[/:]|^www\./.test(h)) return { error: "Type the handle, not a link." };
+  if (h.length > 40) return { error: "That handle is too long." };
+  if (!HANDLE.test(h)) return { error: "A handle has only letters, numbers, dots, dashes and underscores." };
+  return { platform: platform as EngagementPlatform, handle: h };
+}
+
+/**
+ * Settings: list an account by its handle (key = the lower-cased handle, display_handle the bare handle like
+ * rows added from a comment, source 'manual'). Idempotent: an open row gives added: false. Throws a
+ * RangeError (a user-facing sentence) when parsePromoHandle refuses the input.
+ */
+export async function addPromoAccountByHandle(pool: Pool, platform: string, handle: string, now: Date): Promise<AddPromoResult> {
+  const parsed = parsePromoHandle(platform, handle);
+  if ("error" in parsed) throw new RangeError(parsed.error);
+  const key = promoAuthorKey(null, parsed.handle)!;
+  return listAuthor(pool, parsed.platform, key, parsed.handle, now, true);
 }
 
 /** Close one list row (removed_at). The author's past items keep their bucket; new ones triage normally. */

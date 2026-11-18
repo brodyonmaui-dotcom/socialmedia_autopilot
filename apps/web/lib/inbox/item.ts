@@ -26,6 +26,8 @@ export interface InboxItem {
   isOwn: boolean;
   postTitle: string | null;
   postUrl: string | null;
+  /** The post's media row (batch_items.media_id) for the poster; null when the comment has no batch item. */
+  mediaId: string | null;
   triage: { bucket: Bucket; reasons: string[]; confidence: number | null; model: string | null; decidedAt: string; handledAt: string | null; notSpamAt: string | null } | null;
   /** The reply that would go out: the action's text, else the triage draft. */
   draftedReply: string | null;
@@ -96,7 +98,7 @@ export async function loadInboxItem(pool: Pick<Pool, "query">, id: string, now: 
   if (!UUID.test(id)) return null;
   const { rows } = await pool.query(
     `select c.id, c.platform, c.author_handle, c.author_id, c.text, c.commented_at, c.is_own,
-            bi.caption, bi.title, bi.platform_post_url,
+            bi.caption, bi.title, bi.platform_post_url, bi.media_id,
             t.bucket, t.reasons, t.confidence, t.model, t.decided_at, t.handled_at, t.not_spam_at, t.draft_reply,
             a.id as action_id, a.status as action_status, a.origin as action_origin, a.text as action_text, a.sent_at, a.last_error
        from comments c
@@ -135,6 +137,7 @@ export async function loadInboxItem(pool: Pick<Pool, "query">, id: string, now: 
     isOwn: r.is_own === true,
     postTitle: postTitle(r.caption, r.title),
     postUrl: r.platform_post_url ?? null,
+    mediaId: r.media_id ?? null,
     triage,
     draftedReply: reply?.text ?? r.draft_reply ?? null,
     reply,

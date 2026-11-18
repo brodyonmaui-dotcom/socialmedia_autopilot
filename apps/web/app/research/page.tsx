@@ -2,8 +2,8 @@ import Link from "next/link";
 import { getPool } from "../../lib/db.js";
 import { requireSession } from "../../lib/auth/require.js";
 import { loadIdeas, loadResearchStatus } from "../../lib/research/ideas.js";
-import { forwardMove, ideaHeading, listHref, moveField, parsePillar, parseSource, pillarOptions, sourceChips, whenText } from "../../lib/research/cards.js";
-import { Button, ButtonLink, Card, ChipLink, CopyButton, Dialog, Dropdown, EmptyState, Input, Textarea, buttonClasses } from "../../components/ui/index.js";
+import { draftFrom, forwardMove, ideaHeading, listHref, moveField, parsePillar, parseSource, pillarOptions, sourceChips, whenText } from "../../lib/research/cards.js";
+import { Button, ButtonLink, Card, ChipLink, CopyButton, Dialog, Dropdown, EmptyState, InlineNotice, Input, Textarea, buttonClasses } from "../../components/ui/index.js";
 import { IdeaCard } from "../../components/research/IdeaCard.js";
 import { UsedList } from "../../components/research/UsedList.js";
 import { param, PillarSelect, ResearchFrame, type SearchParams } from "../../components/research/ResearchFrame.js";
@@ -33,6 +33,7 @@ export default async function IdeasPage({ searchParams }: { searchParams: Search
   const chips = sourceChips(source, pillar, status.counts.bySource);
   const error = param(sp.error);
   const note = param(sp.note);
+  const draft = draftFrom("idea", sp);
 
   return (
     <ResearchFrame
@@ -131,11 +132,16 @@ export default async function IdeasPage({ searchParams }: { searchParams: Search
 
       {adding ? (
         <Dialog open title="Add an idea" closeHref={self}>
-          <form action={addIdeaFlowAction} className="flex flex-col gap-4">
+          <form key={error ?? "new"} action={addIdeaFlowAction} className="flex flex-col gap-4">
             <input type="hidden" name="return" value={self} />
-            <Input label="Idea" name="title" required maxLength={140} placeholder="e.g. pull day, slow negatives only" />
-            <Input label="Opening line (optional)" name="hook" maxLength={200} placeholder="The first thing you say" />
-            <PillarSelect defaultValue={pillar ?? ""} />
+            {error ? (
+              <InlineNotice tone="danger" live>
+                {error}
+              </InlineNotice>
+            ) : null}
+            <Input label="Idea" name="title" required maxLength={140} placeholder="e.g. pull day, slow negatives only" defaultValue={draft.title} />
+            <Input label="Opening line (optional)" name="hook" maxLength={200} placeholder="The first thing you say" defaultValue={draft.hook} />
+            <PillarSelect defaultValue={draft.pillar ?? pillar ?? ""} />
             <div className="flex justify-end">
               <Button type="submit" variant="solid">
                 Add idea

@@ -3,7 +3,11 @@
  * pages pass the loaders' rows in (lib/library/data.ts) and render what comes out. Tested in
  * __tests__/screen.test.ts.
  */
-import type { FixStats, FixState, LibraryClip, TouchUpClip } from "./data.js";
+import { localDate, localHHMM, type Platform } from "@autopilot/core";
+import { dayLabel } from "../batches/view-model.js";
+import { batchRedirect, mondayOf } from "../calendar/model.js";
+import { PLATFORM_NAME } from "../platforms/view.js";
+import type { ClipUse, FixStats, FixState, LibraryClip, TouchUpClip } from "./data.js";
 import type { FixOp } from "./qa-issues.js";
 import { tagLabel } from "./qa-issues.js";
 
@@ -106,6 +110,29 @@ export function scheduledShort(usedIn: number): string | null {
 /** Dialog line: "Scheduled in 2 posts" / "Not scheduled yet". */
 export function scheduledLong(usedIn: number): string {
   return usedIn > 0 ? `Scheduled in ${plural(usedIn, "post")}` : "Not scheduled yet";
+}
+
+/** Status words a use line adds (from the item's own status only; approved/queued need no word). */
+const USE_STATUS: Record<string, string> = { draft: "needs approval", publishing: "posting", published: "posted", failed: "failed", unknown: "check it" };
+
+export interface ClipUseLine {
+  key: string;
+  /** "Instagram · Tue 24 Nov, 18:00" (creator-local), "TikTok · not timed yet"; a status word ("posted", "needs approval") only when the status says so. */
+  text: string;
+  /** The calendar week that holds it (`/calendar?view=week&d=<Monday>`), or the calendar for untimed posts. */
+  href: string;
+}
+
+/** The Dialog's list under "Scheduled in N posts". `timeZone` is the calendar's creator zone (creatorZone()). */
+export function clipUseLines(uses: readonly ClipUse[], timeZone: string): ClipUseLine[] {
+  return uses.map((u, i) => {
+    const name = PLATFORM_NAME[u.platform as Platform] ?? u.platform;
+    const at = u.scheduledFor && !Number.isNaN(u.scheduledFor.getTime()) ? u.scheduledFor : null;
+    const day = at ? localDate(at, timeZone) : null;
+    const when = at && day ? `${dayLabel(day)}, ${localHHMM(at, timeZone)}` : "not timed yet";
+    const word = USE_STATUS[u.status];
+    return { key: `${i}-${u.platform}-${at?.toISOString() ?? "untimed"}`, text: [name, when, word].filter(Boolean).join(" · "), href: batchRedirect(day ? mondayOf(day) : null) };
+  });
 }
 
 /** Up to `max` quiet tags for a card: "Needs a touch-up" first when flagged, then the info tags. */

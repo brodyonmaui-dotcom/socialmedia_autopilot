@@ -3,7 +3,8 @@
 /**
  * v3 Research screen flow: thin wrappers that run the existing actions in ./actions.ts unchanged and then
  * close the URL-driven Dialog (?add=, ?move=, ?remove=) with a short ?note=. On a validation error the
- * wrapped action has already redirected with ?error= (that redirect propagates), so nothing here runs.
+ * wrapped action has already redirected with ?error= (that redirect propagates), so nothing here runs; the
+ * add forms' error redirect also reopens the form with the typed text (draft_…, see lib/research/cards.ts).
  */
 import { redirect } from "next/navigation";
 import { requireSession } from "../../lib/auth/require.js";

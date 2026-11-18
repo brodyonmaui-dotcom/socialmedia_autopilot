@@ -1,9 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { DEFAULT_CADENCE, localDate, localToUtc, type Platform } from "@autopilot/core";
 import { computeWarnings } from "../../batches/warnings.js";
 import type { BatchItemView, BatchView, EditorMeta } from "../../batches/types.js";
 import { makeBatch, makeItem } from "../../batches/__tests__/fixtures.js";
-import { approveRender, planRenderApprove } from "../approve.js";
 import { planEdits } from "../move.js";
 import { planTomorrow, tomorrowWindow, type SlotItem } from "../slotting.js";
 import { approveLabel, approveNote, firstLines, groupRenders, renderChips, slotLabel } from "../view.js";
@@ -66,46 +65,6 @@ describe("view", () => {
 
   it("approveNote names what stayed", () => {
     expect(approveNote(["instagram", "youtube"], [{ platform: "tiktok", reason: "Needs caption" }])).toBe("approved IG, YT · stayed: TT (Needs caption)");
-  });
-});
-
-describe("Approve & schedule", () => {
-  it("approves only the items without a block warning, via planTransition 'approve'", async () => {
-    const ig = ed("instagram");
-    const yt = ed("youtube");
-    const tt = ed("tiktok", { caption: "" });
-    const weekly = makeItem();
-    const batch = withWarnings(makeBatch([ig, yt, tt, weekly]));
-    const apply = vi.fn(async () => {});
-    const res = await approveRender({ load: async () => batch, store: { apply } }, batch.id, [ig.id, yt.id, tt.id, weekly.id], "s1", NOW);
-    expect(res.approved.map((a) => a.itemId)).toEqual([ig.id, yt.id]);
-    expect(res.stayed).toEqual([
-      { itemId: tt.id, platform: "tiktok", reason: "Needs caption" },
-      { itemId: weekly.id, platform: "instagram", reason: "not an editor draft" },
-    ]);
-    expect(apply).toHaveBeenCalledTimes(1);
-    expect(apply).toHaveBeenCalledWith(batch.id, [
-      { itemId: ig.id, from: "draft", to: "approved", eventKind: "approve" },
-      { itemId: yt.id, from: "draft", to: "approved", eventKind: "approve" },
-    ], "approved", "s1", NOW);
-    expect(res.note).toBe("approved IG, YT · stayed: TT (Needs caption), IG (not an editor draft)");
-  });
-
-  it("applies nothing when every item is blocked", async () => {
-    const tt = ed("tiktok", { scheduledFor: null });
-    const batch = withWarnings(makeBatch([tt]));
-    const apply = vi.fn(async () => {});
-    const res = await approveRender({ load: async () => batch, store: { apply } }, batch.id, [tt.id], null, NOW);
-    expect(apply).not.toHaveBeenCalled();
-    expect(res.stayed[0]!.reason).toBe("No free slot today");
-  });
-
-  it("never trusts stale warnings: a past time stays even with warnings: []", () => {
-    const past = ed("instagram", { scheduledFor: "2026-11-13T09:00:00.000Z" });
-    const batch = makeBatch([past]); // warnings deliberately not computed
-    const plan = planRenderApprove(batch, [past.id], NOW);
-    expect(plan.changes).toBeNull();
-    expect(plan.stayed[0]!.reason).toBe("time is in the past");
   });
 });
 

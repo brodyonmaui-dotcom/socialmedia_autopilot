@@ -3,7 +3,8 @@ import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { approveAndSend, loadInboxItem, type ApproveDeps } from "../item.js";
 import { inboxCounts, loadInbox } from "../list.js";
-import { addPromoAccount, loadPromoAccounts, markNotSpam, removePromoAccount } from "../promo.js";
+import { promoRule } from "@autopilot/engagement/src/rules.js";
+import { addPromoAccount, addPromoAccountByHandle, loadPromoAccounts, markNotSpam, removePromoAccount } from "../promo.js";
 
 /**
  * Real dev DB (DATABASE_URL, migrated through 0012). Fixture comments carry a per-run tag in their
@@ -19,11 +20,11 @@ describe.skipIf(!url)("inbox data layer (db)", () => {
   const ids: Record<string, string> = {};
   let deps: ApproveDeps;
 
-  const comment = async (key: string, text: string, bucket: string, author: string, opts: { shadow?: string; draft?: string } = {}) => {
+  const comment = async (key: string, text: string, bucket: string, author: string, opts: { shadow?: string; draft?: string; batchItemId?: string } = {}) => {
     const { rows } = await pool.query(
-      `insert into comments (platform, platform_comment_id, platform_media_id, author_id, author_handle, text, commented_at)
-       values ('instagram', $1, $2, $3, $4, $5, $6) returning id`,
-      [`dbt-${run}-${key}`, `dbt-${run}-media`, `dbt-${run}-${author}`, `dbt_${run}_${author}`, text, NOW],
+      `insert into comments (platform, platform_comment_id, platform_media_id, author_id, author_handle, text, commented_at, batch_item_id)
+       values ('instagram', $1, $2, $3, $4, $5, $6, $7) returning id`,
+      [`dbt-${run}-${key}`, `dbt-${run}-media`, `dbt-${run}-${author}`, `dbt_${run}_${author}`, text, NOW, opts.batchItemId ?? null],
     );
     const id = rows[0].id as string;
     ids[key] = id;
@@ -51,7 +52,7 @@ describe.skipIf(!url)("inbox data layer (db)", () => {
     const all = Object.values(ids);
     await pool.query(`update comment_triage set handled_at = coalesce(handled_at, now()), retriage_requested_at = null where comment_id = any($1::uuid[])`, [all]);
     await pool.query(`update engagement_actions set status = 'cancelled', updated_at = now() where comment_id = any($1::uuid[]) and status in ('shadow','planned')`, [all]);
-    await pool.query(`update engagement_promo_accounts set removed_at = now() where author_key like $1 and removed_at is null`, [`dbt-${run}-%`]);
+    await pool.query(`update engagement_promo_accounts set removed_at = now() where (author_key like $1 or author_key like $2) and removed_at is null`, [`dbt-${run}-%`, `dbt_${run}_%`]);
     await pool.query(`update alerts set acknowledged_at = coalesce(acknowledged_at, now()) where message = $1`, [`dbtest ${run}`]);
     await pool.end();
   });
@@ -74,9 +75,16 @@ describe.skipIf(!url)("inbox data layer (db)", () => {
 
   it("loads one item with its drafted reply and state", async () => {
     const item = await loadInboxItem(pool, ids.praise!, NOW);
-    expect(item).toMatchObject({ state: "drafted", draftedReply: "Appreciate you man", authorName: `@dbt_${run}_fan1`, platform: "instagram" });
+    expect(item).toMatchObject({ state: "drafted", draftedReply: "Appreciate you man", authorName: `@dbt_${run}_fan1`, platform: "instagram", mediaId: null });
     expect(await loadInboxItem(pool, randomUUID())).toBeNull();
     expect(await loadInboxItem(pool, "not-a-uuid")).toBeNull();
+  });
+
+  it("an item on a batch post carries the post's media id", async () => {
+    const bi = (await pool.query(`select id, media_id from batch_items order by id limit 1`)).rows[0];
+    if (!bi) return; // an empty dev DB has no batch items; the null case above still holds
+    const id = await comment("onpost", "nice one", "simple_positive", "fan3", { batchItemId: bi.id });
+    expect((await loadInboxItem(pool, id, NOW))?.mediaId).toBe(bi.media_id);
   });
 
   it("refuses promo, a place in an edited reply, and a killed engine", async () => {
@@ -120,6 +128,22 @@ describe.skipIf(!url)("inbox data layer (db)", () => {
     expect(await removePromoAccount(pool, mine.id, NOW)).toBe(true);
     expect(await removePromoAccount(pool, mine.id, NOW)).toBe(false);
     expect((await loadPromoAccounts(pool)).some((a) => a.id === mine.id)).toBe(false);
+  });
+
+  it("add by handle (Settings): one open row however often, and the matcher ignores that handle without an author id", async () => {
+    const handle = `dbt_${run}_hub`;
+    await comment("byhandle", "nice video", "simple_positive", "hub", { shadow: "Thanks!" });
+    const first = await addPromoAccountByHandle(pool, "instagram", `@@${handle.toUpperCase()}`, NOW);
+    // The open comment from that handle (it has an author id) moves to promo and its shadow reply is cancelled.
+    expect(first).toMatchObject({ added: true, authorKey: handle, platform: "instagram", commentsMoved: 1, repliesCancelled: 1 });
+    expect((await loadInboxItem(pool, ids.byhandle!))?.triage?.bucket).toBe("spam_promo");
+    expect(await addPromoAccountByHandle(pool, "instagram", handle, NOW)).toMatchObject({ added: false, authorKey: handle });
+    const { rows } = await pool.query(`select display_handle, source from engagement_promo_accounts where platform = 'instagram' and author_key = $1 and removed_at is null`, [handle]);
+    expect(rows).toEqual([{ display_handle: handle, source: "manual" }]);
+    await expect(addPromoAccountByHandle(pool, "snapchat", handle, NOW)).rejects.toThrow(RangeError);
+    const list = (await loadPromoAccounts(pool)).map((a) => ({ platform: a.platform, authorKey: a.authorKey }));
+    expect(promoRule("love this", { platform: "instagram", authorId: null, authorHandle: `@${handle.toUpperCase()}` }, list)).toEqual({ bucket: "spam_promo", reason: "promo:list" });
+    expect(promoRule("love this", { platform: "youtube", authorId: null, authorHandle: handle }, list)).toBeNull();
   });
 
   it("not spam: back to flag with a re-triage request; a rule-listed author comes off the list", async () => {

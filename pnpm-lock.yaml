@@ -45,6 +45,9 @@ importers:
       '@autopilot/engagement':
         specifier: workspace:*
         version: link:../../packages/engagement
+      '@autopilot/media':
+        specifier: workspace:*
+        version: link:../../packages/media
       '@autopilot/research':
         specifier: workspace:*
         version: link:../../packages/research

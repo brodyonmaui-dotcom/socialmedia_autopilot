@@ -87,6 +87,21 @@ describe("inbox actions with a session (fake pool)", () => {
     expect(params).toEqual([COMMENT, expect.any(Date)]);
   });
 
+  it("an action from the Ignored list returns to /inbox?filter=ignored (DMs: /inbox/dms?filter=ignored)", async () => {
+    auth.requireSession.mockResolvedValue(SESSION);
+    const pool = { query: vi.fn(async () => ({ rows: [], rowCount: 1 })) };
+    db.getPool.mockReturnValue(pool);
+    const fd = new FormData();
+    fd.set("tab", "flagged");
+    fd.set("filter", "ignored");
+    await expect(actions.markHandledAction(COMMENT, fd)).rejects.toMatchObject({ url: "/inbox?filter=ignored&note=marked%20done" });
+    const dm = new FormData();
+    dm.set("tab", "dms");
+    dm.set("filter", "ignored");
+    await expect(actions.notSpamAction("dm", "not-a-uuid", dm)).rejects.toMatchObject({ url: "/inbox/dms?filter=ignored&error=unknown%20item" });
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
   it("an invalid id is refused before any query", async () => {
     auth.requireSession.mockResolvedValue(SESSION);
     const pool = { query: vi.fn() };

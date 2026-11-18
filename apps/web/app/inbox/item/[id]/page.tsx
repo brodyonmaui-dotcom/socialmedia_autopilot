@@ -75,7 +75,7 @@ export default async function InboxItemPage({ params, searchParams }: { params: 
         <section aria-label={`Comment from ${item.authorName}`} className="flex min-w-0 flex-col gap-4 rounded-ds-lg border border-ds-line bg-ds-card p-4 lg:col-span-8 lg:gap-5 lg:p-5">
           {item.postTitle ? (
             <div className="flex items-center gap-3 border-b border-ds-line pb-4">
-              <Thumb alt={`${item.postTitle} poster`} className="w-9" />
+              <Thumb mediaId={item.mediaId} alt={`${item.postTitle} poster`} className="w-9" />
               <div className="min-w-0 flex-1">
                 <p className="ds-label text-ds-muted">On your post</p>
                 <p className="ds-font-display overflow-hidden text-ellipsis whitespace-nowrap text-[20px] text-ds-text">{item.postTitle}</p>

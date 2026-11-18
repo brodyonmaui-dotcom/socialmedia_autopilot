@@ -11,11 +11,13 @@ import {
   DataRow,
   EmptyState,
   InlineNotice,
+  Input,
   PageHeader,
   PLATFORM_NAME,
   PlatformLogo,
   SegmentBar,
   SegmentButton,
+  Select,
   Stepper,
   ThemeToggle,
 } from "../../components/ui/index.js";
@@ -33,7 +35,7 @@ import { aiNotesLine, lastRunLine, PING_LABEL, PINGS, REPLY_PLATFORMS, shortDate
 import { capHelper } from "../../lib/settings/view.js";
 import { EnablePush } from "../../components/notifications/EnablePush.js";
 import { isVapidPublicKey } from "../../components/notifications/push-client.js";
-import { logoutEverywhereAction, removePromoAccountAction, saveCapsAction, setPingsAction } from "./actions.js";
+import { addPromoAccountAction, logoutEverywhereAction, removePromoAccountAction, saveCapsAction, setPingsAction } from "./actions.js";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Settings · My Socials" };
@@ -172,31 +174,61 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
               className="flex-1 justify-center py-2"
             />
           ) : (
-            <>
-              <DataList label="Accounts the inbox always ignores">
-                {promo.map((a) => (
-                  <DataRow
-                    key={a.id}
-                    leading={
-                      <span aria-hidden="true" className="inline-flex size-9 shrink-0 items-center justify-center rounded-ds-sm bg-ds-raised text-ds-text">
-                        <PlatformLogo platform={a.platform} size={18} />
-                      </span>
-                    }
-                    title={handle(a.displayHandle)}
-                    meta={`${a.source === "rule" ? "Added by a rule" : "Added by you"} · ${shortDate(a.createdAt, zone.timeZone)}`}
-                    trailing={
-                      <form action={removePromoAccountAction.bind(null, a.id)}>
-                        <Button type="submit" variant="ghost" size="sm" aria-label={`Remove ${handle(a.displayHandle)} from the list`}>
-                          Remove
-                        </Button>
-                      </form>
-                    }
-                  />
-                ))}
-              </DataList>
-              <p className="mt-4 text-[13px] leading-snug text-ds-muted">To add one, pick &ldquo;Always ignore this account&rdquo; on a comment in the inbox.</p>
-            </>
+            <DataList label="Accounts the inbox always ignores">
+              {promo.map((a) => (
+                <DataRow
+                  key={a.id}
+                  leading={
+                    <span aria-hidden="true" className="inline-flex size-9 shrink-0 items-center justify-center rounded-ds-sm bg-ds-raised text-ds-text">
+                      <PlatformLogo platform={a.platform} size={18} />
+                    </span>
+                  }
+                  title={handle(a.displayHandle)}
+                  meta={`${a.source === "rule" ? "Added by a rule" : "Added by you"} · ${shortDate(a.createdAt, zone.timeZone)}`}
+                  trailing={
+                    <form action={removePromoAccountAction.bind(null, a.id)}>
+                      <Button type="submit" variant="ghost" size="sm" aria-label={`Remove ${handle(a.displayHandle)} from the list`}>
+                        Remove
+                      </Button>
+                    </form>
+                  }
+                />
+              ))}
+            </DataList>
           )}
+          <form action={addPromoAccountAction} aria-labelledby="promo-add" className="mt-4 border-t border-ds-line pt-4">
+            <p id="promo-add" className="text-[15px] font-semibold text-ds-text">
+              Add an account by handle
+            </p>
+            <div className="mt-3 flex items-end gap-2">
+              <Select label="Platform" hideLabel name="platform" defaultValue="instagram" className="w-[8.75rem] shrink-0">
+                {REPLY_PLATFORMS.map((p) => (
+                  <option key={p} value={p}>
+                    {PLATFORM_NAME[p]}
+                  </option>
+                ))}
+              </Select>
+              <Input
+                label="Handle"
+                hideLabel
+                name="handle"
+                placeholder="@handle"
+                required
+                maxLength={60}
+                autoCapitalize="none"
+                autoCorrect="off"
+                autoComplete="off"
+                spellCheck={false}
+                className="min-w-0 flex-1"
+              />
+              <Button type="submit" variant="outline">
+                Add
+              </Button>
+            </div>
+            {promo.length ? (
+              <p className="mt-3 text-[13px] leading-snug text-ds-muted">Or pick &ldquo;Always ignore this account&rdquo; on a comment in the inbox.</p>
+            ) : null}
+          </form>
         </Card>
 
         <Card title="Research" titleId="research" subtitle="Fresh ideas from the creators you follow." action={<CardLink href="/research/creators">Creators</CardLink>} className="scroll-mt-20 lg:col-span-6">

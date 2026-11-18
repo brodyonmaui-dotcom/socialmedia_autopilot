@@ -20,7 +20,7 @@ export function InboxItemCard({ row, filter, now }: { row: InboxListRow; filter:
   const plan = cardPlan(row, filter);
   const chip = filter === "ignored" ? null : reasonChip(row.bucket, row.reason);
   const tab = returnTab(kind, filter);
-  const fields = { tab };
+  const fields = { tab, filter };
   const titleId = `item-${row.id}`;
   const platform = PLATFORM_NAME[row.platform] ?? row.platform;
 
@@ -82,6 +82,7 @@ export function InboxItemCard({ row, filter, now }: { row: InboxListRow; filter:
           mode={plan.primary}
           draft={row.draftedReply}
           tab={tab}
+          filter={filter}
           extra={more}
         />
       ) : (
@@ -100,6 +101,7 @@ export function InboxItemCard({ row, filter, now }: { row: InboxListRow; filter:
             {plan.canNotSpam ? (
               <form action={notSpamAction.bind(null, row.kind, row.id)}>
                 <input type="hidden" name="tab" value={tab} />
+                <input type="hidden" name="filter" value={filter} />
                 <Button type="submit" variant="outline" size="sm">
                   Not spam
                 </Button>
@@ -108,6 +110,7 @@ export function InboxItemCard({ row, filter, now }: { row: InboxListRow; filter:
             {filter === "ignored" && plan.canIgnoreAccount ? (
               <form action={ignoreAccountAction.bind(null, row.kind, row.id)}>
                 <input type="hidden" name="tab" value={tab} />
+                <input type="hidden" name="filter" value={filter} />
                 <Button type="submit" variant="ghost" size="sm">
                   Always ignore this account
                 </Button>

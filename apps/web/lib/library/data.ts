@@ -147,6 +147,35 @@ export async function loadLibrary(pool: Db, query: LibraryQuery = {}): Promise<L
   return { clips, nextCursor };
 }
 
+// ---------- Clip dialog: where the clip is scheduled ----------
+
+/** One calendar item using a clip (rejected ones never count, same rule as `usedIn`). */
+export interface ClipUse {
+  platform: string;
+  scheduledFor: Date | null;
+  status: string;
+}
+
+/**
+ * The clip Dialog's "Where it's used" lines (only loaded for the open clip, never for the grid): up to
+ * `limit` items, upcoming first (soonest first), then untimed drafts, then past ones (newest first).
+ */
+export async function loadClipUses(pool: Db, mediaId: string, now: Date, limit = 5): Promise<ClipUse[]> {
+  if (!isUuid(mediaId)) return [];
+  const { rows } = (await pool.query(
+    `select bi.platform, bi.scheduled_for, bi.status
+       from batch_items bi
+      where bi.media_id = $1 and bi.status <> 'rejected'
+      order by case when bi.scheduled_for >= $2 then 0 when bi.scheduled_for is null then 1 else 2 end,
+               case when bi.scheduled_for >= $2 then bi.scheduled_for end asc,
+               bi.scheduled_for desc,
+               bi.id
+      limit $3`,
+    [mediaId, now, Math.min(Math.max(limit, 1), 20)],
+  )) as { rows: Array<{ platform: string; scheduled_for: Date | string | null; status: string }> };
+  return rows.map((r) => ({ platform: r.platform, scheduledFor: r.scheduled_for == null ? null : new Date(r.scheduled_for), status: r.status }));
+}
+
 // ---------- Touch-up ----------
 
 export interface FixStats {

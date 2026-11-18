@@ -9,6 +9,7 @@ import {
   itemPlan,
   kindTabs,
   parseFilter,
+  pathFrom,
   promoReasonText,
   reasonChip,
   replyStatusSentence,
@@ -212,5 +213,38 @@ describe("item plan", () => {
       canNotSpam: true,
       rule: "Looks like a promo account: sells followers or growth",
     });
+  });
+});
+
+describe("pathFrom (where an inbox action redirects back to)", () => {
+  const fd = (o: Record<string, string>) => {
+    const f = new FormData();
+    for (const [k, v] of Object.entries(o)) f.set(k, v);
+    return f;
+  };
+  it.each([
+    [{ filter: "needs-you" }, "comments", "/inbox"],
+    [{ filter: "drafted" }, "comments", "/inbox?filter=drafted"],
+    [{ filter: "sent" }, "comments", "/inbox?filter=sent"],
+    [{ filter: "ignored" }, "comments", "/inbox?filter=ignored"],
+    [{ filter: "ignored", tab: "flagged" }, "comments", "/inbox?filter=ignored"],
+    [{ filter: "ignored", tab: "dms" }, "comments", "/inbox/dms?filter=ignored"],
+    [{ filter: "drafted", tab: "dms" }, "comments", "/inbox/dms?filter=drafted"],
+    [{ filter: "needs-you", tab: "dms" }, "comments", "/inbox/dms"],
+    [{ filter: "sent" }, "dms", "/inbox/dms?filter=sent"],
+    [{ tab: "shadow" }, "comments", "/inbox?tab=shadow"],
+    [{ tab: "sent" }, "comments", "/inbox?tab=sent"],
+    [{ tab: "flagged" }, "comments", "/inbox"],
+    [{ tab: "dms" }, "comments", "/inbox/dms"],
+    [{}, "comments", "/inbox"],
+    [{}, "dms", "/inbox/dms"],
+    [{ filter: "../../evil", tab: "https://x.example" }, "comments", "/inbox"],
+    [{ filter: "IGNORED" }, "dms", "/inbox/dms"],
+  ] as const)("%o (%s) → %s", (fields, kind, want) => {
+    expect(pathFrom(fd(fields), kind)).toBe(want);
+  });
+  it("no form → the plain list", () => {
+    expect(pathFrom(undefined)).toBe("/inbox");
+    expect(pathFrom(undefined, "dms")).toBe("/inbox/dms");
   });
 });

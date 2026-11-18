@@ -4,6 +4,7 @@ import {
   cardStage,
   cardTags,
   clipAriaLabel,
+  clipUseLines,
   durationText,
   fixAllPlan,
   fixingText,
@@ -226,5 +227,40 @@ describe("result notes", () => {
   it("old /touch-up keeps its query", () => {
     expect(touchUpRedirect({})).toBe("/library/touch-up");
     expect(touchUpRedirect({ done: "kept", moved: "2", x: ["a", "b"] })).toBe("/library/touch-up?done=kept&moved=2&x=a&x=b");
+  });
+});
+
+describe("clip dialog: where it's used", () => {
+  // 2099-11-24 is a Tuesday. Zones are passed in (the calendar's creator zone); none is hard-coded in the app.
+  const uses = [
+    { platform: "instagram", scheduledFor: new Date("2099-11-24T18:00:00Z"), status: "approved" },
+    { platform: "tiktok", scheduledFor: null, status: "draft" },
+    { platform: "youtube", scheduledFor: new Date("2099-11-02T09:05:00Z"), status: "published" },
+    { platform: "snapchat", scheduledFor: new Date("2099-11-03T09:05:00Z"), status: "queued" },
+  ];
+
+  it("platform · creator-local day and time, untimed says so, status words only from the status", () => {
+    const lines = clipUseLines(uses, "UTC");
+    expect(lines.map((l) => l.text)).toEqual([
+      "Instagram · Tue 24 Nov, 18:00",
+      "TikTok · not timed yet · needs approval",
+      "YouTube · Mon 2 Nov, 09:05 · posted",
+      "Snapchat · Tue 3 Nov, 09:05",
+    ]);
+    expect(new Set(lines.map((l) => l.key)).size).toBe(4);
+  });
+
+  it("links to the calendar week that holds the post (Monday of the local day)", () => {
+    const lines = clipUseLines(uses, "UTC");
+    expect(lines.map((l) => l.href)).toEqual(["/calendar?view=week&d=2099-11-23", "/calendar", "/calendar?view=week&d=2099-11-02", "/calendar?view=week&d=2099-11-02"]);
+  });
+
+  it("uses the zone it is given (day can shift across midnight)", () => {
+    const late = [{ platform: "instagram", scheduledFor: new Date("2099-11-23T23:30:00Z"), status: "approved" }];
+    expect(clipUseLines(late, "UTC")[0]!.text).toBe("Instagram · Mon 23 Nov, 23:30");
+    const east = clipUseLines(late, "Etc/GMT-2")[0]!;
+    expect(east.text).toBe("Instagram · Tue 24 Nov, 01:30");
+    expect(east.href).toBe("/calendar?view=week&d=2099-11-23");
+    expect(clipUseLines([], "UTC")).toEqual([]);
   });
 });

@@ -2,6 +2,8 @@
 // Labels come from queries.ts (read only); this module only arranges them.
 import { KIND_ORDER, kindLabel, sourceLabel, type AlertState } from "./queries.js";
 import { PUSH_KINDS_DEFAULT, type AlertKind } from "@autopilot/core";
+import { batchRedirect } from "../calendar/model.js";
+import type { AlertView } from "./queries.js";
 
 type Line = { text: string; style?: "solid" | "stroke" | "serif" };
 type Platform = "instagram" | "youtube" | "tiktok" | "snapchat";
@@ -12,6 +14,11 @@ export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n ==
 /** "Act soon" kinds (the default push set); the rest are informational. */
 const URGENT: ReadonlySet<AlertKind> = new Set(PUSH_KINDS_DEFAULT);
 export const isUrgent = (kind: AlertKind) => URGENT.has(kind);
+
+/** "Open in calendar" for a batch-linked alert: the week view of its batch directly (not the old /batches/<id> hop); null when unlinked. */
+export function alertCalendarHref(a: Pick<AlertView, "batchId" | "weekStart">): string | null {
+  return a.batchId ? batchRedirect(a.weekStart) : null;
+}
 
 /** /alerts, /alerts?kind=…, /alerts?state=acknowledged&kind=… */
 export function alertsHref(state: AlertState, kind?: AlertKind): string {

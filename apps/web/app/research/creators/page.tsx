@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getPool } from "../../../lib/db.js";
 import { requireSession } from "../../../lib/auth/require.js";
 import { loadCreators, loadResearchStatus } from "../../../lib/research/ideas.js";
-import { creatorMeta, plural, RUN_WORD, whenText } from "../../../lib/research/cards.js";
+import { creatorMeta, draftFrom, plural, RUN_WORD, whenText } from "../../../lib/research/cards.js";
 import { creatorPlatform } from "../../../lib/research/view.js";
 import {
   Button,
@@ -40,9 +40,12 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Sea
   const run = status.lastRun;
   const runWhen = run ? whenText(run.finishedAt ?? run.startedAt, now) : null;
   const ai = status.aiNotes;
+  const error = param(sp.error);
+  const draft = draftFrom("creator", sp);
+  const draftPlatform = PLATFORMS.find((p) => p === draft.platform) ?? "instagram";
 
   return (
-    <ResearchFrame current="creators" status={status} now={now} error={param(sp.error)} note={param(sp.note)}>
+    <ResearchFrame current="creators" status={status} now={now} error={error} note={param(sp.note)}>
       <div className="mt-4 grid grid-cols-1 gap-3 lg:mt-6 lg:grid-cols-12 lg:gap-4">
         <div className="flex min-w-0 flex-col gap-3 lg:col-span-8 lg:gap-4">
           <Card title="Following" titleId="following" subtitle={active.length ? `${plural(active.length, "creator")}. Their public posts become ideas.` : undefined}>
@@ -93,16 +96,16 @@ export default async function CreatorsPage({ searchParams }: { searchParams: Sea
               Add a creator
             </h2>
             <p className="ds-helper mt-1">Public handles only. New ideas from them arrive with the next refresh.</p>
-            <form action={addCreatorFlowAction} className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input label="Handle" name="handle" required placeholder="@handle or profile link" autoCapitalize="none" autoCorrect="off" className="sm:col-span-2" />
-              <Select label="Platform" name="platform" defaultValue="instagram">
+            <form key={error ?? "new"} action={addCreatorFlowAction} className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input label="Handle" name="handle" required placeholder="@handle or profile link" autoCapitalize="none" autoCorrect="off" className="sm:col-span-2" defaultValue={draft.handle} />
+              <Select label="Platform" name="platform" defaultValue={draftPlatform}>
                 {PLATFORMS.map((p) => (
                   <option key={p} value={p}>
                     {PLATFORM_NAME[p]}
                   </option>
                 ))}
               </Select>
-              <PillarSelect />
+              <PillarSelect defaultValue={draft.pillar ?? ""} />
               <div className="sm:col-span-2">
                 <Button type="submit" variant="solid">
                   Follow

@@ -14,6 +14,8 @@ export interface AlertView {
   createdAt: string;
   acknowledgedAt: string | null;
   batchId: string | null;
+  /** The linked batch's week (YYYY-MM-DD), for "Open in calendar" (`/calendar?view=week&d=…`). */
+  weekStart: string | null;
   batchItemId: string | null;
 }
 
@@ -65,8 +67,9 @@ export async function listAlerts(pool: Pool, opts: { state: AlertState; kind?: A
   params.push(Math.min(Math.max(Math.floor(opts.limit ?? LIST_LIMIT), 1), LIST_LIMIT));
   const order = opts.state === "open" ? "a.created_at desc, a.id" : "a.acknowledged_at desc, a.id";
   const { rows } = await pool.query(
-    `select a.id, a.kind, a.platform, a.message, a.created_at, a.acknowledged_at, a.batch_item_id, bi.batch_id
-       from alerts a left join batch_items bi on bi.id = a.batch_item_id
+    `select a.id, a.kind, a.platform, a.message, a.created_at, a.acknowledged_at, a.batch_item_id, bi.batch_id,
+            to_char(b.week_start, 'YYYY-MM-DD') as week_start
+       from alerts a left join batch_items bi on bi.id = a.batch_item_id left join batches b on b.id = bi.batch_id
       where ${where}
       order by ${order}
       limit $${params.length}`,
@@ -80,6 +83,7 @@ export async function listAlerts(pool: Pool, opts: { state: AlertState; kind?: A
     createdAt: new Date(r.created_at as Date | string).toISOString(),
     acknowledgedAt: r.acknowledged_at ? new Date(r.acknowledged_at as Date | string).toISOString() : null,
     batchId: (r.batch_id as string | null) ?? null,
+    weekStart: (r.week_start as string | null) ?? null,
     batchItemId: (r.batch_item_id as string | null) ?? null,
   }));
 }

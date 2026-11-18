@@ -3,7 +3,10 @@ import { resolve } from "node:path";
 import { runChecked } from "./exec.js";
 import { parseLoudnormMeasurement, type LoudnormMeasurement } from "./parse.js";
 import { probe, probeLocationTagKeys } from "./probe.js";
-import type { QaIssueCode, QaResult, Segment } from "./qa.js";
+import type { QaResult, Segment } from "./qa.js";
+import { FIX_OP_ORDER, OP_FOR_CODE, type FixOp, type QaIssueCode } from "./qa-types.js";
+
+export { FIX_OP_ORDER, OP_FOR_CODE, OPT_IN_OPS, type FixOp } from "./qa-types.js";
 
 /**
  * Touch-up "Fix it" engine. `planFix` turns a clip's QA issues into one plan (pure); `encodeArgs` /
@@ -11,28 +14,6 @@ import type { QaIssueCode, QaResult, Segment } from "./qa.js";
  * The input is only read, never overwritten. Every output drops all metadata and chapters, so no
  * GPS/location tag can survive (CLAUDE.md location boundary); the result is re-probed to prove it.
  */
-
-export type FixOp = "trim" | "remove-gaps" | "reencode" | "pad" | "loudness" | "strip";
-
-/** Canonical order of ops in a plan (and in media_fixes.ops). */
-export const FIX_OP_ORDER: readonly FixOp[] = ["trim", "remove-gaps", "reencode", "pad", "loudness", "strip"];
-
-/** Which op fixes which issue. Issues missing here are never auto-fixed. */
-export const OP_FOR_CODE: Partial<Record<QaIssueCode, FixOp>> = {
-  "frozen-head": "trim",
-  "frozen-tail": "trim",
-  "black-head": "trim",
-  "black-tail": "trim",
-  "silence-gaps": "remove-gaps",
-  format: "reencode",
-  rotation: "reencode",
-  aspect: "pad",
-  loudness: "loudness",
-  metadata: "strip",
-};
-
-/** Ops a bulk "Fix all" leaves off unless asked for by name (removing gaps changes the pacing). */
-export const OPT_IN_OPS: readonly FixOp[] = ["remove-gaps"];
 
 export const FIX_LIMITS = {
   minDurationS: 1,

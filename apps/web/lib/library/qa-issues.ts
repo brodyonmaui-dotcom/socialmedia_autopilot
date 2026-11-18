@@ -5,40 +5,20 @@
  * "effectively silent" → info `no-sound`; frozen/black counts without positions → info `recheck` (never
  * flagged; the worker's media-recheck job replaces them with a real v2 result).
  *
- * The shapes mirror packages/media/src/qa.ts + fix.ts. They are repeated here because the web app does not
- * depend on @autopilot/media (it shells out to ffmpeg); keep the two in step.
+ * The shapes come from packages/media/src/qa-types.ts (an import-free file, so the web bundle never pulls in
+ * the ffmpeg/child_process side of @autopilot/media). Only deep-import that file here, never the package root.
  */
 
-export type QaSeverity = "fix" | "info";
+import { FIX_OP_ORDER, OP_FOR_CODE, OPT_IN_OPS, type FixOp, type QaIssue as MediaQaIssue, type QaIssueCode, type QaSeverity } from "@autopilot/media/src/qa-types.js";
 
-export interface QaIssue {
-  code: string;
-  severity: QaSeverity;
-  fixable: boolean;
-  detail: string;
-  segments?: Array<{ start: number; end: number }>;
-}
+export { FIX_OP_ORDER, OP_FOR_CODE, OPT_IN_OPS };
+export type { FixOp, QaIssueCode, QaSeverity };
 
-export type FixOp = "trim" | "remove-gaps" | "reencode" | "pad" | "loudness" | "strip";
+/** A media QaIssue as read from the DB: rows may hold unknown/legacy codes, which are kept (shown as-is). */
+export type QaIssue = Omit<MediaQaIssue, "code"> & { code: QaIssueCode | (string & {}) };
 
-export const FIX_OP_ORDER: readonly FixOp[] = ["trim", "remove-gaps", "reencode", "pad", "loudness", "strip"];
-
-/** Same table as packages/media fix.ts OP_FOR_CODE. */
-export const OP_FOR_CODE: Readonly<Record<string, FixOp>> = {
-  "frozen-head": "trim",
-  "frozen-tail": "trim",
-  "black-head": "trim",
-  "black-tail": "trim",
-  "silence-gaps": "remove-gaps",
-  format: "reencode",
-  rotation: "reencode",
-  aspect: "pad",
-  loudness: "loudness",
-  metadata: "strip",
-};
-
-/** Off in "Fix all" unless asked for by name (it changes the pacing). */
-export const OPT_IN_OPS: readonly FixOp[] = ["remove-gaps"];
+/** The op for an issue code; unknown codes have none. */
+const opFor = (code: string): FixOp | undefined => (OP_FOR_CODE as Readonly<Record<string, FixOp | undefined>>)[code];
 
 /** Short tag labels for info issues (library chips). */
 const TAG_LABELS: Record<string, string> = {
@@ -126,7 +106,7 @@ const sortOps = (ops: Iterable<FixOp>): FixOp[] => {
 /** Every op the clip's (undismissed) fixable issues allow. */
 export function availableOps(issues: QaIssue[], dismissed: Iterable<string> = []): FixOp[] {
   const d = new Set(dismissed);
-  return sortOps(issues.filter((i) => i.fixable && !d.has(i.code) && OP_FOR_CODE[i.code]).map((i) => OP_FOR_CODE[i.code]!));
+  return sortOps(issues.filter((i) => i.fixable && !d.has(i.code) && opFor(i.code)).map((i) => opFor(i.code)!));
 }
 
 /** "Fix it" default: the fixable `fix` issues only (opt-in ops excluded). */

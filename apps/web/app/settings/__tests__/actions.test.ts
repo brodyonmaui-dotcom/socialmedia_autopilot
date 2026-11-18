@@ -23,12 +23,14 @@ const actions = await import("../actions.js");
 const exported = Object.entries(actions).filter(([, v]) => typeof v === "function") as Array<[string, (...a: unknown[]) => Promise<void>]>;
 
 /** A pool whose transactions see an empty engagement overlay and record every statement. */
-function fakePool() {
+function fakePool(opts: { listed?: boolean } = {}) {
   const calls: Array<{ sql: string; params: unknown[] }> = [];
   const query = vi.fn(async (sql: string, params: unknown[] = []) => {
     calls.push({ sql, params });
     if (/select value from settings/.test(sql)) return { rows: [{ value: {} }], rowCount: 1 };
     if (/update engagement_promo_accounts/.test(sql)) return { rows: [{ id: ID }], rowCount: 1 };
+    if (/insert into engagement_promo_accounts/.test(sql) && opts.listed) return { rows: [], rowCount: 0 };
+    if (/insert into engagement_promo_accounts/.test(sql)) return { rows: [{ id: ID }], rowCount: 1 };
     return { rows: [], rowCount: 1 };
   });
   return { pool: { query, connect: vi.fn(async () => ({ query, release: vi.fn() })) }, calls };
@@ -60,7 +62,7 @@ beforeEach(() => {
 describe("settings actions without a session", () => {
   it("exports the expected actions", () => {
     expect(exported.map(([n]) => n).sort()).toEqual(
-      ["logoutEverywhereAction", "removePromoAccountAction", "saveCapsAction", "setDmDraftsAction", "setPauseAction", "setPingsAction", "setReplyModeAction"].sort(),
+      ["addPromoAccountAction", "logoutEverywhereAction", "removePromoAccountAction", "saveCapsAction", "setDmDraftsAction", "setPauseAction", "setPingsAction", "setReplyModeAction"].sort(),
     );
   });
 
@@ -70,7 +72,7 @@ describe("settings actions without a session", () => {
       db.getPool.mockImplementation(() => {
         throw new Error("getPool must not be called without a session");
       });
-      const fd = form({ confirm: "auto", pings: "each", on: "on", "cap-instagram": "6" });
+      const fd = form({ confirm: "auto", pings: "each", on: "on", "cap-instagram": "6", platform: "instagram", handle: "gym_fan_22" });
       const args: Record<string, unknown[]> = {
         setPauseAction: [false, form({ confirm: "resume" })],
         setReplyModeAction: ["instagram", "live", fd],
@@ -150,5 +152,34 @@ describe("settings actions with a session (fake pool)", () => {
     await redirected(actions.removePromoAccountAction(ID));
     expect(fp.calls.some((c) => /^\s*delete/i.test(c.sql))).toBe(false);
     expect(fp.calls.some((c) => /'settings-change'/.test(c.sql))).toBe(true);
+  });
+
+  it("add by handle: a bad handle is refused before any write", async () => {
+    const fp = fakePool();
+    db.getPool.mockReturnValue(fp.pool);
+    const url = await redirected(actions.addPromoAccountAction(form({ platform: "instagram", handle: "https://www.instagram.com/gym_fan_22" })));
+    expect(decodeURIComponent(url)).toBe("/settings?error=Type the handle, not a link.#promo");
+    expect(decodeURIComponent(await redirected(actions.addPromoAccountAction(form({ platform: "snapchat", handle: "gym_fan_22" }))))).toContain("error=Pick Instagram");
+    expect(fp.calls).toEqual([]);
+  });
+
+  it("add by handle: lists the lower-cased handle as a manual row, audited; a second add is a no-op note", async () => {
+    const fp = fakePool();
+    db.getPool.mockReturnValue(fp.pool);
+    const url = await redirected(actions.addPromoAccountAction(form({ platform: "instagram", handle: " @@Gym_Fan_22 " })));
+    expect(decodeURIComponent(url)).toBe("/settings?note=@gym_fan_22 added: the inbox ignores it from now on#promo");
+    const ins = fp.calls.find((c) => /insert into engagement_promo_accounts/.test(c.sql))!;
+    expect(ins.sql).toMatch(/'manual'/);
+    expect(ins.params.slice(0, 3)).toEqual(["instagram", "gym_fan_22", "gym_fan_22"]);
+    expect(fp.calls.some((c) => /'settings-change'/.test(c.sql) && c.params[0] === "instagram")).toBe(true);
+    expect(fp.calls.some((c) => /^\s*delete/i.test(c.sql))).toBe(false);
+
+    const again = fakePool({ listed: true });
+    db.getPool.mockReturnValue(again.pool);
+    expect(decodeURIComponent(await redirected(actions.addPromoAccountAction(form({ platform: "instagram", handle: "gym_fan_22" }))))).toBe(
+      "/settings?note=@gym_fan_22 is already on the list#promo",
+    );
+    expect(again.calls.filter((c) => /insert into engagement_promo_accounts/.test(c.sql))).toHaveLength(1);
+    expect(again.calls.some((c) => /'settings-change'/.test(c.sql))).toBe(false);
   });
 });

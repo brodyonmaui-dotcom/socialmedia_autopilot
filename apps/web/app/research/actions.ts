@@ -15,12 +15,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getPool } from "../../lib/db.js";
 import { markHookUsed, markIdeaUsed, removeCreator } from "../../lib/research/ideas.js";
+import { draftFields, errorRedirect, safeReturn } from "../../lib/research/cards.js";
 import { requireSession } from "../../lib/auth/require.js";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "");
+const field = (fd: FormData) => (k: string) => fd.get(k);
 
 /** Errors go back to the page as ?error=… so the phone shows them inline (no client JS needed). */
-async function run(path: string, fn: () => Promise<unknown>): Promise<void> {
+async function run(path: string, fn: () => Promise<unknown>, errorTo?: (error: string) => string): Promise<void> {
   let error: string | undefined;
   try {
     await fn();
@@ -30,7 +32,7 @@ async function run(path: string, fn: () => Promise<unknown>): Promise<void> {
     error = e.name === "ValidationError" || e.name === "BacklogError" ? e.message : "something went wrong";
   }
   revalidatePath(path);
-  if (error) redirect(`${path}?error=${encodeURIComponent(error)}`);
+  if (error) redirect(errorTo ? errorTo(error) : `${path}?error=${encodeURIComponent(error)}`);
 }
 
 export async function addCreatorAction(fd: FormData): Promise<void> {
@@ -48,6 +50,7 @@ export async function addCreatorAction(fd: FormData): Promise<void> {
       },
       blocklistFromEnv(),
     ),
+    (error) => errorRedirect("/research/creators", error, draftFields("creator", field(fd))),
   );
 }
 
@@ -64,6 +67,8 @@ export async function addIdeaAction(fd: FormData): Promise<void> {
       { title: str(fd, "title"), pillar: str(fd, "pillar") || null, hook: str(fd, "hook"), sourceCreatorId: str(fd, "sourceCreatorId") || null },
       blocklistFromEnv(),
     ),
+    // Back to the page the dialog was on, dialog open, typed text kept.
+    (error) => errorRedirect(safeReturn(str(fd, "return"), "/research"), error, draftFields("idea", field(fd)), { add: "1" }),
   );
 }
 
@@ -98,6 +103,7 @@ export async function addHookAction(fd: FormData): Promise<void> {
       { text: str(fd, "text"), pillar: isPillar(pillar) ? pillar : null, source: str(fd, "source") === "creator" ? "creator" : "own" },
       blocklistFromEnv(),
     ),
+    (error) => errorRedirect(safeReturn(str(fd, "return"), "/research/hooks"), error, draftFields("hook", field(fd)), { add: "1" }),
   );
 }
 
