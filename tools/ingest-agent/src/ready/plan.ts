@@ -8,6 +8,8 @@ import {
   type CadenceSettings,
   type ExistingPost,
   type Platform,
+  type ScheduleResult,
+  type UnplacedReason,
 } from "@autopilot/core";
 import type { LintResult } from "@autopilot/research";
 import type { Sidecar } from "./sidecar.js";
@@ -107,9 +109,22 @@ function textsFor(sidecar: Sidecar, platform: Platform): { caption: string; titl
   }
 }
 
-export function planReadyItems(i: ReadyInput): PlannedItem[] {
+/**
+ * Every instant `planReadyItems` may place into: the `when` window, and for `today` also tomorrow
+ * (the whole-item fallback). Use it for the `existing` range.
+ */
+export function planningWindow(sidecar: Pick<Sidecar, "when" | "earliest">, now: Date, timeZone: string): { notBefore: Date; notAfter: Date } {
+  const win = readyWindow(sidecar, now, timeZone);
+  if (sidecar.when !== "today") return win;
+  return { notBefore: win.notBefore, notAfter: readyWindow({ ...sidecar, when: "tomorrow" }, now, timeZone).notAfter };
+}
+
+/** Unplaced reasons that send a `today` item to tomorrow. */
+const ROLL_TO_TOMORROW: ReadonlySet<UnplacedReason> = new Set(["cap", "no-slot", "buffer"]);
+
+function slotWindow(i: ReadyInput, when: Sidecar["when"]): { startDate: string; result: ScheduleResult } {
   const { sidecar, timeZone } = i;
-  const win = readyWindow(sidecar, i.now, timeZone);
+  const win = readyWindow({ when, earliest: sidecar.earliest }, i.now, timeZone);
   const startDate = localDate(win.notBefore, timeZone);
   const endDate = localDate(new Date(Math.max(win.notBefore.getTime(), win.notAfter.getTime() - 1)), timeZone);
 
@@ -124,6 +139,21 @@ export function planReadyItems(i: ReadyInput): PlannedItem[] {
     existing: i.existing.map((e) => ({ platform: e.platform, scheduledFor: e.scheduledFor })),
     now: i.now,
   });
+  return { startDate, result };
+}
+
+/**
+ * `today` = the next free slot after now within today's caps and spacing. If ANY platform can't be
+ * placed today (cap / no-slot / buffer), the WHOLE item is re-planned as `tomorrow` (from the local
+ * day start or `earliest`) so every platform stays on one day; if tomorrow also leaves a platform
+ * unplaced, the tomorrow plan stands and that platform gets `no-slot`.
+ */
+export function planReadyItems(i: ReadyInput): PlannedItem[] {
+  const { sidecar, timeZone } = i;
+  let { startDate, result } = slotWindow(i, sidecar.when);
+  if (sidecar.when === "today" && result.unplaced.some((u) => ROLL_TO_TOMORROW.has(u.reason))) {
+    ({ startDate, result } = slotWindow(i, "tomorrow"));
+  }
   const slotOf = new Map(result.assignments.map((a) => [a.platform, a.scheduledFor]));
 
   return sidecar.platforms.map((platform): PlannedItem => {

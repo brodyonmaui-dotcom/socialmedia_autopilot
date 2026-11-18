@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CADENCE, localDate, localHHMM, localToUtc, normalizeCadence, type Platform } from "@autopilot/core";
 import { lintText } from "@autopilot/research";
-import { ingestKey, planReadyItems, readyWindow, type ReadyExisting, type ReadyInput } from "../ready/plan.js";
+import { ingestKey, planningWindow, planReadyItems, readyWindow, type ReadyExisting, type ReadyInput } from "../ready/plan.js";
 import type { Sidecar } from "../ready/sidecar.js";
 
 // Test zone only (fixtures); the creator's zone lives in .env.
@@ -88,10 +88,61 @@ describe("when → window", () => {
   });
 });
 
+describe("today: same day, else the whole item tomorrow", () => {
+  const CAP4 = normalizeCadence({ dailyCaps: { instagram: 4, youtube: 4, tiktok: 4, snapchat: 1 } });
+
+  it("(a) mid-day with free slots → today, after now, keeping the gap to an existing post", () => {
+    // An Instagram post at 12:50 blocks 13:00 (30 min gap); TikTok is free at 13:00.
+    const items = plan({ sc: { platforms: ["instagram", "tiktok"] }, existing: posts("instagram", WED, ["12:50"]) });
+    const ig = items[0]!;
+    const tt = items[1]!;
+    expect(local(tt.scheduledFor)).toBe(`${WED} 13:00`);
+    expect(localDate(new Date(ig.scheduledFor!), TZ)).toBe(WED);
+    expect(Date.parse(ig.scheduledFor!)).toBeGreaterThan(at(WED, "12:00").getTime());
+    expect(Math.abs(Date.parse(ig.scheduledFor!) - at(WED, "12:50").getTime())).toBeGreaterThanOrEqual(30 * 60_000);
+  });
+
+  it("(b) late evening after the last slot → tomorrow morning's first slot", () => {
+    const items = plan({ now: at(WED, "23:30"), sc: { platforms: ["instagram", "youtube"] } });
+    expect(items.map((i) => local(i.scheduledFor))).toEqual(["2026-11-19 10:38", "2026-11-19 10:38"]);
+    expect(items.every((i) => i.flags.length === 0)).toBe(true);
+  });
+
+  it("(c) one platform at today's cap → every platform goes tomorrow (same day kept)", () => {
+    const items = plan({ now: at(WED, "08:00"), cadence: CAP4, sc: { platforms: ["instagram", "tiktok"] }, existing: posts("instagram", WED, ["10:38", "13:00", "16:30", "20:30"]) });
+    expect(items.map((i) => local(i.scheduledFor))).toEqual(["2026-11-19 10:38", "2026-11-19 10:38"]);
+  });
+
+  it("(c) earliest carries over to the tomorrow fallback", () => {
+    const item = plan({ now: at(WED, "21:00"), sc: { earliest: "12:00" } })[0]!;
+    expect(local(item.scheduledFor)).toBe("2026-11-19 13:00");
+  });
+
+  it("(d) DST: Saturday night before fall-back rolls to Sunday's wall-clock slot", () => {
+    const item = plan({ now: at("2026-10-31", "22:00") })[0]!;
+    expect(local(item.scheduledFor)).toBe("2026-11-01 10:38");
+    expect(item.scheduledFor).toBe("2026-11-01T15:38:00.000Z");
+    expect(item.weekStart).toBe("2026-10-26");
+  });
+
+  it("(d) Sunday night rolls into the next week's Monday", () => {
+    const item = plan({ now: at("2026-11-22", "22:00") })[0]!;
+    expect(local(item.scheduledFor)).toBe("2026-11-23 10:38");
+    expect(item.weekStart).toBe("2026-11-23");
+  });
+
+  it("(e) planningWindow covers tomorrow only for today", () => {
+    const now = at(WED, "12:00");
+    expect(planningWindow({ when: "today" }, now, TZ).notAfter.toISOString()).toBe(at("2026-11-20", "00:00").toISOString());
+    expect(planningWindow({ when: "tomorrow" }, now, TZ)).toEqual(readyWindow({ when: "tomorrow" }, now, TZ));
+    expect(planningWindow({ when: "this-week" }, now, TZ)).toEqual(readyWindow({ when: "this-week" }, now, TZ));
+  });
+});
+
 describe("caps and no-slot", () => {
   // A stored 5/day cadence row (the code defaults are Instagram 6, YouTube 10, TikTok 7).
   const CAP5 = normalizeCadence({ dailyCaps: { instagram: 5, youtube: 5, tiktok: 5, snapchat: 1 } });
-  it("5th post on a day with 4 grid posts goes to the flex grid; a 6th is no-slot (cap 5)", () => {
+  it("5th post on a day with 4 grid posts goes to the flex grid; a 6th never lands that day (cap 5)", () => {
     const now = at(WED, "08:00");
     const four = posts("instagram", WED, ["10:38", "13:00", "16:30", "20:30"]);
     const fifth = plan({ now, cadence: CAP5, existing: four })[0]!;
@@ -99,18 +150,27 @@ describe("caps and no-slot", () => {
     expect(fifth.flags).toEqual([]);
     const five = [...four, { platform: "instagram" as const, scheduledFor: fifth.scheduledFor! }];
     const sixth = plan({ now, cadence: CAP5, existing: five })[0]!;
-    expect(sixth).toMatchObject({ scheduledFor: null, flags: ["no-slot"], weekStart: "2026-11-16" });
+    expect(local(sixth.scheduledFor)).toBe("2026-11-19 10:38"); // rolled to tomorrow
+    // Same cap, `when: tomorrow` with tomorrow at 5 → no-slot.
+    const tomorrowFive = posts("instagram", "2026-11-19", ["09:30", "10:38", "13:00", "16:30", "20:30"]);
+    expect(plan({ now, cadence: CAP5, existing: tomorrowFive, sc: { when: "tomorrow" } })[0]).toMatchObject({ scheduledFor: null, flags: ["no-slot"], weekStart: "2026-11-16" });
   });
 
-  it("today full → no-slot, never rolled into tomorrow", () => {
+  it("today full → the whole item rolls to tomorrow's first slot", () => {
     const item = plan({ cadence: CAP5, existing: posts("instagram", WED, ["09:30", "10:38", "13:00", "16:30", "20:30"]) })[0]!;
-    expect(item.scheduledFor).toBeNull();
-    expect(item.flags).toContain("no-slot");
+    expect(local(item.scheduledFor)).toBe("2026-11-19 10:38");
+    expect(item).toMatchObject({ flags: [], weekStart: "2026-11-16" });
+  });
+
+  it("tomorrow full too → keeps the tomorrow plan with no-slot (never the day after)", () => {
+    const full = [...posts("instagram", WED, ["09:30", "10:38", "13:00", "16:30", "20:30"]), ...posts("instagram", "2026-11-19", ["09:30", "10:38", "13:00", "16:30", "20:30"])];
+    const item = plan({ cadence: CAP5, existing: full })[0]!;
+    expect(item).toMatchObject({ scheduledFor: null, flags: ["no-slot"] });
   });
 
   it("a stored cadence with caps 4 still yields 4", () => {
     const cadence = normalizeCadence({ dailyCaps: { instagram: 4, youtube: 4, tiktok: 4, snapchat: 1 } });
-    const item = plan({ now: at(WED, "08:00"), cadence, existing: posts("instagram", WED, ["10:38", "13:00", "16:30", "20:30"]) })[0]!;
+    const item = plan({ now: at(WED, "08:00"), cadence, existing: posts("instagram", "2026-11-19", ["10:38", "13:00", "16:30", "20:30"]), sc: { when: "tomorrow" } })[0]!;
     expect(item.flags).toEqual(["no-slot"]);
   });
 });

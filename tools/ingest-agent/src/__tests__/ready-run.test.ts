@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CADENCE, localToUtc } from "@autopilot/core";
 import { lintText } from "@autopilot/research";
-import { runReady, readySummaryLine, type ReadyDeps, type ReadyFs } from "../ready/run.js";
+import { runReady, readySummaryLine, SETTLE_MS, type ReadyDeps, type ReadyFs } from "../ready/run.js";
 import type { MediaRow, WriteInput } from "../ready/write.js";
 
 const TZ = "America/New_York";
@@ -25,10 +25,12 @@ const sidecarJson = (over: Record<string, unknown> = {}) =>
   });
 
 /** In-memory folder: path → content. */
-function memFs(files: Record<string, string>): ReadyFs & { files: Map<string, string> } {
+function memFs(files: Record<string, string>, mtimes: Record<string, number> = {}): ReadyFs & { files: Map<string, string> } {
   const m = new Map(Object.entries(files));
   return {
     files: m,
+    // Default: long settled (epoch). Tests set recent mtimes per path.
+    mtimeMs: (p) => mtimes[p] ?? 0,
     list: (dir) => [...m.keys()].filter((p) => dirname(p) === dir).map((p) => p.slice(dir.length + 1)),
     readText: (p) => {
       const v = m.get(p);
@@ -46,8 +48,8 @@ function memFs(files: Record<string, string>): ReadyFs & { files: Map<string, st
   };
 }
 
-function setup(files: Record<string, string>, over: Partial<ReadyDeps> = {}, dbOver: Partial<ReadyDeps["db"]> = {}) {
-  const fs = memFs(files);
+function setup(files: Record<string, string>, over: Partial<ReadyDeps> = {}, dbOver: Partial<ReadyDeps["db"]> = {}, mtimes: Record<string, number> = {}) {
+  const fs = memFs(files, mtimes);
   const keys = new Set<string>();
   const calls: string[] = [];
   const writes: WriteInput[] = [];
@@ -100,7 +102,7 @@ describe("runReady", () => {
   it("success: QA → strip → location check → upload → HEAD → media → write, then both files move", async () => {
     const { d, fs, calls, writes, lines } = setup(pair());
     const s = await runReady(d);
-    expect(s).toEqual({ new: 1, skipped: 0, wait: 0, fail: 0 });
+    expect(s).toEqual({ new: 1, skipped: 0, wait: 0, needsSidecar: 0, fail: 0 });
     expect(calls).toEqual([
       "qa",
       "touchUp",
@@ -119,13 +121,13 @@ describe("runReady", () => {
     expect(fs.files.has(join(DONE, "clip.mp4")) && fs.files.has(join(DONE, "clip.post.json"))).toBe(true);
     expect(lines[0]).toMatch(/^NEW clip\.mp4 · workout-log · instagram 2026-11-18 13:00, tiktok 2026-11-18 13:00 · 2 draft item\(s\)$/);
     expect(lines.join("\n")).not.toContain("leg day"); // no caption text in output
-    expect(readySummaryLine(s)).toBe("ingest:ready: 1 new · 0 skipped · 0 wait · 0 fail");
+    expect(readySummaryLine(s)).toBe("ingest:ready: 1 new · 0 skipped · 0 wait · 0 needs sidecar · 0 fail");
   });
 
   it("second run of the same render → SKIP, no upload, files moved", async () => {
     const { d, fs, keys, calls, lines } = setup(pair());
     keys.add("hash-clip.mp4-0123456789:instagram").add("hash-clip.mp4-0123456789:tiktok");
-    expect(await runReady(d)).toEqual({ new: 0, skipped: 1, wait: 0, fail: 0 });
+    expect(await runReady(d)).toEqual({ new: 0, skipped: 1, wait: 0, needsSidecar: 0, fail: 0 });
     expect(calls).toEqual([]);
     expect(lines).toEqual(["SKIP clip.mp4 (already ingested)"]);
     expect(fs.files.has(join(DONE, "clip.mp4"))).toBe(true);
@@ -134,7 +136,7 @@ describe("runReady", () => {
   it("running twice end to end: second pass sees nothing left; re-dropped render SKIPs and gets -<hash8>", async () => {
     const { d, fs, writes, lines } = setup(pair());
     await runReady(d);
-    expect(await runReady(d)).toEqual({ new: 0, skipped: 0, wait: 0, fail: 0 });
+    expect(await runReady(d)).toEqual({ new: 0, skipped: 0, wait: 0, needsSidecar: 0, fail: 0 });
     fs.files.set(join(DIR, "clip.mp4"), "video");
     fs.files.set(join(DIR, "clip.post.json"), sidecarJson());
     expect(await runReady(d)).toMatchObject({ skipped: 1 });
@@ -143,10 +145,10 @@ describe("runReady", () => {
     expect(lines.at(-1)).toBe("SKIP clip.mp4 (already ingested)");
   });
 
-  it("mp4 without a sidecar → WAIT, untouched; dot-files and _ingested ignored", async () => {
+  it("mp4 without a sidecar → NEEDS SIDECAR (not a failure), untouched; dot-files and _ingested ignored", async () => {
     const { d, fs, calls, lines } = setup({ [join(DIR, "half.mp4")]: "v", [join(DIR, ".hidden.mp4")]: "v", [join(DONE, "old.mp4")]: "v", [join(DONE, "old.post.json")]: "{}" });
-    expect(await runReady(d)).toEqual({ new: 0, skipped: 0, wait: 1, fail: 0 });
-    expect(lines).toEqual(["WAIT half.mp4 (no half.post.json yet)"]);
+    expect(await runReady(d)).toEqual({ new: 0, skipped: 0, wait: 0, needsSidecar: 1, fail: 0 });
+    expect(lines).toEqual(["NEEDS SIDECAR half.mp4 (run /post-ready)"]);
     expect(calls).toEqual([]);
     expect(fs.files.has(join(DIR, "half.mp4"))).toBe(true);
   });
@@ -201,17 +203,56 @@ describe("runReady", () => {
 
   it("one bad file doesn't stop the rest", async () => {
     const { d, lines } = setup({ ...pair("a", sidecarJson({ version: 2 })), ...pair("b") });
-    expect(await runReady(d)).toEqual({ new: 1, skipped: 0, wait: 0, fail: 1 });
+    expect(await runReady(d)).toEqual({ new: 1, skipped: 0, wait: 0, needsSidecar: 0, fail: 1 });
     expect(lines[0]).toMatch(/^FAIL a\.mp4: version: /);
     expect(lines[1]).toMatch(/^NEW b\.mp4/);
   });
 
   it("--dry-run plans and prints only: no QA, upload, writes or moves", async () => {
     const { d, fs, calls, lines } = setup(pair("clip", sidecarJson({ caption: {} })), { dryRun: true });
-    expect(await runReady(d)).toEqual({ new: 1, skipped: 0, wait: 0, fail: 0 });
+    expect(await runReady(d)).toEqual({ new: 1, skipped: 0, wait: 0, needsSidecar: 0, fail: 0 });
     expect(calls).toEqual([]);
     expect(inPlace(fs)).toBe(true);
     expect(lines[0]).toBe("WOULD INGEST clip.mp4 · workout-log · instagram 2026-11-18 13:00, tiktok 2026-11-18 13:00 · flags: needs-caption(instagram), needs-caption(tiktok)");
+  });
+});
+
+describe("runReady: settle time and folder defaults", () => {
+  const now = localToUtc("2026-11-18", "12:00", TZ).getTime();
+
+  it("a render modified < 2 min ago → WAIT (still being written), even without a sidecar", async () => {
+    const { d, calls, lines, fs } = setup({ [join(DIR, "fresh.mp4")]: "v" }, {}, {}, { [join(DIR, "fresh.mp4")]: now - SETTLE_MS + 1 });
+    expect(await runReady(d)).toEqual({ new: 0, skipped: 0, wait: 1, needsSidecar: 0, fail: 0 });
+    expect(lines).toEqual(["WAIT fresh.mp4 (still being written)"]);
+    expect(calls).toEqual([]);
+    expect(fs.files.has(join(DIR, "fresh.mp4"))).toBe(true);
+  });
+
+  it("a sidecar modified < 2 min ago → WAIT; exactly 2 min → ingested", async () => {
+    const fresh = setup(pair(), {}, {}, { [join(DIR, "clip.post.json")]: now - 1_000 });
+    expect(await runReady(fresh.d)).toMatchObject({ wait: 1, new: 0 });
+    expect(fresh.lines).toEqual(["WAIT clip.mp4 (still being written)"]);
+    const settled = setup(pair(), {}, {}, { [join(DIR, "clip.mp4")]: now - SETTLE_MS, [join(DIR, "clip.post.json")]: now - SETTLE_MS });
+    expect(await runReady(settled.d)).toMatchObject({ new: 1 });
+  });
+
+  it("source folder fills pillar / platforms / source; no approvedInEditor is fine", async () => {
+    const minimal = JSON.stringify({ version: 1, when: "today", caption: { instagram: "chart", tiktok: "chart", youtube: { title: "Recap", description: "chart" } } });
+    const { d, writes, lines } = setup(pair("recap", minimal), { dirSource: "trade-recaps" });
+    expect(await runReady(d)).toMatchObject({ new: 1, fail: 0 });
+    expect(writes[0]!.sidecar).toMatchObject({ pillar: "trade-recap", source: "trade-recaps", soundInApp: false });
+    expect(writes[0]!.sidecar.approvedInEditor).toBeUndefined();
+    expect(writes[0]!.items.map((i) => i.platform)).toEqual(["instagram", "youtube", "tiktok"]);
+    expect(lines[0]).toMatch(/^NEW recap\.mp4 · trade-recap · /);
+  });
+
+  it("sidecar source ≠ folder source → FAIL on source; legacy folder still needs the fields", async () => {
+    const wrong = setup(pair(), { dirSource: "trade-recaps" });
+    expect(await runReady(wrong.d)).toMatchObject({ fail: 1 });
+    expect(wrong.lines[0]).toBe("FAIL clip.mp4: source: sidecar says workout-assembly but folder is trade-recaps");
+    const legacy = setup(pair("clip", JSON.stringify({ version: 1, when: "today", caption: {} })));
+    expect(await runReady(legacy.d)).toMatchObject({ fail: 1 });
+    expect(legacy.lines[0]).toMatch(/^FAIL clip\.mp4: pillar: /);
   });
 });
 
@@ -254,7 +295,7 @@ describe("runReady: poster frame", () => {
       },
     });
     const s = await runReady(d);
-    expect(s).toEqual({ new: 1, skipped: 0, wait: 0, fail: 0 });
+    expect(s).toEqual({ new: 1, skipped: 0, wait: 0, needsSidecar: 0, fail: 0 });
     expect(media[0]!.posterKey).toBeNull();
     expect(inPlace(fs)).toBe(false);
     expect(lines.filter((l) => l.startsWith("POSTER"))).toEqual(["POSTER skipped clip.mp4 — poster: ffmpeg wrote no frame"]);
