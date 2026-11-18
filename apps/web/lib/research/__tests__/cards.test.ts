@@ -3,6 +3,10 @@ import {
   aboutWithoutQuote,
   cleanHookText,
   creatorMeta,
+  DRAFT_MAX,
+  draftFields,
+  draftFrom,
+  errorRedirect,
   forwardMove,
   hookKind,
   hookView,
@@ -173,5 +177,37 @@ describe("already used, times, creators", () => {
   it("creator meta line", () => {
     expect(creatorMeta({ pillar: "gym", followers: 12400, notes: "" })).toBe("Gym · 12,400 followers");
     expect(creatorMeta({ pillar: null, followers: null, notes: "dry hooks" })).toBe("dry hooks");
+  });
+});
+
+describe("form drafts on a validation error", () => {
+  it("errorRedirect carries error, reopen keys and draft_ fields, keeping the return query", () => {
+    const url = errorRedirect("/research?pillar=gym", "Too long", { title: "pull day", hook: "" }, { add: "1" });
+    expect(url).toBe("/research?pillar=gym&error=Too+long&add=1&draft_title=pull+day");
+    const q = new URLSearchParams(url.split("?")[1]);
+    expect(q.get("draft_title")).toBe("pull day");
+    expect(q.has("draft_hook")).toBe(false);
+    expect(errorRedirect("/research/creators", "bad")).toBe("/research/creators?error=bad");
+  });
+
+  it("caps each echoed value", () => {
+    const long = "x".repeat(2000);
+    const q = new URLSearchParams(errorRedirect("/research", "e", { title: long }).split("?")[1]);
+    expect(q.get("draft_title")).toHaveLength(DRAFT_MAX);
+    expect(draftFrom("idea", { draft_title: long }).title).toHaveLength(DRAFT_MAX);
+  });
+
+  it("only picks the fields of the form that failed", () => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries({ title: "t", hook: "h", pillar: "gym", text: "not mine", return: "/research", handle: "x" })) fd.set(k, v);
+    expect(draftFields("idea", (k) => fd.get(k))).toEqual({ title: "t", hook: "h", pillar: "gym" });
+    expect(draftFields("hook", (k) => fd.get(k))).toEqual({ text: "not mine", pillar: "gym" });
+  });
+
+  it("draftFrom reads only that form's draft_ keys and ignores arrays", () => {
+    const sp = { draft_title: "t", draft_text: "hook line", draft_hook: ["a", "b"], title: "plain" };
+    expect(draftFrom("idea", sp)).toEqual({ title: "t" });
+    expect(draftFrom("hook", sp)).toEqual({ text: "hook line" });
+    expect(draftFrom("creator", {})).toEqual({});
   });
 });

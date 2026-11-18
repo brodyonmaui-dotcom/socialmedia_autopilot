@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { dismissIssue, keepFix, keepOriginal, loadLibrary, loadTouchUp, requestFix } from "../data.js";
+import { dismissIssue, keepFix, keepOriginal, loadClipUses, loadLibrary, loadTouchUp, requestFix } from "../data.js";
 
 /**
  * Real dev DB (DATABASE_URL, migrated through 0014). Everything runs in ONE transaction that is rolled back,
@@ -144,5 +144,31 @@ describe.skipIf(!url)("library + touch-up data layer (db)", () => {
     expect(p1.nextCursor).not.toBeNull();
     const p2 = await loadLibrary(db, { q: run, limit: 2, cursor: p1.nextCursor });
     expect(p2.clips.map((c) => c.mediaId).some((m) => p1.clips.some((c) => c.mediaId === m))).toBe(false);
+  });
+
+  it("loadClipUses: upcoming soonest first, then untimed, then past newest first; rejected never; capped", async () => {
+    const clip = await media("uses", qaV2([]));
+    const batch = (await db.query("insert into batches (week_start, status) values ('2099-07-06', 'draft') returning id")).rows[0].id;
+    const now = new Date("2099-07-08T12:00:00Z");
+    const add = (platform: string, at: string | null, status: string) =>
+      db.query("insert into batch_items (batch_id, media_id, platform, caption, status, scheduled_for) values ($1, $2, $3, 'x', $4, $5)", [batch, clip, platform, status, at]);
+    await add("instagram", "2099-07-10T18:00:00Z", "approved");
+    await add("youtube", "2099-07-09T08:00:00Z", "draft");
+    await add("tiktok", null, "draft");
+    await add("snapchat", "2099-07-06T08:00:00Z", "published");
+    await add("instagram", "2099-07-07T08:00:00Z", "published");
+    await add("tiktok", "2099-07-09T09:00:00Z", "rejected");
+
+    const uses = await loadClipUses(db, clip, now);
+    expect(uses.map((u) => [u.platform, u.scheduledFor?.toISOString() ?? null, u.status])).toEqual([
+      ["youtube", "2099-07-09T08:00:00.000Z", "draft"],
+      ["instagram", "2099-07-10T18:00:00.000Z", "approved"],
+      ["tiktok", null, "draft"],
+      ["instagram", "2099-07-07T08:00:00.000Z", "published"],
+      ["snapchat", "2099-07-06T08:00:00.000Z", "published"],
+    ]);
+    expect(await loadClipUses(db, clip, now, 2)).toHaveLength(2);
+    expect(await loadClipUses(db, "not-a-uuid", now)).toEqual([]);
+    expect(mine((await loadLibrary(db, { q: `${run}-uses` })).clips)[0]!.usedIn).toBe(5);
   });
 });

@@ -61,7 +61,13 @@ describe.skipIf(!url)("alerts queries (db)", () => {
     expect(open.map((a) => a.id).sort()).toEqual(Object.values(ids).sort());
     expect(open.find((a) => a.id === ids.auth)).toMatchObject({ kind: "auth", source: "web", acknowledgedAt: null, batchId: null, batchItemId: null });
     expect(open.find((a) => a.id === ids.kill)!.source).toBe("all");
-    if (ids.item) expect(open.find((a) => a.id === ids.item)!.batchId).toBe(itemBatch);
+    if (ids.item) {
+      const linked = open.find((a) => a.id === ids.item)!;
+      expect(linked.batchId).toBe(itemBatch);
+      const week = (await pool.query("select to_char(week_start, 'YYYY-MM-DD') as w from batches where id = $1", [itemBatch])).rows[0].w;
+      expect(linked.weekStart).toBe(week);
+    }
+    expect(open.find((a) => a.id === ids.auth)!.weekStart).toBeNull();
     expect((await countByKind(pool, "open", NOW)).auth).toBeGreaterThanOrEqual(1);
   });
 

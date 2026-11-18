@@ -4,9 +4,10 @@ import { ClipDialog, ClipTile, FocusScroll } from "../../components/library/inde
 import { Button, ButtonLink, Dropdown, EmptyState, InlineNotice, PageHeader, SearchField } from "../../components/ui/index.js";
 import { requireSession } from "../../lib/auth/require.js";
 import { getPool } from "../../lib/db.js";
-import { loadLibrary, loadTouchUp, type LibraryClip } from "../../lib/library/data.js";
+import { loadClipUses, loadLibrary, loadTouchUp, type LibraryClip } from "../../lib/library/data.js";
 import { loadPillars } from "../../lib/library/pillars.js";
-import { libraryUrl, parseLibraryParams, pillarOptions, resultNote, tagOptions } from "../../lib/library/screen.js";
+import { clipUseLines, libraryUrl, parseLibraryParams, pillarOptions, resultNote, tagOptions } from "../../lib/library/screen.js";
+import { creatorZone } from "../../lib/calendar/load.js";
 
 export const dynamic = "force-dynamic"; // always the latest ingest
 export const metadata = { title: "Library · My Socials" };
@@ -30,6 +31,8 @@ export default async function LibraryPage({ searchParams }: { searchParams: Sear
   let open: LibraryClip | null = null;
   if (p.clip) open = page.clips.find((c) => c.mediaId === p.clip) ?? (await loadLibrary(pool, { focus: p.clip, limit: 1 })).clips.find((c) => c.mediaId === p.clip) ?? null;
   const touch = open && open.flagged > 0 ? ((await loadTouchUp(pool)).find((c) => c.mediaId === open.mediaId) ?? null) : null;
+  // Only the open clip's next few uses (one small query; the grid keeps its count only).
+  const uses = open && open.usedIn > 0 ? clipUseLines(await loadClipUses(pool, open.mediaId, new Date()), creatorZone().timeZone) : [];
 
   const filtered = Boolean(p.q || p.pillar || p.tag);
   const note = resultNote(sp);
@@ -124,7 +127,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Sear
       )}
 
       {focusId && !open ? <FocusScroll targetId={`clip-${focusId}`} /> : null}
-      {open ? <ClipDialog clip={open} touch={touch} closeHref={libraryUrl({ ...p, clip: null })} back={libraryUrl(p)} /> : null}
+      {open ? <ClipDialog clip={open} touch={touch} uses={uses} closeHref={libraryUrl({ ...p, clip: null })} back={libraryUrl(p)} /> : null}
     </AppFrame>
   );
 }

@@ -3,8 +3,8 @@ import { blocklistFromEnv, lintText } from "@autopilot/research";
 import { getPool } from "../../../lib/db.js";
 import { requireSession } from "../../../lib/auth/require.js";
 import { loadHooks, loadResearchStatus } from "../../../lib/research/ideas.js";
-import { listHref, parsePillar, pillarOptions, whenText } from "../../../lib/research/cards.js";
-import { Button, ButtonLink, Card, Dialog, Dropdown, EmptyState, Input, Select, buttonClasses } from "../../../components/ui/index.js";
+import { draftFrom, listHref, parsePillar, pillarOptions, whenText } from "../../../lib/research/cards.js";
+import { Button, ButtonLink, Card, Dialog, Dropdown, EmptyState, InlineNotice, Input, Select, buttonClasses } from "../../../components/ui/index.js";
 import { HookCard } from "../../../components/research/HookCard.js";
 import { UsedList } from "../../../components/research/UsedList.js";
 import { param, PillarSelect, ResearchFrame, type SearchParams } from "../../../components/research/ResearchFrame.js";
@@ -27,6 +27,7 @@ export default async function HooksPage({ searchParams }: { searchParams: Search
   const adding = param(sp.add) === "1";
   const error = param(sp.error);
   const note = param(sp.note);
+  const draft = draftFrom("hook", sp);
 
   return (
     <ResearchFrame
@@ -89,11 +90,16 @@ export default async function HooksPage({ searchParams }: { searchParams: Search
 
       {adding ? (
         <Dialog open title="Add a hook" closeHref={self}>
-          <form action={addHookFlowAction} className="flex flex-col gap-4">
+          <form key={error ?? "new"} action={addHookFlowAction} className="flex flex-col gap-4">
             <input type="hidden" name="return" value={self} />
-            <Input label="Opening line" name="text" required maxLength={200} placeholder="My lats are not a fan of this…" />
-            <PillarSelect defaultValue={pillar ?? ""} />
-            <Select label="Whose line" name="source" defaultValue="own">
+            {error ? (
+              <InlineNotice tone="danger" live>
+                {error}
+              </InlineNotice>
+            ) : null}
+            <Input label="Opening line" name="text" required maxLength={200} placeholder="My lats are not a fan of this…" defaultValue={draft.text} />
+            <PillarSelect defaultValue={draft.pillar ?? pillar ?? ""} />
+            <Select label="Whose line" name="source" defaultValue={draft.source === "creator" ? "creator" : "own"}>
               <option value="own">Mine</option>
               <option value="creator">A creator&rsquo;s pattern</option>
             </Select>
