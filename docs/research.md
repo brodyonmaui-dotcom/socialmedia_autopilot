@@ -65,7 +65,7 @@ Newest truth wins: the verification log (end of file) overrides earlier text. Cr
 - ~~Business Discovery at Standard Access~~ confirmed in the M0 Instagram probe (2026-11-10).
 - ~~Reel total watch time metric name~~ `ig_reels_video_view_total_time`, confirmed in Meta's media-insights reference and accepted by the probe (2026-11-11).
 
-### M0 results and M1 day 1 (2026-11-10/12)
+### Instagram, YouTube, TikTok: M0 probes (2026-11-10) and first real posts (2026-11-12)
 - First real posts 2026-11-10/11 and 2026-11-12: IG trial refused (code 10 / 2207081) three times, fell back to regular reels (`trial.fellBack=true`, flag "trial refused: posted as a regular reel"; exact error text not captured on 11-12); YouTube and TikTok published on 1 attempt via the outbox (approved -> claim -> container -> poll -> publish; no alerts) once `YT_REFRESH_TOKEN` and `ZERNIO_TIKTOK_ACCOUNT_ID` were set.
 - Workflow: R2 upload needs `aws` CLI, absent on the bare VPS host; reuse the `backup` container (`docker cp` + `docker exec`).
 

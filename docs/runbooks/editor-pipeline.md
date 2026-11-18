@@ -58,7 +58,7 @@ An invalid sidecar prints one `FAIL <name>: <path>: <message>` line and both fil
 
 Names only; the values live in the laptop's local env file (`.env` in the repo folder), never in git:
 
-- `INGEST_READY_DIRS`: `;`-separated `<path>=<source>` pairs, source `trade-recaps` or `workout-assembly`, e.g. `C:\Renders\Trade Recaps\Ready To Post=trade-recaps;C:\Renders\Workout\Ready To Post=workout-assembly`. Folders must exist. Laptop `.env` only.
+- `INGEST_READY_DIRS`: `;`-separated `<path>=<source>` pairs, source `trade-recaps` or `workout-assembly`, e.g. `<trade recaps ready folder>=trade-recaps;<workout ready folder>=workout-assembly` (full Windows paths; `:` and `\` are fine, the split is on the last `=`). Folders must exist. Laptop `.env` only.
 - `INGEST_SNAPCHAT_DEFAULT=on` adds Snapchat to the workout defaults (leave off until the account exists).
 - `INGEST_READY_DIR`: legacy single folder; still works, but then the sidecar must carry `pillar`, `platforms` and `source`.
 - `TZ_CREATOR`
