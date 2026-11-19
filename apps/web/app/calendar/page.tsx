@@ -13,6 +13,7 @@ import {
   WeekView,
   type PostCardLinks,
 } from "../../components/calendar/index.js";
+import { PostingBanner } from "../../components/status/PostingBanner.js";
 import { Button, ButtonLink, Card, EmptyState, Icon, IconLink, InlineNotice, PageHeader, TabLinks, cx } from "../../components/ui/index.js";
 import { requireSession } from "../../lib/auth/require.js";
 import { getPool } from "../../lib/db.js";
@@ -30,6 +31,7 @@ import {
   weekTitle,
 } from "../../lib/calendar/model.js";
 import { approveAllSummary, tomorrowOf } from "../../lib/calendar/plan.js";
+import { loadPostingStatus, postingBanner } from "../../lib/status/posting.js";
 import { fillTimesAction } from "./actions.js";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +53,13 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
   const today = localDate(now, zone.timeZone);
   const state = parseCalendarState(sp, today);
   const range = viewRange(state.view, state.d);
-  const data = await loadCalendar(getPool(), { from: range.from, to: range.to, now, showRejected: state.showRejected });
+  const pool = getPool();
+  const [data, posting] = await Promise.all([
+    loadCalendar(pool, { from: range.from, to: range.to, now, showRejected: state.showRejected }),
+    // F18: dry run / silent worker / missed posts, above the grid.
+    loadPostingStatus(pool, now),
+  ]);
+  const postingView = postingBanner(posting, { now, timeZone: zone.timeZone, zoneFallback: zone.source === "fallback", surface: "calendar" });
   const entries = data.entries.filter((e) => e.day! >= range.from && e.day! <= range.to);
 
   const here = calendarHref(state);
@@ -107,6 +115,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
         ) : note ? (
           <InlineNotice live>{note}</InlineNotice>
         ) : null}
+        <PostingBanner view={postingView} />
 
         {/* Toolbar: period title, prev / today / next, month | week, filters */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

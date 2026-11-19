@@ -1,8 +1,8 @@
 import type { Platform } from "@autopilot/core";
 import { approveItemsAction } from "../../app/calendar/actions.js";
 import { formatDuration } from "../../lib/batches/view-model.js";
-import type { Entry, PlatformEntry, Tone } from "../../lib/calendar/model.js";
-import { Badge, Button, ButtonLink, cx, Menu, PLATFORM_NAME, PlatformLogo, type MenuItem } from "../ui/index.js";
+import { entryMissed, type Entry, type PlatformEntry, type Tone } from "../../lib/calendar/model.js";
+import { Badge, Button, ButtonLink, Chip, cx, Menu, PLATFORM_NAME, PlatformLogo, type MenuItem } from "../ui/index.js";
 import { PostHoverPreview, type PreviewData } from "./PostHoverPreview.js";
 
 /** Status dot colour per platform item (a word always sits next to it in the accessible name). */
@@ -14,7 +14,7 @@ const DOT: Record<Tone | "scheduled" | "posted", string> = {
   scheduled: "bg-ds-text",
   posted: "bg-ds-line-strong",
 };
-const dotOf = (p: PlatformEntry) => (p.status === "published" ? DOT.posted : DOT[p.tone]);
+const dotOf = (p: PlatformEntry) => (p.status === "published" ? DOT.posted : p.missed ? DOT.warn : DOT[p.tone]);
 const BADGE: Record<Tone, "neutral" | "accent" | "warn" | "danger"> = { neutral: "neutral", accent: "accent", warn: "warn", danger: "danger" };
 
 /** Hrefs a card needs; the page builds them from its URL state. */
@@ -79,9 +79,10 @@ export function PostCard({
   const menu = actions === "menu" && links ? menuItems(e, back, links) : [];
   const approvable = e.platforms.filter((p) => p.canApprove);
   const dim = emphasise && e.status !== "needs-you";
+  const missed = entryMissed(e);
   return (
     <article
-      aria-label={`${e.title}, ${e.statusLabel}`}
+      aria-label={`${e.title}, ${e.statusLabel}${missed ? ", missed its time" : ""}`}
       className={cx(
         "flex min-h-[136px] gap-3 rounded-ds-lg border bg-ds-card p-3",
         emphasise && e.status === "needs-you" ? "border-ds-accent" : "border-ds-line",
@@ -109,12 +110,18 @@ export function PostCard({
                 <span aria-hidden="true" className={cx("size-1.5 rounded-full", dotOf(p))} />
                 <span className="sr-only">
                   {PLATFORM_NAME[p.platform]}: {p.statusLabel}
+                  {p.missed ? ", missed its time" : ""}
                 </span>
               </li>
             ))}
           </ul>
           {e.pillar ? <span className="ds-tag text-ds-muted">{e.pillar}</span> : null}
-          <Badge tone={BADGE[e.tone]} className="ml-auto">
+          {missed ? (
+            <Chip tone="warn" size="sm" icon="alert" className="ml-auto">
+              Missed
+            </Chip>
+          ) : null}
+          <Badge tone={BADGE[e.tone]} className={missed ? undefined : "ml-auto"}>
             {e.statusLabel}
           </Badge>
         </div>
