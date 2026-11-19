@@ -36,6 +36,7 @@ verdict() { VERDICTS="${VERDICTS}${1}
 
 tmo() { if command -v timeout >/dev/null 2>&1; then timeout "$@"; else shift; "$@"; fi; }
 dc() { (cd "$ROOT/infra" 2>/dev/null && tmo 60 docker compose "$@"); }
+# Every dc call that sends no SQL must read /dev/null: with the terminal as stdin, `docker compose exec` (run under timeout, in a background process group) blocks on it.
 # SQL on stdin, one text column per line. Read-only transaction, UTC session. stderr is kept (first line shown on failure).
 psql_ro() {
   dc exec -T -e PGOPTIONS='-c default_transaction_read_only=on -c TimeZone=UTC' db \
@@ -137,7 +138,7 @@ WORKER_RUNNING=no
 DB_RUNNING=no
 section_containers() {
   echo "== 2. Containers"
-  ps=$(dc ps --all --format '{{.Service}} {{.State}} {{.Status}}' 2>/dev/null) || ps=""
+  ps=$(dc ps --all </dev/null --format '{{.Service}} {{.State}} {{.Status}}' 2>/dev/null) || ps=""
   if [ -z "$ps" ]; then echo "  docker compose ps: n/a"; verdict "containers: docker compose ps gave nothing (is the stack up? run from the VPS)"; return; fi
   for svc in web worker db backup caddy; do
     line=$(printf '%s\n' "$ps" | awk -v s="$svc" '$1 == s' | head -1)
@@ -148,7 +149,7 @@ section_containers() {
   done
   [ "$WORKER_RUNNING" = yes ] || verdict "worker not running (logs: docker compose logs --tail 50 worker)"
   [ "$DB_RUNNING" = yes ] || verdict "db not running (every DB check below is n/a)"
-  cid=$(dc ps --all -q worker 2>/dev/null | head -1)
+  cid=$(dc ps --all -q worker </dev/null 2>/dev/null | head -1)
   if [ -z "$cid" ]; then echo "  worker inspect: n/a"; return; fi
   info=$(tmo 30 docker inspect -f '{{.RestartCount}}|{{.State.Status}}|{{.State.StartedAt}}|{{.Created}}|{{.State.ExitCode}}' "$cid" 2>/dev/null) || info=""
   if [ -z "$info" ]; then echo "  worker inspect: n/a"; return; fi
@@ -204,7 +205,7 @@ section_env() {
           WORKER_LIVE) if [ "$v" = 1 ]; then echo "$n 1"; else echo "$n not-1"; fi ;;
           *) if [ -n "$v" ]; then echo "$n set"; else echo "$n missing"; fi ;;
         esac
-      done' sh $ENV_NAMES 2>/dev/null) || wenv=""
+      done' sh $ENV_NAMES </dev/null 2>/dev/null) || wenv=""
   fi
   [ -r "$ENV_FILE" ] || echo "  .env: unreadable or missing at the repo root"
   printf '  %-26s %-9s %s\n' NAME .env worker
@@ -241,7 +242,7 @@ cnt() { printf '%s\n' "$LOGS" | grep -cF -- "$1"; }
 outcome() { printf '    %-26s %s\n' "$1" "$(cnt "$2")"; }
 section_logs() {
   echo "== 4. Worker log (last 24 h, UTC)"
-  LOGS=$(dc logs --since 24h --no-color --timestamps worker 2>/dev/null |
+  LOGS=$(dc logs --since 24h --no-color --timestamps worker </dev/null 2>/dev/null |
     sed -E 's/^[^|]*\| ?//; s/^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\.[0-9]+)?Z /\1Z /')
   if [ -z "$LOGS" ]; then echo "  logs: n/a (no output in 24 h)"; return; fi
   echo "  lines: $(printf '%s\n' "$LOGS" | wc -l | tr -d ' ') · worker starts: $(cnt 'worker started ·')"
