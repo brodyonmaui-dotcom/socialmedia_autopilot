@@ -10,6 +10,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { loadRepoEnv } from "./load-env.js";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
 import { assertTimeZone } from "@autopilot/core";
 import { createPool, loadCadence } from "@autopilot/db";
@@ -21,7 +22,7 @@ import { addSummary, emptySummary, readySummaryLine, runReady } from "./ready/ru
 import { existingIngestKeys, existingPosts, upsertMedia, writeReadyItems } from "./ready/write.js";
 import { withRetry } from "./retry.js";
 
-if (existsSync(".env")) process.loadEnvFile(".env");
+loadRepoEnv();
 
 const dryRun = process.argv.includes("--dry-run");
 

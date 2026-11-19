@@ -100,6 +100,8 @@ It runs `pnpm ingest:ready`, uses no AI and costs nothing. Create Task (not "Bas
 - **Actions**: Start a program. Program/script: `cmd.exe`. Arguments: `/c pnpm ingest:ready >> logs\ingest-ready.log 2>&1`. Start in: the repo folder (the one containing `package.json` and `.env`).
 - **Settings**: "If the task is already running, then the following rule applies" set to "Do not start a new instance". Tick "Stop the task if it runs longer than" 9 minutes.
 
+- **If `DATABASE_URL` goes through the SSH tunnel** (local port 5433, see [migrations.md](migrations.md)), the action must open it first. Windows' own `ssh.exe` ignores `-f`, so use Git for Windows' `usr\bin\ssh.exe`, written as its 8.3 short path (`<git-ssh>` below; `for %I in ("<full path>") do @echo %~sI` prints it) because quotes around a path with spaces get lost: `conhost.exe --headless cmd.exe /c (<git-ssh> -f -o BatchMode=yes -o ExitOnForwardFailure=yes -L 5433:127.0.0.1:5432 autopilot sleep 240 & corepack pnpm -s exec tsx tools\ingest-agent\src\ready-cli.ts) >> logs\ingest-ready.log 2>&1`. `--headless` stops a console window flashing every 10 minutes; `corepack pnpm` works when pnpm itself is not on PATH.
+
 The repo's `logs/` folder is gitignored, so the log stays local. The run is one-shot and idempotent (keyed on the content hash), so an overlap is harmless anyway. Check `logs\ingest-ready.log` only when something looks off.
 
 One-line equivalent (placeholders in angle brackets; set "Start in" afterwards or wrap in `cmd /c "cd /d <repo> && ..."`):

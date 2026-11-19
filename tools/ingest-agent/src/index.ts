@@ -6,9 +6,10 @@
 //   pnpm --filter @autopilot/ingest-agent ingest --dry-run  # scan + hash + dedupe check only:
 //                                                           # no QA, no upload, no DB writes
 // Exit codes: 0 ok · 1 some files failed · 2 stopped because the DB connection was lost (re-run).
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { loadRepoEnv } from "./load-env.js";
 import { createPool } from "@autopilot/db";
 import { makePoster, probeLocationTagKeys, runQa, sha256File, touchUp } from "@autopilot/media";
 import { parseIngestRoots } from "./config.js";
@@ -18,7 +19,7 @@ import { withRetry } from "./retry.js";
 import { runIngest, summaryLine } from "./run.js";
 import { findVideoFiles } from "./scan.js";
 
-if (existsSync(".env")) process.loadEnvFile(".env");
+loadRepoEnv();
 
 const dryRun = process.argv.includes("--dry-run");
 

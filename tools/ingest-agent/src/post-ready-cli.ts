@@ -6,13 +6,14 @@
 // Nothing here uploads, approves or posts: the sidecar has no approvedInEditor, so the phone tap is still needed.
 import { existsSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { loadRepoEnv } from "./load-env.js";
 import { probe } from "@autopilot/media";
 import { blocklistFromEnv } from "@autopilot/research";
 import { scanRenders } from "./post-ready/scan.js";
 import { postReadyLine, writePostReady } from "./post-ready/write.js";
 import { parseReadyDirs } from "./ready/dirs.js";
 
-if (existsSync(".env")) process.loadEnvFile(".env");
+loadRepoEnv();
 
 const [cmd, ...args] = process.argv.slice(2);
 const { dirs, errors } = parseReadyDirs(process.env);
