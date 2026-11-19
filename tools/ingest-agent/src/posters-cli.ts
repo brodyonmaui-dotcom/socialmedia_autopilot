@@ -9,13 +9,14 @@
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { loadRepoEnv } from "./load-env.js";
 import { createPool } from "@autopilot/db";
 import { makePoster, sha256File } from "@autopilot/media";
 import { backfillSummaryLine, runPosterBackfill, type PosterRow } from "./poster.js";
 import { createR2Client, uploadToR2 } from "./r2.js";
 import { withRetry } from "./retry.js";
 
-if (existsSync(".env")) process.loadEnvFile(".env");
+loadRepoEnv();
 
 const write = process.argv.includes("--write");
 const required = ["DATABASE_URL", ...(write ? ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_MEDIA"] : [])];
