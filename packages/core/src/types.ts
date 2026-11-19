@@ -84,6 +84,8 @@ export const ALERT_KINDS = [
   "settings-change", // F15: audit row for a Settings edit (caps, DM drafts); inserted acknowledged, never pushed
   "reply-ready", // run 4: a drafted/flagged comment waits (paced by settings engagement.pings); pushed with a privacy-linted line
   "auto-scheduled", // editor approval counts: a render approved in the editor was scheduled without a tap here (pushed)
+  "batch-ready", // F14: the Sunday weekly-draft job topped up next week's drafts; captions wait (pushed)
+  "report-ready", // F14: Monday, last week had published posts; the 7-day analytics view is ready (page-only)
 ] as const;
 export type AlertKind = (typeof ALERT_KINDS)[number];
 
@@ -103,6 +105,7 @@ export const PUSH_KINDS_DEFAULT: readonly AlertKind[] = [
   "ready-for-approval", // F15; "settings-change" is never pushed
   "reply-ready", // run 4; volume capped by engagement.pings (each ≤ 6/h, hourly digest, off)
   "auto-scheduled", // only while Settings → Editor approval counts is on; one per item
+  "batch-ready", // F14: at most one per Sunday run; "report-ready" stays page-only
 ];
 
 /** Raised by the outbox for anything a human must look at. Delivered by an AlertSink (log, DB, push). */

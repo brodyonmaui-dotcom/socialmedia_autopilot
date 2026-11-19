@@ -56,7 +56,7 @@ describe("alert types", () => {
   });
 
   it("PUSH_KINDS_DEFAULT is the approved set and every entry is a known kind", () => {
-    expect(new Set(PUSH_KINDS_DEFAULT)).toEqual(new Set(["engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth", "ready-for-approval", "reply-ready", "auto-scheduled"]));
+    expect(new Set(PUSH_KINDS_DEFAULT)).toEqual(new Set(["engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth", "ready-for-approval", "reply-ready", "auto-scheduled", "batch-ready"]));
     for (const k of PUSH_KINDS_DEFAULT) expect(isAlertKind(k)).toBe(true);
     expect(new Set(ALERT_KINDS).size).toBe(ALERT_KINDS.length);
     expect(isAlertKind("nope")).toBe(false);
@@ -65,5 +65,7 @@ describe("alert types", () => {
     expect(PUSH_KINDS_DEFAULT).not.toContain("metrics-health");
     // F15: settings-change is an audit row, never pushed
     expect(PUSH_KINDS_DEFAULT).not.toContain("settings-change");
+    // F14: the Monday report is page-only; the Sunday draft top-up pushes
+    expect(PUSH_KINDS_DEFAULT).not.toContain("report-ready");
   });
 });

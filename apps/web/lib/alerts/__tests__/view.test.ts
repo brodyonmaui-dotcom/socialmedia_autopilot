@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ackAllCopy,
+  alertLink,
   alertsHref,
   heroLines,
   isUrgent,
@@ -80,5 +81,23 @@ describe("rows", () => {
     expect(pushPulse(null, null).tone).toBe("muted");
     expect(pushPulse("ok", true)).toEqual({ label: "On for this device", tone: "accent" });
     expect(pushPulse("denied", null)).toEqual({ label: "Blocked", tone: "warn" });
+  });
+});
+
+describe("F14 weekly-loop kinds", () => {
+  it("labels both kinds; batch-ready is urgent (pushed), report-ready is info", async () => {
+    const { kindLabel } = await import("../queries.js");
+    expect(kindLabel("batch-ready")).toBe("Next week drafted");
+    expect(kindLabel("report-ready")).toBe("Weekly report");
+    expect(isUrgent("batch-ready")).toBe(true);
+    expect(isUrgent("report-ready")).toBe(false);
+  });
+  it("report-ready links to the 7-day analytics; batch-ready to its calendar week", () => {
+    expect(alertLink({ kind: "report-ready", batchId: null, weekStart: null })).toEqual({ href: "/analytics?days=7", label: "Open report" });
+    expect(alertLink({ kind: "batch-ready", batchId: "b0000000-0000-4000-8000-000000000001", weekStart: "2099-01-05" })).toEqual({
+      href: "/calendar?view=week&d=2099-01-05",
+      label: "Open in calendar",
+    });
+    expect(alertLink({ kind: "config", batchId: null, weekStart: null })).toBeNull();
   });
 });

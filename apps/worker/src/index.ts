@@ -15,6 +15,8 @@ import { PgEngagementStore } from "./jobs/engagement-store.js";
 import { r2StorageFromEnv, registerMediaFixJob } from "./jobs/media-fix.js";
 import { registerMediaRecheckJob } from "./jobs/media-recheck.js";
 import { blocklistFromEnv, engagementStartupLine, registerEngagementJobs, triageClientFromEnv } from "./jobs/register-engagement.js";
+import { registerWeeklyDraftJob } from "./jobs/weekly-draft.js";
+import { registerWeeklyReportJob } from "./jobs/weekly-report.js";
 
 if (process.env.NODE_ENV !== "production") {
   const { existsSync } = await import("node:fs");
@@ -62,6 +64,11 @@ await registerAccountIngestJob(boss, pool, analyticsCfg, timeZone);
 await registerResearchRefreshJob(boss, pool, researchEnvFromEnv(process.env)).then(() => console.log(researchStartupLine(researchEnvFromEnv(process.env))));
 // Alert push (F8): private notifications to the creator, so it runs in dry-run too. No VAPID → one log line, not registered.
 await registerAlertPushJob(boss, pool, process.env);
+
+// Weekly loop (F14): Sunday 18:00 top-up of next week's drafts (empty captions, never approved) and the Monday
+// 08:00 report alert, both in TZ_CREATOR via pg-boss `tz`. Own tables only, so they run in dry-run too. No zone → not scheduled.
+await registerWeeklyDraftJob(boss, pool, timeZone);
+await registerWeeklyReportJob(boss, pool, timeZone);
 
 // Touch-up fixes + legacy QA re-check (own media tables only; nothing is published), so they run in dry-run too.
 const mediaStorage = r2StorageFromEnv(process.env);

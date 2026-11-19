@@ -5,9 +5,10 @@ Short, step-by-step procedures built from facts already in the repo (`CLAUDE.md`
 | Runbook | When |
 |---|---|
 | [deploy.md](deploy.md) | A PR merged to `main` and should go live |
-| [migrations.md](migrations.md) | A new `packages/db/migrations/*.sql` landed (now: 0008 pending) |
+| [migrations.md](migrations.md) | A new `packages/db/migrations/*.sql` landed (see the runbook for the applied list) |
 | [token-renewal.md](token-renewal.md) | Meta data access before **2027-02-08**, YouTube or Zernio auth failing |
 | [failed-or-unknown-post.md](failed-or-unknown-post.md) | A batch item shows `failed` or `unknown` |
+| [weekly-loop.md](weekly-loop.md) | Sunday "batch ready" push, captioning next week, Monday report alert |
 | [restore.md](restore.md) | Backup drill, or the database is lost or corrupted |
 | [dashboard-password.md](dashboard-password.md) | Set or change the /app basic-auth password (first layer) |
 | [login.md](login.md) | Add a device (passkey), lost phone, how batch approval gates the worker |

@@ -4,7 +4,8 @@
 
 The worker job `alert-push` runs every minute. It pushes each new urgent alert to your phone **once**, bundled into one notification. It runs in dry-run too: it's a private notification to you, not a public action.
 
-- **Pushed by default:** `engagement-kill`, `unknown-outcome`, `final-failure`, `token-health`, `auth`. Everything else (`cap-breach`, `duplicate`, `engagement-failure`, `engagement-unknown`, `engagement-mode`, `metrics-health`, `config`) is page-only.
+- **Pushed by default:** `engagement-kill`, `unknown-outcome`, `final-failure`, `token-health`, `auth`, `ready-for-approval`, `reply-ready`, `auto-scheduled`, `batch-ready`. Everything else (`cap-breach`, `duplicate`, `engagement-failure`, `engagement-unknown`, `engagement-mode`, `metrics-health`, `config`, `settings-change`, `report-ready`) is page-only.
+- **Weekly loop (F14):** `batch-ready` ("Next week drafted", Sunday 18:00 creator-local) says how many clips the weekly-draft job added to next week and how many posts need captions; it opens that calendar week. `report-ready` ("Weekly report", Monday 08:00, page-only) appears only when something was published last week and opens `/analytics?days=7`. Both hold counts and the week date only; a re-run never raises a second one.
 - **A `config` alert** (page-only, "Configuration") means the worker is misconfigured: today, `PUBLIC_MEDIA_BASE` is unset or not an absolute https URL. The outbox skips every tick (nothing is marked failed) until it is fixed in `.env` and the worker restarted; then acknowledge it. One open alert at most.
 - **What a notification says:** "N new alerts" plus the kind names (e.g. "Failed · Login"). Never the alert text, captions, comments, ids or links: push travels through Apple's servers. A tap opens `/app/alerts`.
 - **Once only:** each alert is marked `pushed_at` *before* sending. If a send fails, it isn't retried (no double pages); the alert is still on the page.

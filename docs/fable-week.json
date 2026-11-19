@@ -118,7 +118,7 @@
       "title": "F14 · Weekly loop in the worker (Sunday draft batch, Monday report, Up next UI)",
       "model": "fable",
       "area": "apps/worker, packages/core/types, apps/web/home+batches",
-      "status": "todo",
+      "status": "done",
       "notes": "Design: docs/design/F14.md. AI split: no LLM captions in the worker, drafts have empty flagged captions; adds batch-ready (pushed) and report-ready (page-only) alert kinds; the job never approves."
     },
     {
