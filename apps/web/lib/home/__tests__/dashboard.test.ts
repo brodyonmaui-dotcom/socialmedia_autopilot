@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   activityBars,
   buildKpis,
+  captionsDue,
   deltaOf,
   gainRows,
   hasActivity,
+  HOME_SQL,
   kpiText,
+  loadCaptionsDue,
   mondayOf,
+  nextWeekStart,
   parseMetric,
   parseRange,
   periodsFor,
@@ -152,5 +156,38 @@ describe("reply tiles", () => {
     expect(r).toHaveLength(4);
     expect(r[0]).toMatchObject({ who: "Someone", draft: "Thanks!", href: "/inbox/item/c1" });
     expect(r[1]).toMatchObject({ who: "@gym_fan_2", draft: null });
+  });
+});
+
+describe("Next week: captions strip (F14)", () => {
+  it("next week starts the Monday after today (a Monday gives the following one)", () => {
+    expect(nextWeekStart(TODAY)).toBe("2026-11-23");
+    expect(nextWeekStart("2026-11-22")).toBe("2026-11-23");
+    expect(nextWeekStart("2026-11-23")).toBe("2026-11-30");
+  });
+  it("shows only when something needs text and links to that calendar week", () => {
+    expect(captionsDue(0, "2026-11-23")).toBeNull();
+    expect(captionsDue(Number.NaN, "2026-11-23")).toBeNull();
+    expect(captionsDue(1, "2026-11-23")).toMatchObject({ text: "Next week: 1 post needs captions" });
+    expect(captionsDue(15, "2026-11-23")).toEqual({
+      weekStart: "2026-11-23",
+      count: 15,
+      text: "Next week: 15 posts need captions",
+      href: "/calendar?view=week&d=2026-11-23&status=draft",
+    });
+  });
+  it("counts next week's drafts in the creator zone: drafts only, empty caption or empty YouTube title", async () => {
+    const calls: Array<{ sql: string; params?: unknown[] }> = [];
+    const pool = { query: async (sql: string, params?: unknown[]) => (calls.push({ sql, params }), { rows: [{ n: 4 }] }) } as never;
+    // Sun 22 Nov 18:00 in the fixture zone = 23:00 UTC.
+    const due = await loadCaptionsDue(pool, new Date("2026-11-22T23:00:00Z"), "America/New_York");
+    expect(due).toMatchObject({ weekStart: "2026-11-23", count: 4 });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.sql).toBe(HOME_SQL.needsCaptions);
+    expect(calls[0]!.params).toEqual(["2026-11-23", new Date("2026-11-23T05:00:00Z"), new Date("2026-11-30T05:00:00Z")]);
+    expect(HOME_SQL.needsCaptions).toMatch(/bi\.status = 'draft'/);
+    expect(HOME_SQL.needsCaptions).toMatch(/btrim\(bi\.caption\) = ''/);
+    expect(HOME_SQL.needsCaptions).toMatch(/bi\.platform = 'youtube' and coalesce\(btrim\(bi\.title\), ''\) = ''/);
+    expect(HOME_SQL.needsCaptions).not.toMatch(/origin/);
   });
 });
