@@ -8,6 +8,7 @@ Short, step-by-step procedures built from facts already in the repo (`CLAUDE.md`
 | [migrations.md](migrations.md) | A new `packages/db/migrations/*.sql` landed (see the runbook for the applied list) |
 | [token-renewal.md](token-renewal.md) | Meta data access before **2027-02-08**, YouTube or Zernio auth failing |
 | [failed-or-unknown-post.md](failed-or-unknown-post.md) | A batch item shows `failed` or `unknown` |
+| [not-posting.md](not-posting.md) | Approved posts didn't go out: run `infra/diagnose-posting.sh` (read-only), paste the output, fix the first VERDICT |
 | [weekly-loop.md](weekly-loop.md) | Sunday "batch ready" push, captioning next week, Monday report alert |
 | [restore.md](restore.md) | Backup drill, or the database is lost or corrupted |
 | [dashboard-password.md](dashboard-password.md) | Set or change the /app basic-auth password (first layer) |

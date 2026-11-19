@@ -19,6 +19,7 @@ Known: the VPS ran Docker Compose from `/opt/autopilot` with live IG, YT and Tik
 - Snapchat: assisted (share sheet, 1 Spotlight/day). No API post.
 
 ## What's next
+- **Posting stopped 2026-11-19 (F18).** Likely cause: worker left in dry-run after the first-real-post runbook. Fixed in code: missed-slot guard (no burst of overdue posts), worker heartbeat `settings.worker_status`, "Posting is off" banner on Home/Calendar. On the VPS: `./infra/diagnose-posting.sh` → `docs/runbooks/not-posting.md`.
 - F17 (run 5): his phone check of run 4; real-data shake-out of account-ingest, research-refresh, media-recheck, media-fix (`docs/prep/run-5-plan.md`).
 - F14 weekly loop: built 2026-11-19 (no migration). Captions: `pnpm skill:weekly-batch pending` → `fill <file> --write`. Needs `TZ_CREATOR` in the worker env or the jobs aren't scheduled.
 - Small follow-ups in run-5-plan item 4; codebase map refresh.
