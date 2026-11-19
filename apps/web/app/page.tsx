@@ -23,6 +23,7 @@ import {
   type StatTint,
 } from "../components/ui/index.js";
 import { PostCard } from "../components/calendar/index.js";
+import { PostingBanner } from "../components/status/PostingBanner.js";
 import { sendManualAction } from "./inbox/actions.js";
 import { requireSession } from "../lib/auth/require.js";
 import { getPool } from "../lib/db.js";
@@ -35,6 +36,7 @@ import {
   DEFAULT_RANGE,
   hasActivity,
   kpiText,
+  loadCaptionsDue,
   loadHome,
   parseMetric,
   parseRange,
@@ -47,6 +49,7 @@ import {
   type MetricId,
   type RangeId,
 } from "../lib/home/dashboard.js";
+import { loadPostingStatus, postingBanner } from "../lib/status/posting.js";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Home · My Socials" };
@@ -65,7 +68,7 @@ function homeHref(range: RangeId, metric: MetricId): string {
   return s ? `/?${s}` : "/";
 }
 
-/** v3 Home: KPI tiles, Activity + This week, From your editors + Needs a reply, and the Snapchat strip when relevant. */
+/** v3 Home: KPI tiles, Activity + This week, From your editors + Needs a reply, and the captions / Snapchat strips when relevant. */
 export default async function HomePage({ searchParams }: { searchParams: SearchParams }) {
   await requireSession();
   const sp = await searchParams;
@@ -76,13 +79,17 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const zone = handoffContext().timeZone;
   const tz = zone ?? "UTC";
 
-  const [counts, home, editors, flagged, snapToday] = await Promise.all([
+  const [counts, home, editors, flagged, snapToday, captions, posting] = await Promise.all([
     loadFrameCounts(pool),
     loadHome(pool, now, tz, range),
     loadEditorEntries(pool, now),
     listInbox(pool, "flagged", 4),
     // Snapchat "today" needs the creator zone; without it there is no strip (never guess "today").
     zone ? listHandoff(pool, now, zone, handoffContext().blocklist).then((h) => h.today.length) : Promise.resolve(0),
+    // F14: drafts for next week (weekly-draft job, editors) still without text; captions come from the weekly-batch skill.
+    loadCaptionsDue(pool, now, tz),
+    // F18: is the worker posting, and did approved posts miss their time?
+    loadPostingStatus(pool, now),
   ]);
 
   const periods = periodsFor(range, home.today);
@@ -96,6 +103,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const rangeLabel = RANGES.find((r) => r.id === range)!.label;
   const error = param(sp.error);
   const note = param(sp.note);
+  const postingView = postingBanner(posting, { now, timeZone: tz, zoneFallback: !zone, surface: "home" });
 
   return (
     <AppFrame active="home" counts={counts}>
@@ -112,6 +120,14 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
       ) : note ? (
         <InlineNotice live className="mb-3 lg:mb-4">
           {note}
+        </InlineNotice>
+      ) : null}
+
+      <PostingBanner view={postingView} className="mb-3 lg:mb-4" />
+
+      {captions ? (
+        <InlineNotice tone="warn" className="mb-3 lg:mb-4" href={captions.href} linkLabel="Open week">
+          {captions.text}
         </InlineNotice>
       ) : null}
 

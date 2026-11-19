@@ -221,7 +221,7 @@ export async function simulateWeek(opts: SimulateOptions): Promise<SimReport> {
   // ---- 4. run the week, tick by tick
   const end = localToUtc(addCalendarDays(weekStart, days + 2), "00:00", timeZone); // 2 spill days for stagger + retries
   let ticks = 0;
-  const totals: TickResult = { considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, dryRun: false, alerts: [] };
+  const totals: TickResult = { considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, missed: 0, dryRun: false, alerts: [] };
   let crashes = 0;
   while (clock.now().getTime() <= end.getTime()) {
     ticks++;
@@ -232,6 +232,7 @@ export async function simulateWeek(opts: SimulateOptions): Promise<SimReport> {
       totals.failed += r.failed;
       totals.unknown += r.unknown;
       totals.recovered += r.recovered;
+      totals.missed += r.missed;
       totals.alerts.push(...r.alerts);
     } catch (err) {
       crashes++;

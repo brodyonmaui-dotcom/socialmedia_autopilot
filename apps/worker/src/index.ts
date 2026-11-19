@@ -4,6 +4,7 @@ import { createQueue } from "./queue.js";
 import { resolveRunMode } from "./run-mode.js";
 import { registerHealthJob } from "./jobs/health.js";
 import { registerOutboxJob } from "./jobs/register-outbox.js";
+import { startupStatus, writeWorkerStatus, type HeartbeatInfo } from "./jobs/heartbeat.js";
 import { registerTokenHealthJob, tokenHealthConfigFromEnv } from "./jobs/token-health.js";
 import { registerAlertPushJob } from "./jobs/alert-push.js";
 import { analyticsSourcesFromEnv, analyticsStartupLine, registerAnalyticsIngestJob } from "./jobs/analytics-ingest.js";
@@ -15,6 +16,8 @@ import { PgEngagementStore } from "./jobs/engagement-store.js";
 import { r2StorageFromEnv, registerMediaFixJob } from "./jobs/media-fix.js";
 import { registerMediaRecheckJob } from "./jobs/media-recheck.js";
 import { blocklistFromEnv, engagementStartupLine, registerEngagementJobs, triageClientFromEnv } from "./jobs/register-engagement.js";
+import { registerWeeklyDraftJob } from "./jobs/weekly-draft.js";
+import { registerWeeklyReportJob } from "./jobs/weekly-report.js";
 
 if (process.env.NODE_ENV !== "production") {
   const { existsSync } = await import("node:fs");
@@ -39,19 +42,32 @@ const dryRun = runMode.dryRun;
 const live = runMode.live;
 const credentials = credentialsFromEnv(process.env);
 const timeZone = process.env.TZ_CREATOR; // .env only, never committed; required for a live run
+const TZ_NOTICE = "[outbox] TZ_CREATOR not set: dry-run counts cap days in UTC";
 if (!timeZone) {
   if (!dryRun) {
     console.error("TZ_CREATOR is not set: refusing a live outbox (daily caps are per creator-local day)");
     process.exit(1);
   }
-  console.log("[outbox] TZ_CREATOR not set: dry-run counts cap days in UTC");
+  console.log(TZ_NOTICE);
 }
-await registerOutboxJob(boss, pool, {
+// F18 heartbeat (settings.worker_status): fixed strings only (run-mode refusal / TZ notice), never the zone itself.
+const heartbeat: HeartbeatInfo = {
   dryRun,
-  timeZone,
-  publicMediaBase: process.env.PUBLIC_MEDIA_BASE ?? "",
-  credentials,
-});
+  reason: [runMode.reason, timeZone ? null : TZ_NOTICE].filter(Boolean).join("; ") || null,
+  startedAt: new Date().toISOString(),
+};
+await writeWorkerStatus(pool, startupStatus(heartbeat));
+await registerOutboxJob(
+  boss,
+  pool,
+  {
+    dryRun,
+    timeZone,
+    publicMediaBase: process.env.PUBLIC_MEDIA_BASE ?? "",
+    credentials,
+  },
+  heartbeat,
+);
 await registerTokenHealthJob(boss, pool, tokenHealthConfigFromEnv(process.env));
 // Analytics ingest (F9): read-only, so it runs regardless of DRY_RUN / the live key.
 const analyticsCfg = analyticsSourcesFromEnv(process.env);
@@ -62,6 +78,11 @@ await registerAccountIngestJob(boss, pool, analyticsCfg, timeZone);
 await registerResearchRefreshJob(boss, pool, researchEnvFromEnv(process.env)).then(() => console.log(researchStartupLine(researchEnvFromEnv(process.env))));
 // Alert push (F8): private notifications to the creator, so it runs in dry-run too. No VAPID → one log line, not registered.
 await registerAlertPushJob(boss, pool, process.env);
+
+// Weekly loop (F14): Sunday 18:00 top-up of next week's drafts (empty captions, never approved) and the Monday
+// 08:00 report alert, both in TZ_CREATOR via pg-boss `tz`. Own tables only, so they run in dry-run too. No zone → not scheduled.
+await registerWeeklyDraftJob(boss, pool, timeZone);
+await registerWeeklyReportJob(boss, pool, timeZone);
 
 // Touch-up fixes + legacy QA re-check (own media tables only; nothing is published), so they run in dry-run too.
 const mediaStorage = r2StorageFromEnv(process.env);

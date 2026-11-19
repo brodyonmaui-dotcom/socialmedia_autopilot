@@ -43,7 +43,7 @@ describe("runOutboxWith tick lock (fake client)", () => {
     const f = fakePool({ lockOk: false });
     const lines: string[] = [];
     const r = await runOutboxWith(f.pool, {}, cfg(lines, true));
-    expect(r).toEqual({ considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, dryRun: true, alerts: [] });
+    expect(r).toEqual({ considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, missed: 0, dryRun: true, alerts: [] });
     expect(lines).toEqual([OUTBOX_TICK_BUSY_LOG]);
     expect(f.poolSql).toEqual([]);
     expect(f.clientSql).toHaveLength(1);

@@ -20,6 +20,19 @@ export function alertCalendarHref(a: Pick<AlertView, "batchId" | "weekStart">): 
   return a.batchId ? batchRedirect(a.weekStart) : null;
 }
 
+/** F14 report-ready: the Monday alert opens the last 7 days of analytics. */
+export const REPORT_READY_HREF = "/analytics?days=7";
+
+/**
+ * The row's one link. report-ready → the 7-day analytics view; everything batch-linked (batch-ready points
+ * at the first item it added, so it opens that week) → the calendar week; otherwise null.
+ */
+export function alertLink(a: Pick<AlertView, "kind" | "batchId" | "weekStart">): { href: string; label: string } | null {
+  if (a.kind === "report-ready") return { href: REPORT_READY_HREF, label: "Open report" };
+  const href = alertCalendarHref(a);
+  return href ? { href, label: "Open in calendar" } : null;
+}
+
 /** /alerts, /alerts?kind=…, /alerts?state=acknowledged&kind=… */
 export function alertsHref(state: AlertState, kind?: AlertKind): string {
   const q = new URLSearchParams();

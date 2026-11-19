@@ -4,18 +4,92 @@
 //   pnpm skill:weekly-batch review <draft.json> [--force]  writes <draft>-review.md (clip folder/file, per-platform
 //                                                   text, open questions); reads the DB only if reachable
 //   pnpm skill:weekly-batch create <draft.json>     needs DATABASE_URL; status stays 'draft'
+//   pnpm skill:weekly-batch pending [--week <date>]  draft items with empty caption / YT title (default: next
+//                                                   week) → logs/weekly-pending-<week>.json (also the fill template)
+//   pnpm skill:weekly-batch fill <file> [--write]    lints [{id, caption, title?}]; only --write stores the text
 // Never approves, never publishes. Prints one line; findings go to logs/.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { assertTimeZone } from "../../packages/core/src/index.js";
 import { blocklistFromEnv } from "../../packages/research/src/index.js";
-import { checkDraft, createDraftBatch, formatFindings, type BatchDraft } from "./lib/batch-draft.js";
+import { checkDraft, createDraftBatch, formatFindings, type BatchDraft, type InsertClient } from "./lib/batch-draft.js";
 import { buildReview, reviewPathFor, type ClipInfo } from "./lib/batch-review.js";
-import { loadEnv, writeLog } from "./lib/io.js";
+import { arg, loadEnv, writeLog } from "./lib/io.js";
+import { checkFill, formatFillFindings, listPending, loadFillTargets, nextWeekStart, parseFillFile, pendingSummary, weekOf, writeFill } from "./lib/weekly-fill.js";
 
 loadEnv();
-const [mode, file] = process.argv.slice(2);
-if ((mode !== "check" && mode !== "create" && mode !== "review") || !file) {
-  console.log("weekly-batch: FAIL usage: weekly-batch check|review|create <draft.json>");
+const argv = process.argv.slice(2);
+const mode = argv[0];
+const file = argv[1] ?? "";
+const MODES = ["check", "create", "review", "pending", "fill"];
+if (!mode || !MODES.includes(mode) || (mode !== "pending" && (!file || file.startsWith("--")))) {
+  console.log("weekly-batch: FAIL usage: weekly-batch check|review|create <draft.json> | pending [--week <date>] | fill <file> [--write]");
   process.exit(1);
+}
+
+async function withDb<T>(fn: (client: InsertClient) => Promise<T>): Promise<T> {
+  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not set");
+  const { createPool } = await import("../../packages/db/src/client.js");
+  const pool = createPool(process.env.DATABASE_URL);
+  pool.on("error", () => {});
+  const client = await pool.connect();
+  try {
+    return await fn(client);
+  } finally {
+    client.release();
+    await pool.end().catch(() => {});
+  }
+}
+
+/** TZ_CREATOR when valid, else UTC (said in the summary line; the zone itself is never printed). */
+function zone(): { timeZone: string; note: string } {
+  try {
+    return { timeZone: assertTimeZone(process.env.TZ_CREATOR), note: "" };
+  } catch {
+    return { timeZone: "UTC", note: ", times in UTC (TZ_CREATOR not set)" };
+  }
+}
+
+if (mode === "pending") {
+  try {
+    const { timeZone, note } = zone();
+    const raw = arg(argv, "week");
+    const week = raw === undefined ? nextWeekStart(new Date(), timeZone) : weekOf(raw);
+    if (!week) throw new Error("--week must be a date (YYYY-MM-DD)");
+    const items = await withDb((c) => listPending(c, week, timeZone));
+    mkdirSync("logs", { recursive: true });
+    const out = join("logs", `weekly-pending-${week}.json`);
+    writeFileSync(out, JSON.stringify(items, null, 2) + "\n");
+    console.log(`weekly-batch: OK week of ${week}: ${pendingSummary(items)}${note} → ${out}`);
+    process.exit(0);
+  } catch (err) {
+    console.log(`weekly-batch: FAIL ${(err as Error).message}`);
+    process.exit(1);
+  }
+}
+
+if (mode === "fill") {
+  try {
+    const write = argv.includes("--write");
+    const entries = parseFillFile(JSON.parse(readFileSync(file, "utf8")));
+    const blocklist = blocklistFromEnv();
+    console.log(`blocklist: ${blocklist.length} terms`); // count only, never the terms
+    const result = await withDb(async (c) => {
+      const check = checkFill(entries, await loadFillTargets(c, entries.map((e) => e.id)), { blocklist });
+      const written = write && check.ok ? (await writeFill(c, entries, { blocklist })).written : 0;
+      return { check, written };
+    });
+    const { check, written } = result;
+    const log = writeLog("weekly-batch-fill", `# weekly-batch fill${write ? " --write" : ""}\n\n${formatFillFindings(check) || "no findings"}\n`);
+    const summary = `${check.entries} item(s), ${check.errors} error(s), ${check.warnings} warning(s)`;
+    if (!check.ok) console.log(`weekly-batch: FAIL fill ${summary}, nothing written → ${log}`);
+    else if (!write) console.log(`weekly-batch: OK fill ${summary}, nothing written (dry check); re-run with --write → ${log}`);
+    else console.log(`weekly-batch: OK fill wrote ${written} item(s), ${check.warnings} warning(s); still drafts, approve on the phone → ${log}`);
+    process.exit(check.ok ? 0 : 1);
+  } catch (err) {
+    console.log(`weekly-batch: FAIL ${(err as Error).message}`);
+    process.exit(1);
+  }
 }
 
 try {

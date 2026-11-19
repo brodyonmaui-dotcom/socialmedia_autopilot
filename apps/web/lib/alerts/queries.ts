@@ -143,6 +143,9 @@ const KIND_LABEL: Record<AlertKind, string> = {
   "settings-change": "Settings change",
   "reply-ready": "Reply ready",
   "auto-scheduled": "Scheduled",
+  "batch-ready": "Next week drafted",
+  "report-ready": "Weekly report",
+  "missed-slot": "Missed post",
 };
 
 export function kindLabel(kind: AlertKind): string {

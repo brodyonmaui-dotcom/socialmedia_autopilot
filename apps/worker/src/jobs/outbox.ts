@@ -37,7 +37,7 @@ export const OUTBOX_TICK_BUSY_LOG = "[outbox] tick already running; skipped";
 export const OUTBOX_NO_CONNECT_LOG = "[outbox] pool has no connect(); tick lock disabled";
 let warnedNoConnect = false;
 
-const zeroResult = (dryRun: boolean): TickResult => ({ considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, dryRun, alerts: [] });
+const zeroResult = (dryRun: boolean): TickResult => ({ considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, missed: 0, dryRun, alerts: [] });
 
 export interface OutboxConfig {
   /** Platform credentials; only configured platforms get an adapter (see credentialsFromEnv). */

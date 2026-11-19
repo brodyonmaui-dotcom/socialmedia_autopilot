@@ -11,6 +11,8 @@ export const QUEUES = {
   dmPoll: "dm-poll",
   analyticsIngest: "analytics-ingest",
   alertPush: "alert-push",
+  weeklyDraft: "weekly-draft",
+  weeklyReport: "weekly-report",
 } as const;
 
 export function createQueue(databaseUrl: string): PgBoss {

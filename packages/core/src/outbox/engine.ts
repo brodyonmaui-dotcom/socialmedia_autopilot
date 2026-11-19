@@ -1,7 +1,7 @@
 import type { OutboxAlert, OutboxPost, Platform, PlatformAdapter, PublishResult } from "../types.js";
 import { CAPABILITIES } from "../capabilities.js";
 import type { CadenceSettings } from "../cadence.js";
-import { localDate } from "../time.js";
+import { localDate, localHHMM } from "../time.js";
 import { sanitizeError, sanitizeForLog } from "../log/sanitize.js";
 import { classifyFailure, decideAfterAttempt, DEFAULT_RETRY_POLICY, PublishTimeoutError, type Decision, type RetryPolicy } from "./policy.js";
 
@@ -49,6 +49,11 @@ export interface EngineConfig {
   /** Native-scheduling platforms (YouTube, TikTok) are handed off this long before scheduled_for. Default 24 h. */
   nativeLeadMs?: number;
   /**
+   * F18 missed-slot guard: an approved post whose scheduled_for is more than this far in the past is
+   * never sent (it stays approved and raises one missed-slot alert). Default 60 min. Queued retries are exempt.
+   */
+  missedGraceMs?: number;
+  /**
    * Last-line check right before a post is handed to its adapter (F7 C5: a caption edited after the
    * skill's lint must not slip out). Returns a reason to refuse, or null. A refusal (or a guard that
    * throws: fail closed) marks the post failed with that reason and raises a final-failure alert;
@@ -66,8 +71,33 @@ export interface TickResult {
   /** Fired-as-recovered: the existence check found the post, nothing was resent. */
   recovered: number;
   skipped: number;
+  /** F18: approved posts held by the missed-slot guard this tick (included in `considered`). */
+  missed: number;
   dryRun: boolean;
   alerts: OutboxAlert[];
+}
+
+/** F18: how late an approved post may be and still go out. */
+export const DEFAULT_MISSED_GRACE_MS = 60 * 60_000;
+/** F18: a native-scheduling platform (YouTube publishAt, Zernio scheduledFor) is never handed a time sooner than now + this. */
+export const NATIVE_MIN_LEAD_MS = 5 * 60_000;
+
+/** F18: a post in status approved (queued retries are exempt: their lateness is the backoff) more than `graceMs` past scheduled_for. Pure. */
+export function isMissed(post: OutboxPost, now: Date, graceMs: number): boolean {
+  if (post.status !== "approved") return false;
+  const at = Date.parse(post.scheduledFor);
+  return Number.isFinite(at) && now.getTime() - at > graceMs;
+}
+
+/**
+ * F18: what the adapter is handed. YouTube/TikTok need a future time, so a post due sooner than
+ * now + 5 min gets a COPY with scheduledFor = now + 5 min; the stored row (and the idempotency key)
+ * are untouched. Instagram fires at once and gets the post as is.
+ */
+export function postForAdapter(post: OutboxPost, now: Date): OutboxPost {
+  if (CAPABILITIES[post.platform].scheduling !== "native") return post;
+  const floor = now.getTime() + NATIVE_MIN_LEAD_MS;
+  return Date.parse(post.scheduledFor) < floor ? { ...post, scheduledFor: new Date(floor).toISOString() } : post;
 }
 
 function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
@@ -102,7 +132,7 @@ export function isDueNow(post: OutboxPost, now: Date, nativeLeadMs: number): boo
 }
 
 /**
- * One scheduler tick. For each due post: cap guard → claim → (retry? existence check) → publish
+ * One scheduler tick. For each due post: missed-slot guard → cap guard → claim → (retry? existence check) → publish
  * under a deadline → record the decision → alert on final failure / unknown.
  */
 export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Promise<TickResult> {
@@ -121,7 +151,8 @@ export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Prom
     }
   };
   const nativeLeadMs = cfg.nativeLeadMs ?? 24 * 3_600_000;
-  const result: TickResult = { considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, dryRun: cfg.dryRun, alerts: [] };
+  const missedGraceMs = cfg.missedGraceMs ?? DEFAULT_MISSED_GRACE_MS;
+  const result: TickResult = { considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, missed: 0, dryRun: cfg.dryRun, alerts: [] };
 
   const raise = async (raw: OutboxAlert): Promise<void> => {
     const alert: OutboxAlert = { ...raw, message: sanitizeForLog(raw.message) };
@@ -166,6 +197,21 @@ export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Prom
   const sentThisTick = new Map<string, number>();
 
   for (const post of due) {
+    // F18 missed-slot guard: first, in dry-run and live alike. Pure check; the row is not touched.
+    // Counted, not logged per item (this repeats every minute until the post is moved); the alert dedupes per item.
+    if (isMissed(post, now, missedGraceMs)) {
+      result.missed++;
+      const at = new Date(post.scheduledFor);
+      await raise({
+        kind: "missed-slot",
+        platform: post.platform,
+        postId: post.id,
+        idempotencyKey: post.idempotencyKey,
+        message: `post missed its time (${post.platform}, ${localHHMM(at, cfg.timeZone)} ${localDate(at, cfg.timeZone)}); move it in the calendar`,
+        at: now.toISOString(),
+      });
+      continue;
+    }
     const adapter = cfg.adapters[post.platform];
     if (!adapter) {
       result.skipped++;
@@ -235,7 +281,8 @@ export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Prom
     let decision: Decision;
     let message = "";
     try {
-      published = await withTimeout((signal) => adapter.publish(post, { signal }), policy.publishTimeoutMs);
+      const handoff = postForAdapter(post, now);
+      published = await withTimeout((signal) => adapter.publish(handoff, { signal }), policy.publishTimeoutMs);
       decision = decideAfterAttempt({ kind: "success" }, post.attempts, now, policy);
     } catch (err) {
       message = sanitizeError(err);

@@ -1,6 +1,6 @@
 import { Button, ButtonLink, Icon, PlatformLogo, cx } from "../ui/index.js";
 import { kindLabel, type AlertView } from "../../lib/alerts/queries.js";
-import { alertCalendarHref, isUrgent, shownMessage, sourceGlyph } from "../../lib/alerts/view.js";
+import { alertLink, isUrgent, shownMessage, sourceGlyph } from "../../lib/alerts/view.js";
 import { acknowledgeAction } from "../../app/alerts/actions.js";
 
 /**
@@ -12,7 +12,7 @@ export function AlertRow({ alert, when, ackWhen }: { alert: AlertView; index?: n
   const urgent = isUrgent(alert.kind) && open;
   const src = sourceGlyph(alert.source);
   const headingId = `alert-${alert.id}`;
-  const calendarHref = alertCalendarHref(alert);
+  const link = alertLink(alert);
   return (
     <li aria-labelledby={headingId} className="grid grid-cols-[36px_minmax(0,1fr)] gap-x-3 gap-y-3 py-4 first:pt-0 last:pb-0 sm:grid-cols-[36px_minmax(0,1fr)_auto]">
       <span
@@ -45,7 +45,7 @@ export function AlertRow({ alert, when, ackWhen }: { alert: AlertView; index?: n
           ) : null}
         </p>
       </div>
-      {open || calendarHref ? (
+      {open || link ? (
         <div className="col-start-2 flex shrink-0 gap-2 sm:col-start-3 sm:row-start-1 sm:flex-col sm:items-stretch">
           {open ? (
             <form action={acknowledgeAction}>
@@ -55,9 +55,9 @@ export function AlertRow({ alert, when, ackWhen }: { alert: AlertView; index?: n
               </Button>
             </form>
           ) : null}
-          {calendarHref ? (
-            <ButtonLink href={calendarHref} variant="ghost" size="sm">
-              Open in calendar
+          {link ? (
+            <ButtonLink href={link.href} variant="ghost" size="sm">
+              {link.label}
             </ButtonLink>
           ) : null}
         </div>

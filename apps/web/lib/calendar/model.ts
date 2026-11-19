@@ -2,6 +2,7 @@
 // No DB, no React. Tested in __tests__/model.test.ts. The loader is in load.ts.
 import { addCalendarDays, localDate, localHHMM, PLATFORMS, weekdayIndex, type Platform } from "@autopilot/core";
 import type { BatchItemView, ItemStatus, Warning } from "../batches/types.js";
+import { isMissedSlot } from "../status/posting.js";
 
 // ---------------------------------------------------------------- status words
 
@@ -83,6 +84,8 @@ export interface PlatformEntry {
   origin: "editor" | null;
   /** Snapchat item that is approved and due: shared by hand. */
   shareByHand: boolean;
+  /** F18: approved, not Snapchat, more than an hour past its time; the worker won't send it (Move it). */
+  missed?: boolean;
   /** Extra outbox facts for the F11 sheet. */
   attempts: number;
   lastError: string | null;
@@ -154,6 +157,7 @@ function platformEntry(i: BatchItemView, timeZone: string, now: Date): PlatformE
     tiktokDraft: i.tiktokDraft,
     origin: i.origin ?? null,
     shareByHand,
+    missed: isMissedSlot(i, now),
     attempts: i.attempts ?? 0,
     lastError: i.lastError ?? null,
     keyTail: i.keyTail ?? null,
@@ -201,6 +205,9 @@ export function groupEntries(items: BatchItemView[], opts: { timeZone: string; n
   }
   return out.sort((a, b) => (a.day ?? "9999") .localeCompare(b.day ?? "9999") || (a.firstTime ?? "99").localeCompare(b.firstTime ?? "99") || a.title.localeCompare(b.title));
 }
+
+/** F18: the card's "Missed" chip — any of the entry's posts missed its time. */
+export const entryMissed = (e: Pick<Entry, "platforms">): boolean => e.platforms.some((p) => p.missed === true);
 
 /** Day Dialog order: by first time; with `draftsFirst` (`?status=draft`) the entries needing approval come first. */
 export function dayEntries(entries: Entry[], day: string, draftsFirst = false): Entry[] {

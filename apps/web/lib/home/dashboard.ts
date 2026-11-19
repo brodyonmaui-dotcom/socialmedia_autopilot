@@ -1,5 +1,5 @@
 // v3 Home dashboard: pure shaping (tested in __tests__/dashboard.test.ts) + one read-only loader.
-import { addCalendarDays, localDate, PLATFORMS, weekdayIndex, type Platform } from "@autopilot/core";
+import { addCalendarDays, localDate, localToUtc, PLATFORMS, weekdayIndex, type Platform } from "@autopilot/core";
 import type { Pool } from "pg";
 import { gainsByPlatformDay, loadAccountData, loadFollowerTotals } from "../analytics/overview.js";
 
@@ -278,12 +278,51 @@ export function replyTiles(rows: FlaggedRow[], max = 4): ReplyTile[] {
   }));
 }
 
+// ---------------------------------------------------------------- Next week: captions
+
+/** Next week's Monday (creator-local): the Monday after today, so on a Monday it is the following one. */
+export const nextWeekStart = (today: string): string => addCalendarDays(mondayOf(today), 7);
+
+export interface CaptionsDue {
+  weekStart: string;
+  count: number;
+  text: string;
+  href: string;
+}
+
+/**
+ * The Home strip "Next week: N posts need captions" (F14): null when nothing needs text, so the strip only
+ * shows when N > 0. Links to that week on the calendar with drafts emphasised.
+ */
+export function captionsDue(count: number, weekStart: string): CaptionsDue | null {
+  if (!Number.isFinite(count) || count <= 0) return null;
+  return {
+    weekStart,
+    count,
+    text: `Next week: ${count === 1 ? "1 post needs" : `${count} posts need`} captions`,
+    href: `/calendar?view=week&d=${weekStart}&status=draft`,
+  };
+}
+
 // ---------------------------------------------------------------- loader
 
 export const HOME_SQL = {
   /** Everything with a time in a window (for the This week card). */
   scheduled: `select platform, scheduled_for, status from batch_items
                where status <> 'rejected' and scheduled_for >= $1 and scheduled_for < $2`,
+  /**
+   * Draft items of a creator-local week with an empty caption or an empty YouTube title, any origin (the
+   * Sunday weekly-draft job, editors, the app). Week membership is the calendar's: timed items by their time,
+   * untimed drafts by their batch's week. Same predicate as `pnpm skill:weekly-batch pending`
+   * (scripts/skills/lib/weekly-fill.ts PENDING_SQL); keep the two in step.
+   * $1 week start (date), $2 / $3 the week's UTC bounds.
+   */
+  needsCaptions: `select count(*)::int as n
+                    from batch_items bi join batches b on b.id = bi.batch_id
+                   where bi.status = 'draft'
+                     and b.status <> 'archived'
+                     and ((bi.scheduled_for >= $2 and bi.scheduled_for < $3) or (bi.scheduled_for is null and b.week_start = $1::date))
+                     and (btrim(bi.caption) = '' or (bi.platform = 'youtube' and coalesce(btrim(bi.title), '') = ''))`,
 } as const;
 
 const utcStart = (ymd: string) => new Date(`${ymd}T00:00:00Z`);
@@ -330,4 +369,13 @@ export async function loadHome(pool: Pick<Pool, "query">, now: Date, timeZone: s
     status: String(r.status),
   }));
   return { today, posts, gains: gainRows(gainsByPlatformDay(account, timeZone)), scheduled, followers };
+}
+
+/** Read-only: how many of next week's drafts still need text, shaped for the Home strip (null = hide it). */
+export async function loadCaptionsDue(pool: Pick<Pool, "query">, now: Date, timeZone: string): Promise<CaptionsDue | null> {
+  const weekStart = nextWeekStart(localDate(now, timeZone));
+  const from = localToUtc(weekStart, "00:00", timeZone);
+  const to = localToUtc(addCalendarDays(weekStart, 7), "00:00", timeZone);
+  const { rows } = await pool.query(HOME_SQL.needsCaptions, [weekStart, from, to]);
+  return captionsDue(Number(rows[0]?.n ?? 0), weekStart);
 }

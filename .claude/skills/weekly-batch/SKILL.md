@@ -1,19 +1,30 @@
 ---
 name: weekly-batch
-description: Draft next week's posts (captions, YouTube titles, per-platform text) for clips in the library, check them against docs/voice.md and the location boundary, and save them as a DRAFT batch for approval on the phone. Use when the creator asks for the weekly batch, captions for the week, or "plan next week".
+description: Write captions and YouTube titles for next week's draft posts (the Sunday weekly-draft job and editor renders leave them empty), or draft a new batch from library clips; check against docs/voice.md and the location boundary; everything stays DRAFT for approval on the phone. Use when the creator asks for the weekly batch, captions for the week, "Next week: N posts need captions", or "plan next week".
 ---
 
 # Weekly batch
 
 Writes text, never publishes. The batch lands as `draft`; only the creator's tap on the phone approves it (CLAUDE.md non-negotiable 2).
 
-## Inputs
+## Start here: captions for the drafts that already exist
+Every Sunday 18:00 the worker's `weekly-draft` job tops up next week with one library clip per empty day (IG + YT + TikTok), as drafts with **empty captions and titles**. Editor renders can land with empty text too. Approval is blocked until the text is there. So always start with:
+
+1. `pnpm skill:weekly-batch pending` (default: next week; `--week <any date in the week>` for another). Needs `DATABASE_URL`. It prints one line and writes `logs/weekly-pending-<week>.json`: one entry per post with `id`, `platform`, `pillar`, `scheduledFor` (creator-local), `durationS`, `label` (file name), `origin`, and the current `caption` / `title`. Zero posts → say so and stop (or go to "New batch" below if he wants more).
+2. Read `docs/voice.md` (every time). Copy the file to `logs/weekly-fill-<week>.json` and write each `caption` (and `title` for YouTube) in that voice, following the per-platform rules in "New batch" step 2 (hooks, hashtags, trading numbers, `{{P/L}}` when he hasn't given one). Posts of the same clip share an idea but not a copy-pasted caption. Use the file name, pillar and length, never the video frames.
+3. `pnpm skill:weekly-batch fill logs/weekly-fill-<week>.json`: the same lint as `check` (voice, location boundary + `PRIVACY_BLOCKLIST`, ≤5 IG hashtags, YouTube title required, empty captions). Writes nothing. On FAIL read the log it names, fix, re-run. Ask him for any `{{…}}` numbers.
+4. Only after he says to save: `pnpm skill:weekly-batch fill logs/weekly-fill-<week>.json --write`. One transaction; each item gets an `edit` event; it refuses items that aren't `draft` (already approved or rejected). Items stay drafts.
+5. Tell him: "Captions saved; approve the week on the phone." To drop a clip he doesn't want: reject it on the calendar (`docs/runbooks/weekly-loop.md`).
+
+## New batch (only when he asks for clips beyond the drafts)
+
+### Inputs
 - Clips: `status = 'ready'` rows in `media` (library page), or IDs the creator gives you. Don't read video frames; use the filename, pillar and his notes.
 - `docs/voice.md` (read it every time; it wins over habit). `CLAUDE.md` wins over voice.md.
 - `docs/content-playbook.md`: hook rules (§1), re-hook clip bank (§3), retention fixes from the last report (§6).
 - Last report's "what worked" (weekly-report skill) and the research brief (research-brief skill), if they exist in `logs/`.
 
-## Steps
+### Steps
 1. Ask which clips and which platforms if he hasn't said. Defaults: Instagram + YouTube + TikTok per clip; Snapchat is assisted (1 Spotlight/day, picked from the previous 48 h's best), so leave it out unless he asks.
 2. Write `logs/batch-<weekStart>.json` in the shape of `scripts/skills/fixtures/draft-sample.json`:
    - one item per clip: `mediaId`, `pillar` (gym | trading | meal | lifestyle | tip | running), `posts.{instagram,youtube,tiktok}`.
@@ -29,6 +40,6 @@ Writes text, never publishes. The batch lands as `draft`; only the creator's tap
 7. Tell him: "Draft batch saved; approve it on the phone." Nothing is approved by this skill.
 
 ## Never
-- Approve, publish, set `DRY_RUN=false` or pass `--live`.
+- Approve, publish, set `DRY_RUN=false` or pass `--live`. `fill --write` only stores text; it never approves.
 - Invent numbers, places, sponsorships or experiences. Name a gym, trail, city, campus or school.
-- Commit the batch file (it's in `logs/`, gitignored).
+- Commit the batch, pending or fill files (they're in `logs/`, gitignored).

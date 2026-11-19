@@ -49,6 +49,8 @@ Right after the first posts are confirmed (or the slot has passed and you have c
 
 **[changes state]** Set `DRY_RUN=true` and remove the `WORKER_LIVE=1` line (or set it to `0`), then restart the worker and confirm `dry_run=true` in the startup line.
 
+> **This switches posting OFF.** From here on, approved posts are only logged ("would publish") and never go out. On 2026-11-19 that is exactly why scheduled TikTok/YouTube posts silently didn't publish. To post for real day to day, keep `DRY_RUN=false` **and** `WORKER_LIVE=1`; Home and Calendar now show a "Posting is off (dry run)" banner whenever the worker is dry, and `./infra/diagnose-posting.sh` (runbook `not-posting.md`) says why nothing is posting.
+
 ## 7. Rollback: something looks wrong
 - **Kill:** set `DRY_RUN=true` in the env file and restart the worker **[changes state]**. Publishing stops from the next tick. (Dropping the live key does the same.)
 - **A row shows `failed` or `unknown`:** follow [failed-or-unknown-post.md](failed-or-unknown-post.md). Look on the platform first, then use the buttons on the batch page: "I checked, it is not there" (reset to draft) or "Record it" (paste the post URL).
