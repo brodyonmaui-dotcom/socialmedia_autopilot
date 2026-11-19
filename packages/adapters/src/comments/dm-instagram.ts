@@ -38,7 +38,7 @@ function toIso(ts: string | undefined): string {
 /**
  * Instagram DMs, READ ONLY (F3: he sends every DM himself). The returned object has exactly one
  * method, fetchThreads; there is deliberately no send path anywhere in this module.
- * verified 2026-11-12 docs/research.md:195: conversations list + /{conversation-id}?fields=messages,
+ * verified 2026-11-12 docs/research.md Instagram "DMs": conversations list + /{conversation-id}?fields=messages,
  * only the 20 most recent messages per thread; access in Development mode is unverified (dm-poll off by default).
  */
 export function createInstagramDmSource(cfg: InstagramDmConfig): DmSource {

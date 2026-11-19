@@ -343,7 +343,7 @@ describe("job registration", () => {
 
   it("by default exactly the approved kinds are pushable; every other declared kind is page-only", () => {
     const pushable = ALERT_KINDS.filter((k) => isPushable({ kind: k, created_at: NOW, pushed_at: null, acknowledged_at: null }, cfg(), NOW));
-    expect(new Set(pushable)).toEqual(new Set(["engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth", "ready-for-approval", "reply-ready"]));
+    expect(new Set(pushable)).toEqual(new Set(["engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth", "ready-for-approval", "reply-ready", "auto-scheduled"]));
   });
 });
 
@@ -363,5 +363,36 @@ describe("reply-ready payload (run 4)", () => {
     const mixed = buildPayload([{ kind: "reply-ready", platform: "instagram", message: "a", comment_id: ID }, { kind: "auth", platform: "web", message: "secret" }]);
     expect(Object.keys(mixed).sort()).toEqual(["count", "kinds", "sources", "url"]);
     expect(mixed.url).toBe("/app/alerts");
+  });
+});
+
+describe("auto-scheduled payload", () => {
+  const MSG = "Scheduled: Leg day basics at Fri 18:00";
+  it("one auto-scheduled alert: its message as body and the calendar url", () => {
+    const p = buildPayload([{ kind: "auto-scheduled", platform: "instagram", message: MSG }]);
+    expect(p).toEqual({ count: 1, kinds: ["auto-scheduled"], sources: ["instagram"], url: "/app/calendar", body: MSG });
+  });
+  it("several auto-scheduled alerts: 'N posts scheduled' plus the first message", () => {
+    const p = buildPayload([
+      { kind: "auto-scheduled", platform: "instagram", message: MSG },
+      { kind: "auto-scheduled", platform: "youtube", message: "Scheduled: Other clip at Sat 09:00" },
+      { kind: "auto-scheduled", platform: "tiktok", message: "Scheduled: Third at Sun 10:00" },
+    ]);
+    expect(p).toEqual({ count: 3, kinds: ["auto-scheduled"], sources: ["instagram", "youtube", "tiktok"], url: "/app/calendar", body: `3 posts scheduled · ${MSG}` });
+  });
+  it("mixed with other kinds: the old kind-only payload, no text", () => {
+    const mixed = buildPayload([{ kind: "auto-scheduled", platform: "instagram", message: MSG }, { kind: "auth", platform: "web", message: "secret" }]);
+    expect(Object.keys(mixed).sort()).toEqual(["count", "kinds", "sources", "url"]);
+    expect(mixed.url).toBe("/app/alerts");
+    const withReply = buildPayload([{ kind: "auto-scheduled", platform: "instagram", message: MSG }, { kind: "reply-ready", platform: "instagram", message: "r", comment_id: null }]);
+    expect(withReply.body).toBeUndefined();
+    expect(withReply.url).toBe("/app/alerts");
+  });
+  it("caps the body at 200 chars; a missing or blank message falls back to no body / the count", () => {
+    const long = "Scheduled: " + "x".repeat(500) + " at Fri 18:00";
+    expect(buildPayload([{ kind: "auto-scheduled", platform: "instagram", message: long }]).body).toHaveLength(200);
+    expect(buildPayload([{ kind: "auto-scheduled", platform: "instagram", message: long }, { kind: "auto-scheduled", platform: "youtube", message: "b" }]).body).toHaveLength(200);
+    expect(buildPayload([{ kind: "auto-scheduled", platform: "instagram" }]).body).toBeUndefined();
+    expect(buildPayload([{ kind: "auto-scheduled", platform: "instagram", message: "  " }, { kind: "auto-scheduled", platform: "youtube" }]).body).toBe("2 posts scheduled");
   });
 });

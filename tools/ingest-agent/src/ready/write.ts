@@ -93,7 +93,8 @@ export function trialJson(sidecar: Sidecar, item: PlannedItem): string {
     pillar: sidecar.pillar,
     when: sidecar.when,
     earliest: sidecar.earliest ?? null,
-    approvedInEditor: sidecar.approvedInEditor,
+    // Absent (drafted by /post-ready, not approved in the editor) → simply omitted.
+    ...(sidecar.approvedInEditor !== undefined ? { approvedInEditor: sidecar.approvedInEditor } : {}),
     flags: item.flags,
   };
   return JSON.stringify(item.tiktokDraft ? { tiktokDraft: true, editor } : { editor });

@@ -3,12 +3,13 @@ import { localDate, localHHMM, type CadenceSettings, type Platform } from "@auto
 import type { LintResult } from "@autopilot/research";
 import { qaAfterTouchUp, type QaResult, type TouchUpOptions } from "@autopilot/media";
 import { tryPoster, type PosterDeps } from "../poster.js";
-import { existingRange, ingestKey, planReadyItems, readyWindow, type PlannedItem, type ReadyExisting } from "./plan.js";
-import { parseSidecar, type Sidecar } from "./sidecar.js";
+import { existingRange, ingestKey, planningWindow, planReadyItems, type PlannedItem, type ReadyExisting } from "./plan.js";
+import { resolveSidecar, type ReadyDirSource, type Sidecar } from "./sidecar.js";
 import type { MediaRow, WriteInput, WriteResult } from "./write.js";
 
 /**
- * `pnpm ingest:ready` (F15 "Laptop side"): one pass over INGEST_READY_DIR (top level only).
+ * `pnpm ingest:ready` (F15 "Laptop side"): one pass over one ready folder (top level only); the CLI
+ * calls it once per configured folder (INGEST_READY_DIRS / INGEST_READY_DIR).
  * Every side effect is injected so the order (validate → skip check → QA → strip → location check
  * → upload → HEAD verify → poster → media → plan → write → move) is testable without a DB, R2 or ffmpeg.
  * Files are moved to `_ingested/` only after the upload is verified AND the DB write succeeded;
@@ -24,6 +25,8 @@ export interface ReadyFs {
   exists(path: string): boolean;
   mkdir(path: string): void;
   rename(from: string, to: string): void;
+  /** Last modification time (ms since epoch). */
+  mtimeMs(path: string): number;
 }
 
 export interface ReadyDb {
@@ -36,6 +39,10 @@ export interface ReadyDb {
 
 export interface ReadyDeps extends PosterDeps {
   dir: string;
+  /** The folder's kind (fills sidecar defaults); null/absent = legacy folder, sidecar carries everything. */
+  dirSource?: ReadyDirSource | null;
+  /** For folder defaults (INGEST_SNAPCHAT_DEFAULT). */
+  env?: Record<string, string | undefined>;
   dryRun: boolean;
   timeZone: string;
   now(): Date;
@@ -59,11 +66,39 @@ export interface ReadySummary {
   new: number;
   skipped: number;
   wait: number;
+  needsSidecar: number;
   fail: number;
 }
 
+export function emptySummary(): ReadySummary {
+  return { new: 0, skipped: 0, wait: 0, needsSidecar: 0, fail: 0 };
+}
+
+export function addSummary(a: ReadySummary, b: ReadySummary): ReadySummary {
+  return { new: a.new + b.new, skipped: a.skipped + b.skipped, wait: a.wait + b.wait, needsSidecar: a.needsSidecar + b.needsSidecar, fail: a.fail + b.fail };
+}
+
 export function readySummaryLine(s: ReadySummary): string {
-  return `ingest:ready: ${s.new} new · ${s.skipped} skipped · ${s.wait} wait · ${s.fail} fail`;
+  return `ingest:ready: ${s.new} new · ${s.skipped} skipped · ${s.wait} wait · ${s.needsSidecar} needs sidecar · ${s.fail} fail`;
+}
+
+/** A render or sidecar touched less than this long ago may still be being written: leave it for the next pass. */
+export const SETTLE_MS = 120_000;
+
+export const MP4 = /\.mp4$/i;
+export const SIDECAR_SUFFIX = ".post.json";
+
+/** Candidate names in a ready folder: top level only (fs.list), no hidden files, not `_ingested`. Sorted. */
+export function readyNames(fs: Pick<ReadyFs, "list">, dir: string): string[] {
+  return fs
+    .list(dir)
+    .filter((n) => !n.startsWith(".") && n !== INGESTED_DIR)
+    .sort();
+}
+
+/** True once `path` hasn't been modified for SETTLE_MS. */
+export function isSettled(fs: Pick<ReadyFs, "mtimeMs">, path: string, now: Date): boolean {
+  return now.getTime() - fs.mtimeMs(path) >= SETTLE_MS;
 }
 
 /** A failure at a named stage; the line is `FAIL <name>: <stage>[ (<detail>)]`. */
@@ -87,8 +122,6 @@ async function stage<T>(name: string, fn: () => Promise<T> | T): Promise<T> {
 
 const oneLine = (s: string) => s.replace(/\s+/g, " ").trim().slice(0, 200);
 
-const MP4 = /\.mp4$/i;
-const SIDECAR_SUFFIX = ".post.json";
 
 function slotText(item: PlannedItem, timeZone: string): string {
   if (!item.scheduledFor) return `${item.platform} no-slot`;
@@ -102,11 +135,8 @@ function flagText(items: PlannedItem[]): string {
 }
 
 export async function runReady(d: ReadyDeps): Promise<ReadySummary> {
-  const s: ReadySummary = { new: 0, skipped: 0, wait: 0, fail: 0 };
-  const names = d.fs
-    .list(d.dir)
-    .filter((n) => !n.startsWith(".") && n !== INGESTED_DIR)
-    .sort();
+  const s = emptySummary();
+  const names = readyNames(d.fs, d.dir);
   const present = new Set(names);
 
   /** Moves both files into `_ingested/`; on a clash both get `-<hash8>` (then `-<hash8>-2`, ...). */
@@ -124,14 +154,24 @@ export async function runReady(d: ReadyDeps): Promise<ReadySummary> {
     d.fs.rename(join(d.dir, sidecar), join(dest, `${stem}${SIDECAR_SUFFIX}`));
   }
 
-  async function one(mp4: string): Promise<"new" | "skipped" | "wait"> {
+  async function one(mp4: string): Promise<"new" | "skipped" | "wait" | "needsSidecar"> {
     const base = mp4.replace(MP4, "");
     const sidecarName = `${base}${SIDECAR_SUFFIX}`;
-    if (!present.has(sidecarName)) {
-      d.log(`WAIT ${mp4} (no ${sidecarName} yet)`);
+    const mp4Path = join(d.dir, mp4);
+    const settleNow = d.now();
+    if (!isSettled(d.fs, mp4Path, settleNow)) {
+      d.log(`WAIT ${mp4} (still being written)`);
       return "wait";
     }
-    const mp4Path = join(d.dir, mp4);
+    if (!present.has(sidecarName)) {
+      // Captions are never guessed here: /post-ready drafts the sidecar in a Claude session.
+      d.log(`NEEDS SIDECAR ${mp4} (run /post-ready)`);
+      return "needsSidecar";
+    }
+    if (!isSettled(d.fs, join(d.dir, sidecarName), settleNow)) {
+      d.log(`WAIT ${mp4} (still being written)`);
+      return "wait";
+    }
 
     // 1. Validate the sidecar, hash the mp4.
     let json: unknown;
@@ -140,7 +180,7 @@ export async function runReady(d: ReadyDeps): Promise<ReadySummary> {
     } catch (err) {
       throw new StageError("sidecar", `not valid JSON: ${oneLine((err as Error).message)}`);
     }
-    const parsed = parseSidecar(json);
+    const parsed = resolveSidecar(json, d.dirSource ?? null, d.env ?? {});
     if (!parsed.ok) throw new StageError(`${parsed.path}: ${parsed.message}`);
     const sidecar: Sidecar = parsed.value;
     const hash = await stage("hash", () => d.hash(mp4Path));
@@ -159,7 +199,7 @@ export async function runReady(d: ReadyDeps): Promise<ReadySummary> {
     }
 
     const now = d.now();
-    const win = readyWindow(sidecar, now, d.timeZone);
+    const win = planningWindow(sidecar, now, d.timeZone);
     const range = existingRange(win, d.timeZone);
     const plan = async (mediaId: string) => {
       const cadence = await stage("db-read", () => d.db.loadCadence());
@@ -222,8 +262,7 @@ export async function runReady(d: ReadyDeps): Promise<ReadySummary> {
 
   for (const name of names.filter((n) => MP4.test(n))) {
     try {
-      const r = await one(name);
-      s[r === "new" ? "new" : r === "skipped" ? "skipped" : "wait"]++;
+      s[await one(name)]++;
     } catch (err) {
       const msg = err instanceof StageError ? err.message : `unexpected (${oneLine((err as Error)?.message ?? String(err))})`;
       d.log(`FAIL ${name}: ${msg}`);

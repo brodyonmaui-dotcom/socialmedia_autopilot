@@ -50,9 +50,9 @@ Public-safe: no personal data. Sources are saved Instagram reels (2026-11); thei
 ## THE HANDOFF CONTRACT (version 1)
 This section is identical in `workout-assembly.md` and `trade-recaps.md`. The autopilot app is built against it; don't change field names. If you need a change, ask the creator to raise it in the autopilot chat first (it becomes version 2).
 
-**When the creator approves a render in this chat**, save two files into the `ready-to-post` folder inside his socials folder:
+**When the creator approves a render in this chat**, save the approved render into your Ready To Post folder AND write `<same name>.post.json` next to it (sidecar v1), with `approvedInEditor` set to when he approved it. Write the sidecar last (or write a temp name and rename), so a half-written file is never picked up:
 - `<name>.mp4`: the final render (vertical 9:16, location metadata stripped; see cautions).
-- `<name>.post.json`: the sidecar below, same `<name>`.
+- `<name>.post.json`: the sidecar below, same `<name>`. Folder defaults supply `pillar`, `platforms` and `source`, so they may be omitted.
 
 ```json
 { "version": 1,
@@ -65,6 +65,20 @@ This section is identical in `workout-assembly.md` and `trade-recaps.md`. The au
   "approvedInEditor": "<ISO timestamp>",
   "source": "workout-assembly | trade-recaps | manual" }
 ```
+
+Minimal example:
+
+```json
+{ "version": 1, "when": "today",
+  "caption": {
+    "instagram": "My lats are not a fan of this pull day… #gym #hypertrophy",
+    "tiktok": "Pull day, lats unimpressed… #gym",
+    "youtube": { "title": "My lats are not a fan of this pull day", "description": "Pull day. #gym #gymbro #hypertrophy" } },
+  "soundInApp": true,
+  "approvedInEditor": "2026-11-02T18:30:00Z",
+  "source": "workout-assembly" }
+```
+
 
 Field rules:
 - `pillar`: exactly one of the listed values. `platforms`: any subset, in that spelling.

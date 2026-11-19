@@ -38,10 +38,15 @@ export function creatorZone(env: NodeJS.ProcessEnv = process.env): { timeZone: s
 }
 
 /** A batch freshly loaded with server-side warnings (the form's view is never trusted). */
-export async function loadBatchFresh(pool: Pool, batchId: string, now: Date): Promise<{ batch: BatchView; ctx: WarningContext & { timeZoneSource: "env" | "fallback" } } | null> {
+export async function loadBatchFresh(
+  pool: Pool,
+  batchId: string,
+  now: Date,
+  env?: NodeJS.ProcessEnv,
+): Promise<{ batch: BatchView; ctx: WarningContext & { timeZoneSource: "env" | "fallback" } } | null> {
   const batch = await new PgBatchStore(pool).loadBatch(batchId);
   if (!batch) return null;
-  const ctx = await loadWarningContext({ pool, weekStart: batch.weekStart, batchId, now });
+  const ctx = await loadWarningContext({ pool, weekStart: batch.weekStart, batchId, now, ...(env ? { env } : {}) });
   const ws = computeWarnings(batch.items, ctx);
   for (const i of batch.items) i.warnings = ws.get(i.id) ?? [];
   return { batch, ctx };

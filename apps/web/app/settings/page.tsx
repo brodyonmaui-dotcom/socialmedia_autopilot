@@ -1,5 +1,6 @@
 import { PLATFORMS } from "@autopilot/core";
 import { AppFrame } from "../../components/AppFrame.js";
+import { EditorApprovalSwitch } from "../../components/settings/EditorApproval.js";
 import { DmDraftsSwitch, ModeRow, PauseSwitch } from "../../components/settings/ReplyControls.js";
 import {
   Button,
@@ -31,6 +32,7 @@ import { inboxHref } from "../../lib/inbox/view.js";
 import { countActiveSubscriptions } from "../../lib/push/subscriptions.js";
 import { loadResearchStatus } from "../../lib/research/ideas.js";
 import { loadCaps } from "../../lib/settings/caps.js";
+import { getEditorApprovalCounts } from "../../lib/settings/editor-approval.js";
 import { aiNotesLine, lastRunLine, PING_LABEL, PINGS, REPLY_PLATFORMS, shortDate, zoneNotice } from "../../lib/settings/replies.js";
 import { capHelper } from "../../lib/settings/view.js";
 import { EnablePush } from "../../components/notifications/EnablePush.js";
@@ -47,7 +49,7 @@ const handle = (h: string | null) => (h ? `@${h.replace(/^@+/, "")}` : "Unknown 
 
 /**
  * Settings (v3): daily posts per platform, replies (pause all, per-platform mode, DM drafts, pings),
- * the always-ignore list, research, notifications, appearance and security. Anything that changes what
+ * the always-ignore list, research, notifications, editor approval counts, appearance and security. Anything that changes what
  * goes public or costs money says "needs your OK in chat" instead of offering a live control.
  */
 export default async function SettingsPage({ searchParams }: { searchParams: SearchParams }) {
@@ -55,13 +57,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
   const sp = await searchParams;
   const pool = getPool();
   const zone = creatorZone();
-  const [caps, theme, engagement, promo, research, devices] = await Promise.all([
+  const [caps, theme, engagement, promo, research, devices, editorApproval] = await Promise.all([
     loadCaps(pool),
     getTheme(),
     loadEngagement(pool),
     loadPromoAccounts(pool),
     loadResearchStatus(pool),
     countActiveSubscriptions(pool),
+    getEditorApprovalCounts(pool),
   ]);
   // Runtime env (not NEXT_PUBLIC_*): the public key is safe to send; the private key never leaves the worker.
   const vapid = process.env.VAPID_PUBLIC_KEY?.trim();
@@ -247,6 +250,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
         </div>
 
         <div className="flex flex-col gap-3 lg:col-span-4 lg:gap-4">
+          <Card title="Editor approval counts" titleId="editor" subtitle="Skip the second tap for renders you already approved while editing." className="scroll-mt-20">
+            <EditorApprovalSwitch on={editorApproval} />
+          </Card>
           <Card title="Appearance" titleId="appearance">
             <ThemeToggle initial={theme} variant="row" />
           </Card>

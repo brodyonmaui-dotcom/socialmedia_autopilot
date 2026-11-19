@@ -41,9 +41,9 @@ Verify a fix by comparing old vs new retention on the same footage.
 ## THE HANDOFF CONTRACT (version 1)
 This section is identical in `workout-assembly.md` and `trade-recaps.md`. The autopilot app is built against it; don't change field names. If you need a change, ask the creator to raise it in the autopilot chat first (it becomes version 2).
 
-**When the creator approves a render in this chat**, save two files into the `ready-to-post` folder inside his socials folder:
+**When the creator approves a render in this chat**, save the approved render into your Ready To Post folder AND write `<same name>.post.json` next to it (sidecar v1), with `approvedInEditor` set to when he approved it. Write the sidecar last (or write a temp name and rename), so a half-written file is never picked up:
 - `<name>.mp4`: the final render (vertical 9:16, location metadata stripped; see cautions).
-- `<name>.post.json`: the sidecar below, same `<name>`.
+- `<name>.post.json`: the sidecar below, same `<name>`. Folder defaults supply `pillar`, `platforms` and `source`, so they may be omitted.
 
 ```json
 { "version": 1,
@@ -56,6 +56,20 @@ This section is identical in `workout-assembly.md` and `trade-recaps.md`. The au
   "approvedInEditor": "<ISO timestamp>",
   "source": "workout-assembly | trade-recaps | manual" }
 ```
+
+Minimal example:
+
+```json
+{ "version": 1, "when": "today", "earliest": "17:00",
+  "caption": {
+    "instagram": "November 2nd P/L +$806, SMT + BOS towards data high for a 1:1R. Happy to take profits before price reversed… Not financial advice. #daytrading #nasdaq",
+    "tiktok": "November 2nd +$806, took profits before the reversal. Not financial advice. #daytrading",
+    "youtube": { "title": "Took profits before the reversal", "description": "November 2nd +$806, a 1:1R. Not financial advice. #daytrading #nasdaq #ict" } },
+  "soundInApp": false,
+  "approvedInEditor": "2026-11-02T17:05:00Z",
+  "source": "trade-recaps" }
+```
+
 
 Field rules:
 - `pillar`: exactly one of the listed values. `platforms`: any subset, in that spelling.

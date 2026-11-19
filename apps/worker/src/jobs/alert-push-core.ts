@@ -16,6 +16,9 @@
 //    One exception (run 4): a push of exactly one 'reply-ready' alert carries its message as `body` (written
 //    by the triage job, already privacy-linted: places become "A comment needs you") and a deep link to
 //    /app/inbox/item/<commentId>. Only reply-ready pushes → url /app/inbox. Mixed pushes stay as before.
+//    Same for a push made only of 'auto-scheduled' alerts ("Scheduled: <title> at <time>", written by the
+//    editor auto-approve runner): one → that message as body; several → "N posts scheduled · <first message>";
+//    url /app/calendar (no per-item calendar route exists), so a tap opens where it can be pulled back.
 //  - Logs: counts only. Never an endpoint, key, message or error text (error text can carry the endpoint).
 import { ALERT_KINDS, PUSH_KINDS_DEFAULT, isAlertKind, type AlertKind, type AlertSource } from "@autopilot/core";
 import type { AlertRow, PushSubscriptionRow } from "@autopilot/db";
@@ -34,6 +37,9 @@ export const ALERT_PUSH_TEST_SETTING = "alert_push_test";
 
 export type ClaimedAlert = Pick<AlertRow, "id" | "kind" | "platform"> & { message?: string; comment_id?: string | null };
 export const REPLY_READY_INBOX_URL = "/app/inbox" as const;
+export const AUTO_SCHEDULED_URL = "/app/calendar" as const;
+/** Same cap as the service worker applies to a payload body. */
+export const PUSH_BODY_MAX = 200;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type Urgency = "high" | "normal";
 
@@ -50,8 +56,8 @@ export interface PushPayload {
   count: number;
   kinds: AlertKind[];
   sources: AlertSource[];
-  url: typeof ALERT_PUSH_URL | typeof REPLY_READY_INBOX_URL | `/app/inbox/item/${string}`;
-  /** reply-ready only (see header). */
+  url: typeof ALERT_PUSH_URL | typeof REPLY_READY_INBOX_URL | typeof AUTO_SCHEDULED_URL | `/app/inbox/item/${string}`;
+  /** reply-ready / auto-scheduled only (see header). */
   body?: string;
   test?: true;
 }
@@ -116,7 +122,7 @@ export function isPushable(
   return new Date(a.created_at).getTime() >= sinceFor(cfg, now).getTime();
 }
 
-/** Pure; built from kind + source only, so no message text, id or URL can reach a push service. */
+/** Pure; built from kind + source only (message text only for the reply-ready / auto-scheduled cases in the header). */
 export function buildPayload(alerts: ReadonlyArray<Pick<AlertRow, "kind" | "platform"> & { message?: string; comment_id?: string | null }>): PushPayload {
   const kinds: AlertKind[] = [];
   const sources: AlertSource[] = [];
@@ -127,8 +133,14 @@ export function buildPayload(alerts: ReadonlyArray<Pick<AlertRow, "kind" | "plat
   if (alerts.length > 0 && alerts.every((a) => a.kind === "reply-ready")) {
     const one = alerts.length === 1 ? alerts[0]! : null;
     const id = one?.comment_id && UUID.test(one.comment_id) ? one.comment_id : null;
-    const body = one && typeof one.message === "string" ? one.message.slice(0, 200) : undefined;
+    const body = one && typeof one.message === "string" ? one.message.slice(0, PUSH_BODY_MAX) : undefined;
     return { count: alerts.length, kinds, sources, url: id ? `/app/inbox/item/${id}` : REPLY_READY_INBOX_URL, ...(body ? { body } : {}) };
+  }
+  if (alerts.length > 0 && alerts.every((a) => a.kind === "auto-scheduled")) {
+    const first = alerts.map((a) => (typeof a.message === "string" ? a.message.trim() : "")).find((m) => m !== "") ?? "";
+    const text = alerts.length === 1 ? first : [`${alerts.length} posts scheduled`, first].filter(Boolean).join(" · ");
+    const body = text.slice(0, PUSH_BODY_MAX);
+    return { count: alerts.length, kinds, sources, url: AUTO_SCHEDULED_URL, ...(body ? { body } : {}) };
   }
   return { count: alerts.length, kinds, sources, url: ALERT_PUSH_URL };
 }

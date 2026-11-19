@@ -55,7 +55,14 @@ export interface EditorMeta {
   earliest: string | null;
   /** The ingest writes the approval instant (ISO) or true; both mean "approved in the editor". */
   approvedInEditor: boolean;
+  /**
+   * The raw approval value when it is a non-empty string (the ingest's ISO instant), else null. Unvalidated:
+   * the auto-approve gate (lib/editor/auto-approve.ts) checks it. Optional so older fixtures can omit it.
+   */
+  approvedInEditorAt?: string | null;
   flags: EditorFlag[];
+  /** How many trial.editor.flags entries were not known EDITOR_FLAGS (dropped from `flags`). Optional for fixtures. */
+  unknownFlags?: number;
 }
 
 export interface BatchItemView {
@@ -134,12 +141,17 @@ export function parseEditorMeta(trial: unknown): EditorMeta | null {
   if (typeof e !== "object" || e === null || Array.isArray(e)) return null;
   const o = e as Record<string, unknown>;
   const flags = Array.isArray(o.flags) ? o.flags.filter((f): f is EditorFlag => (EDITOR_FLAGS as readonly unknown[]).includes(f)) : [];
+  // A flags value that isn't an array counts as one unknown flag (default-deny for the auto-approve gate).
+  const unknownFlags = Array.isArray(o.flags) ? o.flags.length - flags.length : o.flags === undefined ? 0 : 1;
+  const at = typeof o.approvedInEditor === "string" && o.approvedInEditor.trim() !== "" ? o.approvedInEditor.trim().slice(0, 64) : null;
   return {
     source: str(o.source),
     pillar: str(o.pillar),
     when: str(o.when),
     earliest: str(o.earliest),
     approvedInEditor: o.approvedInEditor === true || (typeof o.approvedInEditor === "string" && o.approvedInEditor.trim() !== ""),
+    approvedInEditorAt: at,
     flags: [...new Set(flags)],
+    unknownFlags,
   };
 }

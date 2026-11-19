@@ -71,7 +71,9 @@ export type BatchItemEventKind =
   /** F11: failed|unknown → draft after the creator checked the platform ("it's not there"). */
   | "reset-checked"
   /** F11: failed|unknown → published with the URL the creator found ("it's there"). */
-  | "record-published";
+  | "record-published"
+  /** Settings "Editor approval counts": draft → approved by the auto-approve runner (no session), from the editor's approval. */
+  | "approve-editor";
 
 /** Audit row for a status change made from the app or a CLI (migration 0006). */
 export interface BatchItemEventRow {

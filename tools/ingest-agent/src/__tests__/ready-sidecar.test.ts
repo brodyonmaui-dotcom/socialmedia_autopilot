@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseSidecar } from "../ready/sidecar.js";
+import { parseSidecar, resolveSidecar, sourceDefaults } from "../ready/sidecar.js";
 
 const valid = {
   version: 1,
@@ -49,10 +49,72 @@ describe("parseSidecar (contract v1)", () => {
     for (const earliest of ["24:00", "9:30", "12:60", "noon"]) expect(fail({ earliest }).path).toBe("earliest");
   });
 
-  it("rejects version 2, a bad timestamp and a missing field", () => {
+  it("rejects version 2, a bad timestamp and a missing required field", () => {
     expect(fail({ version: 2 }).path).toBe("version");
     expect(fail({ approvedInEditor: "yesterday" }).path).toBe("approvedInEditor");
-    const { soundInApp: _s, ...noSound } = valid;
-    expect(parseSidecar(noSound)).toMatchObject({ ok: false, path: "soundInApp" });
+    const { when: _w, ...noWhen } = valid;
+    expect(parseSidecar(noWhen)).toMatchObject({ ok: false, path: "when" });
+  });
+
+  it("soundInApp defaults to false; approvedInEditor may be absent (= not approved in the editor)", () => {
+    const { soundInApp: _s, approvedInEditor: _a, ...bare } = valid;
+    const r = parseSidecar(bare);
+    expect(r).toMatchObject({ ok: true, value: { soundInApp: false } });
+    if (r.ok) expect("approvedInEditor" in r.value).toBe(false);
+  });
+
+  it("legacy parse (no folder): pillar / platforms / source are still required", () => {
+    for (const key of ["pillar", "platforms", "source"] as const) {
+      const { [key]: _drop, ...rest } = valid;
+      expect(parseSidecar(rest)).toMatchObject({ ok: false, path: key });
+    }
+  });
+});
+
+describe("resolveSidecar (folder defaults)", () => {
+  const minimal = { version: 1, when: "today", caption: { instagram: "x" } };
+
+  it("fills pillar / platforms / source from the folder", () => {
+    expect(resolveSidecar(minimal, "trade-recaps")).toMatchObject({
+      ok: true,
+      value: { pillar: "trade-recap", platforms: ["instagram", "youtube", "tiktok"], source: "trade-recaps", soundInApp: false },
+    });
+    expect(resolveSidecar(minimal, "workout-assembly")).toMatchObject({
+      ok: true,
+      value: { pillar: "workout-log", platforms: ["instagram", "youtube", "tiktok"], source: "workout-assembly" },
+    });
+  });
+
+  it("snapchat joins the workout defaults only with INGEST_SNAPCHAT_DEFAULT=on", () => {
+    expect(sourceDefaults("workout-assembly", {}).platforms).not.toContain("snapchat");
+    expect(sourceDefaults("workout-assembly", { INGEST_SNAPCHAT_DEFAULT: "off" }).platforms).not.toContain("snapchat");
+    expect(sourceDefaults("workout-assembly", { INGEST_SNAPCHAT_DEFAULT: "on" }).platforms).toContain("snapchat");
+    expect(sourceDefaults("trade-recaps", { INGEST_SNAPCHAT_DEFAULT: "on" }).platforms).not.toContain("snapchat");
+  });
+
+  it("sidecar values win over defaults", () => {
+    expect(resolveSidecar({ ...minimal, pillar: "yap", platforms: ["tiktok"] }, "workout-assembly")).toMatchObject({
+      ok: true,
+      value: { pillar: "yap", platforms: ["tiktok"], source: "workout-assembly" },
+    });
+  });
+
+  it("a sidecar source that disagrees with the folder fails on source", () => {
+    expect(resolveSidecar({ ...minimal, source: "workout-assembly" }, "trade-recaps")).toEqual({
+      ok: false,
+      path: "source",
+      message: "sidecar says workout-assembly but folder is trade-recaps",
+    });
+    expect(resolveSidecar({ ...minimal, source: "trade-recaps" }, "trade-recaps").ok).toBe(true);
+  });
+
+  it("legacy folder (null): the first missing field is the failure path", () => {
+    expect(resolveSidecar(minimal, null)).toMatchObject({ ok: false, path: "pillar" });
+    expect(resolveSidecar({ ...minimal, pillar: "yap" }, null)).toMatchObject({ ok: false, path: "platforms" });
+    expect(resolveSidecar({ ...minimal, pillar: "yap", platforms: ["tiktok"] }, null)).toMatchObject({ ok: false, path: "source" });
+  });
+
+  it("still strict: unknown keys fail", () => {
+    expect(resolveSidecar({ ...minimal, pilar: "yap" }, "trade-recaps")).toMatchObject({ ok: false, path: "(root)" });
   });
 });

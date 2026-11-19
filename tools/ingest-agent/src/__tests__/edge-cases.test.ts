@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { isTransient, withRetry } from "../retry.js";
 import { findVideoFiles } from "../scan.js";
 
-// Edge cases found in the 2026-11-11 ingest audit (docs/reports/ingest-count-2026-11-11.md).
+// Edge cases found in the 2026-11-11 ingest audit (docs/archive/reports/ingest-count-2026-11-11.md).
 describe("findVideoFiles edge cases", () => {
   let root: string;
   const names = () => findVideoFiles([{ path: root, pillar: "gym" }]).map((f) => f.path.slice(root.length + 1).replace(/\\/g, "/")).sort();

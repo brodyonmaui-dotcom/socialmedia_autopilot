@@ -97,3 +97,17 @@ describe("frame count SQL", () => {
     expect(FRAME_COUNT_SQL.draftPosts).toContain("status = 'draft'");
   });
 });
+
+describe("nav icons", () => {
+  it("every sidebar entry has its own icon, distinct from the theme toggle's sun/moon", async () => {
+    const { PATHS } = await import("../ui/Icon");
+    const icons = sidebarNav().map((e) => e.icon);
+    expect(new Set(icons).size).toBe(icons.length);
+    const drawn = icons.map((i) => PATHS[i as keyof typeof PATHS]);
+    expect(new Set(drawn).size).toBe(drawn.length);
+    for (const d of drawn) {
+      expect(d).not.toBe(PATHS.sun);
+      expect(d).not.toBe(PATHS.moon);
+    }
+  });
+});
