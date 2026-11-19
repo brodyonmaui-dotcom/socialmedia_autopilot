@@ -61,8 +61,9 @@ describe.skipIf(!url)("outbox tick after an F11 reset + re-approve (db)", () => 
       );
       return id;
     };
-    hitRow = await fixture("f11 outbox fixture: already on IG", "2099-02-10T10:00:00Z");
-    missRow = await fixture("f11 outbox fixture: not on IG", "2099-02-11T10:00:00Z");
+    // Within the F18 missed-slot grace (60 min) of TICK_AT, so the guard doesn't hold them.
+    hitRow = await fixture("f11 outbox fixture: already on IG", "2099-02-12T11:20:00Z");
+    missRow = await fixture("f11 outbox fixture: not on IG", "2099-02-12T11:40:00Z");
   });
 
   afterAll(async () => {

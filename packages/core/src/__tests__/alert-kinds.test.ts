@@ -13,6 +13,9 @@ describe("alert kinds (F14 weekly loop)", () => {
   it("batch-ready is pushed by default, report-ready is page-only", () => {
     expect(PUSH_KINDS_DEFAULT).toContain("batch-ready");
     expect(PUSH_KINDS_DEFAULT).not.toContain("report-ready");
+    // F18: missed-slot is page-only (the posting-status banner carries it)
+    expect(isAlertKind("missed-slot")).toBe(true);
+    expect(PUSH_KINDS_DEFAULT).not.toContain("missed-slot");
     for (const k of PUSH_KINDS_DEFAULT) expect(isAlertKind(k)).toBe(true);
   });
 });

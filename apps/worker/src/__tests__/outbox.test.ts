@@ -48,7 +48,7 @@ function adapter(platform: string, impl: PlatformAdapter["publish"], findExistin
   return { platform: platform as PlatformAdapter["platform"], publish: impl, findExisting };
 }
 
-const NOW = "2026-11-01T09:30:00Z"; // in the past: the engine runs on the real clock here
+const NOW = "2026-11-01T09:30:00Z"; // the engine clock is pinned here (F18: a real clock would make every fixture a missed slot)
 const base: FakeRow = {
   id: "item-1",
   idempotency_key: "idem-1",
@@ -67,7 +67,7 @@ const base: FakeRow = {
   updated_at: "2026-10-31T09:00:00Z",
   r2_key: "library/abc.mp4",
 };
-const cfg = { publicMediaBase: "https://media.example", dryRun: false, timeZone: "UTC", log: () => {} };
+const cfg = { publicMediaBase: "https://media.example", dryRun: false, timeZone: "UTC", log: () => {}, now: () => new Date(NOW) };
 const alerts: OutboxAlert[] = [];
 const sink = { send: async (a: OutboxAlert) => void alerts.push(a) };
 
@@ -186,7 +186,7 @@ describe("runOutboxWith (pg store)", () => {
       let called = false;
       const r = await runOutboxWith(pool, { instagram: adapter("instagram", async () => ((called = true), { platformPostId: "x" })) }, { ...cfg, publicMediaBase: mediaBase, dryRun, alerts: sink, log: (l) => lines.push(l) });
       expect(called).toBe(false);
-      expect(r).toEqual({ considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, dryRun, alerts: [] });
+      expect(r).toEqual({ considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, missed: 0, dryRun, alerts: [] });
       expect(pool.writes.filter((w) => w.sql.startsWith("update batch_items"))).toEqual([]);
       expect(pool.reads.filter((q) => q.startsWith("select bi.id"))).toEqual([]);
       const ins = pool.writes.filter((w) => w.sql.startsWith("insert into alerts"));

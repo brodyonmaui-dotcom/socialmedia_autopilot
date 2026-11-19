@@ -46,7 +46,7 @@ describe.skipIf(!url)("outbox tick with PUBLIC_MEDIA_BASE missing (db)", () => {
     await pool.query("update batch_items set status = 'rejected', approved_at = null, approved_session = null where batch_id = $1", [batchId]);
     await pool.query("update batches set status = 'approved', approved_at = now(), updated_at = now() where id = $1", [batchId]);
     const caption = "outbox-config fixture: due approved item";
-    const at = "2099-03-11T10:00:00Z";
+    const at = "2099-03-12T11:30:00Z"; // within the F18 missed-slot grace of TICK_AT
     const hit = (await pool.query("select id from batch_items where batch_id = $1 and caption = $2 order by created_at, id limit 1", [batchId, caption])).rows[0];
     row =
       hit?.id ??

@@ -15,7 +15,8 @@ import { OUTBOX_LOCK_KEY, runOutboxWith, type OutboxConfig, type OutboxPool } fr
  */
 const url = process.env.DATABASE_URL;
 const WEEK = "2099-06-07";
-const TICK_AT = new Date("2099-06-12T12:00:00.000Z");
+/** Tick clock: 30 min after the last seeded day's rows (10:0x), inside the F18 missed-slot grace. seed() moves it. */
+let tickAt = new Date("2099-06-12T12:00:00.000Z");
 const MARK = "outbox-lock fixture";
 
 interface Scope {
@@ -62,6 +63,7 @@ describe.skipIf(!url)("outbox tick lock (db)", () => {
   async function seed(tag: string, day: string, n: number): Promise<string[]> {
     await pool.query("update batch_items set status = 'rejected', approved_at = null, approved_session = null where batch_id = $1", [batchId]);
     const ids: string[] = [];
+    tickAt = new Date(`${day}T10:30:00.000Z`);
     for (let i = 0; i < n; i++) {
       const caption = `${MARK}: ${tag} #${i}`;
       const at = `${day}T10:0${i}:00Z`;
@@ -96,7 +98,7 @@ describe.skipIf(!url)("outbox tick lock (db)", () => {
     publicMediaBase: "https://media.example.invalid",
     dryRun,
     timeZone: "UTC",
-    now: () => TICK_AT,
+    now: () => tickAt,
     log: (l) => void lines.push(l),
     alerts: { send: async () => {} },
     blocklist: [],
@@ -140,7 +142,7 @@ describe.skipIf(!url)("outbox tick lock (db)", () => {
     gate.resolve();
     const ra = await a;
 
-    expect(b).toEqual({ considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, dryRun: false, alerts: [] });
+    expect(b).toEqual({ considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, missed: 0, dryRun: false, alerts: [] });
     expect(linesB.filter((l) => l.includes("tick already running"))).toEqual(["[outbox] tick already running; skipped"]);
     expect(ra).toMatchObject({ considered: 1, published: 1 });
     expect([ra, b].filter((r) => r.considered > 0)).toHaveLength(1);
@@ -185,7 +187,7 @@ describe.skipIf(!url)("outbox tick lock (db)", () => {
       expect((await holder.query("select pg_try_advisory_lock($1) as ok", [OUTBOX_LOCK_KEY])).rows[0].ok).toBe(true);
       const lines: string[] = [];
       const r = await runOutboxWith(scoped(pool, scope), { instagram: fake.adapter }, cfg(lines, true));
-      expect(r).toEqual({ considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, dryRun: true, alerts: [] });
+      expect(r).toEqual({ considered: 0, published: 0, queued: 0, failed: 0, unknown: 0, recovered: 0, skipped: 0, missed: 0, dryRun: true, alerts: [] });
       expect(lines).toContain("[outbox] tick already running; skipped");
     } finally {
       await holder.query("select pg_advisory_unlock($1)", [OUTBOX_LOCK_KEY]);

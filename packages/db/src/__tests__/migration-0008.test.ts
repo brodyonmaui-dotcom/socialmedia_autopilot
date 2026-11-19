@@ -67,5 +67,8 @@ describe("alert types", () => {
     expect(PUSH_KINDS_DEFAULT).not.toContain("settings-change");
     // F14: the Monday report is page-only; the Sunday draft top-up pushes
     expect(PUSH_KINDS_DEFAULT).not.toContain("report-ready");
+    // F18: missed-slot is a known kind but page-only
+    expect(isAlertKind("missed-slot")).toBe(true);
+    expect(PUSH_KINDS_DEFAULT).not.toContain("missed-slot");
   });
 });

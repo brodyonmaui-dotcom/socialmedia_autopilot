@@ -37,6 +37,7 @@ const KIND_LABELS = {
   "auto-scheduled": "Scheduled",
   "batch-ready": "Next week drafted",
   "report-ready": "Weekly report",
+  "missed-slot": "Missed post",
 };
 
 function notificationView(data) {

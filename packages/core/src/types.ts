@@ -86,6 +86,7 @@ export const ALERT_KINDS = [
   "auto-scheduled", // editor approval counts: a render approved in the editor was scheduled without a tap here (pushed)
   "batch-ready", // F14: the Sunday weekly-draft job topped up next week's drafts; captions wait (pushed)
   "report-ready", // F14: Monday, last week had published posts; the 7-day analytics view is ready (page-only)
+  "missed-slot", // F18: an approved post is > 60 min past its time and was held, not sent (page-only)
 ] as const;
 export type AlertKind = (typeof ALERT_KINDS)[number];
 
