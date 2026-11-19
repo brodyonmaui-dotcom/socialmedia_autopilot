@@ -1,6 +1,6 @@
-# UI screenshots: proposed deletions (needs the creator's OK)
+# UI screenshots: deletions (done 2026-11-18)
 
-Nothing here has been deleted. Sizes from `du -sh`.
+Deleted on 2026-11-18 with the creator's OK (f12/ and the 9 loose PNGs). Sizes were from `du -sh`.
 
 | Path | Size | Why |
 |---|---|---|
