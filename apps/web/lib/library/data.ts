@@ -371,6 +371,54 @@ export async function keepFix(pool: Db, fixId: string, sessionId: string | null)
   return { ok: true, repointed: r.repointed, stayed: r.stayed };
 }
 
+export interface KeepAllResult {
+  /** Fixes kept. */
+  kept: number;
+  /** Fixes that couldn't be kept (threw, or changed state meanwhile). */
+  failed: number;
+  /** Approved/queued/published posts left on the original, across all kept fixes. */
+  stayed: number;
+}
+
+/**
+ * "Keep all N fixes": every `done` fix, oldest first (at most 200), through the same `keepFix` rules, one
+ * fix per statement/transaction so one failure never undoes the rest. Second call finds nothing: a no-op.
+ */
+export async function keepAllFixes(pool: Db, sessionId: string | null, now: Date = new Date()): Promise<KeepAllResult> {
+  const { rows } = (await pool.query(
+    `select id from media_fixes where status = 'done' and fixed_media_id is not null and requested_at <= $1 order by requested_at, id limit 200`,
+    [now],
+  )) as { rows: Array<{ id: string }> };
+  const out: KeepAllResult = { kept: 0, failed: 0, stayed: 0 };
+  for (const r of rows) {
+    try {
+      const k = await keepFix(pool, r.id, sessionId);
+      if (k.ok) {
+        out.kept++;
+        out.stayed += k.stayed;
+      } else out.failed++;
+    } catch {
+      out.failed++;
+    }
+  }
+  return out;
+}
+
+export interface FixProgress {
+  /** Queued + running. */
+  pending: number;
+  /** Finished and waiting for a choice. */
+  done: number;
+}
+
+export async function loadFixProgress(pool: Db): Promise<FixProgress> {
+  const { rows } = await pool.query(
+    `select count(*) filter (where status in ('queued','running'))::int as pending, count(*) filter (where status = 'done')::int as done from media_fixes where status in ('queued','running','done')`,
+  );
+  const r = rows[0] as FixProgress;
+  return { pending: r.pending, done: r.done };
+}
+
 /** "Keep the original": the fix becomes 'discarded' (from done or failed). The fixed copy stays in storage and the DB, hidden. */
 export async function keepOriginal(pool: Db, fixId: string): Promise<{ ok: boolean }> {
   if (!isUuid(fixId)) return { ok: false };

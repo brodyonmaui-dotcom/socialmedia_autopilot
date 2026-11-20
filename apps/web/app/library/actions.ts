@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "../../lib/auth/require.js";
 import { getPool } from "../../lib/db.js";
-import { dismissIssue, keepFix, keepOriginal, requestFix, type KeepFixResult, type RequestFixResult } from "../../lib/library/data.js";
+import { dismissIssue, keepAllFixes, keepFix, keepOriginal, requestFix, type KeepAllResult, type KeepFixResult, type RequestFixResult } from "../../lib/library/data.js";
 
 /**
  * Touch-up server actions. Every one needs a session; DB errors become a fixed message (never echoed).
@@ -44,6 +44,12 @@ export async function keepFixAction(formData: FormData): Promise<KeepFixResult> 
   const session = await requireSession();
   const fixId = String(formData.get("fixId") ?? "");
   return guarded<{ repointed: number; stayed: number }>("keep-fix", () => keepFix(getPool(), fixId, session.id));
+}
+
+/** "Keep all N fixes": every finished fix, each through the same rules as Keep the fix. */
+export async function keepAllFixesAction(): Promise<ActionResult<KeepAllResult>> {
+  const session = await requireSession();
+  return guarded("keep-all", async () => ({ ok: true, ...(await keepAllFixes(getPool(), session.id, new Date())) }));
 }
 
 /** "Keep the original" (form field `fixId`). */

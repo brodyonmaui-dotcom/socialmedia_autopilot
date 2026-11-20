@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { requireSession } from "../../lib/auth/require.js";
 import { noteParams, safeBack, withNote } from "../../lib/library/screen.js";
-import { dismissIssueAction, keepFixAction, keepOriginalAction, requestFixAction } from "./actions.js";
+import { dismissIssueAction, keepAllFixesAction, keepFixAction, keepOriginalAction, requestFixAction } from "./actions.js";
 
 /**
  * Form wrappers for the Library / Touch-up pages: each calls the matching server action in ./actions.ts
@@ -23,6 +23,12 @@ export async function keepFixForm(formData: FormData): Promise<void> {
   await requireSession();
   const r = await keepFixAction(formData);
   redirect(withNote(backOf(formData), r.ok ? noteParams({ kind: "kept", repointed: r.repointed, stayed: r.stayed }) : noteParams({ kind: "error", reason: r.reason })));
+}
+
+export async function keepAllForm(formData: FormData): Promise<void> {
+  await requireSession();
+  const r = await keepAllFixesAction();
+  redirect(withNote(backOf(formData), r.ok ? noteParams({ kind: "keptall", kept: r.kept, stayed: r.stayed, failed: r.failed }) : noteParams({ kind: "error", reason: r.reason })));
 }
 
 export async function keepOriginalForm(formData: FormData): Promise<void> {
