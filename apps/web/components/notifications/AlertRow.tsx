@@ -27,6 +27,7 @@ function ActionButton({ action, primary }: { action: AlertAction; primary: boole
       return (
         <form action={approveItemsAction}>
           <input type="hidden" name="item" value={action.item} />
+          <input type="hidden" name="back" value="/notifications" />
           <Button type="submit" variant={variant} size="sm">
             {action.label}
           </Button>

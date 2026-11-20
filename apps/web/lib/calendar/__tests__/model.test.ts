@@ -160,6 +160,8 @@ describe("URL state and redirects", () => {
   it("return paths stay inside the app; results replace old ones", () => {
     expect(safeBack("https://evil.example.com")).toBe("/calendar");
     expect(safeBack("//evil.example.com")).toBe("/calendar");
+    expect(safeBack("/notifications")).toBe("/notifications");
+    expect(safeBack("/notificationsX")).toBe("/calendar");
     expect(safeBack("/")).toBe("/");
     expect(withResult("/calendar?d=2026-11-18&note=old&move=x", { error: "nope" }, ["move"])).toBe("/calendar?d=2026-11-18&error=nope");
     expect(withResult("/calendar?d=2026-11-18&note=old&move=x", { note: "ok" }, ["move"])).toBe("/calendar?d=2026-11-18&note=ok");

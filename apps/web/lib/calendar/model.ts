@@ -562,7 +562,7 @@ export function batchRedirect(weekStart: string | null): string {
 /** A post-action return path: only /calendar URLs and Home are accepted (never an open redirect). */
 export function safeBack(raw: unknown): string {
   if (typeof raw !== "string") return "/calendar";
-  if (raw === "/" || /^\/calendar(\?[A-Za-z0-9=&%._|:-]*)?$/.test(raw)) return raw;
+  if (raw === "/" || /^\/(calendar|notifications)(\?[A-Za-z0-9=&%._|:-]*)?$/.test(raw)) return raw;
   return "/calendar";
 }
 
