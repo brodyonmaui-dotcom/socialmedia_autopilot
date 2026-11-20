@@ -18,12 +18,12 @@ describe("groupByLocalDay", () => {
     expect(g.untimed.map((i) => i.id)).toEqual([none.id]);
     expect(g.days.map((d) => d.date)).toEqual(["2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25", "2026-10-26"]);
     const day = (d: string) => g.days.find((x) => x.date === d)!;
-    expect(day("2026-10-24").items.map((x) => [x.item.id, x.time])).toEqual([[sat.id, "23:30"]]);
+    expect(day("2026-10-24").items.map((x) => [x.item.id, x.time])).toEqual([[sat.id, "11:30 PM"]]);
     expect(day("2026-10-25").items.map((x) => [x.item.id, x.time])).toEqual([
-      [sunEarly.id, "00:30"],
-      [sunLate.id, "23:30"],
+      [sunEarly.id, "12:30 AM"],
+      [sunLate.id, "11:30 PM"],
     ]);
-    expect(day("2026-10-26").items.map((x) => x.time)).toEqual(["00:30"]);
+    expect(day("2026-10-26").items.map((x) => x.time)).toEqual(["12:30 AM"]);
     expect(day("2026-10-19").items).toEqual([]);
     expect(day("2026-10-25").label).toBe("Sun 25 Oct");
   });

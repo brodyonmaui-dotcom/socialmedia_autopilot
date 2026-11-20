@@ -1,7 +1,7 @@
 import type { OutboxAlert, OutboxPost, Platform, PlatformAdapter, PublishResult } from "../types.js";
 import { CAPABILITIES } from "../capabilities.js";
 import type { CadenceSettings } from "../cadence.js";
-import { localDate, localHHMM } from "../time.js";
+import { localClock12, localDate } from "../time.js";
 import { sanitizeError, sanitizeForLog } from "../log/sanitize.js";
 import { classifyFailure, decideAfterAttempt, DEFAULT_RETRY_POLICY, PublishTimeoutError, type Decision, type RetryPolicy } from "./policy.js";
 
@@ -207,7 +207,7 @@ export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Prom
         platform: post.platform,
         postId: post.id,
         idempotencyKey: post.idempotencyKey,
-        message: `post missed its time (${post.platform}, ${localHHMM(at, cfg.timeZone)} ${localDate(at, cfg.timeZone)}); move it in the calendar`,
+        message: `post missed its time (${post.platform}, ${localClock12(at, cfg.timeZone)} ${localDate(at, cfg.timeZone)}); move it in the calendar`,
         at: now.toISOString(),
       });
       continue;

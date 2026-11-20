@@ -45,7 +45,7 @@ export interface PlatformPostRow {
 
 export interface HourStat {
   bucket: TimeBucket;
-  /** "18–22 h" (local hours, the creator's zone). */
+  /** "6–10 PM" (local hours, the creator's zone). */
   label: string;
   n: number;
   medianViews: number | null;
@@ -86,11 +86,11 @@ export interface PlatformOptions {
 }
 
 const BUCKETS: Array<[TimeBucket, string]> = [
-  ["morning", "5–11 h"],
-  ["midday", "11–14 h"],
-  ["afternoon", "14–18 h"],
-  ["evening", "18–22 h"],
-  ["late", "22–5 h"],
+  ["morning", "5–11 AM"],
+  ["midday", "11 AM–2 PM"],
+  ["afternoon", "2–6 PM"],
+  ["evening", "6–10 PM"],
+  ["late", "10 PM–5 AM"],
 ];
 
 export function buildPlatform(platform: Platform, data: AccountData, opts: PlatformOptions): PlatformView {

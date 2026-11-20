@@ -131,7 +131,7 @@ describe("platform builder", () => {
     expect(v.posts).toHaveLength(10);
     expect(v.posts.every((p) => p.byHand && p.pillar === "gym")).toBe(true);
     const ev = v.bestHours.find((h) => h.bucket === "evening")!;
-    expect(ev).toMatchObject({ n: 5, medianViews: 500, status: "ok", best: true, label: "18–22 h" });
+    expect(ev).toMatchObject({ n: 5, medianViews: 500, status: "ok", best: true, label: "6–10 PM" });
     expect(v.bestHours.find((h) => h.bucket === "midday")).toMatchObject({ n: 0, status: "insufficient", best: false });
     expect(v.findings.find((f) => f.key === "instagram:hour:evening")).toMatchObject({ status: "ok", direction: "up" });
     expect(v.findings.some((f) => f.platform !== "instagram")).toBe(false);

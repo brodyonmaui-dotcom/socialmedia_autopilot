@@ -11,7 +11,7 @@
 //  - Once only: an item with any 'approve-editor', 'unapprove', 'edit', 'reject' or 'reset-checked' event
 //    is never auto-approved again, so pulling it back (reject / edit / move in the calendar) sticks.
 import type { Pool } from "pg";
-import { localDate, localHHMM, weekdayIndex } from "@autopilot/core";
+import { localClock12, localDate, weekdayIndex } from "@autopilot/core";
 import type { BatchItemEventKind } from "@autopilot/db";
 import { PgBatchStore, type ApplyExtra } from "../batches/pg-store.js";
 import { ConflictError } from "../batches/store.js";
@@ -47,11 +47,11 @@ export function itemTitle(item: Pick<BatchItemView, "platform" | "title" | "capt
   return t.length > 60 ? `${t.slice(0, 59).trimEnd()}…` : t;
 }
 
-/** "Scheduled: <title> at 18:30" today, "Scheduled: <title> at Tue 09:30" on any other day (creator zone). */
+/** "Scheduled: <title> at 6:30 PM" today, "Scheduled: <title> at Tue 9:30 AM" on any other day (creator zone). */
 export function scheduledMessage(item: Pick<BatchItemView, "platform" | "title" | "caption" | "media" | "scheduledFor">, now: Date, timeZone: string): string {
   const at = new Date(item.scheduledFor ?? Number.NaN);
   const day = localDate(at, timeZone);
-  const time = localHHMM(at, timeZone);
+  const time = localClock12(at, timeZone);
   const when = day === localDate(now, timeZone) ? time : `${WEEKDAY[weekdayIndex(day)]} ${time}`;
   return `Scheduled: ${itemTitle(item)} at ${when}`;
 }

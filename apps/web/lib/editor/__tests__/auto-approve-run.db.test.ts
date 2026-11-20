@@ -8,13 +8,13 @@ import { itemTitle, runEditorAutoApprove, scheduledMessage } from "../auto-appro
 describe("auto-approve runner (pure parts)", () => {
   const NOW = new Date("2026-11-13T12:00:00.000Z"); // Friday
   it("message: YouTube title, else the caption's first line (≤ 60), weekday only when not today", () => {
-    expect(scheduledMessage(makeItem({ platform: "youtube", title: "Morning setup", caption: "x", scheduledFor: "2026-11-13T18:30:00.000Z" }), NOW, "UTC")).toBe("Scheduled: Morning setup at 18:30");
-    expect(scheduledMessage(makeItem({ platform: "instagram", caption: "\n Recap of the week \nmore", scheduledFor: "2026-11-17T09:05:00.000Z" }), NOW, "UTC")).toBe("Scheduled: Recap of the week at Tue 09:05");
+    expect(scheduledMessage(makeItem({ platform: "youtube", title: "Morning setup", caption: "x", scheduledFor: "2026-11-13T18:30:00.000Z" }), NOW, "UTC")).toBe("Scheduled: Morning setup at 6:30 PM");
+    expect(scheduledMessage(makeItem({ platform: "instagram", caption: "\n Recap of the week \nmore", scheduledFor: "2026-11-17T09:05:00.000Z" }), NOW, "UTC")).toBe("Scheduled: Recap of the week at Tue 9:05 AM");
     const long = itemTitle(makeItem({ caption: "a".repeat(80) }));
     expect(long).toHaveLength(60);
     expect(long.endsWith("…")).toBe(true);
     // Creator zone decides "today": 23:30 UTC is already Saturday two hours east.
-    expect(scheduledMessage(makeItem({ caption: "c", scheduledFor: "2026-11-13T23:30:00.000Z" }), NOW, "Etc/GMT-2")).toBe("Scheduled: c at Sat 01:30");
+    expect(scheduledMessage(makeItem({ caption: "c", scheduledFor: "2026-11-13T23:30:00.000Z" }), NOW, "Etc/GMT-2")).toBe("Scheduled: c at Sat 1:30 AM");
   });
 
   it("parseEditorApprovalCounts: only exactly true is on", () => {
@@ -135,7 +135,7 @@ describe.skipIf(!url)("runEditorAutoApprove (db)", () => {
     expect(ev[0]).toMatchObject({ kind: "approve-editor", from_status: "draft", to_status: "approved", session_id: null });
     expect(ev[0].detail).toMatchObject({ source: "trade-recaps" });
     const al = await alerts(clean);
-    expect(al).toEqual([{ kind: "auto-scheduled", platform: "instagram", message: "Scheduled: Recap of the session: three setups, one entry. at Tue 15:00", batch_item_id: clean }]);
+    expect(al).toEqual([{ kind: "auto-scheduled", platform: "instagram", message: "Scheduled: Recap of the session: three setups, one entry. at Tue 3:00 PM", batch_item_id: clean }]);
     expect((await pool.query("select status from batches where id = $1", [batchId])).rows[0].status).toBe("approved");
 
     for (const id of [blocked, manual]) {

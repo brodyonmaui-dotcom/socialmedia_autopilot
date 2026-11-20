@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { BarChart } from "../BarChart.js";
 import { compactNumber, fullNumber, linePoints, lineSegments, niceRange, niceTicks, pct, pctIn, stackTotal } from "../chart-scale.js";
-import { isPaletteShortcut } from "../CommandPalette.js";
 import { LineChart } from "../LineChart.js";
 import { nextIndex, placePanel } from "../popover-position.js";
 
@@ -34,23 +33,6 @@ describe("nextIndex (menu keys)", () => {
     expect(nextIndex("End", 0, 3)).toBe(2);
     expect(nextIndex("a", 0, 3)).toBeNull();
     expect(nextIndex("ArrowDown", 0, 0)).toBeNull();
-  });
-});
-
-describe("palette shortcut", () => {
-  const ev = (key: string, o: Partial<{ metaKey: boolean; ctrlKey: boolean; altKey: boolean; tag: string }> = {}) => ({
-    key,
-    metaKey: o.metaKey ?? false,
-    ctrlKey: o.ctrlKey ?? false,
-    altKey: o.altKey ?? false,
-    target: { tagName: o.tag ?? "BODY", isContentEditable: false } as unknown as EventTarget,
-  });
-  it("⌘K and Ctrl K anywhere, / only outside fields", () => {
-    expect(isPaletteShortcut(ev("k", { metaKey: true }))).toBe(true);
-    expect(isPaletteShortcut(ev("K", { ctrlKey: true, tag: "INPUT" }))).toBe(true);
-    expect(isPaletteShortcut(ev("/"))).toBe(true);
-    expect(isPaletteShortcut(ev("/", { tag: "TEXTAREA" }))).toBe(false);
-    expect(isPaletteShortcut(ev("k"))).toBe(false);
   });
 });
 

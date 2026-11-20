@@ -85,7 +85,7 @@ export interface UpcomingRow {
   itemId: string;
   mediaId: string;
   title: string;
-  /** "Wed, Nov 18 · 10:38" */
+  /** "Wed, Nov 18 · 10:38 AM" */
   when: string;
   day: string;
   statusLabel: string;
