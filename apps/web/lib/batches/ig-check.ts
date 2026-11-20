@@ -6,9 +6,9 @@ import type { BatchItemView, BatchView } from "./types.js";
 
 /**
  * F11 automatic check: "is this failed/unknown Instagram item already on the account?" One read-only
- * GET through the IG adapter's findExisting (last 25 media, normalised caption within ±36 h of the
+ * GET through the IG adapter's findExisting (last 50 media, normalised caption or caption prefix within ±36 h of the
  * scheduled time). It never posts. Non-IG → "n/a"; no IG credentials, no time/caption, a lookup error
- * or a timeout → "error" (the manual checklist then decides). A hit → "found" with the permalink.
+ * (incl. a response with no data) or a timeout → "error" = "can't check", never "not-found". A hit → "found" with the permalink.
  */
 export type IgCheckResult = { result: AutoCheck | "found"; url?: string; platformPostId?: string };
 

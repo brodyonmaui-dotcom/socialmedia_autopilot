@@ -24,7 +24,7 @@ export const RESET_CHECKLIST: Readonly<Record<ResettablePlatform, readonly strin
   instagram: [
     "Profile grid and Reels tab (newest first)",
     "Trial reels (Professional dashboard → Trial reels)",
-    "Automatic caption check (result below): not found — or it failed and I searched my recent posts by hand",
+    "Automatic check says Not found yet — or it could not check and I looked on my profile by hand",
   ],
   youtube: [
     "YouTube Studio → Content, including Private and Scheduled",

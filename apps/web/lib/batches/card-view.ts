@@ -99,23 +99,39 @@ export interface AutoCheckView {
   text: string;
 }
 
+/** The four plain states of a post that should be on the platform (F19 S6). */
+export type VerifyLabel = "Waiting to post" | "Posted (confirmed)" | "Not found yet" | "Can't check automatically";
+
 /**
- * The IG automatic-check line under the checklist (a Chip). not-found → neutral, error → warn (amber +
- * icon), a hit → accent (the sheet has already switched to "record it"), n/a → nothing.
+ * The IG automatic-check line (a Chip) as one of the four states. "Not found yet" (we looked, it isn't
+ * in the last 50 posts) is NOT "Can't check automatically" (Instagram or our token didn't answer, so we
+ * know nothing). A hit → accent. n/a (not Instagram) → nothing.
  */
 export function autoCheckText(state: AutoCheckState): AutoCheckView | null {
   switch (state) {
     case "checking":
-      return { tone: "neutral", text: "Automatic check: looking at the last 25 posts…" };
+      return { tone: "neutral", text: "Checking your last 50 posts…" };
     case "not-found":
-      return { tone: "neutral", text: "Automatic check: not found in the last 25 posts" };
+      return { tone: "neutral", text: "Not found yet: it isn't in your last 50 Instagram posts" };
     case "found":
-      return { tone: "accent", text: "Automatic check: found on Instagram, record it" };
+      return { tone: "accent", text: "Posted (confirmed): found on Instagram" };
     case "error":
-      return { tone: "warn", text: "Automatic check failed: check by hand" };
+      return { tone: "warn", text: "Can't check automatically: Instagram didn't answer" };
     case "n/a":
       return null;
   }
+}
+
+/** The state label for a post: waiting (approved/queued/publishing), confirmed (published), else the check result. */
+export function verifyLabel(status: ItemStatus, check: AutoCheckState = "n/a"): VerifyLabel {
+  if (status === "published" || check === "found") return "Posted (confirmed)";
+  if (status === "approved" || status === "queued" || status === "publishing") return "Waiting to post";
+  return check === "error" ? "Can't check automatically" : "Not found yet";
+}
+
+/** The "record it" confirm sentence: platform + post title + 12-hour scheduled time; nothing is sent. */
+export function recordConfirmText(opts: { platform: string; title: string; scheduled: string }): string {
+  return `Mark the ${opts.platform} post "${opts.title}" (${opts.scheduled}) as posted? This only marks it as posted in the app. Nothing is sent again.`;
 }
 
 /**
@@ -129,7 +145,7 @@ export function canConfirmReset(opts: { platform: Platform; checked: readonly st
 }
 
 export interface StuckActions {
-  /** "Not on the platform → back to draft": only when the server says canReset. */
+  /** "Not posted, send it again" (back to draft): only when the server says canReset. */
   reset: boolean;
   /** "It's there → record it": every failed/unknown item except Snapchat (its URL rule refuses). */
   record: boolean;

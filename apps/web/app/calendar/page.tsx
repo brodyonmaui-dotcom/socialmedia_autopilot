@@ -234,6 +234,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
           statusLabel={resetItem.p.statusLabel}
           attempts={resetItem.p.attempts}
           lastError={resetItem.p.lastError}
+          title={resetItem.e.title}
           scheduled={resetItem.e.day ? `${dayTitle(resetItem.e.day)} · ${resetItem.p.time12 ?? ""}` : "No time"}
           keyTail={resetItem.p.keyTail}
           canReset={resetItem.p.canReset}

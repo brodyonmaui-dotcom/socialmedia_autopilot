@@ -14,6 +14,8 @@ import {
   PAST_TIME_TEXT,
   pastTimeChip,
   stuckActions,
+  verifyLabel,
+  recordConfirmText,
   weekIndex,
 } from "../card-view.js";
 import { RESET_CHECKLIST } from "../reset.js";
@@ -122,8 +124,14 @@ describe("handoffText", () => {
 
 describe("sheet text", () => {
   it("auto-check wording", () => {
-    expect(autoCheckText("not-found")).toEqual({ tone: "neutral", text: "Automatic check: not found in the last 25 posts" });
-    expect(autoCheckText("error")).toEqual({ tone: "warn", text: "Automatic check failed: check by hand" });
+    expect(autoCheckText("not-found")).toEqual({ tone: "neutral", text: "Not found yet: it isn't in your last 50 Instagram posts" });
+    expect(autoCheckText("error")).toEqual({ tone: "warn", text: "Can't check automatically: Instagram didn't answer" });
+    expect(autoCheckText("error")?.text).not.toBe(autoCheckText("not-found")?.text);
+    expect(verifyLabel("failed", "error")).toBe("Can't check automatically");
+    expect(verifyLabel("unknown", "not-found")).toBe("Not found yet");
+    expect(verifyLabel("failed", "found")).toBe("Posted (confirmed)");
+    expect(verifyLabel("queued")).toBe("Waiting to post");
+    expect(recordConfirmText({ platform: "Instagram", title: "Pull day", scheduled: "Tue, Nov 17 · 9:00 AM" })).toContain("Nothing is sent again.");
     expect(autoCheckText("found")?.tone).toBe("accent");
     expect(autoCheckText("n/a")).toBeNull();
   });
@@ -132,7 +140,7 @@ describe("sheet text", () => {
     expect(keyTailLabel(null)).toBe("key not available");
   });
   it("scheduled label in the creator's zone", () => {
-    expect(scheduledLabel("2026-11-17T09:00:00.000Z", "UTC")).toBe("Tue 17 Nov · 09:00");
+    expect(scheduledLabel("2026-11-17T09:00:00.000Z", "UTC")).toBe("Tue 17 Nov · 9:00 AM");
     expect(scheduledLabel(null, "UTC")).toBe("no time");
   });
 });
