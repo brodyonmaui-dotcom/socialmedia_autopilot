@@ -4,12 +4,12 @@ import {
   ApproveAllDialog,
   DayDialog,
   EditTextDialog,
-  itemField,
   MonthGrid,
   MoveDialog,
   PostCard,
   RejectDialog,
   ResetDialog,
+  RescheduleDialog,
   WeekView,
   type PostCardLinks,
 } from "../../components/calendar/index.js";
@@ -19,6 +19,7 @@ import { requireSession } from "../../lib/auth/require.js";
 import { getPool } from "../../lib/db.js";
 import { creatorZone, loadCalendar } from "../../lib/calendar/load.js";
 import {
+  approveAllView,
   calendarHref,
   dayEntries,
   dayTitle,
@@ -30,7 +31,8 @@ import {
   weekCells,
   weekTitle,
 } from "../../lib/calendar/model.js";
-import { approveAllSummary, tomorrowOf } from "../../lib/calendar/plan.js";
+import { previewRescheduleMissed } from "../../lib/calendar/reschedule.js";
+import { tomorrowOf } from "../../lib/calendar/plan.js";
 import { loadPostingStatus, postingBanner } from "../../lib/status/posting.js";
 import { fillTimesAction } from "./actions.js";
 
@@ -59,8 +61,15 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
     // F18: dry run / silent worker / missed posts, above the grid.
     loadPostingStatus(pool, now),
   ]);
-  const postingView = postingBanner(posting, { now, timeZone: zone.timeZone, zoneFallback: zone.source === "fallback", surface: "calendar" });
   const entries = data.entries.filter((e) => e.day! >= range.from && e.day! <= range.to);
+  const postingView = postingBanner(posting, {
+    now,
+    timeZone: zone.timeZone,
+    zoneFallback: zone.source === "fallback",
+    surface: "calendar",
+    range,
+    rescheduleHref: calendarHref(state, { reschedule: "all" }),
+  });
 
   const here = calendarHref(state);
   const back = calendarHref(state, { day: state.day });
@@ -69,24 +78,28 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
     move: (key) => calendarHref(state, { day: state.day, move: key }),
     reject: (key) => calendarHref(state, { day: state.day, reject: key }),
     reset: (itemId) => calendarHref(state, { day: state.day, reset: itemId }),
+    reschedule: (itemId) => calendarHref(state, { day: state.day, reschedule: itemId }),
     handoff: "/platforms/snapchat",
   };
   const dayHref = (day: string) => calendarHref(state, { day });
   const closeToDay = state.day ? calendarHref(state, { day: state.day }) : here;
 
-  const draftIds = entries.flatMap((e) => e.platforms.filter((p) => p.status === "draft")).map(itemField);
-  const draftCount = draftIds.length;
+  // One state function for the cards, this count and the dialog: only "needs-approval" lines are counted.
+  const approve = approveAllView([...entries, ...data.untimed]);
   const all = [...data.entries, ...data.untimed];
   const find = (key: string | null) => (key ? all.find((e) => e.key === key) ?? null : null);
   const editEntry = find(state.edit);
   const moveEntry = find(state.move);
   const rejectEntry = find(state.reject);
   const resetItem = state.reset ? all.flatMap((e) => e.platforms.map((p) => ({ e, p }))).find((x) => x.p.itemId === state.reset) ?? null : null;
-  const summary = state.approveAll ? approveAllSummary(data.batches, new Set(draftIds.map((v) => v.split(":")[1]!)), now) : null;
+  const reschedule = state.reschedule
+    ? await previewRescheduleMissed(pool, state.reschedule === "all" ? "all" : [state.reschedule], now, zone.timeZone)
+    : null;
 
   const title = state.view === "week" ? weekTitle(state.d) : monthTitle(state.d);
   const error = param(sp.error);
-  const note = param(sp.note);
+  const rescheduledN = param(sp.notice) === "rescheduled" ? Number(param(sp.n)) : NaN;
+  const note = Number.isInteger(rescheduledN) && rescheduledN >= 0 ? `Rescheduled ${rescheduledN === 1 ? "1 post" : `${rescheduledN} posts`}` : param(sp.note);
 
   return (
     <AppFrame active="calendar">
@@ -94,9 +107,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
         title="Calendar"
         subtitle={state.drafts ? "Showing what needs your approval" : undefined}
         action={
-          draftCount > 0 ? (
+          approve.total > 0 ? (
             <ButtonLink href={calendarHref(state, { approveAll: true })} variant="solid">
-              Approve all {draftCount}
+              Approve all {approve.total}
             </ButtonLink>
           ) : undefined
         }
@@ -221,7 +234,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
           statusLabel={resetItem.p.statusLabel}
           attempts={resetItem.p.attempts}
           lastError={resetItem.p.lastError}
-          scheduled={resetItem.e.day ? `${dayTitle(resetItem.e.day)} · ${resetItem.p.time ?? ""}` : "No time"}
+          scheduled={resetItem.e.day ? `${dayTitle(resetItem.e.day)} · ${resetItem.p.time12 ?? ""}` : "No time"}
           keyTail={resetItem.p.keyTail}
           canReset={resetItem.p.canReset}
           canRecord={resetItem.p.canRecord}
@@ -229,7 +242,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
           closeHref={closeToDay}
         />
       ) : null}
-      {summary ? <ApproveAllDialog closeHref={here} back={here} items={draftIds} will={summary.will} stays={summary.stays} /> : null}
+      {state.approveAll ? <ApproveAllDialog closeHref={here} back={here} view={approve} /> : null}
+      {reschedule ? <RescheduleDialog closeHref={here} back={here} rows={reschedule} timeZone={zone.timeZone} single={state.reschedule !== "all"} /> : null}
     </AppFrame>
   );
 }

@@ -4,7 +4,7 @@
 // never taken from the heartbeat. Pure helpers are tested in __tests__/posting.test.ts, the loader in
 // __tests__/posting.db.test.ts.
 import type { Pool } from "pg";
-import { localDate, localHHMM } from "@autopilot/core";
+import { localClock12, localDate } from "@autopilot/core";
 
 /** An approved post this far past its time is "missed" (the worker won't send it; it waits for a Move). */
 export const MISSED_GRACE_MS = 60 * 60_000;
@@ -29,6 +29,8 @@ export interface PostingStatus {
   missed: number;
   /** ISO time of the oldest missed post (for the calendar link), null when none. */
   oldestMissedAt: string | null;
+  /** ISO time of the newest missed post (to tell whether all of them sit in the viewed range). */
+  newestMissedAt?: string | null;
 }
 
 const iso = (v: unknown): string | null => {
@@ -70,7 +72,7 @@ export function isMissedSlot(i: { status: string; platform: string; scheduledFor
 
 export const POSTING_SQL = {
   status: `select value from settings where key = $1`,
-  missed: `select count(*)::int as n, min(bi.scheduled_for) as oldest
+  missed: `select count(*)::int as n, min(bi.scheduled_for) as oldest, max(bi.scheduled_for) as newest
              from batch_items bi join batches b on b.id = bi.batch_id
             where bi.status = 'approved'
               and b.status = 'approved'
@@ -85,9 +87,10 @@ export async function loadPostingStatus(pool: Pick<Pool, "query">, now: Date, op
     pool.query(POSTING_SQL.missed, [new Date(now.getTime() - MISSED_GRACE_MS)]),
   ]);
   const { state, lastTickAt } = postingState(parseWorkerStatus(status.rows[0]?.value), now);
-  const m = missed.rows[0] as { n?: number; oldest?: Date | string | null } | undefined;
+  const m = missed.rows[0] as { n?: number; oldest?: Date | string | null; newest?: Date | string | null } | undefined;
   const oldest = m?.oldest ? new Date(m.oldest).toISOString() : null;
-  return { state, lastTickAt, missed: Number(m?.n ?? 0), oldestMissedAt: oldest };
+  const newest = m?.newest ? new Date(m.newest).toISOString() : null;
+  return { state, lastTickAt, missed: Number(m?.n ?? 0), oldestMissedAt: oldest, newestMissedAt: newest };
 }
 
 // ---------------------------------------------------------------- banner view
@@ -99,6 +102,8 @@ export interface PostingNotice {
   detail?: string;
   href?: string;
   linkLabel?: string;
+  /** A real button-link beside the text (e.g. "Reschedule all"). */
+  action?: { label: string; href: string };
 }
 
 export interface PostingBannerView {
@@ -109,18 +114,27 @@ export interface PostingBannerView {
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** "09:14" today, "Nov 18, 09:14" another day (creator zone); " UTC" is added when the zone is a fallback. */
+/** "9:14 AM" today, "Nov 18, 9:14 AM" another day (creator zone); " UTC" is added when the zone is a fallback. */
 export function sinceText(at: string, now: Date, timeZone: string, fallback = false): string {
   const d = new Date(at);
   const day = localDate(d, timeZone);
-  const hhmm = localHHMM(d, timeZone);
-  const base = day === localDate(now, timeZone) ? hhmm : `${MON[Number(day.slice(5, 7)) - 1]} ${Number(day.slice(8, 10))}, ${hhmm}`;
+  const clock = localClock12(d, timeZone);
+  const base = day === localDate(now, timeZone) ? clock : `${MON[Number(day.slice(5, 7)) - 1]} ${Number(day.slice(8, 10))}, ${clock}`;
   return fallback ? `${base} UTC` : base;
 }
 
 export function postingBanner(
   s: PostingStatus,
-  opts: { now: Date; timeZone: string; zoneFallback?: boolean; surface: "home" | "calendar" },
+  opts: {
+    now: Date;
+    timeZone: string;
+    zoneFallback?: boolean;
+    surface: "home" | "calendar";
+    /** Calendar: the days on screen (creator-local, inclusive). Missed posts all inside → "marked below", no link. */
+    range?: { from: string; to: string };
+    /** Where "Reschedule all" goes when the viewed range holds every missed post (the current view + ?reschedule=all). */
+    rescheduleHref?: string;
+  },
 ): PostingBannerView {
   const notices: PostingNotice[] = [];
   if (s.state === "dry-run") {
@@ -140,12 +154,25 @@ export function postingBanner(
     notices.push({ tone: "danger", text: "The worker hasn't reported yet." });
   }
   if (s.missed > 0) {
-    notices.push({
-      tone: "warn",
-      text: s.missed === 1 ? "1 approved post missed its time" : `${s.missed} approved posts missed their time`,
-      href: s.oldestMissedAt ? `/calendar?view=week&d=${localDate(new Date(s.oldestMissedAt), opts.timeZone)}` : "/calendar",
-      linkLabel: "Open week",
-    });
+    const oldestDay = s.oldestMissedAt ? localDate(new Date(s.oldestMissedAt), opts.timeZone) : null;
+    const newestDay = s.newestMissedAt ? localDate(new Date(s.newestMissedAt), opts.timeZone) : oldestDay;
+    const inRange = !!(opts.range && oldestDay && newestDay && oldestDay >= opts.range.from && newestDay <= opts.range.to);
+    const weekHref = oldestDay ? `/calendar?view=week&d=${oldestDay}` : "/calendar";
+    if (inRange) {
+      notices.push({
+        tone: "warn",
+        text: s.missed === 1 ? "1 missed post is marked below" : `${s.missed} missed posts are marked below`,
+        action: { label: "Reschedule all", href: opts.rescheduleHref ?? `${weekHref}&reschedule=all` },
+      });
+    } else {
+      notices.push({
+        tone: "warn",
+        text: s.missed === 1 ? "1 approved post missed its time" : `${s.missed} approved posts missed their time`,
+        href: weekHref,
+        linkLabel: "Open week",
+        action: { label: "Reschedule all", href: `${weekHref}&reschedule=all` },
+      });
+    }
   }
   const quiet = opts.surface === "calendar" && notices.length === 0 && s.state === "live" ? "Posting is on" : null;
   return { notices, quiet };

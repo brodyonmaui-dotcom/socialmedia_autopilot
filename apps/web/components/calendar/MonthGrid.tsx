@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Platform } from "@autopilot/core";
+import { clock12FromHHMM, type Platform } from "@autopilot/core";
 import { WEEKDAYS, type DayCell, type Entry } from "../../lib/calendar/model.js";
 import { cx, FOCUS, PLATFORM_NAME, PlatformLogo } from "../ui/index.js";
 
@@ -29,7 +29,7 @@ function Pill({ e, dim }: { e: Entry; dim: boolean }) {
     <li className={cx("flex min-w-0 items-center gap-1 rounded-ds-xs bg-ds-raised px-1.5 py-[3px] text-[12px] leading-tight text-ds-text", dim && "opacity-50")}>
       <span aria-hidden="true" className={cx("size-1.5 shrink-0 rounded-full", STATUS_DOT[e.status])} />
       <PlatformLogo platform={first.platform} size={12} className="shrink-0" />
-      {e.firstTime ? <span className="ds-num shrink-0 text-ds-muted">{e.firstTime}</span> : null}
+      {e.firstTime ? <span className="ds-num shrink-0 text-ds-muted">{clock12FromHHMM(e.firstTime)}</span> : null}
       <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{e.title}</span>
     </li>
   );

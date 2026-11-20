@@ -19,7 +19,7 @@ export function PostingBanner({ view, className }: { view: PostingBannerView; cl
   return (
     <div className={cx("flex flex-col gap-3 lg:gap-4", className)}>
       {view.notices.map((n) => (
-        <InlineNotice key={n.text} tone={n.tone} href={n.href} linkLabel={n.linkLabel}>
+        <InlineNotice key={n.text} tone={n.tone} href={n.href} linkLabel={n.linkLabel} action={n.action}>
           {n.text}
           {n.detail ? <span className="mt-0.5 block text-[14px] leading-snug text-ds-muted">{n.detail}</span> : null}
         </InlineNotice>

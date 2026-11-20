@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { clock12FromHHMM } from "@autopilot/core";
 import { dayTitle, WEEKDAYS, type DayCell } from "../../lib/calendar/model.js";
 import { Badge, cx, FOCUS, PlatformLogo } from "../ui/index.js";
 import { PostCard, type PostCardLinks } from "./PostCard.js";
@@ -54,7 +55,7 @@ export function WeekView({
                   )}
                 >
                   <span className="flex items-center gap-1.5">
-                    <span className="ds-num text-[12px] text-ds-muted">{e.firstTime}</span>
+                    <span className="ds-num text-[12px] text-ds-muted">{e.firstTime ? clock12FromHHMM(e.firstTime) : null}</span>
                     <span className="ml-auto flex gap-1">
                       {e.platforms.map((p) => (
                         <PlatformLogo key={p.itemId} platform={p.platform} size={12} className="text-ds-text" />

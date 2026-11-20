@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import { makeBatch, makeItem, NOW } from "../../batches/__tests__/fixtures.js";
 import type { WarningContext } from "../../batches/warnings.js";
 import {
+  approveAllView,
   batchRedirect,
+  cardChip,
+  linksFromHome,
+  lineState,
   calendarHref,
   dayEntries,
   dayTitle,
@@ -33,7 +37,7 @@ describe("grouping into entries", () => {
     const e = groupEntries(items, UTC);
     expect(e).toHaveLength(1);
     expect(e[0]!.platforms.map((p) => p.platform)).toEqual(["instagram", "youtube", "tiktok"]);
-    expect(e[0]).toMatchObject({ day: "2026-11-18", title: "Leg day basics", firstTime: "17:00", status: "needs-you", statusLabel: "Needs approval", needsYou: true });
+    expect(e[0]).toMatchObject({ day: "2026-11-18", title: "Leg day basics", firstTime: "17:00", status: "needs-you", statusLabel: "2 of 3 need approval", needsYou: true });
   });
 
   it("the same clip on two days → two entries; untimed drafts get day null", () => {
@@ -186,5 +190,95 @@ describe("action planning", () => {
     expect(!capped.ok && capped.reason).toMatch(/^can't move there: instagram: 2 posts on 2026-11-20, cap 1/);
     const handed = makeItem({ status: "published", platformPostId: "x" });
     expect(planMove(makeBatch([handed]), ctx, [handed.id], "2026-11-20", "10:00", NOW)).toMatchObject({ ok: false });
+  });
+});
+
+describe("one state per platform line (F19)", () => {
+  const at = (h: number) => `2026-11-18T${String(h).padStart(2, "0")}:00:00.000Z`;
+  const block = [{ severity: "block" as const, message: "needs a caption", field: "caption" as const }];
+
+  it("draft: approvable → needs-approval; blocked / past / untimed → needs-fix with the reason", () => {
+    expect(lineState(makeItem(), NOW)).toEqual({ state: "needs-approval", fix: null });
+    expect(lineState(makeItem({ warnings: block as never }), NOW)).toEqual({ state: "needs-fix", fix: "needs a caption" });
+    expect(lineState(makeItem({ scheduledFor: "2026-11-12T10:00:00Z" }), NOW)).toEqual({ state: "needs-fix", fix: "time is in the past" });
+    expect(lineState(makeItem({ scheduledFor: null }), NOW)).toEqual({ state: "needs-fix", fix: "no time set" });
+  });
+
+  it("other statuses", () => {
+    expect(lineState(makeItem({ status: "approved" }), NOW).state).toBe("approved");
+    expect(lineState(makeItem({ status: "approved", scheduledFor: "2026-11-13T09:00:00Z" }), NOW).state).toBe("missed");
+    expect(lineState(makeItem({ status: "published" }), NOW).state).toBe("posted");
+    expect(lineState(makeItem({ status: "failed" }), NOW).state).toBe("failed");
+    expect(lineState(makeItem({ status: "unknown" }), NOW).state).toBe("unknown");
+    expect(lineState(makeItem({ status: "approved", platform: "snapchat", scheduledFor: "2026-11-13T11:30:00Z" }), NOW).state).toBe("share-by-hand");
+  });
+
+  it("card chip: same → label; mixed → a count; never a bare 'Needs approval' over approved lines", () => {
+    expect(cardChip(["approved", "approved"]).label).toBe("Approved");
+    expect(cardChip(["needs-approval", "approved", "approved"]).label).toBe("1 of 3 needs approval");
+    expect(cardChip(["needs-approval", "needs-approval", "approved"]).label).toBe("2 of 3 need approval");
+    expect(cardChip(["needs-fix", "approved"]).label).toBe("1 of 2 needs a fix");
+    expect(cardChip(["approved", "posted"]).label).toBe("Approved");
+    expect(cardChip(["posted", "posted"]).label).toBe("Posted");
+    expect(cardChip(["failed", "needs-approval"]).label).toBe("1 of 2 needs approval");
+  });
+
+  it("one approved + one draft sibling: the card is not 'Needs approval'", () => {
+    const [e] = groupEntries([makeItem({ mediaId: "m", platform: "instagram", status: "approved", scheduledFor: at(15) }), makeItem({ mediaId: "m", platform: "tiktok", scheduledFor: at(16) })], UTC);
+    expect(e!.statusLabel).toBe("1 of 2 needs approval");
+    expect(e!.platforms.map((p) => p.state)).toEqual(["approved", "needs-approval"]);
+    expect(e!.platforms[1]!.time12).toBe("4:00 PM");
+  });
+});
+
+describe("Approve all count (F19): same states as the cards", () => {
+  const at = (h: number) => `2026-11-18T${String(h).padStart(2, "0")}:00:00.000Z`;
+  const block = [{ severity: "block" as const, message: "needs a caption", field: "caption" as const }];
+
+  it("counts only needs-approval lines; blocked / past / untimed stay out and are listed with a reason", () => {
+    const items = [
+      makeItem({ mediaId: "a", platform: "instagram", caption: "Day 3 quiet session\nmore", scheduledFor: at(9) }),
+      makeItem({ mediaId: "a", platform: "tiktok", scheduledFor: at(10) }),
+      makeItem({ mediaId: "b", platform: "tiktok", scheduledFor: at(8) }),
+      makeItem({ mediaId: "c", platform: "youtube", title: "Blocked one", warnings: block as never, scheduledFor: at(11) }),
+      makeItem({ mediaId: "d", platform: "instagram", scheduledFor: "2026-11-12T10:00:00Z" }),
+      makeItem({ mediaId: "e", platform: "instagram", status: "approved", scheduledFor: at(12) }),
+    ];
+    const entries = groupEntries(items, UTC);
+    const v = approveAllView(entries);
+    expect(v.total).toBe(3);
+    expect(v.groups.map((g) => [g.platform, g.lines.length])).toEqual([["instagram", 1], ["tiktok", 2]]);
+    expect(v.groups[0]!.lines[0]).toMatchObject({ title: "Day 3 quiet session", when: "Wed, Nov 18 · 9:00 AM" });
+    expect(v.notIncluded.map((n) => n.reason).sort()).toEqual(["needs a caption", "time is in the past"]);
+    // The card chips agree: exactly these lines are "needs-approval".
+    expect(entries.flatMap((e) => e.platforms).filter((p) => p.state === "needs-approval")).toHaveLength(v.total);
+  });
+
+  it("clips long titles to 60 characters and falls back to the entry title", () => {
+    const long = "x".repeat(90);
+    const v = approveAllView(groupEntries([makeItem({ caption: long, scheduledFor: at(9) })], UTC));
+    expect(v.groups[0]!.lines[0]!.title.length).toBeLessThanOrEqual(60);
+    expect(approveAllView([]).total).toBe(0);
+  });
+
+  it("agrees with the server plan (planApproveSome) on which drafts go through", () => {
+    const items = [makeItem({ id: "ok", scheduledFor: at(9) }), makeItem({ id: "blk", warnings: block as never, scheduledFor: at(9) }), makeItem({ id: "past", scheduledFor: "2026-11-12T10:00:00Z" })];
+    const plan = planApproveSome(makeBatch(items), items.map((i) => i.id), NOW);
+    const v = approveAllView(groupEntries(items, UTC));
+    expect(v.groups.flatMap((g) => g.lines.map((l) => l.itemId)).sort()).toEqual(plan.approved.map((a) => a.itemId).sort());
+  });
+});
+
+describe("links from Home and ?reschedule", () => {
+  it("opens dialogs on the calendar week of the post", () => {
+    const l = linksFromHome("2026-11-13");
+    expect(l.move("11111111-1111-1111-1111-111111111111|2026-11-18")).toBe("/calendar?view=week&d=2026-11-18&move=11111111-1111-1111-1111-111111111111%7C2026-11-18");
+    expect(l.reschedule("11111111-1111-1111-1111-111111111111", "2026-11-12")).toContain("reschedule=11111111");
+  });
+  it("round-trips ?reschedule=all", () => {
+    const s = parseCalendarState({ reschedule: "all" }, "2026-11-13");
+    expect(s.reschedule).toBe("all");
+    expect(calendarHref(s, { reschedule: s.reschedule })).toContain("reschedule=all");
+    expect(parseCalendarState({ reschedule: "nope" }, "2026-11-13").reschedule).toBeNull();
   });
 });
