@@ -1,7 +1,7 @@
 // Pure view logic for the /alerts page (app/alerts). No DB, no React. Tested in __tests__/view.test.ts.
 // Labels come from queries.ts (read only); this module only arranges them.
 import { KIND_ORDER, kindLabel, sourceLabel, type AlertState } from "./queries.js";
-import { PUSH_KINDS_DEFAULT, type AlertKind } from "@autopilot/core";
+import { PUSH_KINDS_DEFAULT, localClock12, type AlertKind } from "@autopilot/core";
 import { batchRedirect } from "../calendar/model.js";
 import type { AlertView } from "./queries.js";
 
@@ -121,4 +121,130 @@ export function pushPulse(support: string | null, subscribed: boolean | null): {
   if (support === null || (support === "ok" && subscribed === null)) return { label: "Checking", tone: "muted" };
   if (support !== "ok") return { label: support === "no-key" ? "Not set up" : support === "denied" ? "Blocked" : "Unavailable", tone: "warn" };
   return subscribed ? { label: "On for this device", tone: "accent" } : { label: "Off on this device", tone: "muted" };
+}
+
+// ---- Plain-language description of one alert (the row renders this; pure, tested per kind) ----
+
+export type AlertAction =
+  | { kind: "link"; label: string; href: string }
+  | { kind: "approve-reply"; label: string; commentId: string }
+  | { kind: "approve-item"; label: string; item: string } // "batchId:itemId" (approveItemsAction)
+  | { kind: "reschedule"; label: string; itemId: string; returnTo: string };
+
+export interface AlertDescription {
+  title: string;
+  body?: string;
+  quote?: { comment: string; reply: string };
+  why?: string;
+  actions: AlertAction[];
+}
+
+/** "Thu 8:00 AM" in the creator's zone (12-hour). */
+export function dayClock12(date: Date | string, timeZone: string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const day = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone }).format(d);
+  return `${day} ${localClock12(d, timeZone)}`;
+}
+
+const shortMessage = (m: string) => (m.length > 300 ? `${m.slice(0, 299)}…` : m);
+
+/**
+ * Title, optional body / quote / why, and the actions for one alert. Sentences, not labels: urgency is the
+ * row's coloured edge, never a word. `extra.proposedAt` = the slot previewRescheduleMissed proposed for a missed-slot.
+ */
+export function describeAlert(a: AlertView, _now: Date, timeZone: string, extra: { proposedAt?: string | null } = {}): AlertDescription {
+  const where = a.source === "all" ? "" : sourceLabel(a.source);
+  const plat = a.platform ? sourceLabel(a.platform) : where;
+  const post = plat ? `${plat} post` : "post";
+  const cal = alertLink({ kind: "duplicate", batchId: a.batchId, weekStart: a.weekStart });
+  const calendar: AlertAction[] = cal ? [{ kind: "link", label: cal.label, href: cal.href }] : [];
+  const msg = shortMessage(a.message);
+
+  switch (a.kind) {
+    case "reply-ready": {
+      if (!a.commentId) {
+        const n = /\d+/.exec(a.message)?.[0];
+        return {
+          title: n ? `${n} ${n === "1" ? "reply is" : "replies are"} drafted and waiting` : "Replies are drafted and waiting",
+          actions: [{ kind: "link", label: "Open Inbox", href: "/inbox" }],
+        };
+      }
+      const cp = a.commentPlatform ? sourceLabel(a.commentPlatform) : where;
+      return {
+        title: cp ? `Reply drafted for a comment on ${cp}` : "Reply drafted for a comment",
+        ...(a.commentText && a.draftReply ? { quote: { comment: a.commentText, reply: a.draftReply } } : a.commentText ? { body: a.commentText } : {}),
+        actions: [
+          { kind: "approve-reply", label: "Approve & send", commentId: a.commentId },
+          { kind: "link", label: "Open in Inbox", href: `/inbox/item/${a.commentId}` },
+        ],
+      };
+    }
+    case "missed-slot": {
+      const actions: AlertAction[] = [];
+      if (a.batchItemId && extra.proposedAt) {
+        actions.push({ kind: "reschedule", label: `Auto-schedule at nearest slot (${dayClock12(extra.proposedAt, timeZone)})`, itemId: a.batchItemId, returnTo: "/notifications" });
+      }
+      const due = a.scheduledFor ? `was due ${dayClock12(a.scheduledFor, timeZone)}` : "is past its time";
+      return {
+        title: `A ${post} missed its time`,
+        body: a.itemTitle ? `${a.itemTitle} ${due}` : `The post ${due}`,
+        why: "Held so late posts don't go out in a burst.",
+        actions: [...actions, ...calendar],
+      };
+    }
+    case "ready-for-approval":
+      return {
+        title: "New posts are ready for your approval",
+        ...(a.itemTitle ? { body: a.itemTitle } : {}),
+        actions: [
+          ...(a.batchId && a.batchItemId ? [{ kind: "approve-item", label: "Approve", item: `${a.batchId}:${a.batchItemId}` } as AlertAction] : []),
+          ...calendar,
+        ],
+      };
+    case "final-failure":
+      return { title: `A ${post} failed to send`, body: msg, why: "Retry it, or record it as published if it went out.", actions: calendar };
+    case "unknown-outcome":
+      return { title: `A ${post} may or may not have gone out`, body: msg, why: "Check the platform before retrying, so it can't post twice.", actions: calendar };
+    case "cap-breach":
+      return { title: `A ${post} was held at the daily limit`, body: msg, actions: calendar };
+    case "duplicate":
+      return { title: `A ${post} was already posted once`, body: msg, actions: calendar };
+    case "token-health":
+      return { title: `${where || "A"} connection needs attention`, body: msg, why: "Renew it: docs runbook token-renewal.", actions: [] };
+    case "auth":
+      return { title: "A sign-in problem was recorded", body: msg, actions: [{ kind: "link", label: "Open Settings", href: "/settings" }] };
+    case "engagement-kill":
+      return { title: "Auto-replies were stopped", body: msg, actions: [{ kind: "link", label: "Open Settings", href: "/settings" }] };
+    case "engagement-mode":
+      return { title: "Reply mode changed", body: msg, actions: [{ kind: "link", label: "Open Settings", href: "/settings" }] };
+    case "engagement-failure":
+      return { title: `A reply${where ? ` on ${where}` : ""} failed to send`, body: msg, actions: [{ kind: "link", label: "Open Inbox", href: "/inbox" }] };
+    case "engagement-unknown":
+      return { title: `A reply${where ? ` on ${where}` : ""} may or may not have gone out`, body: msg, actions: [{ kind: "link", label: "Open Inbox", href: "/inbox" }] };
+    case "metrics-health":
+      return { title: "Some numbers could not be fetched", body: msg, actions: [{ kind: "link", label: "Open Analytics", href: "/analytics" }] };
+    case "config":
+      return { title: "A setting needs fixing", body: msg, actions: [{ kind: "link", label: "Open Settings", href: "/settings" }] };
+    case "settings-change":
+      return { title: "A setting was changed", body: msg, actions: [{ kind: "link", label: "Open Settings", href: "/settings" }] };
+    case "auto-scheduled":
+      return { title: "An approved render was scheduled", body: msg, actions: calendar };
+    case "batch-ready":
+      return { title: "Next week's drafts are ready for captions", body: msg, actions: calendar };
+    case "report-ready":
+      return { title: "Last week's report is ready", actions: [{ kind: "link", label: "Open report", href: REPORT_READY_HREF }] };
+  }
+}
+
+/** Header copy: "4 to handle: 2 reply ready, 1 missed post, 1 other" (largest kinds first, at most 3 named). */
+export function handleSummary(counts: Counts): string {
+  const n = total(counts);
+  if (n === 0) return "Nothing needs you right now.";
+  const parts = (Object.entries(counts) as Array<[AlertKind, number]>)
+    .filter(([, c]) => c > 0)
+    .sort((a, b) => b[1] - a[1] || KIND_ORDER.indexOf(a[0]) - KIND_ORDER.indexOf(b[0]));
+  const named = parts.slice(0, 3).map(([k, c]) => `${c} ${kindLabel(k).toLowerCase()}`);
+  const rest = parts.slice(3).reduce((a, [, c]) => a + c, 0);
+  if (rest > 0) named.push(`${rest} other`);
+  return `${n} to handle: ${named.join(", ")}`;
 }

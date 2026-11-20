@@ -17,7 +17,33 @@ export interface AlertView {
   /** The linked batch's week (YYYY-MM-DD), for "Open in calendar" (`/calendar?view=week&d=…`). */
   weekStart: string | null;
   batchItemId: string | null;
+  /** The linked post's platform (batch_items.platform). */
+  platform: string | null;
+  /** YouTube title, else the first caption line, ≤80 chars. Never more caption text than this. */
+  itemTitle: string | null;
+  /** The linked post's scheduled time (ISO). */
+  scheduledFor: string | null;
+  /** reply-ready: the comment (null for a digest). */
+  commentId: string | null;
+  commentPlatform: string | null;
+  /** The comment text, ≤200 chars. */
+  commentText: string | null;
+  /** The reply waiting for approval: the engagement_actions reply text, else the triage draft. */
+  draftReply: string | null;
 }
+
+const TITLE_MAX = 80;
+const COMMENT_MAX = 200;
+/** Title, else the first non-empty caption line, bounded. */
+export function previewTitle(title: string | null | undefined, caption: string | null | undefined): string | null {
+  const t = (title ?? "").trim() || (caption ?? "").split("\n").map((l) => l.trim()).find(Boolean) || "";
+  if (!t) return null;
+  return t.length > TITLE_MAX ? `${t.slice(0, TITLE_MAX - 1)}…` : t;
+}
+const cap = (s: string | null | undefined, n: number): string | null => {
+  const t = (s ?? "").trim();
+  return t ? (t.length > n ? `${t.slice(0, n - 1)}…` : t) : null;
+};
 
 /** The Acknowledged tab looks this far back (by acknowledged_at). */
 export const ACK_WINDOW_DAYS = 30;
@@ -68,8 +94,14 @@ export async function listAlerts(pool: Pool, opts: { state: AlertState; kind?: A
   const order = opts.state === "open" ? "a.created_at desc, a.id" : "a.acknowledged_at desc, a.id";
   const { rows } = await pool.query(
     `select a.id, a.kind, a.platform, a.message, a.created_at, a.acknowledged_at, a.batch_item_id, bi.batch_id,
-            to_char(b.week_start, 'YYYY-MM-DD') as week_start
+            to_char(b.week_start, 'YYYY-MM-DD') as week_start,
+            bi.platform as item_platform, bi.title as item_title, left(bi.caption, 400) as item_caption, bi.scheduled_for,
+            c.id as comment_id, c.platform as comment_platform, left(c.text, 400) as comment_text,
+            coalesce(nullif(trim(ea.text), ''), ct.draft_reply) as draft_reply
        from alerts a left join batch_items bi on bi.id = a.batch_item_id left join batches b on b.id = bi.batch_id
+       left join comments c on c.id = a.comment_id
+       left join comment_triage ct on ct.comment_id = c.id
+       left join lateral (select e.text from engagement_actions e where e.comment_id = c.id and e.kind = 'reply' order by e.created_at desc limit 1) ea on true
       where ${where}
       order by ${order}
       limit $${params.length}`,
@@ -85,6 +117,13 @@ export async function listAlerts(pool: Pool, opts: { state: AlertState; kind?: A
     batchId: (r.batch_id as string | null) ?? null,
     weekStart: (r.week_start as string | null) ?? null,
     batchItemId: (r.batch_item_id as string | null) ?? null,
+    platform: (r.item_platform as string | null) ?? null,
+    itemTitle: previewTitle(r.item_title as string | null, r.item_caption as string | null),
+    scheduledFor: r.scheduled_for ? new Date(r.scheduled_for as Date | string).toISOString() : null,
+    commentId: (r.comment_id as string | null) ?? null,
+    commentPlatform: (r.comment_platform as string | null) ?? null,
+    commentText: cap(r.comment_text as string | null, COMMENT_MAX),
+    draftReply: cap(r.draft_reply as string | null, COMMENT_MAX),
   }));
 }
 

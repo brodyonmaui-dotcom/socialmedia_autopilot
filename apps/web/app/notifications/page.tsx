@@ -4,7 +4,9 @@ import { ButtonLink, Card, EmptyState, FOCUS, PageHeader, TabLinks, cx } from ".
 import { getPool } from "../../lib/db.js";
 import { requireSession } from "../../lib/auth/require.js";
 import { ACK_WINDOW_DAYS, countByKind, kindLabel, listAlerts, parseKind, parseState } from "../../lib/alerts/queries.js";
-import { ackAllCopy, alertsHref, plural, stateTabs, total } from "../../lib/alerts/view.js";
+import { ackAllCopy, alertsHref, handleSummary, stateTabs, total } from "../../lib/alerts/view.js";
+import { creatorZone } from "../../lib/calendar/load.js";
+import { previewRescheduleMissed } from "../../lib/calendar/reschedule.js";
 import { relativeTime } from "../../lib/engagement/queries.js";
 import { AckAllSheet } from "../../components/notifications/AckAllSheet.js";
 import { AlertRow } from "../../components/notifications/AlertRow.js";
@@ -27,6 +29,17 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     state === "open" ? null : countByKind(pool, "open", now),
     listAlerts(pool, { state, kind, now }),
   ]);
+  // Missed-slot rows show the slot "Auto-schedule" would pick (advisory; the action re-plans under a lock).
+  const zone = creatorZone().timeZone;
+  const missedIds = state === "open" ? alerts.filter((a) => a.kind === "missed-slot" && a.batchItemId).map((a) => a.batchItemId!) : [];
+  const proposed = new Map<string, string>();
+  if (missedIds.length > 0) {
+    try {
+      for (const r of await previewRescheduleMissed(pool, missedIds, now, zone)) if (r.to) proposed.set(r.id, r.to);
+    } catch {
+      /* preview is advisory: the row falls back to "Open in calendar" */
+    }
+  }
   const openTotal = total(openCounts ?? counts);
   // "Acknowledge all" sends exactly the ids rendered below (alerts that arrive later stay open).
   const shownIds = state === "open" ? alerts.map((a) => a.id) : [];
@@ -34,7 +47,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     state === "open"
       ? openTotal === 0
         ? "Nothing needs you right now."
-        : `${plural(openTotal, "open alert")}. Acknowledging keeps them for ${ACK_WINDOW_DAYS} days; nothing is deleted.`
+        : `${handleSummary(openCounts ?? counts)}. Acknowledging keeps them for ${ACK_WINDOW_DAYS} days; nothing is deleted.`
       : `Acknowledged in the last ${ACK_WINDOW_DAYS} days.`;
 
   return (
@@ -73,7 +86,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
           ) : (
             <ol aria-label={state === "open" ? "Open alerts" : "Acknowledged alerts"} className="flex flex-col divide-y divide-ds-line">
               {alerts.map((a) => (
-                <AlertRow key={a.id} alert={a} when={relativeTime(a.createdAt, now)} ackWhen={a.acknowledgedAt ? relativeTime(a.acknowledgedAt, now) : undefined} />
+                <AlertRow key={a.id} alert={a} now={now} timeZone={zone} proposedAt={(a.batchItemId && proposed.get(a.batchItemId)) || null} when={relativeTime(a.createdAt, now)} ackWhen={a.acknowledgedAt ? relativeTime(a.acknowledgedAt, now) : undefined} />
               ))}
             </ol>
           )}
