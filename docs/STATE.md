@@ -1,4 +1,4 @@
-# State (read this instead of history; updated 2026-11-19)
+# State (read this instead of history; updated 2026-11-20)
 
 ## What it is
 Single-creator tool: phone-first dashboard + always-on worker that posts approved weekly batches to Instagram, YouTube Shorts, TikTok and Snapchat, handles routine engagement, and reports what works. Not a SaaS. Deadline Jan 8, 2027.
@@ -19,6 +19,7 @@ VPS runs `main` (PR #29, migrations 0001-0014 applied). **Worker is LIVE since 2
 - Snapchat: assisted (share sheet, 1 Spotlight/day). No API post.
 
 ## What's next
+- **F19 (2026-11-20, `docs/design/F19.md`)**: per-platform approval state, clear Approve all, Approve in every card's ⋯ menu, auto-schedule missed posts (series "Day N" first, stays approved), actionable notifications, no Search/theme buttons (Dark mode in Settings), 12-hour times, Keep all fixes, Instagram check reads 50 posts and separates "can't check" from "not found". No migration.
 - **Posting stopped 2026-11-19 (F18).** Cause confirmed: worker left in dry-run after the first-real-post runbook. Fixed in code: missed-slot guard (no burst of overdue posts), worker heartbeat `settings.worker_status`, "Posting is off" banner on Home/Calendar. On the VPS: `./infra/diagnose-posting.sh` → `docs/runbooks/not-posting.md`.
 - F17 (run 5): his phone check of run 4; real-data shake-out of account-ingest, research-refresh, media-recheck, media-fix (`docs/prep/run-5-plan.md`).
 - F14 weekly loop: built 2026-11-19 (no migration). Captions: `pnpm skill:weekly-batch pending` → `fill <file> --write`. Needs `TZ_CREATOR` in the worker env or the jobs aren't scheduled.
