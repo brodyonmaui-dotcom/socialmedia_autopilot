@@ -45,7 +45,7 @@ describe("auto-approve runner (pure parts)", () => {
  * alerts acknowledged + marked pushed, and the 'editor' setting is put back. Nothing is deleted.
  */
 const url = process.env.DATABASE_URL;
-const WEEK = "2099-03-02";
+const WEEK = "2098-06-02"; // a Monday; // unique: handoff store.db.test uses 2099-03-02 (they raced in a parallel run)
 
 describe.skipIf(!url)("runEditorAutoApprove (db)", () => {
   let pool: pg.Pool;
@@ -83,9 +83,9 @@ describe.skipIf(!url)("runEditorAutoApprove (db)", () => {
           [batchId, media.id, platform, caption, title, at, trial(source)],
         )
       ).rows[0].id as string;
-    clean = await ins("instagram", "Recap of the session: three setups, one entry.\n\n#trading #daytrading", null, "trade-recaps", "2099-03-03T15:00:00.000Z");
-    blocked = await ins("youtube", "Recap {{fill}}", "Session recap", "trade-recaps", "2099-03-03T16:00:00.000Z");
-    manual = await ins("tiktok", "Recap of the session, short cut. #trading", null, "manual", "2099-03-03T17:00:00.000Z");
+    clean = await ins("instagram", "Recap of the session: three setups, one entry.\n\n#trading #daytrading", null, "trade-recaps", "2098-06-03T15:00:00.000Z");
+    blocked = await ins("youtube", "Recap {{fill}}", "Session recap", "trade-recaps", "2098-06-03T16:00:00.000Z");
+    manual = await ins("tiktok", "Recap of the session, short cut. #trading", null, "manual", "2098-06-03T17:00:00.000Z");
   });
 
   afterAll(async () => {
@@ -166,7 +166,7 @@ describe.skipIf(!url)("runEditorAutoApprove (db)", () => {
     const fresh = (
       await pool.query(
         `insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, status, origin, trial, created_at, updated_at)
-         select batch_id, media_id, 'youtube', 'Second recap of the session. #trading', 'Second recap', '2099-03-04T15:00:00.000Z', 'draft', 'editor', trial, now(), now()
+         select batch_id, media_id, 'youtube', 'Second recap of the session. #trading', 'Second recap', '2098-06-04T15:00:00.000Z', 'draft', 'editor', trial, now(), now()
            from batch_items where id = $1 returning id`,
         [clean],
       )
