@@ -38,7 +38,7 @@ function ActionButton({ action, primary }: { action: AlertAction; primary: boole
         <form action={rescheduleMissedAction}>
           <input type="hidden" name="itemId" value={action.itemId} />
           <input type="hidden" name="returnTo" value={action.returnTo} />
-          <Button type="submit" variant={variant} size="sm">
+          <Button type="submit" variant={variant} size="sm" className="!whitespace-normal text-left max-w-full h-auto min-h-11 py-2">
             {action.label}
           </Button>
         </form>
