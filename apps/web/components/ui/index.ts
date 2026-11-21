@@ -10,7 +10,6 @@ export * from "./AppShell.js";
 export * from "./Sidebar.js";
 export * from "./sidebar-timing.js";
 export * from "./IconButton.js";
-export * from "./CommandPalette.js";
 export * from "./NotificationsPopover.js";
 // Overlays
 export * from "./Popover.js";

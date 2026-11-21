@@ -1,4 +1,4 @@
-import { addCalendarDays, localDate, localHHMM, PLATFORMS, type Platform } from "@autopilot/core";
+import { addCalendarDays, localClock12, localDate, PLATFORMS, type Platform } from "@autopilot/core";
 import type { BatchItemView, Warning } from "../batches/types.js";
 import { dayLabel } from "../batches/view-model.js";
 
@@ -19,7 +19,7 @@ export interface EditorChip {
 export interface PlatformLine {
   itemId: string;
   platform: Platform;
-  /** "Today 18:30" / "Tomorrow 09:30" / "Mon 16 Nov 18:30"; "No slot" when untimed. */
+  /** "Today 6:30 PM" / "Tomorrow 9:30 AM" / "Mon 16 Nov 6:30 PM"; "No slot" when untimed. */
   slot: string;
   blocked: boolean;
   /** First block message (for the "stays" reason), else null. */
@@ -55,14 +55,14 @@ export type EditorItem = BatchItemView;
 const ORDER = new Map(PLATFORMS.map((p, i) => [p, i]));
 const byPlatform = (a: { platform: Platform }, b: { platform: Platform }) => (ORDER.get(a.platform) ?? 9) - (ORDER.get(b.platform) ?? 9);
 
-/** "Today 18:30" / "Tomorrow 09:30" / "Mon 16 Nov 18:30" in the creator's zone; "No slot" when untimed/invalid. */
+/** "Today 6:30 PM" / "Tomorrow 9:30 AM" / "Mon 16 Nov 6:30 PM" in the creator's zone; "No slot" when untimed/invalid. */
 export function slotLabel(iso: string | null, now: Date, timeZone: string): string {
   if (iso == null) return "No slot";
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) return "No slot";
   const day = localDate(at, timeZone);
   const today = localDate(now, timeZone);
-  const time = localHHMM(at, timeZone);
+  const time = localClock12(at, timeZone);
   if (day === today) return `Today ${time}`;
   if (day === addCalendarDays(today, 1)) return `Tomorrow ${time}`;
   return `${dayLabel(day)} ${time}`;

@@ -3,7 +3,7 @@
  * pages pass the loaders' rows in (lib/library/data.ts) and render what comes out. Tested in
  * __tests__/screen.test.ts.
  */
-import { localDate, localHHMM, type Platform } from "@autopilot/core";
+import { localClock12, localDate, type Platform } from "@autopilot/core";
 import { dayLabel } from "../batches/view-model.js";
 import { batchRedirect, mondayOf } from "../calendar/model.js";
 import { PLATFORM_NAME } from "../platforms/view.js";
@@ -129,7 +129,7 @@ export function clipUseLines(uses: readonly ClipUse[], timeZone: string): ClipUs
     const name = PLATFORM_NAME[u.platform as Platform] ?? u.platform;
     const at = u.scheduledFor && !Number.isNaN(u.scheduledFor.getTime()) ? u.scheduledFor : null;
     const day = at ? localDate(at, timeZone) : null;
-    const when = at && day ? `${dayLabel(day)}, ${localHHMM(at, timeZone)}` : "not timed yet";
+    const when = at && day ? `${dayLabel(day)}, ${localClock12(at, timeZone)}` : "not timed yet";
     const word = USE_STATUS[u.status];
     return { key: `${i}-${u.platform}-${at?.toISOString() ?? "untimed"}`, text: [name, when, word].filter(Boolean).join(" · "), href: batchRedirect(day ? mondayOf(day) : null) };
   });
@@ -273,6 +273,7 @@ export type NoteParams = Record<string, string | number>;
 export function noteParams(r:
   | { kind: "queued"; queued: number; already: number; skipped: number }
   | { kind: "kept"; repointed: number; stayed: number }
+  | { kind: "keptall"; kept: number; stayed: number; failed: number }
   | { kind: "original" }
   | { kind: "dismissed" }
   | { kind: "error"; reason: string }): NoteParams {
@@ -281,6 +282,8 @@ export function noteParams(r:
       return { done: "queued", n: r.queued, already: r.already, skipped: r.skipped };
     case "kept":
       return { done: "kept", moved: r.repointed, stayed: r.stayed };
+    case "keptall":
+      return { done: "keptall", n: r.kept, stayed: r.stayed, failed: r.failed };
     case "error":
       return { done: "error", reason: r.reason.slice(0, 60) };
     default:
@@ -291,7 +294,7 @@ export function noteParams(r:
 /** `back` + the note params (replacing any earlier note). `back` must be a library path. */
 export function withNote(back: string, note: NoteParams): string {
   const url = new URL(safeBack(back), "http://x");
-  for (const k of ["done", "n", "already", "skipped", "moved", "stayed", "reason"]) url.searchParams.delete(k);
+  for (const k of ["done", "n", "already", "skipped", "moved", "stayed", "failed", "reason"]) url.searchParams.delete(k);
   for (const [k, v] of Object.entries(note)) url.searchParams.set(k, String(v));
   return `${url.pathname}${url.search}`;
 }
@@ -320,6 +323,8 @@ export function resultNote(sp: Record<string, Raw>): { tone: "info" | "danger"; 
     }
     case "kept":
       return { tone: "info", text: keepFixNote(int(sp.moved), int(sp.stayed)) };
+    case "keptall":
+      return { tone: int(sp.failed) && !int(sp.n) ? "danger" : "info", text: keepAllNote(int(sp.n), int(sp.stayed), int(sp.failed)) };
     case "original":
       return { tone: "info", text: "Kept the original. The fixed copy is hidden, not deleted." };
     case "dismissed":
@@ -338,6 +343,19 @@ export function keepFixNote(moved: number, stayed: number): string {
   const a = moved === 0 ? "No draft posts used this clip" : moved === 1 ? "1 draft post now uses it" : `${moved} draft posts now use it`;
   const b = stayed === 0 ? "" : stayed === 1 ? "; 1 approved post stays on the original" : `; ${stayed} approved posts stay on the original`;
   return `Kept the fix. ${a}${b}.`;
+}
+
+/** "Kept 5 · 2 posts stay on the original (already approved) · 1 couldn't be kept" */
+export function keepAllNote(kept: number, stayed: number, failed: number): string {
+  const parts = [kept ? `Kept ${kept}` : "Nothing to keep"];
+  if (stayed) parts.push(`${stayed === 1 ? "1 post stays" : `${stayed} posts stay`} on the original (already approved)`);
+  if (failed) parts.push(`${failed} couldn't be kept`);
+  return parts.join(" · ");
+}
+
+/** "Fixing 3 of 8 · about 1 a minute" (empty when nothing is pending). */
+export function fixProgressText(pending: number, done: number): string {
+  return pending > 0 ? `Fixing ${pending} of ${pending + done} · about 1 a minute` : "";
 }
 
 /** `/touch-up?x=1` → `/library/touch-up?x=1` (old route, query kept). */

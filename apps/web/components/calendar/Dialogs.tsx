@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import type { Platform } from "@autopilot/core";
-import { approveAllAction, editTextAction, moveAction, moveTomorrowAction, rejectItemsAction } from "../../app/calendar/actions.js";
-import { dayTitle, type Entry } from "../../lib/calendar/model.js";
-import { Button, ButtonLink, Chip, cx, Dialog, EmptyState, FIELD, FOCUS, Input, PLATFORM_NAME, PlatformLogo } from "../ui/index.js";
+import { approveAllAction, editTextAction, moveAction, moveTomorrowAction, rejectItemsAction, rescheduleMissedAction } from "../../app/calendar/actions.js";
+import type { ReschedulePlanRow } from "../../lib/calendar/reschedule.js";
+import { dayTitle, slotText, type ApproveAllView, type Entry } from "../../lib/calendar/model.js";
+import { Button, ButtonLink, Chip, cx, Dialog, EmptyState, FIELD, FOCUS, Icon, Input, PLATFORM_NAME, PlatformLogo } from "../ui/index.js";
 import { itemField, PostCard, type PostCardLinks } from "./PostCard.js";
 
 const Hidden = ({ back, items }: { back: string; items: string[] }) => (
@@ -121,7 +122,7 @@ export function MoveDialog({ entry, closeHref, back, tomorrow }: { entry: Entry;
     >
       <div className="flex flex-col gap-5">
         <p className="text-[14px] text-ds-muted">
-          {entry.title}: {movable.map((p) => `${PLATFORM_NAME[p.platform]} ${p.time ?? "no time"}`).join(", ")}. The new time is checked against your daily limits; a moved post needs approving again.
+          {entry.title}: {movable.map((p) => `${PLATFORM_NAME[p.platform]} ${p.time12 ?? "no time"}`).join(", ")}. The new time is checked against your daily limits; a moved post needs approving again.
         </p>
         {tomorrow && entry.fromEditor ? (
           <form action={moveTomorrowAction}>
@@ -168,32 +169,27 @@ export function RejectDialog({ entry, closeHref, back }: { entry: Entry; closeHr
   );
 }
 
-/** `?approve=all`: counts per platform, and anything that will stay (with why). */
-export function ApproveAllDialog({
-  closeHref,
-  back,
-  items,
-  will,
-  stays,
-}: {
-  closeHref: string;
-  back: string;
-  items: string[];
-  will: Partial<Record<Platform, number>>;
-  stays: Array<{ platform: Platform; title: string; reason: string }>;
-}) {
-  const total = Object.values(will).reduce((a, n) => a + (n ?? 0), 0);
+const DETAILS = "group border-b border-ds-line";
+const SUMMARY = cx("flex min-h-11 cursor-pointer list-none items-center gap-2 text-[15px] [&::-webkit-details-marker]:hidden", FOCUS);
+
+/**
+ * `?approve=all`: "Approve N posts", one collapsible group per platform listing each post (title, day + time),
+ * and a separate collapsed "Not included" list (needs a fix first) that is not part of N. N and the ids come
+ * from the same line states as the card chips (approveAllView).
+ */
+export function ApproveAllDialog({ closeHref, back, view }: { closeHref: string; back: string; view: ApproveAllView }) {
+  const { total, groups, notIncluded } = view;
   return (
     <Dialog
       open
       closeHref={closeHref}
-      title={total ? `Approve ${total === 1 ? "1 post" : `${total} posts`}?` : "Nothing to approve"}
+      title={total ? `Approve ${total === 1 ? "1 post" : `${total} posts`}` : "Nothing to approve"}
       footer={
         <>
           <Cancel href={closeHref} />
           {total ? (
             <form action={approveAllAction}>
-              <Hidden back={back} items={items} />
+              <Hidden back={back} items={groups.flatMap((g) => g.lines.map((l) => l.field))} />
               <Button type="submit" variant="solid" block>
                 Approve {total}
               </Button>
@@ -204,21 +200,36 @@ export function ApproveAllDialog({
     >
       <div className="flex flex-col gap-4">
         {total ? (
-          <ul className="flex flex-col divide-y divide-ds-line" aria-label="Will be approved">
-            {(Object.entries(will) as Array<[Platform, number]>).map(([p, n]) => (
-              <li key={p} className="flex items-center gap-2 py-2 text-[15px]">
-                <PlatformLogo platform={p} size={16} />
-                {PLATFORM_NAME[p]}
-                <span className="ds-num ml-auto font-semibold">{n}</span>
-              </li>
+          <div className="flex flex-col border-t border-ds-line">
+            {groups.map((g) => (
+              <details key={g.platform} className={DETAILS}>
+                <summary className={SUMMARY}>
+                  <PlatformLogo platform={g.platform} size={16} />
+                  <span>
+                    {PLATFORM_NAME[g.platform]} · <span className="ds-num">{g.lines.length}</span>
+                  </span>
+                  <Icon name="chevronDown" size={16} className="ml-auto text-ds-muted transition-transform duration-300 ease-ds group-open:rotate-180" />
+                </summary>
+                <ul className="flex flex-col gap-2 pb-3 pl-6">
+                  {g.lines.map((l) => (
+                    <li key={l.itemId} className="flex flex-col text-[14px] leading-snug">
+                      <span className="text-ds-text">{l.title}</span>
+                      <span className="ds-num text-ds-muted">{l.when}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             ))}
-          </ul>
-        ) : null}
-        {stays.length ? (
-          <div className="flex flex-col gap-2">
-            <p className="text-[14px] font-semibold text-ds-text">{stays.length === 1 ? "1 stays as it is" : `${stays.length} stay as they are`}</p>
-            <ul className="flex flex-col gap-1.5">
-              {stays.slice(0, 8).map((s, i) => (
+          </div>
+        ) : (
+          <p className="text-[15px] text-ds-muted">Every draft in view needs a fix first, or there are none.</p>
+        )}
+        {total ? <p className="text-[13px] text-ds-muted">They&rsquo;ll post at these times. You can still move or reject them.</p> : null}
+        {notIncluded.length ? (
+          <details className="border-t border-ds-line">
+            <summary className={cx(SUMMARY, "text-ds-muted")}>Not included: needs a fix first ({notIncluded.length})</summary>
+            <ul className="flex flex-col gap-1.5 pb-2">
+              {notIncluded.map((s, i) => (
                 <li key={i} className="flex items-start gap-2 text-[14px] text-ds-muted">
                   <PlatformLogo platform={s.platform} size={14} className="mt-0.5 shrink-0 text-ds-text" />
                   <span>
@@ -227,9 +238,68 @@ export function ApproveAllDialog({
                 </li>
               ))}
             </ul>
-          </div>
+          </details>
         ) : null}
-        <p className="text-[13px] text-ds-muted">Approved posts go out at their own times. Nothing is posted early.</p>
+      </div>
+    </Dialog>
+  );
+}
+
+/**
+ * `?reschedule=<id>` / `?reschedule=all`: confirm moving missed posts to the nearest free slot. The times shown
+ * come from previewRescheduleMissed; the tap on the button is the approval of those times. Posts stay approved.
+ */
+export function RescheduleDialog({ closeHref, back, rows, timeZone, single }: { closeHref: string; back: string; rows: ReschedulePlanRow[]; timeZone: string; single: boolean }) {
+  const ready = rows.filter((r) => r.to != null);
+  const stuck = rows.filter((r) => r.to == null);
+  const one = single ? rows[0] : undefined;
+  const title = single ? (ready.length ? "Auto-schedule at nearest slot" : "No slot to offer") : ready.length ? `Reschedule ${ready.length === 1 ? "1 missed post" : `${ready.length} missed posts`}` : "Nothing to reschedule";
+  const label = (r: ReschedulePlanRow) => (r.series ? `Series · Day ${r.series.day}` : null);
+  return (
+    <Dialog
+      open
+      closeHref={closeHref}
+      title={title}
+      footer={
+        <>
+          <Cancel href={closeHref} />
+          {ready.length ? (
+            <form action={rescheduleMissedAction}>
+              <input type="hidden" name="returnTo" value={back} />
+              {ready.map((r) => (
+                <input key={r.id} type="hidden" name="itemId" value={r.id} />
+              ))}
+              <Button type="submit" variant="solid" block>
+                {single ? "Reschedule" : `Reschedule ${ready.length}`}
+              </Button>
+            </form>
+          ) : null}
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        {one && one.to ? (
+          <p className="text-[15px] text-ds-text">
+            Post at <strong className="font-semibold">{slotText(one.to, timeZone)}</strong>? It stays approved.
+          </p>
+        ) : null}
+        <ul className="flex flex-col divide-y divide-ds-line border-y border-ds-line" aria-label="Missed posts">
+          {rows.map((r) => (
+            <li key={r.id} className="flex flex-col gap-0.5 py-2.5 text-[14px]">
+              <span className="flex items-center gap-2 text-ds-text">
+                <PlatformLogo platform={r.platform} size={14} />
+                {label(r) ? <span className="ds-caps text-ds-muted">{label(r)}</span> : null}
+                <span className="min-w-0 truncate">{r.title}</span>
+              </span>
+              <span className="ds-num text-ds-muted">
+                {slotText(r.from, timeZone)} {"→ "}
+                {r.to ? <span className="text-ds-text">{slotText(r.to, timeZone)}</span> : <span>{r.reason === "no-slot" ? "no free slot this week" : "not missed any more"}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {stuck.length && ready.length ? <p className="text-[13px] text-ds-muted">{stuck.length === 1 ? "1 post has no free slot" : `${stuck.length} posts have no free slot`} and stays as it is.</p> : null}
+        <p className="text-[13px] text-ds-muted">Posts stay approved and go out at the new time. Nothing is posted early.</p>
       </div>
     </Dialog>
   );

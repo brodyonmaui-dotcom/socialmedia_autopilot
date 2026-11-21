@@ -59,6 +59,22 @@ export function localHHMM(date: Date, timeZone: string): string {
   return `${String(p.hour).padStart(2, "0")}:${String(p.minute).padStart(2, "0")}`;
 }
 
+/** "8:00 AM" / "12:30 PM" from an "HH:MM" (24 h) string. Display only: data, inputs and comparisons keep "HH:MM". Unparseable input is returned as is. */
+export function clock12FromHHMM(hhmm: string): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!m) return hhmm;
+  const h = Number(m[1]);
+  if (h > 23) return hhmm;
+  const suffix = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m[2]} ${suffix}`;
+}
+
+/** "8:00 AM" of an instant in `timeZone` (display only; see clock12FromHHMM). */
+export function localClock12(date: Date, timeZone: string): string {
+  return clock12FromHHMM(localHHMM(date, timeZone));
+}
+
 export function parseYMD(ymd: string): { year: number; month: number; day: number } {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
   if (!m) throw new Error(`not a YYYY-MM-DD date: ${ymd}`);

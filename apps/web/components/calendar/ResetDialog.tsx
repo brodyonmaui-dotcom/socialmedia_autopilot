@@ -3,11 +3,11 @@
 import { useEffect, useId, useState } from "react";
 import type { Platform } from "@autopilot/core";
 import { igCheckAction, recordPublishedAction, resetCheckedAction } from "../../app/calendar/actions.js";
-import { autoCheckText, canConfirmReset, keyTailLabel, type AutoCheckState, type AutoCheckView } from "../../lib/batches/card-view.js";
+import { autoCheckText, canConfirmReset, keyTailLabel, recordConfirmText, verifyLabel, type AutoCheckState, type AutoCheckView } from "../../lib/batches/card-view.js";
 import { isResettablePlatform, RESET_CHECKLIST } from "../../lib/batches/reset.js";
 import { Button, ButtonLink, Checkbox, Chip, Dialog, Input, PLATFORM_NAME, PlatformLogo } from "../ui/index.js";
 
-type Mode = "reset" | "record";
+type Mode = "main" | "confirm";
 
 export interface ResetDialogProps {
   batchId: string;
@@ -18,7 +18,9 @@ export interface ResetDialogProps {
   attempts: number;
   /** Sanitised at write time (F7 B1), straight from batch_items.last_error. */
   lastError: string | null;
-  /** "Wed, Nov 18 · 09:00" in the creator's zone. */
+  /** Post title (shown in the record confirm). */
+  title: string;
+  /** "Wed, Nov 18 · 9:00 AM" (12-hour) in the creator's zone. */
   scheduled: string;
   keyTail: string | null;
   canReset: boolean;
@@ -40,31 +42,34 @@ function AutoCheckChip({ view, checking }: { view: AutoCheckView | null; checkin
 }
 
 /**
- * F11 on the calendar (`?reset=<itemId>`): "Not on the platform → back to Needs approval" or "It's there →
- * record it". Same rules as before: IG runs the read-only automatic check each time it opens (a hit hides
- * the reset and prefills the link); "Confirm reset" stays disabled until every box is ticked; the server
- * re-checks everything and the reset never approves.
+ * F11/F19 S6 on the calendar (`?reset=<itemId>`). Shows one of four states (Waiting to post / Posted
+ * (confirmed) / Not found yet / Can't check automatically) and two real buttons: "Check again" (the
+ * read-only IG check) and "It's published, record it" (a confirm, then recordPublishedAction, which never
+ * calls an adapter). "Not posted, send it again" (reset to draft) is secondary, behind a disclosure, and
+ * keeps its server-side checklist gate: every box ticked, and the IG check must not have found the post.
  */
 export function ResetDialog(p: ResetDialogProps) {
-  const [mode, setMode] = useState<Mode>(p.canReset ? "reset" : "record");
+  const [mode, setMode] = useState<Mode>("main");
   const [check, setCheck] = useState<AutoCheckState>(p.platform === "instagram" ? "checking" : "n/a");
   const [ticked, setTicked] = useState<string[]>([]);
   const [url, setUrl] = useState("");
   const [postId, setPostId] = useState("");
   const [sent, setSent] = useState(false);
-  const formId = useId();
+  const [runs, setRuns] = useState(0);
+  const recordId = useId();
+  const resetId = useId();
   const isIg = p.platform === "instagram";
   const list = isResettablePlatform(p.platform) ? RESET_CHECKLIST[p.platform] : [];
 
   useEffect(() => {
     if (!isIg) return;
     let live = true;
+    setCheck("checking");
     igCheckAction(p.batchId, p.itemId)
       .then((r) => {
         if (!live) return;
         setCheck(r.result);
         if (r.result === "found") {
-          setMode("record");
           if (r.url) setUrl(r.url);
           if (r.platformPostId) setPostId(r.platformPostId);
         }
@@ -73,12 +78,12 @@ export function ResetDialog(p: ResetDialogProps) {
     return () => {
       live = false;
     };
-  }, [isIg, p.batchId, p.itemId]);
+  }, [isIg, p.batchId, p.itemId, runs]);
 
   const resetAllowed = p.canReset && check !== "found";
-  const showReset = mode === "reset" && resetAllowed;
   const ready = canConfirmReset({ platform: p.platform, checked: ticked, check });
   const auto = autoCheckText(check);
+  const label = verifyLabel("failed", check);
   const name = PLATFORM_NAME[p.platform];
   const toggle = (s: string, on: boolean) => setTicked((prev) => (on ? [...prev.filter((x) => x !== s), s] : prev.filter((x) => x !== s)));
   const hidden = (
@@ -88,27 +93,38 @@ export function ResetDialog(p: ResetDialogProps) {
       <input type="hidden" name="itemId" value={p.itemId} />
     </>
   );
+  const confirming = mode === "confirm";
 
   return (
     <Dialog
       open
       closeHref={p.closeHref}
-      title={showReset ? "Back to Needs approval?" : "Record as posted"}
+      title={confirming ? "Record as posted?" : "Is it published?"}
       footer={
-        <>
-          <ButtonLink href={p.closeHref} variant="outline">
-            Cancel
-          </ButtonLink>
-          {showReset ? (
-            <Button type="submit" form={formId} variant="solid" disabled={!ready || sent}>
-              {sent ? "Working…" : "Confirm reset"}
+        confirming ? (
+          <>
+            <Button variant="outline" onClick={() => setMode("main")} disabled={sent}>
+              Back
             </Button>
-          ) : (
-            <Button type="submit" form={formId} variant="solid" disabled={!p.canRecord || url.trim() === "" || sent}>
-              {sent ? "Working…" : "Record it"}
+            <Button type="submit" form={recordId} variant="solid" disabled={!p.canRecord || url.trim() === "" || sent}>
+              {sent ? "Working…" : "Yes, record it"}
             </Button>
-          )}
-        </>
+          </>
+        ) : (
+          <>
+            <ButtonLink href={p.closeHref} variant="outline">
+              Close
+            </ButtonLink>
+            {isIg ? (
+              <Button variant="outline" onClick={() => setRuns((n) => n + 1)} disabled={check === "checking"}>
+                {check === "checking" ? "Checking…" : "Check again"}
+              </Button>
+            ) : null}
+            <Button variant="solid" onClick={() => setMode("confirm")} disabled={!p.canRecord}>
+              It&apos;s published, record it
+            </Button>
+          </>
+        )
       }
     >
       <div className="flex flex-col gap-4">
@@ -127,29 +143,10 @@ export function ResetDialog(p: ResetDialogProps) {
           </p>
         </div>
 
-        {showReset ? (
-          <form id={formId} action={resetCheckedAction} onSubmit={() => setSent(true)} className="flex flex-col gap-3">
+        {confirming ? (
+          <form id={recordId} action={recordPublishedAction} onSubmit={() => setSent(true)} className="flex flex-col gap-4">
             {hidden}
-            <fieldset>
-              <legend className="mb-1 text-[14px] font-semibold text-ds-text">I checked. Tick every box:</legend>
-              {list.map((s) => (
-                <Checkbox key={s} name="checked" value={s} label={s} checked={ticked.includes(s)} onChange={(e) => toggle(s, e.currentTarget.checked)} />
-              ))}
-            </fieldset>
-            {isIg ? <AutoCheckChip view={auto} checking={check === "checking"} /> : null}
-            <p className="ds-num text-[13px] text-ds-muted">
-              {list.filter((s) => ticked.includes(s)).length} of {list.length} ticked. The reset never approves: it comes back as Needs approval.
-            </p>
-            {p.canRecord ? (
-              <Button variant="ghost" size="sm" onClick={() => setMode("record")} className="self-start">
-                It&apos;s there: record it instead
-              </Button>
-            ) : null}
-          </form>
-        ) : (
-          <form id={formId} action={recordPublishedAction} onSubmit={() => setSent(true)} className="flex flex-col gap-4">
-            {hidden}
-            {isIg ? <AutoCheckChip view={auto} checking={check === "checking"} /> : null}
+            <p className="text-[15px] text-ds-text">{recordConfirmText({ platform: name, title: p.title, scheduled: p.scheduled })}</p>
             <Input
               label={`${name} post link`}
               name="url"
@@ -162,12 +159,35 @@ export function ResetDialog(p: ResetDialogProps) {
               helper={`https only, on ${name}'s own site`}
             />
             <Input label="Post id (optional)" name="platformPostId" value={postId} onChange={(e) => setPostId(e.currentTarget.value)} autoComplete="off" />
-            {resetAllowed ? (
-              <Button variant="ghost" size="sm" onClick={() => setMode("reset")} className="self-start">
-                Not there: back to Needs approval instead
-              </Button>
-            ) : null}
           </form>
+        ) : (
+          <>
+            <div className="flex flex-col gap-2">
+              <p className="text-[15px] font-semibold text-ds-text">{label}</p>
+              {isIg ? <AutoCheckChip view={auto} checking={check === "checking"} /> : null}
+              <p className="text-[14px] text-ds-muted">Not seeing it? Check your profile or Reels tab.</p>
+            </div>
+            {resetAllowed ? (
+              <details className="rounded-ds-sm border border-ds-line p-3">
+                <summary className="cursor-pointer text-[14px] font-semibold text-ds-text">Not posted — send it again</summary>
+                <form id={resetId} action={resetCheckedAction} onSubmit={() => setSent(true)} className="mt-3 flex flex-col gap-3">
+                  {hidden}
+                  <fieldset>
+                    <legend className="mb-1 text-[14px] text-ds-muted">Only if you looked and it isn&apos;t there. Tick what you checked:</legend>
+                    {list.map((s) => (
+                      <Checkbox key={s} name="checked" value={s} label={s} checked={ticked.includes(s)} onChange={(e) => toggle(s, e.currentTarget.checked)} />
+                    ))}
+                  </fieldset>
+                  <p className="ds-num text-[13px] text-ds-muted">
+                    {list.filter((s) => ticked.includes(s)).length} of {list.length} ticked. It goes back to Needs approval; nothing sends until you approve it again.
+                  </p>
+                  <Button type="submit" variant="outline" disabled={!ready || sent} className="self-start">
+                    {sent ? "Working…" : "Not posted — send it again"}
+                  </Button>
+                </form>
+              </details>
+            ) : null}
+          </>
         )}
       </div>
     </Dialog>

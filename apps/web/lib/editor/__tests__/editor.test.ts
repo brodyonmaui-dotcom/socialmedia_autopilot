@@ -21,12 +21,12 @@ function withWarnings(batch: BatchView): BatchView {
 
 describe("view", () => {
   it("slotLabel says Today / Tomorrow / a date in the creator zone", () => {
-    expect(slotLabel("2026-11-13T18:30:00.000Z", NOW, TZ)).toBe("Today 18:30");
-    expect(slotLabel("2026-11-14T09:30:00.000Z", NOW, TZ)).toBe("Tomorrow 09:30");
-    expect(slotLabel("2026-11-16T09:30:00.000Z", NOW, TZ)).toBe("Mon 16 Nov 09:30");
+    expect(slotLabel("2026-11-13T18:30:00.000Z", NOW, TZ)).toBe("Today 6:30 PM");
+    expect(slotLabel("2026-11-14T09:30:00.000Z", NOW, TZ)).toBe("Tomorrow 9:30 AM");
+    expect(slotLabel("2026-11-16T09:30:00.000Z", NOW, TZ)).toBe("Mon 16 Nov 9:30 AM");
     expect(slotLabel(null, NOW, TZ)).toBe("No slot");
     // Late evening UTC is already "tomorrow" further east.
-    expect(slotLabel("2026-11-13T23:30:00.000Z", NOW, "Etc/GMT-2")).toBe("Tomorrow 01:30");
+    expect(slotLabel("2026-11-13T23:30:00.000Z", NOW, "Etc/GMT-2")).toBe("Tomorrow 1:30 AM");
   });
 
   it("firstLines keeps two non-empty lines", () => {
@@ -40,7 +40,7 @@ describe("view", () => {
     expect(rs).toHaveLength(1);
     expect(rs[0]!.lines.map((l) => l.platform)).toEqual(["instagram", "youtube", "tiktok"]);
     expect(rs[0]!.source).toBe("CapCut");
-    expect(rs[0]!.lines[0]!.slot).toBe("Today 18:30");
+    expect(rs[0]!.lines[0]!.slot).toBe("Today 6:30 PM");
     expect(approveLabel(rs[0]!)).toBe("Approve & schedule");
   });
 

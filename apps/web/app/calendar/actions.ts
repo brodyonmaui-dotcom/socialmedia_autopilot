@@ -13,6 +13,7 @@ import { batchStatusOf } from "../../lib/batches/view-model.js";
 import { loadBatchFresh } from "../../lib/calendar/load.js";
 import { safeBack, withResult } from "../../lib/calendar/model.js";
 import { approveNote, planApproveSome, planMove } from "../../lib/calendar/plan.js";
+import { rescheduleMissed, safeReturnTo } from "../../lib/calendar/reschedule.js";
 import { planEdits } from "../../lib/editor/move.js";
 import { slotTomorrow } from "../../lib/editor/slotting.js";
 import { handoffContext } from "../../lib/handoff/store.js";
@@ -283,4 +284,33 @@ export async function igCheckAction(batchId: string, itemId: string): Promise<Ig
     console.error(`instagram check action failed: ${(err as Error).name}`);
     return { result: "error" };
   }
+}
+
+/**
+ * F19 "Reschedule missed" after its confirm (which showed the new times: that tap approves them). Fields:
+ * itemId (repeated, uuid), returnTo. Re-plans inside the lock (lib/calendar/reschedule.ts); items stay
+ * approved with their idempotency key. Redirects to returnTo with ?notice=rescheduled&n=<moved count>.
+ */
+export async function rescheduleMissedAction(formData: FormData): Promise<void> {
+  const session = await requireSession();
+  const [path, qs = ""] = safeReturnTo(formData.get("returnTo")).split("?");
+  const q = new URLSearchParams(qs);
+  for (const k of ["notice", "n", "note", "error"]) q.delete(k);
+  const ids = [...new Set(formData.getAll("itemId").map(String))].filter((i) => UUID.test(i));
+  const tz = handoffContext().timeZone;
+  if (ids.length === 0) q.set("error", "Nothing selected.");
+  else if (!tz) q.set("error", "Set your time zone first: rescheduling needs it.");
+  else {
+    try {
+      const rows = await rescheduleMissed(getPool(), ids, new Date(), tz, session.id);
+      q.set("notice", "rescheduled");
+      q.set("n", String(rows.filter((r) => r.to).length));
+    } catch (err) {
+      console.error(`reschedule missed failed: ${(err as Error).name}`);
+      q.set("error", "Something went wrong. Nothing changed.");
+    }
+  }
+  revalidatePath("/calendar");
+  revalidatePath("/", "layout");
+  redirect(`${path}?${q.toString()}`);
 }

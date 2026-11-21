@@ -28,6 +28,7 @@ import { sendManualAction } from "./inbox/actions.js";
 import { requireSession } from "../lib/auth/require.js";
 import { getPool } from "../lib/db.js";
 import { loadEditorEntries } from "../lib/calendar/load.js";
+import { linksFromHome } from "../lib/calendar/model.js";
 import { listInbox, relativeTime } from "../lib/engagement/queries.js";
 import { handoffContext, listHandoff } from "../lib/handoff/store.js";
 import {
@@ -103,6 +104,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const rangeLabel = RANGES.find((r) => r.id === range)!.label;
   const error = param(sp.error);
   const note = param(sp.note);
+  const cardLinks = linksFromHome(home.today);
   const postingView = postingBanner(posting, { now, timeZone: tz, zoneFallback: !zone, surface: "home" });
 
   return (
@@ -229,7 +231,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
             <ul className="flex flex-col gap-2" aria-label="Edits waiting for approval">
               {editors.entries.map((e) => (
                 <li key={e.key}>
-                  <PostCard entry={e} back="/" actions="approve" />
+                  <PostCard entry={e} back="/" links={cardLinks} />
                 </li>
               ))}
             </ul>

@@ -242,10 +242,10 @@ describe("clip dialog: where it's used", () => {
   it("platform · creator-local day and time, untimed says so, status words only from the status", () => {
     const lines = clipUseLines(uses, "UTC");
     expect(lines.map((l) => l.text)).toEqual([
-      "Instagram · Tue 24 Nov, 18:00",
+      "Instagram · Tue 24 Nov, 6:00 PM",
       "TikTok · not timed yet · needs approval",
-      "YouTube · Mon 2 Nov, 09:05 · posted",
-      "Snapchat · Tue 3 Nov, 09:05",
+      "YouTube · Mon 2 Nov, 9:05 AM · posted",
+      "Snapchat · Tue 3 Nov, 9:05 AM",
     ]);
     expect(new Set(lines.map((l) => l.key)).size).toBe(4);
   });
@@ -257,9 +257,9 @@ describe("clip dialog: where it's used", () => {
 
   it("uses the zone it is given (day can shift across midnight)", () => {
     const late = [{ platform: "instagram", scheduledFor: new Date("2099-11-23T23:30:00Z"), status: "approved" }];
-    expect(clipUseLines(late, "UTC")[0]!.text).toBe("Instagram · Mon 23 Nov, 23:30");
+    expect(clipUseLines(late, "UTC")[0]!.text).toBe("Instagram · Mon 23 Nov, 11:30 PM");
     const east = clipUseLines(late, "Etc/GMT-2")[0]!;
-    expect(east.text).toBe("Instagram · Tue 24 Nov, 01:30");
+    expect(east.text).toBe("Instagram · Tue 24 Nov, 1:30 AM");
     expect(east.href).toBe("/calendar?view=week&d=2099-11-23");
     expect(clipUseLines([], "UTC")).toEqual([]);
   });

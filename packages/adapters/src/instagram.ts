@@ -27,11 +27,17 @@ interface ContainerStatus extends GraphError {
 }
 interface MediaList extends GraphError {
   data?: Array<{ id: string; caption?: string; permalink?: string; timestamp?: string; media_product_type?: string }>;
+  paging?: { cursors?: { after?: string }; next?: string };
 }
 
 /** Caption key for the existence check: NFC, whitespace runs collapsed to one space, trimmed, lower-cased. */
 export function normaliseCaption(caption: string): string {
   return caption.normalize("NFC").replace(/\s+/gu, " ").trim().toLowerCase();
+}
+
+/** First 60 normalised chars with hashtags removed: survives IG-added/trimmed hashtags and trailing edits. */
+export function captionPrefix(caption: string): string {
+  return normaliseCaption(caption.replace(/#[^\s#]+/gu, " ")).slice(0, 60).trim();
 }
 
 /** The M1 day-1 refusal (research.md): "Application does not have permission for this action" when a trial isn't allowed. */
@@ -128,17 +134,36 @@ export function createInstagramAdapter(cfg: InstagramAdapterConfig): PlatformAda
 
     /**
      * Instagram has no idempotency key, so "does it exist?" is a caption match on the account's recent
-     * media within a day of scheduled_for. Only ever used to AVOID a resend; a miss means "not found".
+     * media (up to 2 pages = 50 posts) within 36 h of scheduled_for. Only ever used to AVOID a resend.
+     * Returns the post or null ("looked, not there"). A response that has no `data` (token/permission/API
+     * error) THROWS: that is "can't check", never "not found".
      */
     async findExisting(post: OutboxPost, opts: PublishOptions = {}): Promise<PublishResult | null> {
-      const r = await getJson<MediaList>(fetchImpl, `${base}/${cfg.igUserId}/media?fields=id,caption,permalink,timestamp,media_product_type&limit=25`, { headers: auth }, opts.signal);
-      if (!r.body.data) return null;
-      // IG may rewrite whitespace / Unicode form / case, so compare normalised captions (F7 A3).
-      // OutboxPost carries no first-attempt time, so the window stays ±36 h of scheduled_for.
+      // IG rewrites whitespace / Unicode form / case / adds hashtags, so compare normalised captions or the
+      // 60-char hashtag-free prefix (F19 S6). OutboxPost has no first-attempt time: window stays ±36 h.
       const target = normaliseCaption(post.caption);
+      const targetPrefix = captionPrefix(post.caption);
       const at = Date.parse(post.scheduledFor);
-      const hit = r.body.data.find((m) => target.length > 0 && normaliseCaption(m.caption ?? "") === target && (!m.timestamp || Math.abs(Date.parse(m.timestamp) - at) <= 36 * 3_600_000));
-      return hit ? { platformPostId: hit.id, platformPostUrl: hit.permalink } : null;
+      let url = `${base}/${cfg.igUserId}/media?fields=id,caption,permalink,timestamp,media_product_type&limit=25`;
+      for (let page = 0; page < 2; page++) {
+        const r = await getJson<MediaList>(fetchImpl, url, { headers: auth }, opts.signal);
+        const data = r.body.data;
+        if (!Array.isArray(data)) {
+          const e = r.body.error;
+          throw new PlatformRequestError("instagram", r.status, r.body, `instagram media list unreadable (can't check): ${e?.message ?? `HTTP ${r.status}, no data`}${e ? ` (code ${e.code}/${e.error_subcode})` : ""}`);
+        }
+        const hit = data.find((m) => {
+          if (m.timestamp && !(Math.abs(Date.parse(m.timestamp) - at) <= 36 * 3_600_000)) return false;
+          const c = m.caption ?? "";
+          if (target.length > 0 && normaliseCaption(c) === target) return true;
+          return targetPrefix.length > 0 && captionPrefix(c) === targetPrefix;
+        });
+        if (hit) return { platformPostId: hit.id, platformPostUrl: hit.permalink };
+        const after = r.body.paging?.next ? r.body.paging.cursors?.after : undefined;
+        if (!after) break;
+        url = `${base}/${cfg.igUserId}/media?fields=id,caption,permalink,timestamp,media_product_type&limit=25&after=${encodeURIComponent(after)}`;
+      }
+      return null;
     },
   };
 }

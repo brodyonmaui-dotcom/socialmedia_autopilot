@@ -1,4 +1,4 @@
-// Calendar components (ui-system.md "Calendar"). PostCard is also used on Home (actions="approve").
+// Calendar components (ui-system.md "Calendar"). PostCard is also used on Home (same ⋯ menu).
 export * from "./PostCard.js";
 export * from "./PostHoverPreview.js";
 export * from "./MonthGrid.js";

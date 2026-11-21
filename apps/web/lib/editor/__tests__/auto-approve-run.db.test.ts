@@ -8,13 +8,13 @@ import { itemTitle, runEditorAutoApprove, scheduledMessage } from "../auto-appro
 describe("auto-approve runner (pure parts)", () => {
   const NOW = new Date("2026-11-13T12:00:00.000Z"); // Friday
   it("message: YouTube title, else the caption's first line (≤ 60), weekday only when not today", () => {
-    expect(scheduledMessage(makeItem({ platform: "youtube", title: "Morning setup", caption: "x", scheduledFor: "2026-11-13T18:30:00.000Z" }), NOW, "UTC")).toBe("Scheduled: Morning setup at 18:30");
-    expect(scheduledMessage(makeItem({ platform: "instagram", caption: "\n Recap of the week \nmore", scheduledFor: "2026-11-17T09:05:00.000Z" }), NOW, "UTC")).toBe("Scheduled: Recap of the week at Tue 09:05");
+    expect(scheduledMessage(makeItem({ platform: "youtube", title: "Morning setup", caption: "x", scheduledFor: "2026-11-13T18:30:00.000Z" }), NOW, "UTC")).toBe("Scheduled: Morning setup at 6:30 PM");
+    expect(scheduledMessage(makeItem({ platform: "instagram", caption: "\n Recap of the week \nmore", scheduledFor: "2026-11-17T09:05:00.000Z" }), NOW, "UTC")).toBe("Scheduled: Recap of the week at Tue 9:05 AM");
     const long = itemTitle(makeItem({ caption: "a".repeat(80) }));
     expect(long).toHaveLength(60);
     expect(long.endsWith("…")).toBe(true);
     // Creator zone decides "today": 23:30 UTC is already Saturday two hours east.
-    expect(scheduledMessage(makeItem({ caption: "c", scheduledFor: "2026-11-13T23:30:00.000Z" }), NOW, "Etc/GMT-2")).toBe("Scheduled: c at Sat 01:30");
+    expect(scheduledMessage(makeItem({ caption: "c", scheduledFor: "2026-11-13T23:30:00.000Z" }), NOW, "Etc/GMT-2")).toBe("Scheduled: c at Sat 1:30 AM");
   });
 
   it("parseEditorApprovalCounts: only exactly true is on", () => {
@@ -45,7 +45,7 @@ describe("auto-approve runner (pure parts)", () => {
  * alerts acknowledged + marked pushed, and the 'editor' setting is put back. Nothing is deleted.
  */
 const url = process.env.DATABASE_URL;
-const WEEK = "2099-03-02";
+const WEEK = "2098-06-02"; // a Monday; // unique: handoff store.db.test uses 2099-03-02 (they raced in a parallel run)
 
 describe.skipIf(!url)("runEditorAutoApprove (db)", () => {
   let pool: pg.Pool;
@@ -83,9 +83,9 @@ describe.skipIf(!url)("runEditorAutoApprove (db)", () => {
           [batchId, media.id, platform, caption, title, at, trial(source)],
         )
       ).rows[0].id as string;
-    clean = await ins("instagram", "Recap of the session: three setups, one entry.\n\n#trading #daytrading", null, "trade-recaps", "2099-03-03T15:00:00.000Z");
-    blocked = await ins("youtube", "Recap {{fill}}", "Session recap", "trade-recaps", "2099-03-03T16:00:00.000Z");
-    manual = await ins("tiktok", "Recap of the session, short cut. #trading", null, "manual", "2099-03-03T17:00:00.000Z");
+    clean = await ins("instagram", "Recap of the session: three setups, one entry.\n\n#trading #daytrading", null, "trade-recaps", "2098-06-03T15:00:00.000Z");
+    blocked = await ins("youtube", "Recap {{fill}}", "Session recap", "trade-recaps", "2098-06-03T16:00:00.000Z");
+    manual = await ins("tiktok", "Recap of the session, short cut. #trading", null, "manual", "2098-06-03T17:00:00.000Z");
   });
 
   afterAll(async () => {
@@ -135,7 +135,7 @@ describe.skipIf(!url)("runEditorAutoApprove (db)", () => {
     expect(ev[0]).toMatchObject({ kind: "approve-editor", from_status: "draft", to_status: "approved", session_id: null });
     expect(ev[0].detail).toMatchObject({ source: "trade-recaps" });
     const al = await alerts(clean);
-    expect(al).toEqual([{ kind: "auto-scheduled", platform: "instagram", message: "Scheduled: Recap of the session: three setups, one entry. at Tue 15:00", batch_item_id: clean }]);
+    expect(al).toEqual([{ kind: "auto-scheduled", platform: "instagram", message: "Scheduled: Recap of the session: three setups, one entry. at Tue 3:00 PM", batch_item_id: clean }]);
     expect((await pool.query("select status from batches where id = $1", [batchId])).rows[0].status).toBe("approved");
 
     for (const id of [blocked, manual]) {
@@ -166,7 +166,7 @@ describe.skipIf(!url)("runEditorAutoApprove (db)", () => {
     const fresh = (
       await pool.query(
         `insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, status, origin, trial, created_at, updated_at)
-         select batch_id, media_id, 'youtube', 'Second recap of the session. #trading', 'Second recap', '2099-03-04T15:00:00.000Z', 'draft', 'editor', trial, now(), now()
+         select batch_id, media_id, 'youtube', 'Second recap of the session. #trading', 'Second recap', '2098-06-04T15:00:00.000Z', 'draft', 'editor', trial, now(), now()
            from batch_items where id = $1 returning id`,
         [clean],
       )

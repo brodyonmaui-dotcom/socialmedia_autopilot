@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { dismissIssue, keepFix, keepOriginal, loadClipUses, loadLibrary, loadTouchUp, requestFix } from "../data.js";
+import { dismissIssue, keepAllFixes, keepFix, keepOriginal, loadClipUses, loadLibrary, loadTouchUp, requestFix } from "../data.js";
 
 /**
  * Real dev DB (DATABASE_URL, migrated through 0014). Everything runs in ONE transaction that is rolled back,
@@ -118,6 +118,40 @@ describe.skipIf(!url)("library + touch-up data layer (db)", () => {
     expect(mine(await loadTouchUp(db)).map((c) => c.mediaId)).not.toContain(id.frozen);
     // Nothing was deleted: the original row is still there.
     expect((await db.query("select count(*)::int n from media where id = $1", [id.frozen])).rows[0].n).toBe(1);
+  });
+
+  it("keepAllFixes: only done fixes, drafts swap, approved stay, discarded meanwhile is not kept, second call no-op", async () => {
+    const mk = async (key: string) => {
+      const orig = await media(`ka-${key}`, qaV2([QUIET]));
+      const fixed = await media(`ka-${key}-fixed`, qaV2([NOSOUND]), { derivedFrom: orig });
+      return { orig, fixed };
+    };
+    const a = await mk("a");
+    const b = await mk("b");
+    const c = await mk("c");
+    const q = await media("ka-queued", qaV2([QUIET]));
+    const fix = async (m: string, status: string, fixed: string | null) =>
+      (await db.query("insert into media_fixes (media_id, ops, status, fixed_media_id) values ($1, '{loudness}', $2, $3) returning id", [m, status, fixed])).rows[0].id as string;
+    await fix(a.orig, "done", a.fixed);
+    const fb = await fix(b.orig, "done", b.fixed);
+    await fix(c.orig, "done", c.fixed);
+    await fix(q, "queued", null);
+    await db.query("update media_fixes set status = 'discarded' where id = $1", [fb]); // moved on meanwhile
+    const batch = (await db.query("insert into batches (week_start, status) values ('2099-07-06', 'draft') returning id")).rows[0].id;
+    const item = async (m: string, status: string) =>
+      (await db.query("insert into batch_items (batch_id, media_id, platform, caption, status) values ($1, $2, 'instagram', 'x', $3) returning id", [batch, m, status])).rows[0].id as string;
+    const da = await item(a.orig, "draft");
+    const ap = await item(c.orig, "approved");
+    const ib = await item(b.orig, "draft");
+    const res = await keepAllFixes(db, session, new Date(Date.now() + 60_000));
+    // Other pre-existing done fixes in the scratch DB can add to the counts, so check ours.
+    expect(res.kept).toBeGreaterThanOrEqual(2);
+    expect(res.stayed).toBeGreaterThanOrEqual(1);
+    const st = async (m: string) => (await db.query("select status from media_fixes where media_id = $1", [m])).rows[0].status;
+    expect([await st(a.orig), await st(b.orig), await st(c.orig), await st(q)]).toEqual(["kept", "discarded", "kept", "queued"]);
+    const mid = async (i: string) => (await db.query("select media_id from batch_items where id = $1", [i])).rows[0].media_id;
+    expect([await mid(da), await mid(ap), await mid(ib)]).toEqual([a.fixed, c.orig, b.orig]);
+    expect(await keepAllFixes(db, session, new Date(Date.now() + 60_000))).toEqual({ kept: 0, failed: 0, stayed: 0 });
   });
 
   it("dismissIssue hides that issue (idempotent); a clip with nothing left drops out", async () => {

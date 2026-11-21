@@ -1,12 +1,12 @@
 import { AppFrame } from "../../../components/AppFrame.js";
 import { loadFrameCounts } from "../../../components/frame-counts.js";
-import { FixAllDialog, TouchUpCard } from "../../../components/library/index.js";
+import { FixAllDialog, KeepAllDialog, TouchUpCard } from "../../../components/library/index.js";
 import Link from "next/link";
 import { buttonClasses, ButtonLink, EmptyState, InlineNotice, PageHeader } from "../../../components/ui/index.js";
 import { requireSession } from "../../../lib/auth/require.js";
 import { getPool } from "../../../lib/db.js";
-import { loadTouchUp } from "../../../lib/library/data.js";
-import { cardStage, fixAllPlan, resultNote, touchUpHeadline, touchUpOrder } from "../../../lib/library/screen.js";
+import { loadFixProgress, loadTouchUp } from "../../../lib/library/data.js";
+import { cardStage, fixAllPlan, fixProgressText, resultNote, touchUpHeadline, touchUpOrder } from "../../../lib/library/screen.js";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Touch-up · My Socials" };
@@ -24,10 +24,12 @@ export default async function TouchUpPage({ searchParams }: { searchParams: Sear
   await requireSession();
   const sp = await searchParams;
   const pool = getPool();
-  const [counts, clips] = await Promise.all([loadFrameCounts(pool), loadTouchUp(pool)]);
+  const [counts, clips, progress] = await Promise.all([loadFrameCounts(pool), loadTouchUp(pool), loadFixProgress(pool)]);
   const plan = fixAllPlan(clips);
   const note = resultNote(sp);
   const n = plan.ids.length;
+  const keepN = progress.done;
+  const progressText = fixProgressText(progress.pending, progress.done);
 
   return (
     <AppFrame active="library/touch-up" counts={{ ...counts, touchUp: clips.length }}>
@@ -35,10 +37,19 @@ export default async function TouchUpPage({ searchParams }: { searchParams: Sear
         title="Touch-up"
         subtitle={clips.length ? `${touchUpHeadline(clips.length)}. Originals are always kept.` : "Clips with something to fix show up here."}
         action={
-          n > 0 ? (
-            <Link href={`${BASE}?fixall=1`} scroll={false} className={buttonClasses({ variant: "solid" })}>
-              Fix all {n}
-            </Link>
+          n > 0 || keepN > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {keepN > 0 ? (
+                <Link href={`${BASE}?keepall=1`} scroll={false} className={buttonClasses({ variant: "solid" })}>
+                  Keep all {keepN} {keepN === 1 ? "fix" : "fixes"}
+                </Link>
+              ) : null}
+              {n > 0 ? (
+                <Link href={`${BASE}?fixall=1`} scroll={false} className={buttonClasses({ variant: keepN > 0 ? "outline" : "solid" })}>
+                  Fix all {n}
+                </Link>
+              ) : null}
+            </div>
           ) : undefined
         }
       />
@@ -47,6 +58,12 @@ export default async function TouchUpPage({ searchParams }: { searchParams: Sear
         <InlineNotice tone={note.tone} live className="mb-3 lg:mb-4">
           {note.text}
         </InlineNotice>
+      ) : null}
+
+      {progressText ? (
+        <p role="status" className="mb-3 text-[14px] text-ds-muted lg:mb-4">
+          {progressText}
+        </p>
       ) : null}
 
       {clips.length === 0 ? (
@@ -75,6 +92,7 @@ export default async function TouchUpPage({ searchParams }: { searchParams: Sear
         </ul>
       )}
 
+      {sp.keepall === "1" && keepN > 0 ? <KeepAllDialog n={keepN} closeHref={BASE} back={BASE} /> : null}
       {sp.fixall === "1" ? <FixAllDialog plan={plan} closeHref={BASE} back={BASE} /> : null}
     </AppFrame>
   );

@@ -261,6 +261,6 @@ describe("allTicked", () => {
     expect(allTicked("constructor", [])).toBe(false);
   });
   it("the IG box 3 wording covers both automatic-check outcomes", () => {
-    expect(RESET_CHECKLIST.instagram[2]).toBe("Automatic caption check (result below): not found — or it failed and I searched my recent posts by hand");
+    expect(RESET_CHECKLIST.instagram[2]).toBe("Automatic check says Not found yet — or it could not check and I looked on my profile by hand");
   });
 });

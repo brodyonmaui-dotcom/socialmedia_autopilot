@@ -61,7 +61,7 @@ describe.skipIf(!url)("loadPostingStatus (db)", () => {
 
   it("unknown without a heartbeat row; missed is counted in SQL anyway", async () => {
     await pool.query("delete from settings where key = $1", [KEY]);
-    expect(await loadPostingStatus(pool, NOW, { key: KEY })).toEqual({ state: "unknown", lastTickAt: null, missed: 2, oldestMissedAt: ago(180).toISOString() });
+    expect(await loadPostingStatus(pool, NOW, { key: KEY })).toEqual({ state: "unknown", lastTickAt: null, missed: 2, oldestMissedAt: ago(180).toISOString(), newestMissedAt: expect.any(String) });
   });
 
   it("dry-run and live from a fresh heartbeat (the heartbeat's own missed number is ignored)", async () => {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ButtonLink } from "./Button.js";
 import { cx, FOCUS } from "./cx.js";
 import { Icon, type IconName } from "./Icon.js";
 
@@ -101,6 +102,7 @@ export function InlineNotice({
   children,
   href,
   linkLabel,
+  action,
   live = false,
   className,
 }: {
@@ -108,6 +110,8 @@ export function InlineNotice({
   children: ReactNode;
   href?: string;
   linkLabel?: string;
+  /** A small outline button-link under the text on phones, beside it from sm (e.g. "Reschedule all"). */
+  action?: { label: string; href: string };
   /** role="status" (info) / "alert" (warn, danger) so a post-action note is announced. */
   live?: boolean;
   className?: string;
@@ -117,10 +121,15 @@ export function InlineNotice({
   return (
     <div
       role={live ? (tone === "info" ? "status" : "alert") : undefined}
-      className={cx("flex min-h-12 items-center gap-3 rounded-ds-lg border border-ds-line bg-ds-card px-4 py-2", className)}
+      className={cx("flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 rounded-ds-lg border border-ds-line bg-ds-card px-4 py-2", className)}
     >
       <Icon name={icon} size={18} className={cx("shrink-0", color)} />
-      <p className="min-w-0 flex-1 text-[15px] text-ds-text">{children}</p>
+      <p className="min-w-0 flex-1 basis-40 text-[15px] text-ds-text">{children}</p>
+      {action && (
+        <ButtonLink href={action.href} variant="outline" size="sm">
+          {action.label}
+        </ButtonLink>
+      )}
       {href && linkLabel && (
         <Link href={href} className={cx("-mr-2 inline-flex min-h-11 shrink-0 items-center gap-1 rounded-ds-sm px-2 text-[14px] font-semibold text-ds-accent-fg hover:bg-ds-raised lg:min-h-9", FOCUS)}>
           {linkLabel}

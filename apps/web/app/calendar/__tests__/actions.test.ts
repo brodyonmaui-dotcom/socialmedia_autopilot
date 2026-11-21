@@ -33,7 +33,7 @@ describe("calendar actions without a session", () => {
     expect(exported.map(([n]) => n).sort()).toEqual(
       [
         "approveAllAction", "approveItemsAction", "editTextAction", "fillTimesAction", "igCheckAction", "moveAction", "moveTomorrowAction",
-        "recordPublishedAction", "rejectItemsAction", "resetCheckedAction",
+        "recordPublishedAction", "rejectItemsAction", "rescheduleMissedAction", "resetCheckedAction",
       ].sort(),
     );
   });
@@ -197,6 +197,50 @@ describe("calendar actions with a session (fake pool)", () => {
     db.getPool.mockReturnValue(past.pool);
     await expect(actions.moveAction(form({ back: BACK, item: `${BATCH}:${ITEM}`, date: "2001-01-01" }))).rejects.toMatchObject({ url: expect.stringContaining("error=Can%27t+move+there") });
     expect(writes(past.calls)).toEqual([]);
+  });
+
+  it("rescheduleMissedAction: one locked transaction, optimistic update that keeps it approved, event + alert ack, notice", async () => {
+    vi.stubEnv("TZ_CREATOR", "UTC");
+    auth.requireSession.mockResolvedValue(SESSION);
+    const late = new Date(Date.now() - 3 * 3_600_000);
+    const calls: Array<{ sql: string; params: unknown[] }> = [];
+    const answer = (sql: string, params: unknown[] = []) => {
+      calls.push({ sql, params });
+      if (/from batch_items bi join batches b/.test(sql))
+        return {
+          rows: [{ id: ITEM, platform: "instagram", status: "approved", batch_status: "approved", scheduled_for: late, from_raw: late.toISOString(), title: null, caption: "Day 3 of it" }],
+          rowCount: 1,
+        };
+      if (/^update batch_items/.test(sql.trim())) return { rows: [], rowCount: 1 };
+      return { rows: [], rowCount: 0 };
+    };
+    const client = { query: vi.fn(async (sql: string, params?: unknown[]) => answer(sql, params)), release: vi.fn() };
+    db.getPool.mockReturnValue({ query: vi.fn(async (sql: string, params?: unknown[]) => answer(sql, params)), connect: vi.fn(async () => client) });
+
+    await expect(actions.rescheduleMissedAction(form({ returnTo: "/calendar?d=2099-01-06&notice=old", itemId: [ITEM, ITEM, "not-a-uuid"] }))).rejects.toMatchObject({
+      url: "/calendar?d=2099-01-06&notice=rescheduled&n=1",
+    });
+    const sqls = calls.map((c) => c.sql.trim());
+    expect(sqls[0]).toBe("begin");
+    expect(sqls[1]).toMatch(/pg_advisory_xact_lock\(hashtext\('reschedule-missed'\)\)/);
+    expect(sqls.find((q) => /from batch_items bi join batches b/.test(q))).toMatch(/for update of bi/);
+    const upd = calls.find((c) => /^update batch_items/.test(c.sql.trim()))!;
+    expect(upd.sql).toMatch(/where id = \$1 and status = 'approved' and scheduled_for = \$4::timestamptz/);
+    expect(upd.sql).not.toMatch(/status =\s*'(draft|queued)'|idempotency_key/);
+    expect(upd.params[0]).toBe(ITEM);
+    const ev = calls.find((c) => /insert into batch_item_events/.test(c.sql))!;
+    expect(ev.sql).toMatch(/'move', 'approved', 'approved'/);
+    expect(ev.params[2]).toBe(SESSION.id);
+    expect(calls.some((c) => /^delete from alerts/.test(c.sql.trim()) && /kind = 'missed-slot'/.test(c.sql))).toBe(true);
+    expect(sqls.at(-1)).toBe("commit");
+    expect(client.release).toHaveBeenCalled();
+
+    // Open redirects fall back to the calendar; no ids → an error and no transaction.
+    await expect(actions.rescheduleMissedAction(form({ returnTo: "//evil.example.com", itemId: ITEM }))).rejects.toMatchObject({ url: expect.stringMatching(/^\/calendar\?notice=rescheduled/) });
+    const before = calls.length;
+    await expect(actions.rescheduleMissedAction(form({ returnTo: "/", itemId: "nope" }))).rejects.toMatchObject({ url: expect.stringMatching(/^\/\?error=/) });
+    expect(calls.length).toBe(before);
+    vi.unstubAllEnvs();
   });
 
   it("only returns to /calendar or Home (never an open redirect)", async () => {

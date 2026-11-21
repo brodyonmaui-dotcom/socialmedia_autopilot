@@ -8,7 +8,7 @@ import { Icon } from "./Icon.js";
 /**
  * Modal dialog on the native <dialog> (showModal: the browser traps focus, makes the page inert and
  * restores focus on close). Centred on desktop, a bottom sheet at ≤ 640 px. `placement="top"` anchors it
- * near the top (CommandPalette). Esc, the backdrop and the close button all close it.
+ * near the top  Esc, the backdrop and the close button all close it.
  *
  * URL-driven use (server data, e.g. `?day=2026-11-18`): render it with `open` and `closeHref`; closing
  * replaces the URL with `closeHref` (no scroll jump). Client use: `open` + `onClose`.
@@ -30,7 +30,7 @@ export function Dialog({
   onClose?: () => void;
   closeHref?: string;
   title: string;
-  /** Keep the title for screen readers only (CommandPalette). */
+  /** Keep the title for screen readers only  */
   hideTitle?: boolean;
   children?: ReactNode;
   footer?: ReactNode;

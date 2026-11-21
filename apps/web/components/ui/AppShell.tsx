@@ -1,28 +1,24 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { CommandPalette } from "./CommandPalette.js";
 import { cx, FOCUS } from "./cx.js";
 import { IconLink } from "./IconButton.js";
 import { NotificationsPopover, type NotificationItem } from "./NotificationsPopover.js";
 import { Wordmark } from "./PageHeader.js";
 import { MenuButton, Sidebar, SidebarProvider, type SidebarEntry } from "./Sidebar.js";
 import type { Theme } from "./theme.js";
-import { ThemeToggle } from "./ThemeToggle.js";
 
 type Action = (fd: FormData) => void | Promise<void>;
 
 /**
  * The v3 top bar (56 px, sticky, page colour, hairline below). Left: menu button + "My Socials" (Home).
- * Right: exactly four icon buttons: Search, Day/Night, Inbox (badge), Notifications (badge).
+ * Right: two icon buttons: Inbox (badge), Notifications (badge).
  */
 export function TopBar({
-  theme,
   inboxCount,
   notifications,
   openAlerts,
   ackAction,
 }: {
-  theme: Theme;
   inboxCount?: number;
   notifications: NotificationItem[];
   openAlerts: number;
@@ -36,8 +32,6 @@ export function TopBar({
           <Wordmark />
         </Link>
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
-          <CommandPalette />
-          <ThemeToggle initial={theme} />
           <IconLink href="/inbox" icon="inbox" label="Inbox" badge={inboxCount} badgeNoun="waiting" />
           <NotificationsPopover items={notifications} openCount={openAlerts} ackAction={ackAction} />
         </div>
@@ -85,7 +79,7 @@ export function AppShell({
         Skip to content
       </a>
       <SidebarProvider>
-        <TopBar theme={theme} inboxCount={inboxCount} notifications={notifications} openAlerts={openAlerts} ackAction={ackAction} />
+        <TopBar inboxCount={inboxCount} notifications={notifications} openAlerts={openAlerts} ackAction={ackAction} />
         <Sidebar nav={nav} currentHref={currentHref} openGroups={openGroups} logoutAction={logoutAction} />
       </SidebarProvider>
       <main id="main" tabIndex={-1} className="outline-none">

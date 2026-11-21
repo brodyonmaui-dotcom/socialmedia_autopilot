@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { localHHMM, type Platform } from "@autopilot/core";
+import { localClock12, type Platform } from "@autopilot/core";
 import { AppFrame } from "../../../components/AppFrame.js";
 import { SnapchatShare } from "../../../components/platforms/SnapchatShare.js";
 import {
@@ -166,7 +166,7 @@ async function SnapchatToday({ d, list, zone, now }: { d: PlatformPageData; list
       </Card>
     );
   }
-  const when = (it: HandoffItem) => `${dayLabel(it.localDay, d.today)} · ${localHHMM(new Date(it.scheduledFor), zone)}`;
+  const when = (it: HandoffItem) => `${dayLabel(it.localDay, d.today)} · ${localClock12(new Date(it.scheduledFor), zone)}`;
   if (list.today.length === 0 && list.missed.length === 0) {
     const pick = await snapchatSuggestion(getPool(), now);
     return (

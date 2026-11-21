@@ -1,4 +1,4 @@
-# State (read this instead of history; updated 2026-11-19)
+# State (read this instead of history; updated 2026-11-20)
 
 ## What it is
 Single-creator tool: phone-first dashboard + always-on worker that posts approved weekly batches to Instagram, YouTube Shorts, TikTok and Snapchat, handles routine engagement, and reports what works. Not a SaaS. Deadline Jan 8, 2027.
@@ -10,7 +10,7 @@ Single-creator tool: phone-first dashboard + always-on worker that posts approve
 - Packages (`packages/*`): core (scheduler, outbox), adapters, db (migrations 0001-0014, next 0015), media, analytics, research, engagement.
 
 ## What's deployed
-Known: the VPS ran Docker Compose from `/opt/autopilot` with live IG, YT and TikTok posts through the outbox. Unknown: whether run 4 (PR #23, migrations 0010-0014) is deployed. Check `git log origin/main` vs the VPS.
+VPS runs `main` (PR #29, migrations 0001-0014 applied). **Worker is LIVE since 2026-11-19** (`DRY_RUN=false`, `WORKER_LIVE=1`); YouTube/TikTok confirmed posting through the outbox. Check anytime with `./infra/diagnose-posting.sh`.
 
 ## Platform status
 - Instagram: direct (Graph API). First real posts done 2026-11-12; trial reels refused (code 10 / 2207081), so regular reels with a flag.
@@ -19,7 +19,8 @@ Known: the VPS ran Docker Compose from `/opt/autopilot` with live IG, YT and Tik
 - Snapchat: assisted (share sheet, 1 Spotlight/day). No API post.
 
 ## What's next
-- **Posting stopped 2026-11-19 (F18).** Likely cause: worker left in dry-run after the first-real-post runbook. Fixed in code: missed-slot guard (no burst of overdue posts), worker heartbeat `settings.worker_status`, "Posting is off" banner on Home/Calendar. On the VPS: `./infra/diagnose-posting.sh` → `docs/runbooks/not-posting.md`.
+- **F19 (2026-11-20, `docs/design/F19.md`)**: per-platform approval state, clear Approve all, Approve in every card's ⋯ menu, auto-schedule missed posts (series "Day N" first, stays approved), actionable notifications, no Search/theme buttons (Dark mode in Settings), 12-hour times, Keep all fixes, Instagram check reads 50 posts and separates "can't check" from "not found". No migration.
+- **Posting stopped 2026-11-19 (F18).** Cause confirmed: worker left in dry-run after the first-real-post runbook. Fixed in code: missed-slot guard (no burst of overdue posts), worker heartbeat `settings.worker_status`, "Posting is off" banner on Home/Calendar. On the VPS: `./infra/diagnose-posting.sh` → `docs/runbooks/not-posting.md`.
 - F17 (run 5): his phone check of run 4; real-data shake-out of account-ingest, research-refresh, media-recheck, media-fix (`docs/prep/run-5-plan.md`).
 - F14 weekly loop: built 2026-11-19 (no migration). Captions: `pnpm skill:weekly-batch pending` → `fill <file> --write`. Needs `TZ_CREATOR` in the worker env or the jobs aren't scheduled.
 - Small follow-ups in run-5-plan item 4; codebase map refresh.

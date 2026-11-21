@@ -1,6 +1,6 @@
 import type { FixStats, TouchUpClip } from "../../lib/library/data.js";
 import { cardStage, durationText, fixingText, OP_TEXT, statsFacts, type FixAllPlan } from "../../lib/library/screen.js";
-import { dismissForm, fixForm, keepFixForm, keepOriginalForm } from "../../app/library/form-actions.js";
+import { dismissForm, fixForm, keepAllForm, keepFixForm, keepOriginalForm } from "../../app/library/form-actions.js";
 import Link from "next/link";
 import { Badge, Button, buttonClasses, CardLink, Checkbox, cx, Dialog, Icon, Thumb } from "../ui/index.js";
 
@@ -254,6 +254,35 @@ export function FixAllDialog({ plan, closeHref, back }: { plan: FixAllPlan; clos
       ) : (
         <p className="text-[15px] leading-snug text-ds-muted">Every clip here is already being fixed, waiting for your choice, or needs a re-export.</p>
       )}
+    </Dialog>
+  );
+}
+
+/** `?keepall=1`: what Keep all does before anything changes. */
+export function KeepAllDialog({ n, closeHref, back }: { n: number; closeHref: string; back: string }) {
+  const clips = n === 1 ? "1 clip" : `${n} clips`;
+  return (
+    <Dialog
+      open
+      closeHref={closeHref}
+      title={`Keep ${n === 1 ? "1 fix" : `all ${n} fixes`}?`}
+      footer={
+        <>
+          <Link href={closeHref} scroll={false} className={buttonClasses({ variant: "outline" })}>
+            Cancel
+          </Link>
+          <form action={keepAllForm}>
+            <Back back={back} />
+            <Button type="submit" variant="solid" block>
+              Keep {n === 1 ? "1 fix" : `all ${n} fixes`}
+            </Button>
+          </form>
+        </>
+      }
+    >
+      <p className="text-[15px] leading-snug text-ds-text">
+        Uses the fixed version for {clips}. Posts already approved keep the original.
+      </p>
     </Dialog>
   );
 }

@@ -56,7 +56,7 @@ describe("missed-slot guard", () => {
       expect(store.alerts).toHaveLength(1);
       expect(store.alerts[0]).toMatchObject({ kind: "missed-slot", platform, postId: "late" });
       // Scheduled 13:59Z = 08:59 local on 2026-11-19.
-      expect(store.alerts[0]!.message).toBe(`post missed its time (${platform}, 08:59 2026-11-19); move it in the calendar`);
+      expect(store.alerts[0]!.message).toBe(`post missed its time (${platform}, 8:59 AM 2026-11-19); move it in the calendar`);
       expect(store.alerts[0]!.message).not.toContain("secret");
       expect(sent).toHaveLength(1);
 

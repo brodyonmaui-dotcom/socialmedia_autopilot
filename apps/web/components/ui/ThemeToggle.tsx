@@ -15,7 +15,7 @@ function apply(from: Element | null, t: Theme) {
 
 /**
  * Day/Night switch. `variant="icon"`: the top bar's 40 px icon button (moon in Day, sun in Night).
- * `variant="row"`: labelled Toggle ("Night theme") for settings cards. Pass the server-read theme as
+ * `variant="row"`: labelled Toggle ("Dark mode") for settings cards. Pass the server-read theme as
  * `initial` (getTheme()).
  */
 export function ThemeToggle({ initial, variant = "icon" }: { initial: Theme; variant?: "icon" | "row" }) {
@@ -30,8 +30,8 @@ export function ThemeToggle({ initial, variant = "icon" }: { initial: Theme; var
     return (
       <span ref={ref} className="block">
         <Toggle
-          label="Night theme"
-          description="Day stays the default; this only changes this device."
+          label="Dark mode"
+          description="Off is the light look. This only changes this device."
           checked={theme === "dark"}
           onChange={(on) => set(on ? "dark" : "light")}
         />

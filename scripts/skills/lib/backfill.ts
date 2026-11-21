@@ -2,6 +2,8 @@
 // Pure functions only (no network, no DB): the CLI in scripts/skills/backfill.ts feeds them.
 // Bias: when unsure, an IG reel is "check" (a human decides), never "missing". A wrong "missing" is a double post.
 
+import { DAY_RE_G, normalizeCaption, seriesOf, STOP_WORDS as STOP, type SeriesInfo } from "../../../packages/core/src/series.js";
+
 export type Target = "youtube" | "tiktok";
 
 export interface SourcePost {
@@ -41,24 +43,9 @@ export interface MatchResult {
   reason: Partial<Record<Target, string>>;
 }
 
-export interface SeriesInfo {
-  /** Normalized caption with the day number removed, first 6 words: groups "Day 13 of …" posts. */
-  key: string;
-  day: number;
-}
-
-const STOP = new Set(["the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "is", "it", "my", "i", "this", "that", "with", "at", "be"]);
-
-export function normalize(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/#[\p{L}\p{N}_]+/gu, " ")
-    .replace(/not financial advice\.?/g, " ")
-    .replace(/[^\p{L}\p{N}\s/$+.-]/gu, " ")
-    .replace(/(?<!\d)[.](?!\d)/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+// "Day N" series detection moved to @autopilot/core (series.ts); re-exported so existing imports keep working.
+export { seriesOf, type SeriesInfo };
+export const normalize = normalizeCaption;
 
 function tokens(text: string): Set<string> {
   return new Set(normalize(text).split(" ").filter((t) => t.length > 1 && !STOP.has(t)));
@@ -75,17 +62,6 @@ export function similarity(a: string, b: string): number {
   const overlap = inter / Math.min(ta.size, tb.size);
   const jaccard = inter / (ta.size + tb.size - inter);
   return (overlap + jaccard) / 2;
-}
-
-const DAY_RE = /\bday\s*#?\s*(\d{1,4})\b/i;
-const DAY_RE_G = /\bday\s*#?\s*(\d{1,4})\b/gi;
-
-export function seriesOf(caption: string): SeriesInfo | null {
-  const m = DAY_RE.exec(caption);
-  if (!m) return null;
-  const rest = normalize(caption.replace(DAY_RE, " ")).replace(/\b\d+\b/g, " ").replace(/\s+/g, " ").trim();
-  const key = rest.split(" ").filter((t) => !STOP.has(t)).slice(0, 6).join(" ");
-  return { key: key || "day-series", day: Number(m[1]) };
 }
 
 /** Same day number is only a match if the series words overlap too (two "Day N" series can run at once). */

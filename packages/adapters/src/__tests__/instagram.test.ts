@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PlatformRequestError } from "../http.js";
 import { createInstagramAdapter } from "../instagram.js";
 import { fixture, hasLocationKey, json, router, samplePost } from "./helpers.js";
 
@@ -108,5 +109,45 @@ describe("createInstagramAdapter", () => {
     // Normalisation doesn't make different words match, and whitespace-only captions never match.
     expect(await adapter.findExisting!({ ...ours, caption: "Cafe pull day #gym #gymbro" })).toBeNull();
     expect(await adapter.findExisting!({ ...ours, caption: "   \n " })).toBeNull();
+  });
+
+  it("findExisting reads page 2 when page 1 has no match", async () => {
+    const page1 = { data: [{ id: "1", caption: "other", timestamp: "2026-12-01T09:00:00+0000" }], paging: { cursors: { after: "CUR2" }, next: "https://graph.facebook.com/next" } };
+    const page2 = { data: [{ id: "2", caption: samplePost.caption, permalink: "https://www.instagram.com/reel/P2/", timestamp: "2026-12-01T09:02:00+0000" }] };
+    const r = router([[(u) => isList(u) && u.includes("after=CUR2"), () => json(page2)], [isList, () => json(page1)]]);
+    const adapter = createInstagramAdapter({ ...cfg, fetch: r.fetch });
+    expect(await adapter.findExisting!(samplePost)).toEqual({ platformPostId: "2", platformPostUrl: "https://www.instagram.com/reel/P2/" });
+    expect(r.calls).toHaveLength(2);
+  });
+
+  it("findExisting stops after 2 pages", async () => {
+    const page = { data: [{ id: "1", caption: "other", timestamp: "2026-12-01T09:00:00+0000" }], paging: { cursors: { after: "C" }, next: "https://graph.facebook.com/next" } };
+    const r = router([[isList, () => json(page)]]);
+    expect(await createInstagramAdapter({ ...cfg, fetch: r.fetch }).findExisting!(samplePost)).toBeNull();
+    expect(r.calls).toHaveLength(2);
+  });
+
+  it("findExisting matches by the 60-char hashtag-free prefix when IG changed hashtags/emoji/line breaks", async () => {
+    const long = "My lats are not a fan of this pull day, so today we go heavy on rows and then finish with arms";
+    const igCaption = `${long.slice(0, 70)}\n\n\n\u{1F4AA}\n#gym #pull #back #rows #extra #more`;
+    const data = [{ id: "7", caption: igCaption, permalink: "https://www.instagram.com/reel/PFX/", timestamp: "2026-12-01T10:00:00+0000" }];
+    const r = router([[isList, () => json({ data })]]);
+    const adapter = createInstagramAdapter({ ...cfg, fetch: r.fetch });
+    expect(await adapter.findExisting!({ ...samplePost, caption: `${long} #gym #hypertrophy` })).toEqual({ platformPostId: "7", platformPostUrl: "https://www.instagram.com/reel/PFX/" });
+    expect(await adapter.findExisting!({ ...samplePost, caption: "Totally different words here #gym" })).toBeNull();
+  });
+
+  it("findExisting throws (can't check) when the response has no data", async () => {
+    const r = router([[isList, () => json({ error: { message: "Invalid OAuth access token", code: 190 } }, 400)]]);
+    const adapter = createInstagramAdapter({ ...cfg, fetch: r.fetch });
+    await expect(adapter.findExisting!(samplePost)).rejects.toBeInstanceOf(PlatformRequestError);
+    const r2 = router([[isList, () => json({})]]);
+    await expect(createInstagramAdapter({ ...cfg, fetch: r2.fetch }).findExisting!(samplePost)).rejects.toThrow(/can't check/);
+  });
+
+  it("findExisting: the same caption 5 days away is not ours", async () => {
+    const data = [{ id: "9", caption: samplePost.caption, timestamp: "2026-12-06T09:00:00+0000" }];
+    const r = router([[isList, () => json({ data })]]);
+    expect(await createInstagramAdapter({ ...cfg, fetch: r.fetch }).findExisting!(samplePost)).toBeNull();
   });
 });

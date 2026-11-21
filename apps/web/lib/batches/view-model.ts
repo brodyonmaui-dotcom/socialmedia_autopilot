@@ -1,4 +1,4 @@
-import { addCalendarDays, localDate, localHHMM, localParts, zonedTimeToUtc } from "@autopilot/core";
+import { addCalendarDays, localDate, localClock12, localParts, zonedTimeToUtc } from "@autopilot/core";
 import type { BatchItemView, ItemStatus } from "./types.js";
 import type { TransitionResult } from "./transitions.js";
 
@@ -48,7 +48,7 @@ export function groupByLocalDay(items: BatchItemView[], timeZone: string, weekSt
     const at = new Date(item.scheduledFor);
     const date = localDate(at, timeZone);
     const list = byDay.get(date) ?? [];
-    list.push({ item, time: localHHMM(at, timeZone), ms: at.getTime() });
+    list.push({ item, time: localClock12(at, timeZone), ms: at.getTime() });
     byDay.set(date, list);
   }
   const out: DayGroup[] = [...byDay.keys()].sort().map((date) => ({
@@ -122,5 +122,5 @@ export function summaryCounts(counts: Record<ItemStatus, number>): { draft: numb
 export function scheduledLabel(iso: string | null, timeZone: string): string {
   if (!validIso(iso)) return "no time";
   const at = new Date(iso);
-  return `${dayLabel(localDate(at, timeZone))} · ${localHHMM(at, timeZone)}`;
+  return `${dayLabel(localDate(at, timeZone))} · ${localClock12(at, timeZone)}`;
 }

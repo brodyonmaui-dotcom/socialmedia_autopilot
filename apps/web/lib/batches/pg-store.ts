@@ -1,4 +1,4 @@
-import type { Pool } from "pg";
+import type { Pool, PoolClient } from "pg";
 import type { AlertKind, Platform } from "@autopilot/core";
 import { canResetItem, countByStatus, deriveFlags, parseEditorMeta, type BatchItemView, type BatchView, type ItemStatus } from "./types.js";
 import type { ItemChange } from "./transitions.js";
@@ -21,6 +21,19 @@ function qaWarnings(qa: unknown): string[] {
 /** Optional extras written in the same transaction as the changes (used by the editor auto-approve runner). */
 export interface ApplyExtra {
   alerts?: Array<{ kind: AlertKind; batchItemId: string; platform: Platform; message: string }>;
+}
+
+/**
+ * F19: a missed-slot alert is resolved by whatever changes the item's status or time (Move, Reject,
+ * Record-published, reset…), in the same transaction as that change. A caption-only edit of an approved
+ * post goes through draft, so it counts too; nothing else acknowledges it.
+ */
+async function ackMissedSlot(client: Pick<PoolClient, "query">, itemId: string, now: Date, sessionId: string | null): Promise<void> {
+  await client.query(
+    `update alerts set acknowledged_at = $2, acknowledged_session = $3
+      where kind = 'missed-slot' and batch_item_id = $1 and acknowledged_at is null`,
+    [itemId, now, sessionId],
+  );
 }
 
 export class PgBatchStore implements BatchStore {
@@ -148,6 +161,7 @@ export class PgBatchStore implements BatchStore {
               where batch_item_id = $1 and kind in ('final-failure', 'unknown-outcome') and acknowledged_at is null`,
             [c.itemId, now, sessionId],
           );
+          await ackMissedSlot(client, c.itemId, now, sessionId); // the status changed
           continue;
         }
         // SET list built from the patch keys present; values always go in as parameters.
@@ -169,6 +183,7 @@ export class PgBatchStore implements BatchStore {
           `insert into batch_item_events (batch_item_id, kind, from_status, to_status, detail, session_id, at) values ($1, $2, $3, $4, $5::jsonb, $6, $7)`,
           [c.itemId, c.eventKind, c.from, c.to, detail ? JSON.stringify(detail) : null, sessionId, now],
         );
+        if (c.to !== c.from || p.scheduled_for !== undefined) await ackMissedSlot(client, c.itemId, now, sessionId);
       }
       const b = await client.query(
         `update batches set status = $2::text,
