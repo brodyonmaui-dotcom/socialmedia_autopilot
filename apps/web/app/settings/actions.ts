@@ -10,6 +10,7 @@ import { addPromoAccountByHandle, parsePromoHandle, removePromoAccount } from ".
 import { setPings } from "../../lib/inbox/status.js";
 import { writeSettingsAudit } from "../../lib/settings/audit.js";
 import { parseCapsForm, updateCaps } from "../../lib/settings/caps.js";
+import { parseDailyMinForm, setInstagramDailyMin } from "../../lib/settings/daily-min.js";
 import { setTouchupAutofix } from "../../lib/settings/touchup-autofix.js";
 import { setEditorApprovalCounts } from "../../lib/settings/editor-approval.js";
 import { MODE_LABEL, parseModeChange, PINGS, resumeOk } from "../../lib/settings/replies.js";
@@ -51,7 +52,11 @@ export async function saveCapsAction(fd: FormData): Promise<void> {
   await run("caps", async () => {
     const parsed = parseCapsForm((k) => (fd.has(k) ? String(fd.get(k)) : null));
     if (!parsed.ok) throw new UserError(parsed.error);
-    const { message } = await updateCaps(getPool(), parsed.caps);
+    const min = fd.has("instagram-min") ? parseDailyMinForm(String(fd.get("instagram-min"))) : null;
+    if (min && !min.ok) throw new UserError(min.error);
+    const { message: capsMessage } = await updateCaps(getPool(), parsed.caps);
+    const { message: minMessage } = min ? await setInstagramDailyMin(getPool(), min.value) : { message: "" };
+    const message = capsMessage || minMessage;
     return message ? "Daily limits saved. Posts already scheduled don't move." : "Nothing changed";
   });
 }
