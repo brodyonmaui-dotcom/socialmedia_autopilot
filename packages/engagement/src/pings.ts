@@ -34,11 +34,14 @@ export interface PingState {
   waiting: { drafted: number; flagged: number };
   /** Items decided after lastPingAt (or all open ones when there was none). */
   newSinceLastPing: number;
+  /** Open items per platform (F20): the digest then writes one row per platform. Absent → one all-platform digest. */
+  byPlatform?: Partial<Record<EngagementPlatform, { drafted: number; flagged: number }>>;
 }
 
 export type PlannedPing =
   | { kind: "item"; commentId: string; platform: EngagementPlatform; message: string }
-  | { kind: "digest"; message: string };
+  /** `platform` set (F20): the store upserts the one open digest row of that platform; absent: legacy all-platform digest. */
+  | { kind: "digest"; message: string; platform?: EngagementPlatform };
 
 const clip = (s: string, n = PING_EXCERPT_CHARS) => {
   const one = s.replace(/\s+/g, " ").trim();
@@ -76,6 +79,26 @@ export function digestMessage(waiting: { drafted: number; flagged: number }): st
   return parts.length ? parts.join(", ") : PING_GENERIC;
 }
 
+const PLATFORM_NAME: Record<EngagementPlatform, string> = { instagram: "Instagram", youtube: "YouTube", tiktok: "TikTok" };
+
+/** "7 replies drafted to your Instagram comments" / "3 Instagram comments need you" / both joined with ", ". */
+export function platformDigestMessage(platform: EngagementPlatform, waiting: { drafted: number; flagged: number }): string {
+  const name = PLATFORM_NAME[platform] ?? platform;
+  const parts: string[] = [];
+  if (waiting.drafted > 0) parts.push(`${plural(waiting.drafted, "reply", "replies")} drafted to your ${name} comments`);
+  if (waiting.flagged > 0) parts.push(waiting.drafted > 0 ? `${waiting.flagged} need${waiting.flagged === 1 ? "s" : ""} you` : `${plural(waiting.flagged, `${name} comment`, `${name} comments`)} need${waiting.flagged === 1 ? "s" : ""} you`);
+  return parts.length ? parts.join(", ") : PING_GENERIC;
+}
+
+function digests(state: PingState): PlannedPing[] {
+  if (!state.byPlatform) return [{ kind: "digest", message: digestMessage(state.waiting) }];
+  const out: PlannedPing[] = [];
+  for (const [platform, w] of Object.entries(state.byPlatform) as Array<[EngagementPlatform, { drafted: number; flagged: number }]>) {
+    if (w.drafted + w.flagged > 0) out.push({ kind: "digest", platform, message: platformDigestMessage(platform, w) });
+  }
+  return out;
+}
+
 /**
  * Which pings to write now. `items` are the drafted/flagged items new in this tick (each mode);
  * `state` is read from the alerts table. Never more than PING_EACH_CAP_PER_HOUR item pings per hour,
@@ -87,12 +110,12 @@ export function planPings(mode: PingMode, items: readonly PingItem[], state: Pin
   const total = state.waiting.drafted + state.waiting.flagged;
 
   if (mode === "hourly") {
-    if (total > 0 && state.newSinceLastPing > 0 && hourSince(state.lastPingAt)) return [{ kind: "digest", message: digestMessage(state.waiting) }];
+    if (total > 0 && state.newSinceLastPing > 0 && hourSince(state.lastPingAt)) return digests(state);
     return [];
   }
 
   const room = Math.max(0, PING_EACH_CAP_PER_HOUR - state.sentLastHour);
   const out: PlannedPing[] = items.slice(0, room).map((i) => ({ kind: "item", commentId: i.commentId, platform: i.platform, message: pingMessage(i, blocklist) }));
-  if (items.length > room && total > 0 && hourSince(state.lastDigestAt)) out.push({ kind: "digest", message: digestMessage(state.waiting) });
+  if (items.length > room && total > 0 && hourSince(state.lastDigestAt)) out.push(...digests(state));
   return out;
 }

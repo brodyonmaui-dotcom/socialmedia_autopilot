@@ -9,13 +9,24 @@ import { Popover } from "./Popover.js";
 
 export type NotificationItem = {
   id: string;
-  /** Short kind label ("Failed", "Token health"). */
+  /** Short kind label ("Failed", "Token health", "Instagram"). */
   kind: string;
   message: string;
   /** "5m ago". */
   age: string;
   urgent: boolean;
+  /** The whole row links here (F20). */
+  href?: string;
+  /** The button text for the action ("Review replies"). Omitted: no action button, the row link only. */
+  action?: string;
+  /** Informational events can be acknowledged; live inbox rows can't (they clear when handled). */
+  ackable?: boolean;
 };
+
+const ROW_ACTION = cx(
+  "relative z-10 inline-flex h-11 shrink-0 items-center rounded-ds-sm border border-ds-line-strong px-3 text-[13px] font-semibold text-ds-text hover:bg-ds-raised lg:h-8 lg:px-2.5",
+  FOCUS,
+);
 
 function AckButton() {
   const { pending } = useFormStatus();
@@ -24,8 +35,8 @@ function AckButton() {
       type="submit"
       disabled={pending}
       className={cx(
-        "inline-flex h-11 shrink-0 items-center rounded-ds-sm border border-ds-line-strong px-3 text-[13px] font-semibold text-ds-text hover:bg-ds-raised disabled:opacity-60 lg:h-8 lg:px-2.5",
-        FOCUS,
+        ROW_ACTION,
+        "disabled:opacity-60",
       )}
     >
       {pending ? "…" : "Acknowledge"}
@@ -34,8 +45,8 @@ function AckButton() {
 }
 
 /**
- * The top bar's bell: a pop-over (a full-width sheet on phones) with the newest open alerts (max 6), each
- * with its message, age and an Acknowledge button, then "See all" → /notifications. The badge is the open count.
+ * The top bar's bell: a pop-over (a full-width sheet on phones) with live Inbox rows first, then open event
+ * alerts (max 6 rows). A whole row is a link; its button is the action; Acknowledge only on events. "See all" → /notifications. The badge is the row count.
  * `ackAction` is the existing alerts server action (form field `id`).
  */
 export function NotificationsPopover({
@@ -71,18 +82,33 @@ export function NotificationsPopover({
           ) : (
             <ul className="flex flex-col divide-y divide-ds-line">
               {shown.map((n) => (
-                <li key={n.id} className="flex gap-3 px-4 py-3">
+                <li key={n.id} className="relative flex gap-3 px-4 py-3 hover:bg-ds-raised/60">
                   <Icon name={n.urgent ? "alert" : "bell"} size={18} className={cx("mt-0.5 shrink-0", n.urgent ? "text-ds-warn" : "text-ds-muted")} />
                   <div className="min-w-0 flex-1">
-                    <p className="line-clamp-2 text-[14px] leading-snug text-ds-text">{n.message}</p>
+                    {n.href ? (
+                      <Link href={n.href} onClick={close} className={cx("line-clamp-2 text-[14px] leading-snug text-ds-text after:absolute after:inset-0 after:content-['']", FOCUS)}>
+                        {n.message}
+                      </Link>
+                    ) : (
+                      <p className="line-clamp-2 text-[14px] leading-snug text-ds-text">{n.message}</p>
+                    )}
                     <p className="mt-1 text-[12px] text-ds-muted">
                       {n.kind} · {n.age}
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {n.href && n.action ? (
+                        <Link href={n.href} onClick={close} className={ROW_ACTION}>
+                          {n.action}
+                        </Link>
+                      ) : null}
+                      {n.ackable !== false ? (
+                        <form action={ackAction} className="relative z-10">
+                          <input type="hidden" name="id" value={n.id} />
+                          <AckButton />
+                        </form>
+                      ) : null}
+                    </div>
                   </div>
-                  <form action={ackAction} className="shrink-0 self-center">
-                    <input type="hidden" name="id" value={n.id} />
-                    <AckButton />
-                  </form>
                 </li>
               ))}
             </ul>

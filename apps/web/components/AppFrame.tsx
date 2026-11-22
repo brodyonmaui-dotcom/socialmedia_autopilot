@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
 import { acknowledgeAction } from "../app/alerts/actions.js";
 import { logoutAction } from "../app/login/actions.js";
-import { kindLabel, listAlerts, type AlertView } from "../lib/alerts/queries.js";
-import { isUrgent, shownMessage } from "../lib/alerts/view.js";
+import { kindLabel, listAlerts, sourceLabel, type AlertView } from "../lib/alerts/queries.js";
+import { liveRows, type LiveRow } from "../lib/alerts/live.js";
+import { describeAlert, isUrgent } from "../lib/alerts/view.js";
+import { creatorZone } from "../lib/calendar/load.js";
+import { loadInboxGroups } from "../lib/inbox/groups.js";
 import { getPool } from "../lib/db.js";
 import { relativeTime } from "../lib/engagement/queries.js";
 import { activeState, badgeOf, inboxBadge, sidebarNav, type FrameCounts } from "./app-nav.js";
@@ -14,15 +17,35 @@ export type { FrameCounts } from "./app-nav.js";
 /** What a page passes as `active`: a v3 nav id ("home", "calendar", "analytics/youtube", "library/touch-up", "platforms/snapchat", "settings", "notifications"…) or a v2 id (mapped). */
 export type Section = string;
 
-/** Pop-over rows from open alerts (newest first). Pure. */
-export function notificationItems(alerts: AlertView[], now: Date): NotificationItem[] {
-  return alerts.map((a) => ({
-    id: a.id,
-    kind: kindLabel(a.kind) ?? a.kind,
-    message: shownMessage(a.message),
-    age: relativeTime(a.createdAt, now),
-    urgent: isUrgent(a.kind),
+/**
+ * Pop-over rows (F20): live Inbox rows first ("7 replies drafted to your Instagram comments"), then open
+ * event alerts as F19 describes them. Each row links to its target; only events can be acknowledged. Pure.
+ */
+export function notificationItems(alerts: AlertView[], now: Date, live: LiveRow[] = [], timeZone = "UTC"): NotificationItem[] {
+  const inbox: NotificationItem[] = live.map((r) => ({
+    id: r.id,
+    kind: sourceLabel(r.platform),
+    message: r.title,
+    age: r.at ? relativeTime(r.at, now) : "now",
+    urgent: false,
+    href: r.href,
+    action: r.action,
+    ackable: false,
   }));
+  const events: NotificationItem[] = alerts.map((a) => {
+    const link = describeAlert(a, now, timeZone).actions.find((x) => x.kind === "link");
+    return {
+      id: a.id,
+      kind: kindLabel(a.kind) ?? a.kind,
+      message: describeAlert(a, now, timeZone).title,
+      age: relativeTime(a.createdAt, now),
+      urgent: isUrgent(a.kind),
+      href: link?.href ?? "/notifications",
+      ...(link ? { action: link.label } : {}),
+      ackable: true,
+    };
+  });
+  return [...inbox, ...events];
 }
 
 /**
@@ -46,11 +69,13 @@ export async function AppFrame({
 }) {
   const pool = getPool();
   const now = new Date();
-  const [theme, c, alerts] = await Promise.all([
+  const [theme, c, alerts, groups] = await Promise.all([
     getTheme(),
     counts ? Promise.resolve(counts) : loadFrameCounts(pool),
-    listAlerts(pool, { state: "open", now, limit: 6 }).catch(() => [] as AlertView[]),
+    listAlerts(pool, { state: "open", now, limit: 6, excludeInbox: true }).catch(() => [] as AlertView[]),
+    loadInboxGroups(pool).catch(() => []),
   ]);
+  const live = liveRows(groups);
   const nav = sidebarNav(c);
   const state = activeState(nav, active);
   return (
@@ -60,8 +85,8 @@ export async function AppFrame({
       currentHref={state.linkHref}
       openGroups={state.openGroups}
       inboxCount={inboxBadge(c)}
-      notifications={notificationItems(alerts, now)}
-      openAlerts={badgeOf(c.openAlerts) ?? 0}
+      notifications={notificationItems(alerts, now, live, creatorZone().timeZone)}
+      openAlerts={live.length + (badgeOf(c.openAlerts) ?? 0)}
       ackAction={acknowledgeAction}
       logoutAction={logoutAction}
     >

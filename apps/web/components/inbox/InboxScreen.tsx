@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AppFrame } from "../AppFrame.js";
 import { getPool } from "../../lib/db.js";
-import { inboxCounts, loadInbox, type InboxKind } from "../../lib/inbox/list.js";
+import { inboxCounts, loadInbox, parsePlatform, type InboxKind } from "../../lib/inbox/list.js";
 import { loadPromoAccounts } from "../../lib/inbox/promo.js";
 import { loadReplyStatus, type ReplyStatusLabel } from "../../lib/inbox/status.js";
 import { emptyFor, FILTER_LABEL, filterOptions, inboxHref, kindTabs, parseFilter, replyStatusSentence, resultNotice } from "../../lib/inbox/view.js";
@@ -39,10 +39,11 @@ export async function InboxScreen({ kind, sp }: { kind: InboxKind; sp: InboxSear
   const now = new Date();
   const filter = parseFilter({ filter: param(sp.filter), tab: param(sp.tab) });
   const cursor = param(sp.cursor) ?? null;
+  const platform = parsePlatform(param(sp.platform));
   const other: InboxKind = kind === "comments" ? "dms" : "comments";
 
   const [page, otherCounts, status, promo] = await Promise.all([
-    loadInbox(pool, { kind, filter, cursor, limit: PAGE, now }),
+    loadInbox(pool, { kind, filter, cursor, limit: PAGE, now, platform }),
     inboxCounts(pool, other),
     loadReplyStatus(pool),
     filter === "ignored" ? loadPromoAccounts(pool) : Promise.resolve(null),
@@ -67,6 +68,12 @@ export async function InboxScreen({ kind, sp }: { kind: InboxKind; sp: InboxSear
         }
         action={<Dropdown label={`Show ${noun}`} options={filterOptions(kind, counts, filter)} />}
       />
+
+      {platform ? (
+        <ButtonLink href={inboxHref(kind, filter)} variant="ghost" size="sm" className="mb-2">
+          Showing {PLATFORM_NAME[platform]} only · Show all
+        </ButtonLink>
+      ) : null}
 
       <TabLinks ariaLabel="Comments or DMs" items={kindTabs(kind, filter, need.comments, need.dms)} className="lg:max-w-sm" />
 
@@ -100,7 +107,7 @@ export async function InboxScreen({ kind, sp }: { kind: InboxKind; sp: InboxSear
               </ul>
               {page.nextCursor ? (
                 <div className="mt-3 flex justify-center lg:mt-4">
-                  <ButtonLink href={inboxHref(kind, filter, page.nextCursor)} variant="outline" size="sm">
+                  <ButtonLink href={`${inboxHref(kind, filter, page.nextCursor)}${platform ? `&platform=${platform}` : ""}`} variant="outline" size="sm">
                     Show older
                   </ButtonLink>
                 </div>
