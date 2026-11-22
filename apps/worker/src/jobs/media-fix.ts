@@ -11,10 +11,13 @@ import { pipeline } from "node:stream/promises";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
   FFMPEG_MISSING_MESSAGE,
+  FIX_OP_ORDER,
   FixError,
   hasBinary,
   insertMediaRow,
   makePoster,
+  OP_FOR_CODE,
+  OPT_IN_OPS,
   planFix,
   runFix,
   runQa,
@@ -68,6 +71,41 @@ export async function raiseMediaConfigAlert(db: Queryable, message: string, now:
       where not exists (select 1 from alerts where kind = 'config' and acknowledged_at is null and message = $1)
      returning id`,
     [message, now.toISOString()],
+  );
+  return rows.length === 1;
+}
+
+/** Setting `touchup_autofix` (jsonb boolean, default ON): only an explicit `false` turns auto-queueing off. */
+export async function isAutoFixOn(db: Queryable): Promise<boolean> {
+  const { rows } = await db.query("select value from settings where key = 'touchup_autofix'");
+  return rows[0]?.value !== false;
+}
+
+/**
+ * Right after QA flags a clip: queue the default fix (fixable `fix` issues, not dismissed, opt-in ops off)
+ * when the setting is on and the clip has no fix history at all (no open, failed, kept or discarded fix) and
+ * is not itself a fixed copy. Same insert as the web's requestFix, on conflict do nothing. Originals are never
+ * touched; keeping stays the creator's tap. Returns true when a fix was queued.
+ */
+export async function autoQueueFix(db: Queryable, mediaId: string, qa: QaResult): Promise<boolean> {
+  if (qa?.version !== 2 || !Array.isArray(qa.issues)) return false;
+  if (!(await isAutoFixOn(db))) return false;
+  const dismissed = new Set(
+    ((await db.query("select code from touchup_dismissals where media_id = $1 and undone_at is null", [mediaId])).rows as Array<{ code: string }>).map((r) => r.code),
+  );
+  const want = new Set(
+    qa.issues.filter((i) => i.severity === "fix" && i.fixable && !dismissed.has(i.code)).flatMap((i) => (OP_FOR_CODE[i.code] ? [OP_FOR_CODE[i.code]!] : [])),
+  );
+  const ops = FIX_OP_ORDER.filter((o) => want.has(o) && !OPT_IN_OPS.includes(o));
+  if (ops.length === 0) return false;
+  const { rows } = await db.query(
+    `insert into media_fixes (media_id, ops)
+     select $1, $2::text[]
+      where not exists (select 1 from media_fixes k where k.media_id = $1 and k.status in ('failed','kept','discarded'))
+        and not exists (select 1 from media_fixes c where c.fixed_media_id = $1)
+     on conflict (media_id) where status in ('queued','running','done') do nothing
+     returning id`,
+    [mediaId, ops],
   );
   return rows.length === 1;
 }

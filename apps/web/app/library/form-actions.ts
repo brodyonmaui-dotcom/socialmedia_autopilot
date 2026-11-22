@@ -28,7 +28,7 @@ export async function keepFixForm(formData: FormData): Promise<void> {
 export async function keepAllForm(formData: FormData): Promise<void> {
   await requireSession();
   const r = await keepAllFixesAction();
-  redirect(withNote(backOf(formData), r.ok ? noteParams({ kind: "keptall", kept: r.kept, stayed: r.stayed, failed: r.failed }) : noteParams({ kind: "error", reason: r.reason })));
+  redirect(withNote(backOf(formData), r.ok ? noteParams({ kind: "keptall", kept: r.kept, stayed: r.stayed, failed: r.failed, stillFixing: r.stillFixing, cantFix: r.cantFix }) : noteParams({ kind: "error", reason: r.reason })));
 }
 
 export async function keepOriginalForm(formData: FormData): Promise<void> {

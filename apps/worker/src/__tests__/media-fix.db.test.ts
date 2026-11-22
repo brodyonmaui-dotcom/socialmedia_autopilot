@@ -137,12 +137,12 @@ describe.skipIf(!url || !HAS_FFMPEG)("media-fix + media-recheck jobs (db, needs 
   it("media-recheck: re-runs QA v2 on a legacy clip from storage and stores it", async () => {
     const legacy = await media(`dbt-legacy-${run}`, `library/dbt-${run}.mp4`, { warnings: ["3 frozen-frame segment(s)", "effectively silent (-60.0 LUFS)"] });
     const s = await runMediaRecheckOnce({ db, storage, onlyMediaIds: [legacy] });
-    expect(s).toEqual({ checked: 1, failed: 0, skipped: null });
+    expect(s).toEqual({ checked: 1, failed: 0, queued: expect.any(Number), skipped: null });
     const row = (await db.query("select qa, qa_checked_at from media where id = $1", [legacy])).rows[0];
     expect(row.qa.version).toBe(2);
     expect(row.qa.issues.map((i: { code: string }) => i.code)).toContain("frozen-tail");
     expect(row.qa_checked_at).not.toBeNull();
-    expect(await runMediaRecheckOnce({ db, storage: null })).toEqual({ checked: 0, failed: 0, skipped: "no-storage" });
+    expect(await runMediaRecheckOnce({ db, storage: null })).toEqual({ checked: 0, failed: 0, queued: 0, skipped: "no-storage" });
   }, 60_000);
 
   it("fixedSourcePath keeps the folder and adds -fixed", () => {

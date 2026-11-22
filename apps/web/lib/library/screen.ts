@@ -273,7 +273,7 @@ export type NoteParams = Record<string, string | number>;
 export function noteParams(r:
   | { kind: "queued"; queued: number; already: number; skipped: number }
   | { kind: "kept"; repointed: number; stayed: number }
-  | { kind: "keptall"; kept: number; stayed: number; failed: number }
+  | { kind: "keptall"; kept: number; stayed: number; failed: number; stillFixing?: number; cantFix?: number }
   | { kind: "original" }
   | { kind: "dismissed" }
   | { kind: "error"; reason: string }): NoteParams {
@@ -283,7 +283,7 @@ export function noteParams(r:
     case "kept":
       return { done: "kept", moved: r.repointed, stayed: r.stayed };
     case "keptall":
-      return { done: "keptall", n: r.kept, stayed: r.stayed, failed: r.failed };
+      return { done: "keptall", n: r.kept, stayed: r.stayed, failed: r.failed, fixing: r.stillFixing ?? 0, cant: r.cantFix ?? 0 };
     case "error":
       return { done: "error", reason: r.reason.slice(0, 60) };
     default:
@@ -294,7 +294,7 @@ export function noteParams(r:
 /** `back` + the note params (replacing any earlier note). `back` must be a library path. */
 export function withNote(back: string, note: NoteParams): string {
   const url = new URL(safeBack(back), "http://x");
-  for (const k of ["done", "n", "already", "skipped", "moved", "stayed", "failed", "reason"]) url.searchParams.delete(k);
+  for (const k of ["done", "n", "already", "skipped", "moved", "stayed", "failed", "fixing", "cant", "reason"]) url.searchParams.delete(k);
   for (const [k, v] of Object.entries(note)) url.searchParams.set(k, String(v));
   return `${url.pathname}${url.search}`;
 }
@@ -324,7 +324,7 @@ export function resultNote(sp: Record<string, Raw>): { tone: "info" | "danger"; 
     case "kept":
       return { tone: "info", text: keepFixNote(int(sp.moved), int(sp.stayed)) };
     case "keptall":
-      return { tone: int(sp.failed) && !int(sp.n) ? "danger" : "info", text: keepAllNote(int(sp.n), int(sp.stayed), int(sp.failed)) };
+      return { tone: int(sp.failed) && !int(sp.n) ? "danger" : "info", text: keepAllNote(int(sp.n), int(sp.stayed), int(sp.failed), int(sp.fixing), int(sp.cant)) };
     case "original":
       return { tone: "info", text: "Kept the original. The fixed copy is hidden, not deleted." };
     case "dismissed":
@@ -346,10 +346,12 @@ export function keepFixNote(moved: number, stayed: number): string {
 }
 
 /** "Kept 5 · 2 posts stay on the original (already approved) · 1 couldn't be kept" */
-export function keepAllNote(kept: number, stayed: number, failed: number): string {
+export function keepAllNote(kept: number, stayed: number, failed: number, stillFixing = 0, cantFix = 0): string {
   const parts = [kept ? `Kept ${kept}` : "Nothing to keep"];
   if (stayed) parts.push(`${stayed === 1 ? "1 post stays" : `${stayed} posts stay`} on the original (already approved)`);
   if (failed) parts.push(`${failed} couldn't be kept`);
+  if (stillFixing) parts.push(`${stillFixing} still fixing`);
+  if (cantFix) parts.push(`${cantFix} can't be fixed automatically`);
   return parts.join(" · ");
 }
 

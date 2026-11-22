@@ -5,7 +5,7 @@ import Link from "next/link";
 import { buttonClasses, ButtonLink, EmptyState, InlineNotice, PageHeader } from "../../../components/ui/index.js";
 import { requireSession } from "../../../lib/auth/require.js";
 import { getPool } from "../../../lib/db.js";
-import { loadFixProgress, loadTouchUp } from "../../../lib/library/data.js";
+import { countUnchecked, isUnfixable, loadFixProgress, loadTouchUp } from "../../../lib/library/data.js";
 import { cardStage, fixAllPlan, fixProgressText, resultNote, touchUpHeadline, touchUpOrder } from "../../../lib/library/screen.js";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,9 @@ export default async function TouchUpPage({ searchParams }: { searchParams: Sear
   await requireSession();
   const sp = await searchParams;
   const pool = getPool();
-  const [counts, clips, progress] = await Promise.all([loadFrameCounts(pool), loadTouchUp(pool), loadFixProgress(pool)]);
+  const [counts, all, progress, unchecked] = await Promise.all([loadFrameCounts(pool), loadTouchUp(pool), loadFixProgress(pool), countUnchecked(pool).catch(() => 0)]);
+  const clips = all.filter((c) => !isUnfixable(c));
+  const cantFix = all.filter(isUnfixable);
   const plan = fixAllPlan(clips);
   const note = resultNote(sp);
   const n = plan.ids.length;
@@ -66,6 +68,12 @@ export default async function TouchUpPage({ searchParams }: { searchParams: Sear
         </p>
       ) : null}
 
+      {unchecked > 0 ? (
+        <p role="status" className="mb-3 text-[14px] text-ds-muted lg:mb-4">
+          Still checking {unchecked} older {unchecked === 1 ? "clip" : "clips"}. New ones show up here as they&rsquo;re checked.
+        </p>
+      ) : null}
+
       {clips.length === 0 ? (
         <div className="rounded-ds-lg border border-ds-line bg-ds-card">
           <EmptyState
@@ -91,6 +99,20 @@ export default async function TouchUpPage({ searchParams }: { searchParams: Sear
           })}
         </ul>
       )}
+
+      {cantFix.length > 0 ? (
+        <details className="mt-6 rounded-ds-lg border border-ds-line bg-ds-card p-4">
+          <summary className="cursor-pointer text-[15px] font-semibold text-ds-text">Can&rsquo;t be fixed automatically ({cantFix.length})</summary>
+          <p className="mt-2 text-[14px] leading-snug text-ds-muted">Fix it can&rsquo;t change these. Re-export the clip, or dismiss the issue if it&rsquo;s on purpose.</p>
+          <ul aria-label="Clips that can't be fixed automatically" className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
+            {cantFix.map((c) => (
+              <li key={c.mediaId} className="min-w-0">
+                <TouchUpCard clip={c} back={BASE} />
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
 
       {sp.keepall === "1" && keepN > 0 ? <KeepAllDialog n={keepN} closeHref={BASE} back={BASE} /> : null}
       {sp.fixall === "1" ? <FixAllDialog plan={plan} closeHref={BASE} back={BASE} /> : null}

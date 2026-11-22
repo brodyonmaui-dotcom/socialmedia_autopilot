@@ -151,7 +151,7 @@ describe.skipIf(!url)("library + touch-up data layer (db)", () => {
     expect([await st(a.orig), await st(b.orig), await st(c.orig), await st(q)]).toEqual(["kept", "discarded", "kept", "queued"]);
     const mid = async (i: string) => (await db.query("select media_id from batch_items where id = $1", [i])).rows[0].media_id;
     expect([await mid(da), await mid(ap), await mid(ib)]).toEqual([a.fixed, c.orig, b.orig]);
-    expect(await keepAllFixes(db, session, new Date(Date.now() + 60_000))).toEqual({ kept: 0, failed: 0, stayed: 0 });
+    expect(await keepAllFixes(db, session, new Date(Date.now() + 60_000))).toMatchObject({ kept: 0, failed: 0, stayed: 0 });
   });
 
   it("dismissIssue hides that issue (idempotent); a clip with nothing left drops out", async () => {

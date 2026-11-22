@@ -32,6 +32,8 @@ import { inboxHref } from "../../lib/inbox/view.js";
 import { countActiveSubscriptions } from "../../lib/push/subscriptions.js";
 import { loadResearchStatus } from "../../lib/research/ideas.js";
 import { loadCaps } from "../../lib/settings/caps.js";
+import { TouchupAutofixSwitch } from "../../components/settings/TouchupAutofix.js";
+import { getTouchupAutofix } from "../../lib/settings/touchup-autofix.js";
 import { getEditorApprovalCounts } from "../../lib/settings/editor-approval.js";
 import { aiNotesLine, lastRunLine, PING_LABEL, PINGS, REPLY_PLATFORMS, shortDate, zoneNotice } from "../../lib/settings/replies.js";
 import { capHelper } from "../../lib/settings/view.js";
@@ -57,7 +59,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
   const sp = await searchParams;
   const pool = getPool();
   const zone = creatorZone();
-  const [caps, theme, engagement, promo, research, devices, editorApproval] = await Promise.all([
+  const [caps, theme, engagement, promo, research, devices, editorApproval, touchupAutofix] = await Promise.all([
     loadCaps(pool),
     getTheme(),
     loadEngagement(pool),
@@ -65,6 +67,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
     loadResearchStatus(pool),
     countActiveSubscriptions(pool),
     getEditorApprovalCounts(pool),
+    getTouchupAutofix(pool),
   ]);
   // Runtime env (not NEXT_PUBLIC_*): the public key is safe to send; the private key never leaves the worker.
   const vapid = process.env.VAPID_PUBLIC_KEY?.trim();
@@ -252,6 +255,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
         <div className="flex flex-col gap-3 lg:col-span-4 lg:gap-4">
           <Card title="Editor approval counts" titleId="editor" subtitle="Skip the second tap for renders you already approved while editing." className="scroll-mt-20">
             <EditorApprovalSwitch on={editorApproval} />
+          </Card>
+          <Card title="Touch-up" titleId="touchup" subtitle="Clips with something to fix." className="scroll-mt-20">
+            <TouchupAutofixSwitch on={touchupAutofix} />
           </Card>
           <Card title="Appearance" titleId="appearance">
             <ThemeToggle initial={theme} variant="row" />

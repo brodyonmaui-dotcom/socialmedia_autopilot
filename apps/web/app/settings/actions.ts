@@ -10,6 +10,7 @@ import { addPromoAccountByHandle, parsePromoHandle, removePromoAccount } from ".
 import { setPings } from "../../lib/inbox/status.js";
 import { writeSettingsAudit } from "../../lib/settings/audit.js";
 import { parseCapsForm, updateCaps } from "../../lib/settings/caps.js";
+import { setTouchupAutofix } from "../../lib/settings/touchup-autofix.js";
 import { setEditorApprovalCounts } from "../../lib/settings/editor-approval.js";
 import { MODE_LABEL, parseModeChange, PINGS, resumeOk } from "../../lib/settings/replies.js";
 
@@ -119,6 +120,17 @@ export async function setEditorApprovalAction(fd: FormData): Promise<void> {
     if (v !== "on" && v !== "off") throw new UserError("unknown setting");
     const { after } = await setEditorApprovalCounts(getPool(), v === "on");
     return after ? "Editor approval counts: on. Approved renders with zero warnings are scheduled for you." : "Editor approval counts: off. Every post needs your tap again.";
+  });
+}
+
+/** Touch-up auto-fix (form field on = "on" | "off"): whether the worker queues fixes for newly flagged clips. */
+export async function setTouchupAutofixAction(fd: FormData): Promise<void> {
+  await requireSession();
+  await run("touchup", async () => {
+    const v = field(fd, "on");
+    if (v !== "on" && v !== "off") throw new UserError("unknown setting");
+    const { after } = await setTouchupAutofix(getPool(), v === "on");
+    return after ? "Touch-up auto-fix on. Originals are never changed." : "Touch-up auto-fix off. Nothing is fixed until you tap Fix it.";
   });
 }
 
