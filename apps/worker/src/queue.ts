@@ -12,6 +12,7 @@ export const QUEUES = {
   analyticsIngest: "analytics-ingest",
   alertPush: "alert-push",
   weeklyDraft: "weekly-draft",
+  dailyInstagram: "daily-instagram",
   weeklyReport: "weekly-report",
 } as const;
 

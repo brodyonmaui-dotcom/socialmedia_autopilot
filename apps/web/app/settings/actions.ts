@@ -11,6 +11,7 @@ import { setPings } from "../../lib/inbox/status.js";
 import { writeSettingsAudit } from "../../lib/settings/audit.js";
 import { parseCapsForm, updateCaps } from "../../lib/settings/caps.js";
 import { parseDailyMinForm, setInstagramDailyMin } from "../../lib/settings/daily-min.js";
+import { setIgTrialReels } from "../../lib/settings/ig-trial.js";
 import { setTouchupAutofix } from "../../lib/settings/touchup-autofix.js";
 import { setEditorApprovalCounts } from "../../lib/settings/editor-approval.js";
 import { MODE_LABEL, parseModeChange, PINGS, resumeOk } from "../../lib/settings/replies.js";
@@ -125,6 +126,17 @@ export async function setEditorApprovalAction(fd: FormData): Promise<void> {
     if (v !== "on" && v !== "off") throw new UserError("unknown setting");
     const { after } = await setEditorApprovalCounts(getPool(), v === "on");
     return after ? "Editor approval counts: on. Approved renders with zero warnings are scheduled for you." : "Editor approval counts: off. Every post needs your tap again.";
+  });
+}
+
+/** Instagram trial reels (form field on = "on" | "off"). Off by default; only takes effect once followers reach the minimum. */
+export async function setIgTrialReelsAction(fd: FormData): Promise<void> {
+  await requireSession();
+  await run("trial-reels", async () => {
+    const v = field(fd, "on");
+    if (v !== "on" && v !== "off") throw new UserError("unknown setting");
+    const { after } = await setIgTrialReels(getPool(), v === "on");
+    return after ? "Instagram trial reels on. They start once the account has enough followers; if Instagram refuses one, it goes out as a regular reel." : "Instagram trial reels off. Reels go out as regular reels.";
   });
 }
 

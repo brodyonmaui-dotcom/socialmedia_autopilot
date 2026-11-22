@@ -10,12 +10,13 @@ import { registerAlertPushJob } from "./jobs/alert-push.js";
 import { analyticsSourcesFromEnv, analyticsStartupLine, registerAnalyticsIngestJob } from "./jobs/analytics-ingest.js";
 import { accountStartupLine, registerAccountIngestJob } from "./jobs/account-ingest.js";
 import { registerResearchRefreshJob, researchEnvFromEnv, researchStartupLine } from "./jobs/research-refresh.js";
-import { buildCommentSources, commentCredentialsFromEnv, createInstagramDmSource, credentialsFromEnv } from "@autopilot/adapters";
+import { commentCredentialsFromEnv, createInstagramDmSource, credentialsFromEnv, prepareCommentSources } from "@autopilot/adapters";
 import { killEnvFromEnv } from "@autopilot/engagement";
 import { PgEngagementStore } from "./jobs/engagement-store.js";
 import { r2StorageFromEnv, registerMediaFixJob } from "./jobs/media-fix.js";
 import { registerMediaRecheckJob } from "./jobs/media-recheck.js";
 import { blocklistFromEnv, engagementStartupLine, registerEngagementJobs, triageClientFromEnv } from "./jobs/register-engagement.js";
+import { registerDailyInstagramJob } from "./jobs/daily-instagram.js";
 import { registerWeeklyDraftJob } from "./jobs/weekly-draft.js";
 import { registerWeeklyReportJob } from "./jobs/weekly-report.js";
 
@@ -84,6 +85,10 @@ await registerAlertPushJob(boss, pool, process.env);
 await registerWeeklyDraftJob(boss, pool, timeZone);
 await registerWeeklyReportJob(boss, pool, timeZone);
 
+// Daily Instagram top-up (F20 D): 17:00 creator-local, tops tomorrow up to the daily minimum with template-captioned drafts
+// (never approved). Own tables only, so it runs in dry-run too. No zone → not scheduled.
+await registerDailyInstagramJob(boss, pool, timeZone);
+
 // Touch-up fixes + legacy QA re-check (own media tables only; nothing is published), so they run in dry-run too.
 const mediaStorage = r2StorageFromEnv(process.env);
 await registerMediaFixJob(boss, { db: pool, storage: mediaStorage });
@@ -92,7 +97,8 @@ console.log(`[media-fix] storage=${mediaStorage ? "r2" : "not set (fixes fail wi
 
 // Engagement (F3): same run mode as the outbox.
 const commentCreds = commentCredentialsFromEnv(process.env);
-const commentSources = buildCommentSources(commentCreds);
+// YouTube without YT_CHANNEL_ID: the channel id is looked up once (channels.list?mine=true); TikTok via Zernio when its keys exist.
+const commentSources = await prepareCommentSources(commentCreds);
 const dmSource = commentCreds.instagram ? createInstagramDmSource(commentCreds.instagram) : null;
 const triage = triageClientFromEnv(process.env);
 await registerEngagementJobs(boss, pool, {
@@ -111,7 +117,7 @@ const configured = (["instagram", "youtube", "tiktok"] as const).filter((p) => c
 console.log(`worker started · dry_run=${dryRun} · platforms=${Object.keys(CAPABILITIES).join(",")} · adapters=${configured.join(",") || "none"}`);
 console.log(analyticsStartupLine(analyticsCfg));
 console.log(accountStartupLine(analyticsCfg));
-console.log(`${engagementStartupLine(engagementSettings, live, killEnvFromEnv(process.env))} · comment sources=${[...commentSources.keys()].join(",") || "none"} · dm=${dmSource ? "read-only" : "none"}`);
+console.log(`${engagementStartupLine(engagementSettings, live, killEnvFromEnv(process.env))} · comment sources=${[...commentSources.keys()].map((p) => (p === "tiktok" && commentCreds.tiktok === true ? "tiktok(stub: no Zernio keys)" : p)).join(",") || "none"} · dm=${dmSource ? "read-only" : "none"}`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {

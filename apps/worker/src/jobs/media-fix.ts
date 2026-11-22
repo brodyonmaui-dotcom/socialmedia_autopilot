@@ -3,12 +3,9 @@
 // new media row (derived_from = the original) → status 'done'. The original row and file are never changed.
 // Nothing here publishes anything: a fixed clip only becomes postable when the creator taps "Keep the fix",
 // and even then only draft calendar items are re-pointed (apps/web/lib/library).
-import { createReadStream, createWriteStream, mkdtempSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
-import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
   FFMPEG_MISSING_MESSAGE,
   FIX_OP_ORDER,
@@ -23,6 +20,7 @@ import {
   runQa,
   sha256File,
   type FixOp,
+  type MediaStorage,
   type QaResult,
 } from "@autopilot/media";
 import type PgBoss from "pg-boss";
@@ -33,31 +31,8 @@ export interface Queryable {
   query(sql: string, params?: unknown[]): Promise<{ rows: any[]; rowCount?: number | null }>;
 }
 
-/** The R2 operations the fix + recheck jobs need. */
-export interface MediaStorage {
-  download(key: string, toPath: string): Promise<void>;
-  upload(key: string, fromPath: string, contentType: string): Promise<void>;
-}
-
-/** Same env names as the laptop ingest agent (tools/ingest-agent). Null when any is missing. */
-export function r2StorageFromEnv(env: NodeJS.ProcessEnv): MediaStorage | null {
-  const accountId = env.R2_ACCOUNT_ID?.trim();
-  const accessKeyId = env.R2_ACCESS_KEY_ID?.trim();
-  const secretAccessKey = env.R2_SECRET_ACCESS_KEY?.trim();
-  const bucket = env.R2_BUCKET_MEDIA?.trim();
-  if (!accountId || !accessKeyId || !secretAccessKey || !bucket) return null;
-  const client = new S3Client({ region: "auto", endpoint: `https://${accountId}.r2.cloudflarestorage.com`, credentials: { accessKeyId, secretAccessKey } });
-  return {
-    async download(key, toPath) {
-      const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-      if (!res.Body) throw new Error("storage: empty object");
-      await pipeline(res.Body as Readable, createWriteStream(toPath));
-    },
-    async upload(key, fromPath, contentType) {
-      await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: createReadStream(fromPath), ContentLength: statSync(fromPath).size, ContentType: contentType }));
-    },
-  };
-}
+// The R2 client moved to @autopilot/media (storage.ts) so the reel job and the web sound upload share it.
+export { r2StorageFromEnv, type MediaStorage } from "@autopilot/media";
 
 export const STORAGE_MISSING_MESSAGE = "Storage (R2) is not set up in the worker, so touch-up fixes can't run";
 export const MEDIA_FIX_CONFIG_MESSAGE = `Touch-up fixes are paused: ${FFMPEG_MISSING_MESSAGE}. Rebuild the worker image (docs/runbooks/touch-up.md).`;

@@ -186,6 +186,7 @@ const KIND_LABEL: Record<AlertKind, string> = {
   "batch-ready": "Next week drafted",
   "report-ready": "Weekly report",
   "missed-slot": "Missed post",
+  "trial-reels-ready": "Trial reels",
 };
 
 export function kindLabel(kind: AlertKind): string {

@@ -32,6 +32,8 @@ import { inboxHref } from "../../lib/inbox/view.js";
 import { countActiveSubscriptions } from "../../lib/push/subscriptions.js";
 import { loadResearchStatus } from "../../lib/research/ideas.js";
 import { loadCaps } from "../../lib/settings/caps.js";
+import { IgTrialReelsSwitch } from "../../components/settings/IgTrialReels.js";
+import { getIgTrialReels } from "../../lib/settings/ig-trial.js";
 import { TouchupAutofixSwitch } from "../../components/settings/TouchupAutofix.js";
 import { getTouchupAutofix } from "../../lib/settings/touchup-autofix.js";
 import { DAILY_MIN_LIMITS, getInstagramDailyMin } from "../../lib/settings/daily-min.js";
@@ -60,7 +62,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
   const sp = await searchParams;
   const pool = getPool();
   const zone = creatorZone();
-  const [caps, theme, engagement, promo, research, devices, editorApproval, touchupAutofix, igDailyMin] = await Promise.all([
+  const [caps, theme, engagement, promo, research, devices, editorApproval, touchupAutofix, igDailyMin, igTrial] = await Promise.all([
     loadCaps(pool),
     getTheme(),
     loadEngagement(pool),
@@ -70,6 +72,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
     getEditorApprovalCounts(pool),
     getTouchupAutofix(pool),
     getInstagramDailyMin(pool),
+    getIgTrialReels(pool),
   ]);
   // Runtime env (not NEXT_PUBLIC_*): the public key is safe to send; the private key never leaves the worker.
   const vapid = process.env.VAPID_PUBLIC_KEY?.trim();
@@ -270,6 +273,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           </Card>
           <Card title="Touch-up" titleId="touchup" subtitle="Clips with something to fix." className="scroll-mt-20">
             <TouchupAutofixSwitch on={touchupAutofix} />
+          </Card>
+          <Card title="Instagram trial reels" titleId="trial-reels" subtitle="Show new reels to non-followers first." className="scroll-mt-20">
+            <IgTrialReelsSwitch {...igTrial} />
           </Card>
           <Card title="Appearance" titleId="appearance">
             <ThemeToggle initial={theme} variant="row" />

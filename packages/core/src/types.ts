@@ -87,7 +87,14 @@ export const ALERT_KINDS = [
   "batch-ready", // F14: the Sunday weekly-draft job topped up next week's drafts; captions wait (pushed)
   "report-ready", // F14: Monday, last week had published posts; the 7-day analytics view is ready (page-only)
   "missed-slot", // F18: an approved post is > 60 min past its time and was held, not sent (page-only)
+  "trial-reels-ready", // F20-F: Instagram reached the follower minimum for trial reels; the toggle is in Settings (pushed, once)
 ] as const;
+
+/** F20-F: Instagram trial reels by default. Setting keys + defaults shared by the worker and Settings. */
+export const IG_TRIAL_REELS_KEY = "ig_trial_reels"; // jsonb boolean, default off
+export const TRIAL_REELS_MIN_FOLLOWERS_KEY = "trial_reels_min_followers"; // jsonb number
+export const TRIAL_REELS_MIN_FOLLOWERS_DEFAULT = 200;
+export const TRIAL_REELS_ALERTED_KEY = "trial_reels_alerted"; // jsonb true once the alert was raised
 export type AlertKind = (typeof ALERT_KINDS)[number];
 
 export function isAlertKind(x: unknown): x is AlertKind {
@@ -107,6 +114,7 @@ export const PUSH_KINDS_DEFAULT: readonly AlertKind[] = [
   "reply-ready", // run 4; volume capped by engagement.pings (each ≤ 6/h, hourly digest, off)
   "auto-scheduled", // only while Settings → Editor approval counts is on; one per item
   "batch-ready", // F14: at most one per Sunday run; "report-ready" stays page-only
+  "trial-reels-ready", // F20-F: once, when Instagram first reaches the follower minimum
 ];
 
 /** Raised by the outbox for anything a human must look at. Delivered by an AlertSink (log, DB, push). */

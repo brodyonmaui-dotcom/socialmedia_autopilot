@@ -155,10 +155,9 @@ describe("card plan", () => {
     expect(ig.note).toMatch(/no reply/i);
     expect(cardPlan(row({ platform: "youtube", bucket: "hide_flag", actions: ["open", "done"] }), "needs-you").canHide).toBe(false);
   });
-  it("TikTok replies are not supported from here", () => {
+  it("TikTok drafts can be approved from here (F20: Zernio reply path)", () => {
     const p = cardPlan(row({ platform: "tiktok", draftedReply: "thanks!" }), "drafted");
-    expect(p.primary).toBe("none");
-    expect(p.note).toMatch(/TikTok/);
+    expect(p.primary).toBe("approve");
   });
   it("sent shows the state, no buttons", () => {
     const p = cardPlan(row({ draftedReply: "thanks!", replyStatus: "planned" }), "sent");
@@ -202,7 +201,7 @@ describe("item plan", () => {
   it("one solid action while it waits", () => {
     expect(itemPlan(I).primary).toBe("write");
     expect(itemPlan({ ...I, state: "drafted", draftedReply: "thanks!" }).primary).toBe("approve");
-    expect(itemPlan({ ...I, platform: "tiktok", state: "drafted", draftedReply: "x" }).primary).toBe("none");
+    expect(itemPlan({ ...I, platform: "tiktok", state: "drafted", draftedReply: "x" }).primary).toBe("approve");
     expect(itemPlan({ ...I, triage: { ...T, bucket: "hide_flag" } })).toMatchObject({ primary: "none", canHide: true });
   });
   it("after the fact: state, no button", () => {

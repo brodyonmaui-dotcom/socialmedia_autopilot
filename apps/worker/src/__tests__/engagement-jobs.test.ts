@@ -232,13 +232,30 @@ describe("register + startup", () => {
   });
 
   it("startup line shows modes, live and killEnv", () => {
-    expect(engagementStartupLine(DEFAULT_ENGAGEMENT, false, false)).toBe("engagement modes: instagram=shadow youtube=shadow tiktok=off · live=false · killEnv=false");
+    expect(engagementStartupLine(DEFAULT_ENGAGEMENT, false, false)).toBe("engagement modes: instagram=shadow youtube=shadow tiktok=shadow · live=false · killEnv=false");
   });
 
-  it("without ANTHROPIC_API_KEY triage is rules only and flags everything", async () => {
+  it("without ANTHROPIC_API_KEY triage is rules-only: simple praise gets a draft, a question goes to Needs you", async () => {
     const lines: string[] = [];
     const client = triageClientFromEnv({}, (l) => lines.push(l));
-    expect(lines).toEqual(["triage: rules only (no ANTHROPIC_API_KEY)"]);
-    expect((await client.triage(comment("x", "love this"), {})).bucket).toBe("flag");
+    expect(lines).toEqual(["triage: rules-only drafts (no ANTHROPIC_API_KEY)"]);
+    expect(await client.triage(comment("x", "love this"), {})).toMatchObject({ bucket: "simple_positive", model: "rules-only" });
+    expect((await client.triage(comment("y", "what program do you run"), {})).bucket).toBe("flag");
+  });
+
+  it("rules-only drafts stay 'shadow' even when the platform is live (never auto-sent); a real model's still plan", async () => {
+    const store = new JobStore();
+    store.settings = normalizeEngagement({ mode: { youtube: "live" } });
+    await store.upsertComments([comment("p1", "clean form 🔥"), comment("p2", "how many sets do you do?"), comment("p3", "paid actor, cringe")]);
+    const r = await runEngagementTriageWith(store, triageClientFromEnv({}, quiet), { blocklist: [], now: NOW, log: quiet });
+    expect(r).toMatchObject({ triaged: 3, planned: 0, shadow: 1 });
+    expect(store.actions).toHaveLength(1);
+    expect(store.actions[0]).toMatchObject({ kind: "reply", status: "shadow", platformCommentId: "p1" });
+    expect(store.triaged.get("cm-2")!.bucket).toBe("flag");
+    expect(store.triaged.get("cm-3")!.bucket).toBe("flag");
+    const yt = source("youtube", []);
+    const tick = await runEngagementSendWith(store, new Map([["youtube" as const, yt.s]]), { dryRun: false, live: true, killEnv: false, log: quiet, now: () => new Date(NOW.getTime() + 60 * 60_000) });
+    expect(tick.considered).toBe(0);
+    expect(yt.calls).toEqual([]);
   });
 });

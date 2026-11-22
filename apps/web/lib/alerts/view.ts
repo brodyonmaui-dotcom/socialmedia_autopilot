@@ -223,6 +223,8 @@ export function describeAlert(a: AlertView, _now: Date, timeZone: string, extra:
       return { title: `A reply${where ? ` on ${where}` : ""} may or may not have gone out`, body: msg, actions: [{ kind: "link", label: "Open Inbox", href: "/inbox" }] };
     case "metrics-health":
       return { title: "Some numbers could not be fetched", body: msg, actions: [{ kind: "link", label: "Open Analytics", href: "/analytics" }] };
+    case "trial-reels-ready":
+      return { title: "Trial reels can be turned on", body: msg, actions: [{ kind: "link", label: "Open Settings", href: "/settings#trial-reels" }] };
     case "config":
       return { title: "A setting needs fixing", body: msg, actions: [{ kind: "link", label: "Open Settings", href: "/settings" }] };
     case "settings-change":

@@ -146,6 +146,17 @@ describe("triage job: reply-ready pings", () => {
     expect(s.pingAlerts).toEqual([{ commentId: null, platform: "all", message: "5 replies drafted, 2 need you" }]);
   });
 
+  it("hourly with per-platform counts: one digest per platform, tagged with its platform", async () => {
+    const s = new Store();
+    s.ping = { sentLastHour: 0, lastPingAt: null, lastDigestAt: null, waiting: { drafted: 7, flagged: 3 }, newSinceLastPing: 7, byPlatform: { instagram: { drafted: 7, flagged: 0 }, youtube: { drafted: 0, flagged: 3 } } };
+    const r = await runEngagementTriageWith(s, model().client, { blocklist: [], now: NOW, log: quiet });
+    expect(r.pings).toBe(2);
+    expect(s.pingAlerts).toEqual([
+      { commentId: null, platform: "instagram", message: "7 replies drafted to your Instagram comments" },
+      { commentId: null, platform: "youtube", message: "3 YouTube comments need you" },
+    ]);
+  });
+
   it("off: never a ping", async () => {
     const s = new Store();
     s.settings = normalizeEngagement({ pings: "off" });

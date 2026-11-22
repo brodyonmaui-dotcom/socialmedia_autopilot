@@ -52,6 +52,46 @@ function toIso(ts: string | undefined): string {
   return Number.isFinite(t) ? new Date(t).toISOString() : new Date(0).toISOString();
 }
 
+export interface YouTubeChannelLookupConfig {
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+  fetch?: FetchLike;
+}
+
+/** One lookup per refresh token per process (F20 B). Only successes are cached. */
+const channelIdCache = new Map<string, Promise<string>>();
+
+/** Test helper: forget cached channel ids. */
+export function clearYouTubeChannelIdCache(): void {
+  channelIdCache.clear();
+}
+
+/**
+ * Our channel id from `channels.list?part=id&mine=true` (1 quota unit, youtube.readonly) with the
+ * existing OAuth refresh flow, for when YT_CHANNEL_ID isn't set. Cached for the process. Throws with a
+ * redacted message when the token or the call fails, or no channel comes back.
+ */
+export async function resolveYouTubeChannelId(cfg: YouTubeChannelLookupConfig, signal?: AbortSignal): Promise<string> {
+  const cached = channelIdCache.get(cfg.refreshToken);
+  if (cached) return cached;
+  const p = (async () => {
+    const fetchImpl = cfg.fetch ?? ((url, init) => fetch(url, init));
+    const access = await refreshAccessToken({ clientId: cfg.clientId, clientSecret: cfg.clientSecret, refreshToken: cfg.refreshToken, fetch: fetchImpl }, signal);
+    const r = await getJson<YtList<{ id?: string }>>(fetchImpl, `${API}/channels?part=id&mine=true`, { headers: { Authorization: `Bearer ${access}` } }, signal);
+    if (r.status >= 300 || r.body.error) {
+      const msg = `youtube channels.list failed: HTTP ${r.status} ${r.body.error?.message ?? ""}`.trim();
+      throw new PlatformRequestError("youtube", r.status, r.body, redactToken(msg).split(access).join("***"));
+    }
+    const id = r.body.items?.[0]?.id;
+    if (!id) throw new NonRetryableError("youtube channels.list: no channel for this account");
+    return id;
+  })();
+  channelIdCache.set(cfg.refreshToken, p);
+  p.catch(() => channelIdCache.delete(cfg.refreshToken));
+  return p;
+}
+
 /**
  * YouTube comments via Data API v3. Reads cost 1 unit and work with youtube.readonly; reply and hide
  * (50 units each, youtube.force-ssl) exist only when enabled in config, so with the defaults the

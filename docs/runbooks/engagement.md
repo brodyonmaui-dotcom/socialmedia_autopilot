@@ -3,7 +3,7 @@
 Comments are polled, triaged (rules → model → rules), planned and stored. Design: `docs/design/F3.md`. Steps that change server or account state are marked **[changes state]**. An agent asks before running those; you run them.
 
 ## Shadow mode (the default)
-- `settings.engagement.mode` defaults to instagram `shadow`, youtube `shadow`, tiktok `off`.
+- `settings.engagement.mode` defaults to instagram `shadow`, youtube `shadow`, tiktok `shadow` (F20; it was `off` before TikTok comments came through Zernio). A mode stored in settings always wins over the default.
 - In shadow, everything is computed and stored as `shadow` rows. The inbox "Would reply" tab shows "would reply: …". **Nothing is sent or hidden**: the send tick never lists shadow rows.
 - Check the pipeline offline at any time: `pnpm simulate-engagement` (200 synthetic comments, both modes, fakes only). It prints one line. Details go to `logs/simulate-engagement.json`.
 
@@ -16,7 +16,7 @@ Comments are polled, triaged (rules → model → rules), planned and stored. De
 6. Per platform:
    - **Instagram:** the Page token needs `instagram_manage_comments` (granted in M0, `docs/research.md` engagement section). Check it with `./infra/probe.sh ig` (`comment_fields`).
    - **YouTube:** replies need the `youtube.force-ssl` scope. It means a re-consent session with the creator ([token-renewal.md](token-renewal.md)) **[changes state]**, then `YT_COMMENT_REPLIES=1` in `.env` **[changes state]**. Without both, the YouTube source can't reply (`no-capability`) and stays read-only.
-   - **TikTok:** out on the free plan (decision in `docs/design/F3.md`). Mode stays `off`.
+   - **TikTok:** comments and replies go through Zernio's Comments API (see "Drafts on every platform" below). Going live is the same checklist; the first live TikTok reply needs the creator's OK in chat.
 7. Watch the first hour: inbox → Sent tab. Expect no `engagement-failure` or `engagement-unknown` alerts.
 
 ## Limits (enforced right before every send)
@@ -56,7 +56,7 @@ The `youtube.force-ssl` scope is granted (2026-11-14 probe, `yt.scopes`). Replie
 ## Pings and one-tap approve (run 4)
 - `settings.engagement.pings` controls the pings: `hourly` (the default) sends one digest per hour while something new waits ("5 replies drafted, 2 need you"). `each` sends one push per drafted or flagged comment, up to 6 per hour, then one digest. `off` sends nothing. These are private notifications (alert kind `reply-ready`) and never make anything public.
 - A ping reads `@name commented: "…". Drafted: "…". Approve?` and links to `/app/inbox/item/<id>`. If the comment, the draft or the reason touches a place, a whereabouts question or the blocklist, the push says only "A comment needs you". Promo spam never pings.
-- **Approve & send** on the item page queues the drafted (or edited) reply as a manual action. It is the same row and the same path as "Send this reply". The worker's send tick applies every gate: dry-run plus the live flag, the kill switch, the limits, the thread re-read and unknown-state handling. A double tap reports "already queued/sent". Promo, abusive (`hide_flag`), TikTok, killed or blocked-author items are refused. Edited text must pass the privacy lint. While `DRY_RUN` is on (the web reads the same env name, default on), it records the reply and says so, but nothing goes out.
+- **Approve & send** on the item page queues the drafted (or edited) reply as a manual action. It is the same row and the same path as "Send this reply". The worker's send tick applies every gate: dry-run plus the live flag, the kill switch, the limits, the thread re-read and unknown-state handling. A double tap reports "already queued/sent". Promo, abusive (`hide_flag`), killed or blocked-author items are refused. TikTok is allowed since F20 (a Zernio reply path exists); the Inbox card still hides the button until the view helpers allow TikTok. Edited text must pass the privacy lint. While `DRY_RUN` is on (the web reads the same env name, default on), it records the reply and says so, but nothing goes out.
 - **Auto-send is still his explicit OK in chat**, per platform (go-live checklist above). Nothing in run 4 turns on auto-replies: shadow stays the default.
 - Migration `0012_inbox_ignore.sql` **[changes state]** is additive and safe to re-run. Apply it by hand as in [migrations.md](migrations.md) before deploying the worker.
 
@@ -65,3 +65,8 @@ The `youtube.force-ssl` scope is granted (2026-11-14 probe, `yt.scopes`). Replie
 
 ### DM drafts (read-only, never sends)
 `dm-poll` is off by default. The inbox has a toggle "Turn on DM drafts (read-only, never sends)" that records an audit event. Nothing is ever sent from DMs.
+
+## Drafts on every platform (F20 B)
+- **Without `ANTHROPIC_API_KEY`** the worker logs `triage: rules-only drafts (no ANTHROPIC_API_KEY)`. After the pre-rules, a comment that is short (≤ 12 words, ≤ 120 chars), has no `?` and isn't a question, and has no negative or sensitive words gets a drafted pool reply (`model 'rules-only'`, same rotation and per-person limits as model drafts). Questions, negativity, sensitive topics and long comments go to **Needs you**. Promo stays ignored. Rules-only drafts are **always stored as `shadow`**, even on a `live` platform: they go out only when the creator taps Approve. Code: `packages/engagement/src/triage-rules.ts`.
+- **YouTube without `YT_CHANNEL_ID`:** at startup the worker looks the channel up once with `channels.list?part=id&mine=true` (1 quota unit, the existing OAuth refresh) and logs `youtube comments: channel id resolved…`. If that fails it logs `youtube comments skipped: …` and polls no YouTube comments. Setting `YT_CHANNEL_ID` skips the lookup.
+- **TikTok:** with `ZERNIO_API_KEY` + `ZERNIO_TIKTOK_ACCOUNT_ID` (the posting keys) the worker reads TikTok comments through Zernio (`GET /v1/inbox/comments?platform=tiktok&accountId=…`, then each post's thread; 10 newest posts per poll, every 15 min) and can reply (`POST /v1/inbox/comments/{postId}` with the action's `Idempotency-Key`). No hide, like or delete. Comment ids are stored as `<postId>:<commentId>[:<replyId>]`. Zernio's lists lag up to 10 min, so each poll re-reads a 15-minute overlap (the DB dedupes). Only Business-app connections are served: otherwise the worker logs `tiktok comments: source unavailable (PLATFORM_LIMITATION)` once and polls return nothing. Without the Zernio keys the startup line shows `tiktok(stub: no Zernio keys)`.

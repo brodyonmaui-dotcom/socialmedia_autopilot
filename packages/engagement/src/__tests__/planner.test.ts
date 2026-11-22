@@ -79,8 +79,9 @@ describe("planActions", () => {
     ]);
   });
 
-  it("mode off → none (TikTok is off by default); shadow still plans", async () => {
-    expect(await planActions(comment({ platform: "tiktok" }), triage(), S, fakeHistory().h, NOW)).toEqual([
+  it("mode off → none (a stored TikTok off wins over the shadow default); shadow still plans", async () => {
+    const ttOff = normalizeEngagement({ mode: { tiktok: "off" } });
+    expect(await planActions(comment({ platform: "tiktok" }), triage(), ttOff, fakeHistory().h, NOW)).toEqual([
       { kind: "none", reason: "mode off" },
     ]);
     const off = normalizeEngagement({ mode: { instagram: "off" } });

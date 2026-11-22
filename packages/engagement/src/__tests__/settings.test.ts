@@ -4,7 +4,8 @@ import { DEFAULT_ENGAGEMENT, normalizeEngagement } from "../settings.js";
 
 describe("DEFAULT_ENGAGEMENT", () => {
   it("matches the run-2 decisions", () => {
-    expect(DEFAULT_ENGAGEMENT.mode).toEqual({ instagram: "shadow", youtube: "shadow", tiktok: "off" });
+    // F20 B: TikTok comments via Zernio → shadow (drafts only) like the others.
+    expect(DEFAULT_ENGAGEMENT.mode).toEqual({ instagram: "shadow", youtube: "shadow", tiktok: "shadow" });
     expect(DEFAULT_ENGAGEMENT.killed).toBe(false);
     expect(DEFAULT_ENGAGEMENT.hideEnabled).toEqual({ instagram: false, youtube: false, tiktok: false });
     expect(DEFAULT_ENGAGEMENT.limits).toEqual({ perPersonDays: 7, perPlatformPerHour: 10, perPlatformPerDay: 40, globalPerDay: 80 });
@@ -37,7 +38,7 @@ describe("normalizeEngagement", () => {
       dmPollVerified: true,
       somethingElse: 1,
     });
-    expect(out.mode).toEqual({ instagram: "live", youtube: "shadow", tiktok: "off" });
+    expect(out.mode).toEqual({ instagram: "live", youtube: "shadow", tiktok: "shadow" });
     expect(out.killed).toBe(true);
     expect(out.killedReason).toBe("manual");
     expect(out.hideEnabled).toEqual({ instagram: false, youtube: true, tiktok: false });
@@ -60,6 +61,7 @@ describe("normalizeEngagement", () => {
       dmPollVerified: 1,
     });
     expect(out.mode).toEqual({ instagram: "shadow", youtube: "shadow", tiktok: "live" });
+    expect(normalizeEngagement({ mode: { tiktok: "off" } }).mode.tiktok).toBe("off"); // a stored mode wins over the default
     expect(out.killed).toBe(false);
     expect(out.hideEnabled.instagram).toBe(false);
     expect(out.limits).toEqual({ perPersonDays: 0, perPlatformPerHour: 10, perPlatformPerDay: 40, globalPerDay: 0 });

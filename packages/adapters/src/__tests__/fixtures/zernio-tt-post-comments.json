@@ -1,0 +1,38 @@
+{
+  "status": "success",
+  "comments": [
+    {
+      "id": "7302000000000000011",
+      "message": "this is fire 🔥",
+      "createdTime": "2026-11-22T10:00:00Z",
+      "from": { "id": "tt_user_1", "username": "fan_one", "name": "Fan One" },
+      "likeCount": 3,
+      "replyCount": 1,
+      "replies": [
+        { "id": "7302000000000000012", "message": "appreciate you", "createdTime": "2026-11-22T10:30:00Z", "from": { "id": "tt_creator", "username": "creator_fake", "name": "Creator", "isOwner": true }, "likeCount": 0, "replyCount": 0, "canReply": true }
+      ],
+      "canReply": true
+    },
+    {
+      "id": "7302000000000000021",
+      "message": "how many sets?",
+      "createdTime": "2026-11-22T09:00:00Z",
+      "from": { "id": "tt_user_2", "username": "fan_two", "name": "Fan Two" },
+      "likeCount": 0,
+      "replyCount": 0,
+      "replies": [],
+      "canReply": true
+    },
+    {
+      "id": "7302000000000000031",
+      "message": "hidden spam",
+      "createdTime": "2026-11-22T08:00:00Z",
+      "from": { "id": "tt_user_3", "username": "spam_three" },
+      "replies": [],
+      "canReply": true,
+      "isHidden": true
+    }
+  ],
+  "pagination": { "hasMore": false },
+  "meta": { "platform": "tiktok", "postId": "7301000000000000001", "accountId": "acct_tt_fake" }
+}
