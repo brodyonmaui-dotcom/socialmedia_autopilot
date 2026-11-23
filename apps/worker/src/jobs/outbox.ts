@@ -13,6 +13,7 @@ import {
 } from "@autopilot/core";
 import { buildAdapters, type AdapterCredentials } from "@autopilot/adapters";
 import { loadCadence } from "@autopilot/db";
+import { igTrialDefault } from "./trial-reels.js";
 import { blocklistFromEnv, lintText } from "@autopilot/research";
 
 /** Only what the store needs from pg.Pool, so tests pass a recording fake (same pattern as db/settings.ts). */
@@ -129,7 +130,11 @@ export class PgOutboxStore implements OutboxStore {
     };
   }
 
+  /** F20-F: post ids that got the Settings default trial this tick; markPublished records it so analytics sees a trial. */
+  private readonly defaultTrial = new Map<string, "MANUAL">();
+
   async listDue(now: Date): Promise<OutboxPost[]> {
+    const dflt = await igTrialDefault(this.pool).catch(() => null); // read per tick, not at startup; a read failure = plain reels
     const { rows } = await this.pool.query(
       // Approval gate (F2): only items stamped approved, in a batch that is itself approved, ever fire.
       `${SELECT} join batches b on b.id = bi.batch_id
@@ -138,7 +143,18 @@ export class PgOutboxStore implements OutboxStore {
        order by bi.scheduled_for asc`,
       [now.toISOString()],
     );
-    return (rows as Row[]).map((r) => this.toDuePost(r)).filter((p): p is OutboxPost => p !== null);
+    const posts = (rows as Row[]).map((r) => this.toDuePost(r)).filter((p): p is OutboxPost => p !== null);
+    if (dflt) {
+      for (const p of posts) {
+        const own = (rows as Row[]).find((r) => r.id === p.id)?.trial;
+        if (p.platform === "instagram" && !p.trial && own == null) {
+          p.trial = { graduationStrategy: dflt };
+          this.defaultTrial.set(p.id, dflt);
+          this.log(`[outbox] item ${p.id}: instagram trial reel (Settings default, ${dflt}); a refusal falls back to a regular reel`);
+        }
+      }
+    }
+    return posts;
   }
 
   async listStale(before: Date): Promise<OutboxPost[]> {
@@ -158,6 +174,9 @@ export class PgOutboxStore implements OutboxStore {
   async markPublished(postId: string, result: PublishResult, attempts: number, now: Date): Promise<void> {
     // trial.fellBack=true is what packages/analytics reads to tell a real trial from a fallback reel.
     const patch: Record<string, unknown> = {};
+    const dflt = this.defaultTrial.get(postId);
+    this.defaultTrial.delete(postId);
+    if (dflt) patch.graduationStrategy = dflt;
     if (result.trialFellBack) patch.fellBack = true;
     if (result.flags?.length) patch.flags = result.flags;
     await this.pool.query(

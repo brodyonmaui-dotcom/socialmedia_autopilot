@@ -62,7 +62,8 @@ beforeEach(() => {
 describe("settings actions without a session", () => {
   it("exports the expected actions", () => {
     expect(exported.map(([n]) => n).sort()).toEqual(
-      ["addPromoAccountAction", "logoutEverywhereAction", "removePromoAccountAction", "saveCapsAction", "setDmDraftsAction", "setEditorApprovalAction", "setPauseAction", "setPingsAction", "setReplyModeAction"].sort(),
+      ["addPromoAccountAction", "logoutEverywhereAction", "removePromoAccountAction", "saveCapsAction", "setDmDraftsAction", "setEditorApprovalAction",
+      "setIgTrialReelsAction", "setPauseAction", "setPingsAction", "setReplyModeAction", "setTouchupAutofixAction"].sort(),
     );
   });
 

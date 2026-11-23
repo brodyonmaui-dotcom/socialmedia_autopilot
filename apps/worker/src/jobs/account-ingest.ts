@@ -15,6 +15,7 @@ import { sanitizeForLog, type Platform } from "@autopilot/core";
 import { getSetting, setSetting } from "@autopilot/db";
 import type { OutboxPool } from "./outbox.js";
 import type { BossLike } from "./register-engagement.js";
+import { checkTrialReelsReady } from "./trial-reels.js";
 import { raiseMetricsHealthAlert, type AnalyticsSourcesEnv } from "./analytics-ingest.js";
 
 /**
@@ -103,6 +104,11 @@ export async function runAccountIngestOnce(
     log(`[account] metrics-health ${p}: ${raised ? "alert raised" : "alert already open"}`);
   }
   await setSetting(pool, ACCOUNT_HEALTH_KEY, health.state);
+  try {
+    await checkTrialReelsReady(pool, now, log);
+  } catch (err) {
+    log(`[account] trial-reels check failed: ${safeErrorMessage(err)}`);
+  }
   return out;
 }
 

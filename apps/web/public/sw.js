@@ -38,6 +38,7 @@ const KIND_LABELS = {
   "batch-ready": "Next week drafted",
   "report-ready": "Weekly report",
   "missed-slot": "Missed post",
+  "trial-reels-ready": "Trial reels",
 };
 
 function notificationView(data) {

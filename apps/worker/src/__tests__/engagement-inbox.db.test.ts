@@ -78,4 +78,24 @@ describe.skipIf(!url)("PgEngagementStore run 4 (db)", () => {
     expect(rows).toEqual([{ kind: "reply-ready", comment_id: ids[1] }]);
     await pool.query(`update alerts set acknowledged_at = now(), pushed_at = coalesce(pushed_at, now()) where message = $1`, [`dbs ${run}`]);
   });
+
+  it("a digest is one open row per platform: the second hour updates it (and re-arms the push), never stacks", async () => {
+    const plat = "tiktok";
+    const open = async () => (await pool.query(`select id, message, created_at, pushed_at from alerts where kind = 'reply-ready' and comment_id is null and platform = $1 and acknowledged_at is null`, [plat])).rows;
+    await pool.query(`update alerts set acknowledged_at = now(), pushed_at = coalesce(pushed_at, now()) where kind = 'reply-ready' and comment_id is null and platform = $1 and acknowledged_at is null`, [plat]);
+    const t1 = new Date("2099-01-01T10:00:00Z");
+    const t2 = new Date("2099-01-01T11:00:00Z");
+    await store.insertReplyReadyAlert(null, plat, `3 TikTok comments need you ${run}`, t1);
+    const first = await open();
+    expect(first).toHaveLength(1);
+    await pool.query(`update alerts set pushed_at = now() where id = $1`, [first[0].id]);
+    await store.insertReplyReadyAlert(null, plat, `4 TikTok comments need you ${run}`, t2);
+    const second = await open();
+    expect(second).toHaveLength(1);
+    expect(second[0].id).toBe(first[0].id);
+    expect(second[0].message).toBe(`4 TikTok comments need you ${run}`);
+    expect(new Date(second[0].created_at).toISOString()).toBe(t2.toISOString());
+    expect(second[0].pushed_at).toBeNull();
+    await pool.query(`update alerts set acknowledged_at = now(), pushed_at = coalesce(pushed_at, now()) where id = $1`, [first[0].id]);
+  });
 });

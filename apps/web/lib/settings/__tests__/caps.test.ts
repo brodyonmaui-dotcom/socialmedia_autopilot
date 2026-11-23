@@ -25,3 +25,19 @@ describe("caps form", () => {
     expect(capHelper("instagram", { ...base, stored: { instagram: 4 } })).toBe("Saved · default 6 · max 25");
   });
 });
+
+describe("instagram daily minimum", () => {
+  it("parses 0..6 whole numbers only", async () => {
+    const { parseDailyMinForm } = await import("../daily-min.js");
+    expect(parseDailyMinForm("2")).toEqual({ ok: true, value: 2 });
+    expect(parseDailyMinForm(" 0 ")).toEqual({ ok: true, value: 0 });
+    expect(parseDailyMinForm("6")).toEqual({ ok: true, value: 6 });
+    for (const bad of ["7", "-1", "1.5", "", "x", null]) expect(parseDailyMinForm(bad).ok).toBe(false);
+  });
+  it("stored value falls back to 2", async () => {
+    const { parseInstagramDailyMin } = await import("@autopilot/core");
+    expect([undefined, "3", 9, -1, 1.5, null].map(parseInstagramDailyMin)).toEqual([2, 2, 2, 2, 2, 2]);
+    expect(parseInstagramDailyMin(4)).toBe(4);
+    expect(parseInstagramDailyMin(0)).toBe(0);
+  });
+});

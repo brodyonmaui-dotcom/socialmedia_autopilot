@@ -264,3 +264,11 @@ describe("clip dialog: where it's used", () => {
     expect(clipUseLines([], "UTC")).toEqual([]);
   });
 });
+
+describe("keepAllNote (F20 C)", () => {
+  it("says what is still in flight", async () => {
+    const { keepAllNote } = await import("../screen.js");
+    expect(keepAllNote(12, 0, 0, 8, 3)).toBe("Kept 12 · 8 still fixing · 3 can't be fixed automatically");
+    expect(keepAllNote(1, 0, 0)).toBe("Kept 1");
+  });
+});

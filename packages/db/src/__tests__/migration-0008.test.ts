@@ -56,7 +56,7 @@ describe("alert types", () => {
   });
 
   it("PUSH_KINDS_DEFAULT is the approved set and every entry is a known kind", () => {
-    expect(new Set(PUSH_KINDS_DEFAULT)).toEqual(new Set(["engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth", "ready-for-approval", "reply-ready", "auto-scheduled", "batch-ready"]));
+    expect(new Set(PUSH_KINDS_DEFAULT)).toEqual(new Set(["engagement-kill", "unknown-outcome", "final-failure", "token-health", "auth", "ready-for-approval", "reply-ready", "auto-scheduled", "batch-ready", "trial-reels-ready"]));
     for (const k of PUSH_KINDS_DEFAULT) expect(isAlertKind(k)).toBe(true);
     expect(new Set(ALERT_KINDS).size).toBe(ALERT_KINDS.length);
     expect(isAlertKind("nope")).toBe(false);

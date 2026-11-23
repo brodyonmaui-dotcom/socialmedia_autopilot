@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { FRAME_COUNT_SQL } from "../../../components/frame-counts.js";
-import { dismissIssue, loadTouchUp, requestFix, keepOriginal } from "../data.js";
+import { dismissIssue, isUnfixable, keepAllFixes, loadTouchUp, requestFix, keepOriginal } from "../data.js";
 import { loadPillars } from "../pillars.js";
 
 /**
@@ -28,7 +28,7 @@ describe.skipIf(!url)("touch-up badge count (db)", () => {
     );
     ids[key] = r.rows[0].id;
   };
-  const counts = async () => ({ badge: Number((await db.query(FRAME_COUNT_SQL.touchUp)).rows[0].n), listed: (await loadTouchUp(db)).length });
+  const counts = async () => ({ badge: Number((await db.query(FRAME_COUNT_SQL.touchUp)).rows[0].n), listed: (await loadTouchUp(db)).filter((c) => !isUnfixable(c)).length });
 
   beforeAll(async () => {
     pool = new pg.Pool({ connectionString: url });
@@ -62,6 +62,19 @@ describe.skipIf(!url)("touch-up badge count (db)", () => {
     expect((await counts()).badge).toBe(start.badge + 1); // a failed fix still needs him
     await keepOriginal(db, fix);
     expect(await counts()).toEqual({ badge: start.badge, listed: start.listed });
+  });
+
+  it("unfixable-only clips are listed apart, not counted, and Keep all reports them", async () => {
+    const MIDDLE = { code: "frozen-middle", severity: "fix", fixable: false, detail: "Mostly still." };
+    const start = await counts();
+    const all0 = (await loadTouchUp(db)).filter(isUnfixable).length;
+    await media("cant", qaV2([MIDDLE]));
+    expect((await counts()).badge).toBe(start.badge);
+    const all = await loadTouchUp(db);
+    expect(all.filter(isUnfixable).length).toBe(all0 + 1);
+    expect(all.find((c) => c.mediaId === ids.cant)).toBeTruthy();
+    const r = await keepAllFixes(db, null);
+    expect(r.cantFix).toBe(all0 + 1);
   });
 
   it("loadPillars lists distinct pillars", async () => {

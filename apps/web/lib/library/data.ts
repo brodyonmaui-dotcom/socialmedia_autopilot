@@ -374,6 +374,10 @@ export async function keepFix(pool: Db, fixId: string, sessionId: string | null)
 export interface KeepAllResult {
   /** Fixes kept. */
   kept: number;
+  /** Still queued or running after this Keep all. */
+  stillFixing: number;
+  /** Clips Fix it can't change (shown in "Can't be fixed automatically"). */
+  cantFix: number;
   /** Fixes that couldn't be kept (threw, or changed state meanwhile). */
   failed: number;
   /** Approved/queued/published posts left on the original, across all kept fixes. */
@@ -389,7 +393,7 @@ export async function keepAllFixes(pool: Db, sessionId: string | null, now: Date
     `select id from media_fixes where status = 'done' and fixed_media_id is not null and requested_at <= $1 order by requested_at, id limit 200`,
     [now],
   )) as { rows: Array<{ id: string }> };
-  const out: KeepAllResult = { kept: 0, failed: 0, stayed: 0 };
+  const out: KeepAllResult = { kept: 0, stillFixing: 0, cantFix: 0, failed: 0, stayed: 0 };
   for (const r of rows) {
     try {
       const k = await keepFix(pool, r.id, sessionId);
@@ -401,7 +405,20 @@ export async function keepAllFixes(pool: Db, sessionId: string | null, now: Date
       out.failed++;
     }
   }
+  out.stillFixing = (await loadFixProgress(pool)).pending;
+  out.cantFix = (await loadTouchUp(pool)).filter(isUnfixable).length;
   return out;
+}
+
+/** Flagged only by things Fix it can't change (and no fix yet): shown apart, never counted as "needs fixing". */
+export const isUnfixable = (c: Pick<TouchUpClip, "fixOps" | "fix">): boolean => c.fix.state === "none" && c.fixOps.length === 0;
+
+/** Older clips (before QA v2) the worker hasn't re-checked yet; same rule as the recheck job. */
+export async function countUnchecked(pool: Db): Promise<number> {
+  const { rows } = await pool.query(
+    `select count(*)::int as n from media where r2_key like 'library/%' and (qa is null or qa->>'version' is distinct from '2')`,
+  );
+  return Number((rows[0] as { n: number }).n);
 }
 
 export interface FixProgress {

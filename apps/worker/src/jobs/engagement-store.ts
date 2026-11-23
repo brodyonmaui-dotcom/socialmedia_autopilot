@@ -492,12 +492,18 @@ export class PgEngagementStore implements EngagementJobStore, InboxJobStore {
   async pingState(now: Date): Promise<PingState> {
     const { rows } = await this.pool.query(
       `with p as (select max(created_at) as last_ping, max(created_at) filter (where comment_id is null) as last_digest,
-                         count(*) filter (where created_at > $1::timestamptz - interval '1 hour')::int as last_hour
+                         count(*) filter (where comment_id is not null and created_at > $1::timestamptz - interval '1 hour')::int as last_hour
                     from alerts where kind = 'reply-ready')
        select p.last_ping, p.last_digest, p.last_hour,
               (select count(*)::int from engagement_actions a join comment_triage t on t.comment_id = a.comment_id
                 where a.kind = 'reply' and a.status = 'shadow' and t.handled_at is null) as drafted,
               (select count(*)::int from comment_triage where bucket in ('flag','hide_flag') and handled_at is null) as flagged,
+              (select coalesce(jsonb_object_agg(platform, jsonb_build_object('drafted', dr, 'flagged', fl)), '{}'::jsonb) from (
+                 select c.platform, count(*) filter (where exists (select 1 from engagement_actions a where a.comment_id = t.comment_id and a.kind = 'reply' and a.status = 'shadow'))::int as dr,
+                        count(*) filter (where t.bucket in ('flag','hide_flag'))::int as fl
+                   from comment_triage t join comments c on c.id = t.comment_id where t.handled_at is null
+                    and (t.bucket in ('flag','hide_flag') or exists (select 1 from engagement_actions a where a.comment_id = t.comment_id and a.kind = 'reply' and a.status = 'shadow'))
+                  group by c.platform) x) as by_platform,
               (select count(*)::int from comment_triage t where t.handled_at is null and t.decided_at > coalesce(p.last_ping, '-infinity'::timestamptz)
                   and (t.bucket in ('flag','hide_flag') or exists (select 1 from engagement_actions a where a.comment_id = t.comment_id and a.kind = 'reply' and a.status = 'shadow'))) as fresh
          from p`,
@@ -510,10 +516,32 @@ export class PgEngagementStore implements EngagementJobStore, InboxJobStore {
       lastDigestAt: r.last_digest ? new Date(r.last_digest) : null,
       waiting: { drafted: Number(r.drafted ?? 0), flagged: Number(r.flagged ?? 0) },
       newSinceLastPing: Number(r.fresh ?? 0),
+      byPlatform: (r.by_platform ?? {}) as NonNullable<PingState["byPlatform"]>,
     };
   }
 
+  /**
+   * Per-item pings (commentId set) insert a row. A digest (commentId null) is one open row per platform:
+   * update the newest open one (message, created_at, pushed_at null so it pushes again) or insert; older
+   * stacked digests of that platform and the legacy all-platform ones are acknowledged (superseded).
+   */
   async insertReplyReadyAlert(commentId: string | null, platform: string, message: string, now: Date): Promise<void> {
+    if (commentId === null) {
+      const { rows } = await this.pool.query(
+        `update alerts set message = $2, created_at = $3, pushed_at = null
+          where id = (select id from alerts where kind = 'reply-ready' and comment_id is null and platform = $1 and acknowledged_at is null order by created_at desc, id limit 1)
+          returning id`,
+        [platform, message, now],
+      );
+      let keep = rows[0]?.id as string | undefined;
+      if (!keep) keep = (await this.pool.query(`insert into alerts (kind, platform, message, comment_id, created_at) values ('reply-ready', $1, $2, null, $3) returning id`, [platform, message, now])).rows[0].id;
+      await this.pool.query(
+        `update alerts set acknowledged_at = $3, pushed_at = coalesce(pushed_at, $3)
+          where kind = 'reply-ready' and comment_id is null and acknowledged_at is null and id <> $2 and (platform = $1 or platform = 'all')`,
+        [platform, keep, now],
+      );
+      return;
+    }
     await this.pool.query(`insert into alerts (kind, platform, message, comment_id, created_at) values ('reply-ready', $1, $2, $3, $4)`, [platform, message, commentId, now]);
   }
 }

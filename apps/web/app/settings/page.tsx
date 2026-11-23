@@ -32,6 +32,11 @@ import { inboxHref } from "../../lib/inbox/view.js";
 import { countActiveSubscriptions } from "../../lib/push/subscriptions.js";
 import { loadResearchStatus } from "../../lib/research/ideas.js";
 import { loadCaps } from "../../lib/settings/caps.js";
+import { IgTrialReelsSwitch } from "../../components/settings/IgTrialReels.js";
+import { getIgTrialReels } from "../../lib/settings/ig-trial.js";
+import { TouchupAutofixSwitch } from "../../components/settings/TouchupAutofix.js";
+import { getTouchupAutofix } from "../../lib/settings/touchup-autofix.js";
+import { DAILY_MIN_LIMITS, getInstagramDailyMin } from "../../lib/settings/daily-min.js";
 import { getEditorApprovalCounts } from "../../lib/settings/editor-approval.js";
 import { aiNotesLine, lastRunLine, PING_LABEL, PINGS, REPLY_PLATFORMS, shortDate, zoneNotice } from "../../lib/settings/replies.js";
 import { capHelper } from "../../lib/settings/view.js";
@@ -57,7 +62,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
   const sp = await searchParams;
   const pool = getPool();
   const zone = creatorZone();
-  const [caps, theme, engagement, promo, research, devices, editorApproval] = await Promise.all([
+  const [caps, theme, engagement, promo, research, devices, editorApproval, touchupAutofix, igDailyMin, igTrial] = await Promise.all([
     loadCaps(pool),
     getTheme(),
     loadEngagement(pool),
@@ -65,6 +70,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
     loadResearchStatus(pool),
     countActiveSubscriptions(pool),
     getEditorApprovalCounts(pool),
+    getTouchupAutofix(pool),
+    getInstagramDailyMin(pool),
+    getIgTrialReels(pool),
   ]);
   // Runtime env (not NEXT_PUBLIC_*): the public key is safe to send; the private key never leaves the worker.
   const vapid = process.env.VAPID_PUBLIC_KEY?.trim();
@@ -110,6 +118,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
                   <Stepper label={`${PLATFORM_NAME[p]} posts a day`} name={`cap-${p}`} min={0} max={caps.limits[p]} defaultValue={caps.effective[p]} />
                 </li>
               ))}
+              <li className="flex items-center gap-3 py-3">
+                <span aria-hidden="true" className="inline-flex size-9 shrink-0 items-center justify-center rounded-ds-sm bg-ds-raised text-ds-text">
+                  <PlatformLogo platform="instagram" size={18} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-semibold text-ds-text">Instagram minimum</span>
+                  <span className="block text-[13px] text-ds-muted">Each afternoon, tomorrow is topped up with captioned drafts to this many. You approve them.</span>
+                </span>
+                <Stepper label="Instagram posts a day to aim for" name="instagram-min" min={DAILY_MIN_LIMITS.min} max={DAILY_MIN_LIMITS.max} defaultValue={igDailyMin} />
+              </li>
             </ul>
             <div className="mt-auto flex flex-col gap-3 border-t border-ds-line pt-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-[13px] text-ds-muted">Each change is logged under Notifications.</p>
@@ -249,9 +267,15 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           <EnablePush vapidPublicKey={isVapidPublicKey(vapid) ? vapid : null} activeCount={devices} />
         </div>
 
-        <div className="flex flex-col gap-3 lg:col-span-4 lg:gap-4">
+        <div className="flex flex-col gap-3 lg:col-span-4 lg:gap-4 [&>section]:h-auto [&>section]:shrink-0">
           <Card title="Editor approval counts" titleId="editor" subtitle="Skip the second tap for renders you already approved while editing." className="scroll-mt-20">
             <EditorApprovalSwitch on={editorApproval} />
+          </Card>
+          <Card title="Touch-up" titleId="touchup" subtitle="Clips with something to fix." className="scroll-mt-20">
+            <TouchupAutofixSwitch on={touchupAutofix} />
+          </Card>
+          <Card title="Instagram trial reels" titleId="trial-reels" subtitle="Show new reels to non-followers first." className="scroll-mt-20">
+            <IgTrialReelsSwitch {...igTrial} />
           </Card>
           <Card title="Appearance" titleId="appearance">
             <ThemeToggle initial={theme} variant="row" />

@@ -174,7 +174,7 @@ const queuedMessage = (dryRun: boolean, already: boolean) =>
 
 /**
  * One-tap "Approve & send". Idempotent: a second tap reports "already queued/sent". Refuses promo spam,
- * hide+flag comments, own comments, a killed engine, a blocked author, TikTok (no comment replies) and
+ * hide+flag comments, own comments, a killed engine, a blocked author and
  * any reply text that fails the privacy lint. Acknowledges the item's reply-ready alert when it queues.
  */
 export async function approveAndSend(deps: ApproveDeps, id: string, input: ApproveInput): Promise<ApproveResult> {
@@ -197,7 +197,6 @@ export async function approveAndSend(deps: ApproveDeps, id: string, input: Appro
   if (!item.triage) return { status: "refused", reason: "not triaged yet" };
   if (item.triage.bucket === "spam_promo") return { status: "refused", reason: "ignored as promo spam: tap Not spam first" };
   if (item.triage.bucket === "hide_flag") return { status: "refused", reason: "flagged as abusive: no reply from here" };
-  if (item.platform === "tiktok") return { status: "refused", reason: "TikTok comment replies are not supported" };
 
   const settings = normalizeEngagement(await getSetting<unknown>(pool as Pool, "engagement"));
   if (settings.killed || deps.killEnv) return { status: "refused", reason: "auto-replies are killed: resume first" };

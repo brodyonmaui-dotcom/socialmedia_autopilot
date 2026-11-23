@@ -78,7 +78,7 @@ describe("platforms view", () => {
 
   it("reply mode words; Auto shows Paused while killed", () => {
     expect(replyView("instagram", DEFAULT_ENGAGEMENT).label).toBe("Drafts only");
-    expect(replyView("tiktok", DEFAULT_ENGAGEMENT).label).toBe("Off");
+    expect(replyView("tiktok", DEFAULT_ENGAGEMENT).label).toBe("Drafts only");
     const live = { ...DEFAULT_ENGAGEMENT, mode: { ...DEFAULT_ENGAGEMENT.mode, youtube: "live" as const } };
     expect(replyView("youtube", live)).toMatchObject({ label: "Auto", tone: "accent" });
     expect(replyView("youtube", { ...live, killed: true }).label).toBe("Paused");

@@ -3,23 +3,24 @@
 // new media row (derived_from = the original) → status 'done'. The original row and file are never changed.
 // Nothing here publishes anything: a fixed clip only becomes postable when the creator taps "Keep the fix",
 // and even then only draft calendar items are re-pointed (apps/web/lib/library).
-import { createReadStream, createWriteStream, mkdtempSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
-import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import {
   FFMPEG_MISSING_MESSAGE,
+  FIX_OP_ORDER,
   FixError,
   hasBinary,
   insertMediaRow,
   makePoster,
+  OP_FOR_CODE,
+  OPT_IN_OPS,
   planFix,
   runFix,
   runQa,
   sha256File,
   type FixOp,
+  type MediaStorage,
   type QaResult,
 } from "@autopilot/media";
 import type PgBoss from "pg-boss";
@@ -30,31 +31,8 @@ export interface Queryable {
   query(sql: string, params?: unknown[]): Promise<{ rows: any[]; rowCount?: number | null }>;
 }
 
-/** The R2 operations the fix + recheck jobs need. */
-export interface MediaStorage {
-  download(key: string, toPath: string): Promise<void>;
-  upload(key: string, fromPath: string, contentType: string): Promise<void>;
-}
-
-/** Same env names as the laptop ingest agent (tools/ingest-agent). Null when any is missing. */
-export function r2StorageFromEnv(env: NodeJS.ProcessEnv): MediaStorage | null {
-  const accountId = env.R2_ACCOUNT_ID?.trim();
-  const accessKeyId = env.R2_ACCESS_KEY_ID?.trim();
-  const secretAccessKey = env.R2_SECRET_ACCESS_KEY?.trim();
-  const bucket = env.R2_BUCKET_MEDIA?.trim();
-  if (!accountId || !accessKeyId || !secretAccessKey || !bucket) return null;
-  const client = new S3Client({ region: "auto", endpoint: `https://${accountId}.r2.cloudflarestorage.com`, credentials: { accessKeyId, secretAccessKey } });
-  return {
-    async download(key, toPath) {
-      const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-      if (!res.Body) throw new Error("storage: empty object");
-      await pipeline(res.Body as Readable, createWriteStream(toPath));
-    },
-    async upload(key, fromPath, contentType) {
-      await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: createReadStream(fromPath), ContentLength: statSync(fromPath).size, ContentType: contentType }));
-    },
-  };
-}
+// The R2 client moved to @autopilot/media (storage.ts) so the reel job and the web sound upload share it.
+export { r2StorageFromEnv, type MediaStorage } from "@autopilot/media";
 
 export const STORAGE_MISSING_MESSAGE = "Storage (R2) is not set up in the worker, so touch-up fixes can't run";
 export const MEDIA_FIX_CONFIG_MESSAGE = `Touch-up fixes are paused: ${FFMPEG_MISSING_MESSAGE}. Rebuild the worker image (docs/runbooks/touch-up.md).`;
@@ -68,6 +46,41 @@ export async function raiseMediaConfigAlert(db: Queryable, message: string, now:
       where not exists (select 1 from alerts where kind = 'config' and acknowledged_at is null and message = $1)
      returning id`,
     [message, now.toISOString()],
+  );
+  return rows.length === 1;
+}
+
+/** Setting `touchup_autofix` (jsonb boolean, default ON): only an explicit `false` turns auto-queueing off. */
+export async function isAutoFixOn(db: Queryable): Promise<boolean> {
+  const { rows } = await db.query("select value from settings where key = 'touchup_autofix'");
+  return rows[0]?.value !== false;
+}
+
+/**
+ * Right after QA flags a clip: queue the default fix (fixable `fix` issues, not dismissed, opt-in ops off)
+ * when the setting is on and the clip has no fix history at all (no open, failed, kept or discarded fix) and
+ * is not itself a fixed copy. Same insert as the web's requestFix, on conflict do nothing. Originals are never
+ * touched; keeping stays the creator's tap. Returns true when a fix was queued.
+ */
+export async function autoQueueFix(db: Queryable, mediaId: string, qa: QaResult): Promise<boolean> {
+  if (qa?.version !== 2 || !Array.isArray(qa.issues)) return false;
+  if (!(await isAutoFixOn(db))) return false;
+  const dismissed = new Set(
+    ((await db.query("select code from touchup_dismissals where media_id = $1 and undone_at is null", [mediaId])).rows as Array<{ code: string }>).map((r) => r.code),
+  );
+  const want = new Set(
+    qa.issues.filter((i) => i.severity === "fix" && i.fixable && !dismissed.has(i.code)).flatMap((i) => (OP_FOR_CODE[i.code] ? [OP_FOR_CODE[i.code]!] : [])),
+  );
+  const ops = FIX_OP_ORDER.filter((o) => want.has(o) && !OPT_IN_OPS.includes(o));
+  if (ops.length === 0) return false;
+  const { rows } = await db.query(
+    `insert into media_fixes (media_id, ops)
+     select $1, $2::text[]
+      where not exists (select 1 from media_fixes k where k.media_id = $1 and k.status in ('failed','kept','discarded'))
+        and not exists (select 1 from media_fixes c where c.fixed_media_id = $1)
+     on conflict (media_id) where status in ('queued','running','done') do nothing
+     returning id`,
+    [mediaId, ops],
   );
   return rows.length === 1;
 }

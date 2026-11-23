@@ -348,7 +348,6 @@ export function cardPlan(row: InboxListRow, filter: InboxFilter): CardPlan {
   if (filter === "sent") return { ...base, status: SENT_STATUS[row.replyStatus ?? ""] ?? null, canDismiss: false, canIgnoreAccount: false, canHide: false };
   if (row.kind === "dm") return { ...base, primary: row.draftId && row.draftedReply ? "copy" : "none" };
   if (row.bucket === "hide_flag") return { ...base, note: "Flagged as abusive: no reply from here." };
-  if (row.platform === "tiktok") return { ...base, note: "TikTok replies aren't supported here. Reply in the TikTok app." };
   return { ...base, primary: row.draftedReply?.trim() ? "approve" : "write" };
 }
 
@@ -389,7 +388,6 @@ export function itemPlan(item: Pick<InboxItem, "platform" | "state" | "draftedRe
     case "drafted":
       if (item.isOwn) return { ...base, note: "This is your own comment." };
       if (bucket === "hide_flag") return { ...open, note: "Flagged as abusive: no reply from here.", canHide: item.platform === "instagram" };
-      if (item.platform === "tiktok") return { ...open, note: "TikTok replies aren't supported here. Reply in the TikTok app." };
       return { ...open, primary: item.draftedReply?.trim() ? "approve" : "write" };
     case "queued":
       return { ...base, status: SENT_STATUS.planned! };

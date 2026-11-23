@@ -5,9 +5,13 @@ const PLATFORMS: readonly EngagementPlatform[] = ["instagram", "youtube", "tikto
 const MODES: readonly Mode[] = ["off", "shadow", "live"];
 export const PING_MODES: readonly PingMode[] = ["each", "hourly", "off"];
 
-/** Decisions (run-2-decisions.md F3): everything ships in shadow, TikTok comments out, hide off, 10/h 40/d 80/d, 10-min veto. */
+/**
+ * Decisions (run-2-decisions.md F3): everything ships in shadow, hide off, 10/h 40/d 80/d, 10-min veto.
+ * F20 B: TikTok comments now come through Zernio, so TikTok is shadow too (drafts only, never sent on its own).
+ * A mode the creator stored in settings always wins over these defaults.
+ */
 export const DEFAULT_ENGAGEMENT: EngagementSettings = {
-  mode: { instagram: "shadow", youtube: "shadow", tiktok: "off" },
+  mode: { instagram: "shadow", youtube: "shadow", tiktok: "shadow" },
   killed: false,
   hideEnabled: { instagram: false, youtube: false, tiktok: false },
   limits: { perPersonDays: 7, perPlatformPerHour: 10, perPlatformPerDay: 40, globalPerDay: 80 },

@@ -46,3 +46,8 @@ Check the current default list (`PUSH_KINDS_DEFAULT` in `packages/core/src/types
 ## 5. Logs
 
 Each job logs one line with counts only (clips added, posts, items it couldn't place, alerts raised), never clip names, paths or captions.
+
+## Daily Instagram top-up (F20 D)
+Every day at 17:00 creator-local the worker's `daily-instagram` job looks at tomorrow. If fewer than the **Instagram minimum** (Settings, next to the daily limits; default 2, 0 to 6) non-rejected Instagram posts exist, from any source, it adds the missing number of library clips as Instagram-only drafts (`origin 'daily'`, key `daily:<date>:<mediaId>:instagram`). It prefers gym clips, skips trading clips and anything used in the last 28 days.
+- Captions come from fixed templates (`packages/core/src/caption-templates.ts`, no AI): short, in the voice guide, 2 to 4 hashtags, no places or times. A template used in the last 14 days is not picked again while others remain. Edit the caption in the calendar if you want something else.
+- Nothing is approved. You get one `batch-ready` alert ("Tomorrow (date): 2 Instagram posts drafted with captions. Approve them in the calendar.") and tap Approve yourself. Re-runs add nothing. Set the minimum to 0 to turn it off. No TZ_CREATOR means it isn't scheduled.

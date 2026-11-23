@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PING_EACH_CAP_PER_HOUR, PING_GENERIC, digestMessage, pingMessage, planPings, type PingItem, type PingState } from "../pings.js";
+import { PING_EACH_CAP_PER_HOUR, PING_GENERIC, digestMessage, pingMessage, platformDigestMessage, planPings, type PingItem, type PingState } from "../pings.js";
 import { DEFAULT_ENGAGEMENT, normalizeEngagement } from "../settings.js";
 
 const NOW = new Date("2026-01-05T15:00:00Z");
@@ -80,5 +80,22 @@ describe("planPings", () => {
     expect(planPings("hourly", items, state({ lastPingAt: ago(60) }), NOW)).toHaveLength(1);
     expect(planPings("hourly", [], state({ newSinceLastPing: 0 }), NOW)).toEqual([]);
     expect(planPings("hourly", [], state({ waiting: { drafted: 0, flagged: 0 } }), NOW)).toEqual([]);
+  });
+});
+
+describe("per-platform digests (F20)", () => {
+  const byPlatform = { instagram: { drafted: 7, flagged: 0 }, youtube: { drafted: 0, flagged: 3 }, tiktok: { drafted: 0, flagged: 0 } };
+  it("words one row per platform", () => {
+    expect(platformDigestMessage("instagram", { drafted: 7, flagged: 0 })).toBe("7 replies drafted to your Instagram comments");
+    expect(platformDigestMessage("youtube", { drafted: 0, flagged: 3 })).toBe("3 YouTube comments need you");
+    expect(platformDigestMessage("youtube", { drafted: 0, flagged: 1 })).toBe("1 YouTube comment needs you");
+    expect(platformDigestMessage("instagram", { drafted: 1, flagged: 2 })).toBe("1 reply drafted to your Instagram comments, 2 need you");
+  });
+  it("hourly: a digest per platform with something waiting, none for empty platforms", () => {
+    expect(planPings("hourly", [], state({ byPlatform }), NOW)).toEqual([
+      { kind: "digest", platform: "instagram", message: "7 replies drafted to your Instagram comments" },
+      { kind: "digest", platform: "youtube", message: "3 YouTube comments need you" },
+    ]);
+    expect(planPings("hourly", [], state({ byPlatform, lastPingAt: ago(10) }), NOW)).toEqual([]);
   });
 });

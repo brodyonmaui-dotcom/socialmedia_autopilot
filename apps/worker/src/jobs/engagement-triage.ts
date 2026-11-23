@@ -10,6 +10,7 @@ import {
   postRules,
   preRules,
   promoAuthorKey,
+  RULES_ONLY_MODEL,
   type Bucket,
   type PingItem,
   type PromoAccount,
@@ -80,7 +81,8 @@ export async function runEngagementTriageWith(store: TriageStore, triage: Triage
       continue; // no engagement_actions row at all, no ping
     }
 
-    const status = settings.mode[c.platform] === "live" ? "planned" : "shadow";
+    // Rules-only drafts (no model key, F20 B) are always drafts: never auto-sent, whatever the mode.
+    const status = settings.mode[c.platform] === "live" && result.model !== RULES_ONLY_MODEL ? "planned" : "shadow";
     let drafted: string | null = null;
     for (const a of await planActions(c, result, settings, store, now)) {
       out.actions[a.kind] = (out.actions[a.kind] ?? 0) + 1;
@@ -100,7 +102,7 @@ export async function runEngagementTriageWith(store: TriageStore, triage: Triage
   if (store.pingState && store.insertReplyReadyAlert && settings.pings !== "off") {
     const pings = planPings(settings.pings, pingItems, await store.pingState(now), now, cfg.blocklist);
     for (const p of pings) {
-      await store.insertReplyReadyAlert(p.kind === "item" ? p.commentId : null, p.kind === "item" ? p.platform : "all", p.message, now);
+      await store.insertReplyReadyAlert(p.kind === "item" ? p.commentId : null, p.kind === "item" ? p.platform : (p.platform ?? "all"), p.message, now);
       out.pings++;
     }
   }

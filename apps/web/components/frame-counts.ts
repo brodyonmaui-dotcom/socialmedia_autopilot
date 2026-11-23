@@ -7,11 +7,12 @@ export const FRAME_COUNT_SQL = {
   draftPosts: "select count(*)::int as n from batch_items where status = 'draft'",
   flagged: "select count(*)::int as n from comment_triage where bucket in ('flag', 'hide_flag') and handled_at is null",
   dmsOpen: "select count(*)::int as n from dm_threads where handled_at is null and last_inbound_at > now() - interval '24 hours'",
-  openAlerts: "select count(*)::int as n from alerts where acknowledged_at is null",
-  /** Clips Touch-up lists: the same "flagged" as lib/library/data.ts loadTouchUp (v2 fix issues not dismissed, no decided fix, not a fixed copy). */
+  /** Event alerts only: stored reply-ready rows are the Inbox's work (F20), counted there. */
+  openAlerts: "select count(*)::int as n from alerts where acknowledged_at is null and kind <> 'reply-ready'",
+  /** Clips Touch-up needs fixing (flagged issues Fix it can change; unfixable-only clips are listed apart and not counted): the same "flagged" as lib/library/data.ts loadTouchUp (v2 fix issues not dismissed, no decided fix, not a fixed copy). */
   touchUp:
     "select count(*)::int as n from media m where m.qa->>'version' = '2'" +
-    " and exists (select 1 from jsonb_path_query(m.qa, '$.issues[*] ? (@.severity == \"fix\")') i" +
+    " and exists (select 1 from jsonb_path_query(m.qa, '$.issues[*] ? (@.severity == \"fix\" && @.fixable == true)') i" +
     " where not exists (select 1 from touchup_dismissals td where td.media_id = m.id and td.undone_at is null and td.code = i->>'code'))" +
     " and not exists (select 1 from media_fixes k where k.media_id = m.id and k.status in ('kept','discarded'))" +
     " and not exists (select 1 from media_fixes c where c.fixed_media_id = m.id)",

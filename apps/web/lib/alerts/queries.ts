@@ -80,8 +80,8 @@ function stateWhere(state: AlertState, now: Date, params: unknown[]): string {
   return `a.acknowledged_at >= $${params.length}`;
 }
 
-/** `limit` (1..LIST_LIMIT, default LIST_LIMIT): the shell's Notifications pop-over asks for the newest 6. */
-export async function listAlerts(pool: Pool, opts: { state: AlertState; kind?: AlertKind; now?: Date; limit?: number }): Promise<AlertView[]> {
+/** `limit` (1..LIST_LIMIT, default LIST_LIMIT). `excludeInbox` (F20): leave out stored reply-ready rows; the Inbox is where that work lives. */
+export async function listAlerts(pool: Pool, opts: { state: AlertState; kind?: AlertKind; now?: Date; limit?: number; excludeInbox?: boolean }): Promise<AlertView[]> {
   const now = opts.now ?? new Date();
   const kind = parseKind(opts.kind);
   const params: unknown[] = [];
@@ -90,6 +90,7 @@ export async function listAlerts(pool: Pool, opts: { state: AlertState; kind?: A
     params.push(kind);
     where += ` and a.kind = $${params.length}`;
   }
+  if (opts.excludeInbox) where += ` and a.kind <> 'reply-ready'`;
   params.push(Math.min(Math.max(Math.floor(opts.limit ?? LIST_LIMIT), 1), LIST_LIMIT));
   const order = opts.state === "open" ? "a.created_at desc, a.id" : "a.acknowledged_at desc, a.id";
   const { rows } = await pool.query(
@@ -128,9 +129,9 @@ export async function listAlerts(pool: Pool, opts: { state: AlertState; kind?: A
 }
 
 /** Per-kind counts for a tab's chips. Unknown kinds in the DB (free text) are left out. */
-export async function countByKind(pool: Pool, state: AlertState, now: Date = new Date()): Promise<Partial<Record<AlertKind, number>>> {
+export async function countByKind(pool: Pool, state: AlertState, now: Date = new Date(), opts: { excludeInbox?: boolean } = {}): Promise<Partial<Record<AlertKind, number>>> {
   const params: unknown[] = [];
-  const where = stateWhere(state, now, params);
+  const where = stateWhere(state, now, params) + (opts.excludeInbox ? ` and a.kind <> 'reply-ready'` : "");
   const { rows } = await pool.query(`select a.kind, count(*)::int as n from alerts a where ${where} group by a.kind`, params);
   const out: Partial<Record<AlertKind, number>> = {};
   for (const r of rows as Array<{ kind: string; n: number }>) if (isAlertKind(r.kind)) out[r.kind] = r.n;
@@ -185,6 +186,7 @@ const KIND_LABEL: Record<AlertKind, string> = {
   "batch-ready": "Next week drafted",
   "report-ready": "Weekly report",
   "missed-slot": "Missed post",
+  "trial-reels-ready": "Trial reels",
 };
 
 export function kindLabel(kind: AlertKind): string {

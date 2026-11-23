@@ -2,7 +2,7 @@
 // otherwise pg-boss 10 drops the schedule.
 import {
   createAnthropicTriageClient,
-  createFakeTriageClient,
+  createRulesOnlyTriageClient,
   type CommentSource,
   type DmSource,
   type EngagementPlatform,
@@ -48,15 +48,16 @@ export function blocklistFromEnv(env: Record<string, string | undefined> = proce
   return (env.PRIVACY_BLOCKLIST ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-/** Flags everything: without a model key nothing is ever auto-replied, the inbox gets every comment. */
-export const FLAG_ALL_RULES: Parameters<typeof createFakeTriageClient>[0] = [[/[\s\S]*/, "flag", null, 1]];
-
-/** ANTHROPIC_API_KEY → Claude triage; otherwise rules only (every comment flagged). Never logs the key. */
+/**
+ * ANTHROPIC_API_KEY → Claude triage; otherwise rules-only drafting (F20 B): short simple praise gets a pool
+ * draft (always stored as 'shadow', sent only on the creator's Approve), everything else goes to Needs you.
+ * Never logs the key.
+ */
 export function triageClientFromEnv(env: Record<string, string | undefined> = process.env, log: (line: string) => void = console.log): TriageClient {
   const apiKey = env.ANTHROPIC_API_KEY?.trim();
   if (apiKey) return createAnthropicTriageClient({ apiKey, ...(env.ANTHROPIC_MODEL ? { model: env.ANTHROPIC_MODEL } : {}), log });
-  log("triage: rules only (no ANTHROPIC_API_KEY)");
-  return createFakeTriageClient(FLAG_ALL_RULES);
+  log("triage: rules-only drafts (no ANTHROPIC_API_KEY)");
+  return createRulesOnlyTriageClient();
 }
 
 /** `engagement modes: instagram=shadow youtube=shadow tiktok=off · live=false · killEnv=false` */

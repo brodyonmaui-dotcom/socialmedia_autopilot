@@ -140,9 +140,9 @@ function audioCut(p: FixPlan): string | null {
   return `${parts.join(";")};${p.keep.map((_, i) => `[a${i}]`).join("")}concat=n=${p.keep.length}:v=0:a=1[a_cut]`;
 }
 
-const loudnormMeasure = () => `loudnorm=I=${FIX_LIMITS.targetLufs}:TP=${FIX_LIMITS.targetTruePeak}:LRA=${FIX_LIMITS.targetLra}:print_format=json`;
+export const loudnormMeasure = () => `loudnorm=I=${FIX_LIMITS.targetLufs}:TP=${FIX_LIMITS.targetTruePeak}:LRA=${FIX_LIMITS.targetLra}:print_format=json`;
 
-function loudnormApply(m: LoudnormMeasurement): string {
+export function loudnormApply(m: LoudnormMeasurement): string {
   const f = (n: number) => (Number.isFinite(n) ? String(n) : "0");
   return (
     `loudnorm=I=${FIX_LIMITS.targetLufs}:TP=${FIX_LIMITS.targetTruePeak}:LRA=${FIX_LIMITS.targetLra}` +
@@ -161,6 +161,24 @@ export function loudnessMeasureArgs(input: string, p: FixPlan): string[] {
 const META = ["-map_metadata", "-1", "-map_chapters", "-1"];
 const AAC = ["-c:a", "aac", "-b:a", "192k", "-ar", "48000"];
 const X264 = ["-c:v", "libx264", "-profile:v", "high", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p"];
+/** The same output args, for the reel maker (reel.ts): metadata + chapters dropped, AAC 48 kHz, H.264 high yuv420p. */
+export const ENCODE_ARGS = { stripMetadata: META, aac: AAC, x264: X264 } as const;
+
+/**
+ * The vertical 1080×1920 fill (pure): the clip scaled to fit, centred over a blurred, cropped copy of itself.
+ * `v` is the input label (e.g. "[v0]"), `pre` an optional filter prefix ("fps=60,"); the output is `[v_out]`.
+ * Shared by the touch-up "pad" fix and the reel maker (reel.ts).
+ */
+export function padFilters(v: string, pre = ""): string[] {
+  const W = FIX_LIMITS.padWidth;
+  const H = FIX_LIMITS.padHeight;
+  return [
+    `${v}${pre}split[v_fg][v_bg]`,
+    `[v_bg]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=20:2[v_blur]`,
+    `[v_fg]scale=${W}:${H}:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v_top]`,
+    `[v_blur][v_top]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p[v_out]`,
+  ];
+}
 
 /**
  * The encode (pure). Always: all metadata + chapters dropped, `+faststart`, one video + at most one audio
@@ -197,15 +215,8 @@ export function encodeArgs(input: string, out: string, p: FixPlan, measured?: Lo
     }
   }
   const fps = p.capFps ? `fps=${FIX_LIMITS.maxFps},` : "";
-  const W = FIX_LIMITS.padWidth;
-  const H = FIX_LIMITS.padHeight;
   if (p.pad) {
-    graph.push(
-      `${v}${fps}split[v_fg][v_bg]`,
-      `[v_bg]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},boxblur=20:2[v_blur]`,
-      `[v_fg]scale=${W}:${H}:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v_top]`,
-      `[v_blur][v_top]overlay=(W-w)/2:(H-h)/2,setsar=1,format=yuv420p[v_out]`,
-    );
+    graph.push(...padFilters(v, fps));
   } else {
     graph.push(`${v}${fps}scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1,format=yuv420p[v_out]`);
   }

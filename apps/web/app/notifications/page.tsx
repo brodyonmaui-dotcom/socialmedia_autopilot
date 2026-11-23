@@ -7,8 +7,11 @@ import { ACK_WINDOW_DAYS, countByKind, kindLabel, listAlerts, parseKind, parseSt
 import { ackAllCopy, alertsHref, handleSummary, stateTabs, total } from "../../lib/alerts/view.js";
 import { creatorZone } from "../../lib/calendar/load.js";
 import { previewRescheduleMissed } from "../../lib/calendar/reschedule.js";
+import { liveRows } from "../../lib/alerts/live.js";
+import { loadInboxGroups } from "../../lib/inbox/groups.js";
 import { relativeTime } from "../../lib/engagement/queries.js";
 import { AckAllSheet } from "../../components/notifications/AckAllSheet.js";
+import { LiveInboxRow } from "../../components/notifications/LiveInboxRow.js";
 import { AlertRow } from "../../components/notifications/AlertRow.js";
 
 export const dynamic = "force-dynamic";
@@ -24,11 +27,15 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   const kind = parseKind(sp.kind); // unknown value → unfiltered
   const pool = getPool();
   const now = new Date();
-  const [counts, openCounts, alerts] = await Promise.all([
-    countByKind(pool, state, now),
-    state === "open" ? null : countByKind(pool, "open", now),
-    listAlerts(pool, { state, kind, now }),
+  const ex = { excludeInbox: true };
+  const [counts, openCounts, alerts, groups] = await Promise.all([
+    countByKind(pool, state, now, ex),
+    state === "open" ? null : countByKind(pool, "open", now, ex),
+    listAlerts(pool, { state, kind, now, ...ex }),
+    state === "open" ? loadInboxGroups(pool).catch(() => []) : Promise.resolve([]),
   ]);
+  const allLive = liveRows(groups);
+  const live = kind ? [] : allLive; // a kind filter shows stored events only
   // Missed-slot rows show the slot "Auto-schedule" would pick (advisory; the action re-plans under a lock).
   const zone = creatorZone().timeZone;
   const missedIds = state === "open" ? alerts.filter((a) => a.kind === "missed-slot" && a.batchItemId).map((a) => a.batchItemId!) : [];
@@ -40,14 +47,14 @@ export default async function NotificationsPage({ searchParams }: { searchParams
       /* preview is advisory: the row falls back to "Open in calendar" */
     }
   }
-  const openTotal = total(openCounts ?? counts);
+  const openTotal = total(openCounts ?? counts) + allLive.length;
   // "Acknowledge all" sends exactly the ids rendered below (alerts that arrive later stay open).
   const shownIds = state === "open" ? alerts.map((a) => a.id) : [];
   const subtitle =
     state === "open"
       ? openTotal === 0
         ? "Nothing needs you right now."
-        : `${handleSummary(openCounts ?? counts)}. Acknowledging keeps them for ${ACK_WINDOW_DAYS} days; nothing is deleted.`
+        : `${live.length > 0 ? `${live.length} in your Inbox${total(openCounts ?? counts) > 0 ? `, ${handleSummary(openCounts ?? counts)}` : ""}` : handleSummary(openCounts ?? counts)}. Acknowledging keeps them for ${ACK_WINDOW_DAYS} days; nothing is deleted.`
       : `Acknowledged in the last ${ACK_WINDOW_DAYS} days.`;
 
   return (
@@ -65,7 +72,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         </div>
 
         <Card>
-          {alerts.length === 0 ? (
+          {alerts.length === 0 && live.length === 0 ? (
             <EmptyState
               icon={state === "open" ? "check" : "bell"}
               title={state === "open" ? "You're all caught up" : "Nothing acknowledged recently"}
@@ -85,6 +92,9 @@ export default async function NotificationsPage({ searchParams }: { searchParams
             />
           ) : (
             <ol aria-label={state === "open" ? "Open alerts" : "Acknowledged alerts"} className="flex flex-col divide-y divide-ds-line">
+              {live.map((r) => (
+                <LiveInboxRow key={r.id} row={r} when={r.at ? relativeTime(r.at, now) : "now"} />
+              ))}
               {alerts.map((a) => (
                 <AlertRow key={a.id} alert={a} now={now} timeZone={zone} proposedAt={(a.batchItemId && proposed.get(a.batchItemId)) || null} when={relativeTime(a.createdAt, now)} ackWhen={a.acknowledgedAt ? relativeTime(a.acknowledgedAt, now) : undefined} />
               ))}

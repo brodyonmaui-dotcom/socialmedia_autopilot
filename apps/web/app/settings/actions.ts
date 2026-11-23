@@ -10,6 +10,9 @@ import { addPromoAccountByHandle, parsePromoHandle, removePromoAccount } from ".
 import { setPings } from "../../lib/inbox/status.js";
 import { writeSettingsAudit } from "../../lib/settings/audit.js";
 import { parseCapsForm, updateCaps } from "../../lib/settings/caps.js";
+import { parseDailyMinForm, setInstagramDailyMin } from "../../lib/settings/daily-min.js";
+import { setIgTrialReels } from "../../lib/settings/ig-trial.js";
+import { setTouchupAutofix } from "../../lib/settings/touchup-autofix.js";
 import { setEditorApprovalCounts } from "../../lib/settings/editor-approval.js";
 import { MODE_LABEL, parseModeChange, PINGS, resumeOk } from "../../lib/settings/replies.js";
 
@@ -50,7 +53,11 @@ export async function saveCapsAction(fd: FormData): Promise<void> {
   await run("caps", async () => {
     const parsed = parseCapsForm((k) => (fd.has(k) ? String(fd.get(k)) : null));
     if (!parsed.ok) throw new UserError(parsed.error);
-    const { message } = await updateCaps(getPool(), parsed.caps);
+    const min = fd.has("instagram-min") ? parseDailyMinForm(String(fd.get("instagram-min"))) : null;
+    if (min && !min.ok) throw new UserError(min.error);
+    const { message: capsMessage } = await updateCaps(getPool(), parsed.caps);
+    const { message: minMessage } = min ? await setInstagramDailyMin(getPool(), min.value) : { message: "" };
+    const message = capsMessage || minMessage;
     return message ? "Daily limits saved. Posts already scheduled don't move." : "Nothing changed";
   });
 }
@@ -119,6 +126,28 @@ export async function setEditorApprovalAction(fd: FormData): Promise<void> {
     if (v !== "on" && v !== "off") throw new UserError("unknown setting");
     const { after } = await setEditorApprovalCounts(getPool(), v === "on");
     return after ? "Editor approval counts: on. Approved renders with zero warnings are scheduled for you." : "Editor approval counts: off. Every post needs your tap again.";
+  });
+}
+
+/** Instagram trial reels (form field on = "on" | "off"). Off by default; only takes effect once followers reach the minimum. */
+export async function setIgTrialReelsAction(fd: FormData): Promise<void> {
+  await requireSession();
+  await run("trial-reels", async () => {
+    const v = field(fd, "on");
+    if (v !== "on" && v !== "off") throw new UserError("unknown setting");
+    const { after } = await setIgTrialReels(getPool(), v === "on");
+    return after ? "Instagram trial reels on. They start once the account has enough followers; if Instagram refuses one, it goes out as a regular reel." : "Instagram trial reels off. Reels go out as regular reels.";
+  });
+}
+
+/** Touch-up auto-fix (form field on = "on" | "off"): whether the worker queues fixes for newly flagged clips. */
+export async function setTouchupAutofixAction(fd: FormData): Promise<void> {
+  await requireSession();
+  await run("touchup", async () => {
+    const v = field(fd, "on");
+    if (v !== "on" && v !== "off") throw new UserError("unknown setting");
+    const { after } = await setTouchupAutofix(getPool(), v === "on");
+    return after ? "Touch-up auto-fix on. Originals are never changed." : "Touch-up auto-fix off. Nothing is fixed until you tap Fix it.";
   });
 }
 

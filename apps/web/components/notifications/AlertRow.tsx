@@ -1,4 +1,5 @@
-import { Button, ButtonLink, Icon, PlatformLogo, cx } from "../ui/index.js";
+import Link from "next/link";
+import { Button, ButtonLink, FOCUS, Icon, PlatformLogo, cx } from "../ui/index.js";
 import { kindLabel, type AlertView } from "../../lib/alerts/queries.js";
 import { describeAlert, isUrgent, sourceGlyph, type AlertAction } from "../../lib/alerts/view.js";
 import { acknowledgeAction } from "../../app/alerts/actions.js";
@@ -58,13 +59,20 @@ export function AlertRow({ alert, when, ackWhen, timeZone = "UTC", proposedAt = 
   const headingId = `alert-${alert.id}`;
   const d = describeAlert(alert, now, timeZone, { proposedAt });
   const actions = open ? d.actions : d.actions.filter((a) => a.kind === "link");
+  const rowHref = d.actions.find((a) => a.kind === "link")?.href ?? null; // the whole row opens its target (F20)
   return (
     <li
       aria-labelledby={headingId}
-      className={cx("flex flex-col gap-2 border-l-4 py-4 pl-3 first:pt-0 last:pb-0", urgent ? "border-ds-danger" : open ? "border-ds-warn" : "border-ds-line")}
+      className={cx("relative flex flex-col gap-2 border-l-4 py-4 pl-3 first:pt-0 last:pb-0", urgent ? "border-ds-danger" : open ? "border-ds-warn" : "border-ds-line")}
     >
       <h3 id={headingId} className="text-[15px] font-semibold leading-snug text-ds-text">
-        {d.title}
+        {rowHref ? (
+          <Link href={rowHref} className={cx("after:absolute after:inset-0 after:content-['']", FOCUS)}>
+            {d.title}
+          </Link>
+        ) : (
+          d.title
+        )}
       </h3>
       {d.body ? <p className="whitespace-pre-wrap break-words text-[15px] leading-snug text-ds-text">{d.body}</p> : null}
       {d.quote ? (
@@ -101,7 +109,7 @@ export function AlertRow({ alert, when, ackWhen, timeZone = "UTC", proposedAt = 
         ) : null}
       </p>
       {open || actions.length > 0 ? (
-        <div className="mt-1 flex flex-wrap gap-2">
+        <div className="relative z-10 mt-1 flex flex-wrap gap-2">
           {actions.map((a, i) => (
             <ActionButton key={`${a.kind}-${a.label}`} action={a} primary={i === 0 && open && a.kind !== "link"} />
           ))}

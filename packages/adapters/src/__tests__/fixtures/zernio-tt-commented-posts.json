@@ -1,0 +1,8 @@
+{
+  "data": [
+    { "id": "7301000000000000001", "platform": "tiktok", "accountId": "acct_tt_fake", "accountUsername": "creator_fake", "content": "set 3", "createdTime": "2026-11-21T15:00:00Z", "commentCount": 4, "likeCount": 120 },
+    { "id": "7301000000000000002", "platform": "tiktok", "accountId": "acct_tt_fake", "accountUsername": "creator_fake", "content": "warmup", "createdTime": "2026-11-20T15:00:00Z", "commentCount": 0, "likeCount": 30 }
+  ],
+  "pagination": { "hasMore": false, "nextCursor": null },
+  "meta": { "accountsQueried": 1, "accountsFailed": 0, "failedAccounts": [] }
+}
