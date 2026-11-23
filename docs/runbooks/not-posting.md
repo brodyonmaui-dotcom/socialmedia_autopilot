@@ -38,3 +38,16 @@ Steps marked **[changes state]** are yours to run. An agent asks first.
 | `no posts scheduled within 36 h` | Nothing in the window: the items have no time, or sit in another week | Check the batch in the app. "Fill missing times", then approve |
 
 YouTube and TikTok are handed off up to 24 h before `scheduled_for` and hold their own clock. Instagram fires at `scheduled_for`. Snapchat is assisted and never fired by the worker (`timing=` in section 6).
+
+## Empty week / duplicates / stuck drafts
+
+If next week has nothing on Instagram, or the same clip shows up twice, or drafts won't go forward, run **`./infra/diagnose-week.sh </dev/null`** on the VPS and paste it. It is read-only (SELECTs only) and prints UTC times, captions cut to 40 characters and no zone name. It shows next week's batches and items, the next 8 days one line per item, the last 5 `weekly-draft` / `daily-instagram` runs and the schedule rows, `batch-ready` alerts (14 days), how many library clips the jobs can still pick (eligible, not used in the last 28 days), per-day caps, duplicate clip pairs and stuck drafts. The `VERDICT:` list at the end names the likely cause. The job handlers return nothing, so a run's `output` is usually `-`: read the `MADE` lines (items the jobs created) instead.
+
+| Verdict | Meaning | Fix |
+|---|---|---|
+| `no eligible unused clips` | Every eligible clip already has a non-rejected post in the last 28 days or in the future (`backfill used N` = clips used by items created in the last 7 days), so the jobs have nothing to pick | Add clips, or reject the surplus items so those clips are free again |
+| `weekly-draft last result: skipped covered` / `no-clips` | Every day of next week already has a post, or the library had nothing to pick | See the counts in sections 2 and 6 |
+| `<job> never ran` / `not scheduled` | The worker registers the cron at startup and needs `TZ_CREATOR` | [not-posting.md](not-posting.md) worker / `TZ_CREATOR` rows above |
+| `Instagram cap reached on <day>` | The day is full for Instagram (`cadence.dailyCaps`) | Move an item or raise the cap in settings (budget-affecting: ask first) |
+| `N duplicate clip pairs` | The same clip twice on one platform within 7 days | Reject one item in the calendar |
+| `N stuck drafts are already posted on that platform` | Empty-caption drafts of a clip already published there | Reject them |
