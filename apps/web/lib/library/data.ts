@@ -4,6 +4,7 @@
  * apps/worker/src/jobs/media-fix.ts), and nothing here publishes. "Keep the fix" re-points DRAFT calendar
  * items only; approved / handed-off items keep the file that was approved.
  */
+import { checkFolderLabel } from "@autopilot/core";
 import type { Pool } from "pg";
 import { mediaLabel } from "../batches/pg-store.js";
 import { availableOps, flaggedIssues, focusHref, infoTags, issuesOf, resolveOps, type FixOp, type QaIssue } from "./qa-issues.js";
@@ -48,6 +49,10 @@ export interface LibraryClip {
   usedIn: number;
   /** Set on a kept fixed copy: the original it came from. */
   derivedFrom: string | null;
+  /** Library folder label (media.folder, migration 0016), or null: the screen groups by week then. */
+  folder: string | null;
+  /** ISO instant the week bucket comes from: captured_at, else created_at. */
+  at: string;
   focused: boolean;
   href: string;
 }
@@ -66,12 +71,14 @@ interface LibraryRow {
   qa: unknown;
   poster_key: string | null;
   derived_from: string | null;
+  folder: string | null;
+  captured_at: Date | null;
   created_at: Date;
   used_in: number;
   dismissed: string[] | null;
 }
 
-const LIBRARY_COLUMNS = `m.id, m.source_path, m.duration_s, m.pillar, m.status, m.qa, m.poster_key, m.derived_from, m.created_at,
+const LIBRARY_COLUMNS = `m.id, m.source_path, m.duration_s, m.pillar, m.status, m.qa, m.poster_key, m.derived_from, m.folder, m.captured_at, m.created_at,
   (select count(*)::int from batch_items bi where bi.media_id = m.id and bi.status <> 'rejected') as used_in,
   (select array_agg(td.code) from touchup_dismissals td where td.media_id = m.id and td.undone_at is null) as dismissed`;
 
@@ -100,6 +107,8 @@ function toClip(r: LibraryRow, focused: boolean): LibraryClip {
     hasPoster: !!r.poster_key,
     usedIn: r.used_in,
     derivedFrom: r.derived_from,
+    folder: r.folder,
+    at: new Date(r.captured_at ?? r.created_at).toISOString(),
     focused,
     href: focusHref(label, r.id),
   };
@@ -145,6 +154,34 @@ export async function loadLibrary(pool: Db, query: LibraryQuery = {}): Promise<L
     if (f.rows[0]) clips = [toClip(f.rows[0], true), ...clips.filter((c) => c.mediaId !== query.focus)];
   }
   return { clips, nextCursor };
+}
+
+// ---------- Folders ----------
+
+export interface FolderCount {
+  folder: string;
+  clips: number;
+}
+
+/** The labels in use (library-visible clips only), biggest first then A to Z: feeds the "Move to folder" picker. */
+export async function loadFolders(pool: Db): Promise<FolderCount[]> {
+  const { rows } = (await pool.query(
+    `select m.folder, count(*)::int as n from media m where m.folder is not null and not ${HIDDEN} group by m.folder order by n desc, m.folder`,
+  )) as { rows: Array<{ folder: string; n: number }> };
+  return rows.map((r) => ({ folder: r.folder, clips: r.n }));
+}
+
+export type MoveResult = { ok: true; folder: string | null } | { ok: false; reason: string };
+
+/** Sets (or clears, with null/blank) one clip's folder label. Touches nothing else; never deletes. */
+export async function moveToFolder(pool: Db, mediaId: string, raw: unknown): Promise<MoveResult> {
+  if (!isUuid(mediaId)) return { ok: false, reason: "unknown clip" };
+  const blank = raw == null || (typeof raw === "string" && raw.trim() === "");
+  const check = blank ? null : checkFolderLabel(raw);
+  if (check && !check.ok) return { ok: false, reason: check.reason };
+  const folder = check?.ok ? check.folder : null;
+  const r = await pool.query("update media set folder = $2 where id = $1", [mediaId, folder]);
+  return (r.rowCount ?? 0) > 0 ? { ok: true, folder } : { ok: false, reason: "unknown clip" };
 }
 
 // ---------- Clip dialog: where the clip is scheduled ----------

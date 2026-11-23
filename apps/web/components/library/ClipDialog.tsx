@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { LibraryClip, TouchUpClip } from "../../lib/library/data.js";
 import { cardStage, durationText, scheduledLong, type ClipUseLine } from "../../lib/library/screen.js";
-import { ButtonLink, Chip, cx, Dialog, FOCUS, Icon } from "../ui/index.js";
+import { moveFolderForm } from "../../app/library/form-actions.js";
+import { Button, ButtonLink, Chip, Input, Select, cx, Dialog, FOCUS, Icon } from "../ui/index.js";
 import { ClipVideo } from "./ClipVideo.js";
 import { FixState, IssueList } from "./TouchUp.js";
 
@@ -13,6 +14,7 @@ export function ClipDialog({
   clip,
   touch,
   uses = [],
+  folders = [],
   closeHref,
   back,
 }: {
@@ -20,6 +22,8 @@ export function ClipDialog({
   touch: TouchUpClip | null;
   /** The next few calendar items using it (clipUseLines), listed under the count. */
   uses?: readonly ClipUseLine[];
+  /** Folder labels already in use (loadFolders), for "Move to folder…". */
+  folders?: readonly string[];
   closeHref: string;
   back: string;
 }) {
@@ -107,6 +111,28 @@ export function ClipDialog({
             {more > 0 ? <li className="ds-helper px-1 py-2">and {more} more in the calendar</li> : null}
           </ul>
         ) : null}
+        <details className="rounded-ds-md border border-ds-line">
+          <summary className={cx("flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-[15px] font-semibold text-ds-text [&::-webkit-details-marker]:hidden", FOCUS)}>
+            <span>Move to folder…</span>
+            <span className="ds-helper font-normal">{clip.folder ?? "No folder (grouped by week)"}</span>
+          </summary>
+          <form action={moveFolderForm} className="flex flex-col gap-3 border-t border-ds-line p-3">
+            <input type="hidden" name="back" value={back} />
+            <input type="hidden" name="mediaId" value={clip.mediaId} />
+            <Select label="Existing folder" name="existing" defaultValue={clip.folder ?? ""}>
+              <option value="">No folder (group by week)</option>
+              {(clip.folder && !folders.includes(clip.folder) ? [clip.folder, ...folders] : folders).map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </Select>
+            <Input label="Or a new folder" name="folder" maxLength={60} autoComplete="off" placeholder="e.g. Upper body" helper="A typed name wins. Up to 60 characters, no slashes." />
+            <Button type="submit" variant="outline" size="sm" className="self-start">
+              Move
+            </Button>
+          </form>
+        </details>
         {touch ? (
           <section aria-labelledby="clip-touchup" className="flex flex-col gap-3 rounded-ds-md border border-ds-line p-3">
             <h3 id="clip-touchup" className="text-[15px] font-semibold text-ds-text">

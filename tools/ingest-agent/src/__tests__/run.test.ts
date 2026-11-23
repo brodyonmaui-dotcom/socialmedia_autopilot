@@ -42,7 +42,7 @@ describe("runIngest", () => {
   it("happy path: ingests new files, skips known hashes and in-run duplicates", async () => {
     const { d, ingested } = deps({ exists: async (h) => h.endsWith("b.mp4"), hash: async (p) => (p.endsWith("d.mp4") ? "h-C:\\clips\\a.mp4" : `h-${p}`) });
     const s = await runIngest(d);
-    expect(s).toEqual({ ingested: 2, skipped: 2, failed: 0, stopped: false, remaining: 0 });
+    expect(s).toEqual({ ingested: 2, skipped: 2, retagged: 0, failed: 0, stopped: false, remaining: 0 });
     expect(ingested).toEqual(["C:\\clips\\a.mp4", "C:\\clips\\c.mp4"]);
   });
 
@@ -59,7 +59,7 @@ describe("runIngest", () => {
       ping: async () => { pings++; throw refused(); },
     });
     const s = await runIngest(d);
-    expect(s).toEqual({ ingested: 2, skipped: 0, failed: 0, stopped: true, remaining: 2 });
+    expect(s).toEqual({ ingested: 2, skipped: 0, retagged: 0, failed: 0, stopped: true, remaining: 2 });
     expect(ingested).toHaveLength(2);
     expect(pings).toBe(3);
     expect(lines.filter((l) => l.startsWith("ERROR"))).toHaveLength(0);

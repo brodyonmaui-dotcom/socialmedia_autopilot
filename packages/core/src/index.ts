@@ -9,3 +9,5 @@ export * from "./caption-templates.js";
 export * from "./daily-min.js";
 export * from "./outbox/index.js";
 export * from "./log/sanitize.js";
+export * from "./duplicate-clip.js";
+export * from "./folder.js";

@@ -148,3 +148,13 @@ A render is identified by its content hash. If you rejected it and drop the same
 ## 9. Rollback
 
 Disable the scheduled task in Task Scheduler (right-click, Disable). Reject any unwanted drafts in the app. Nothing was published without your Approve tap, so there is nothing to undo publicly.
+
+## Library folders (`--folder`, `--folder-from week`)
+
+Needs migration `0016_media_folders.sql` ([migrations.md](migrations.md)) applied first. Flags of the bulk `pnpm ingest` command (`tools/ingest-agent/src/index.ts`; not `ingest:ready`):
+- `--folder "Upper body"` labels every NEW clip. The label is trimmed, 1 to 60 characters, no slashes or backslashes.
+- `--folder-from week` labels each new clip `Week of Nov 23` (the Monday of the week it was filmed, in `TZ_CREATOR`, else UTC). Use one of the two, not both.
+- `--retag` (only with `--folder`) also re-labels clips already in the library, matched by content hash. Without it, existing clips are never touched.
+- `--dry-run` prints `WOULD INGEST` / `WOULD RETAG` and writes nothing.
+
+With no folder the Library still groups by week, using the captured date (else the ingest date). Single clips can be moved from the clip dialog ("Move to folder…").

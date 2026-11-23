@@ -29,6 +29,8 @@ export interface IngestDeps {
   exists(hash: string): Promise<boolean>;
   /** QA + touch-up + upload + insert for one new file. Returns the line to log. */
   ingest(file: FoundFile, hash: string): Promise<string>;
+  /** `--retag --folder X`: set the folder on an already-ingested clip. Returns true when a row changed. Absent = no retagging. */
+  retag?(hash: string): Promise<boolean>;
   /** Cheap liveness check (`select 1`). */
   ping(): Promise<void>;
   log(line: string): void;
@@ -40,6 +42,8 @@ export interface IngestDeps {
 export interface IngestSummary {
   ingested: number;
   skipped: number;
+  /** Existing clips given the folder (or, in a dry run, that would be). */
+  retagged: number;
   failed: number;
   stopped: boolean;
   /** Files never reached because the run stopped. */
@@ -52,7 +56,7 @@ export async function runIngest(d: IngestDeps): Promise<IngestSummary> {
   const sleep = d.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const attempts = d.reconnectAttempts ?? 3;
   const baseMs = d.reconnectBaseMs ?? 5000;
-  const s: IngestSummary = { ingested: 0, skipped: 0, failed: 0, stopped: false, remaining: 0 };
+  const s: IngestSummary = { ingested: 0, skipped: 0, retagged: 0, failed: 0, stopped: false, remaining: 0 };
   const seen = new Set<string>();
 
   /** Bounded reconnect check. True = DB is back, retry the file once. */
@@ -73,6 +77,17 @@ export async function runIngest(d: IngestDeps): Promise<IngestSummary> {
   async function one(file: FoundFile): Promise<void> {
     const hash = await d.hash(file.path);
     if (seen.has(hash) || (await d.exists(hash))) {
+      if (d.retag && !seen.has(hash)) {
+        if (d.dryRun) {
+          d.log(`WOULD RETAG ${name(file.path)}`);
+          s.retagged++;
+        } else if (await d.retag(hash)) {
+          d.log(`RETAGGED ${name(file.path)}`);
+          s.retagged++;
+        }
+        seen.add(hash);
+        return;
+      }
       d.log(`SKIP dup ${name(file.path)}`);
       s.skipped++;
       return;
@@ -124,7 +139,8 @@ export function summaryLine(s: IngestSummary, dryRun: boolean): string {
       `${s.skipped} skipped, ${s.failed} failed, ${s.remaining} not reached. Safe to re-run: finished clips are skipped by hash.`
     );
   }
+  const tag = s.retagged ? (dryRun ? `, ${s.retagged} would be re-labelled` : `, ${s.retagged} re-labelled`) : "";
   return dryRun
-    ? `ingest (dry run): ${s.ingested} would be ingested, ${s.skipped} skipped (dup), ${s.failed} failed`
-    : `ingest: ${s.ingested} ingested, ${s.skipped} skipped (dup), ${s.failed} failed`;
+    ? `ingest (dry run): ${s.ingested} would be ingested, ${s.skipped} skipped (dup)${tag}, ${s.failed} failed`
+    : `ingest: ${s.ingested} ingested, ${s.skipped} skipped (dup)${tag}, ${s.failed} failed`;
 }

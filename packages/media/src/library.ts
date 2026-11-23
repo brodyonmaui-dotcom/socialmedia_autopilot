@@ -17,6 +17,8 @@ export interface NewMediaRow {
   posterKey: string | null;
   /** Touch-up: the original this clip was fixed from (migration 0014). */
   derivedFrom?: string | null;
+  /** Library folder label (migration 0016); null/absent leaves the column unset (the UI buckets by week). */
+  folder?: string | null;
 }
 
 interface Queryable {
@@ -40,8 +42,12 @@ export const MEDIA_INSERT_SQL = `insert into media (content_hash, source_path, r
   on conflict (content_hash) do nothing
   returning id`;
 
+/** Same insert plus `folder` ($12). Only used when a folder is given, so pre-0016 databases keep working. */
+export const MEDIA_INSERT_FOLDER_SQL = MEDIA_INSERT_SQL.replace("derived_from, qa_checked_at)", "derived_from, qa_checked_at, folder)").replace("$11, now())", "$11, now(), $12)");
+
 export async function insertMediaRow(db: Queryable, r: NewMediaRow): Promise<{ id: string; inserted: boolean }> {
-  const ins = await db.query(MEDIA_INSERT_SQL, [...mediaInsertParams(r), r.derivedFrom ?? null]);
+  const base = [...mediaInsertParams(r), r.derivedFrom ?? null];
+  const ins = r.folder ? await db.query(MEDIA_INSERT_FOLDER_SQL, [...base, r.folder]) : await db.query(MEDIA_INSERT_SQL, base);
   if (ins.rows[0]) return { id: String(ins.rows[0].id), inserted: true };
   const existing = await db.query("select id from media where content_hash = $1", [r.contentHash]);
   if (!existing.rows[0]) throw new Error("media insert: no row and no existing row for this hash");
