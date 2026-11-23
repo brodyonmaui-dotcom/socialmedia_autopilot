@@ -267,7 +267,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Sea
           <EnablePush vapidPublicKey={isVapidPublicKey(vapid) ? vapid : null} activeCount={devices} />
         </div>
 
-        <div className="flex flex-col gap-3 lg:col-span-4 lg:gap-4">
+        <div className="flex flex-col gap-3 lg:col-span-4 lg:gap-4 [&>section]:h-auto [&>section]:shrink-0">
           <Card title="Editor approval counts" titleId="editor" subtitle="Skip the second tap for renders you already approved while editing." className="scroll-mt-20">
             <EditorApprovalSwitch on={editorApproval} />
           </Card>
