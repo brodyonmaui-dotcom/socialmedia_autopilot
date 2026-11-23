@@ -36,11 +36,17 @@ export function ClipDialog({
       title={clip.label}
       size="lg"
       footer={
-        stage === "fix" ? undefined : touch ? (
-          <ButtonLink href="/library/touch-up" variant="outline">
-            Open Touch-up
+        <>
+          {stage === "fix" ? null : touch ? (
+            <ButtonLink href="/library/touch-up" variant="outline">
+              Open Touch-up
+            </ButtonLink>
+          ) : null}
+          {/* F20 E: one clip + a sound → a vertical reel → a draft Instagram post. */}
+          <ButtonLink href={`/library/reels?clip=${clip.mediaId}`} variant="outline">
+            Make a reel
           </ButtonLink>
-        ) : undefined
+        </>
       }
     >
       <div className="flex flex-col gap-5">

@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 
 /**
  * The web bundle must never pull in @autopilot/media's ffmpeg side (exec.ts/probe.ts use node:child_process
- * and node:fs). Only the import-free `@autopilot/media/src/qa-types` may be imported from the web app.
+ * and node:fs). Only these may be imported from the web app: the import-free `qa-types` and `reel-plan`, and
+ * `storage` (the R2 client for sound uploads: aws-sdk + node:fs streams, no ffmpeg / child_process).
  */
 const web = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const SKIP = new Set(["node_modules", "__tests__", "public"]);
@@ -29,16 +30,24 @@ describe("web imports of @autopilot/media", () => {
     expect(files.some((f) => f.endsWith(join("lib", "library", "qa-issues.ts")))).toBe(true);
   });
 
-  it("only via @autopilot/media/src/qa-types", () => {
+  it("only via @autopilot/media/src/qa-types, reel-plan or storage", () => {
     const bad: string[] = [];
     let ok = 0;
     for (const f of files) {
       for (const m of readFileSync(f, "utf8").matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["'](@autopilot\/media(?:\/[^"']*)?)["']/g)) {
-        if (/^@autopilot\/media\/src\/qa-types(\.js|\.ts)?$/.test(m[1]!)) ok++;
+        if (/^@autopilot\/media\/src\/(qa-types|reel-plan|storage)(\.js|\.ts)?$/.test(m[1]!)) ok++;
         else bad.push(`${relative(web, f)}: ${m[1]}`);
       }
     }
     expect(bad).toEqual([]);
     expect(ok).toBeGreaterThan(0);
+  });
+
+  it("the allowed reel-plan and storage files never reach for ffmpeg", () => {
+    for (const f of ["reel-plan.ts", "storage.ts"]) {
+      const src = readFileSync(resolve(web, "../../packages/media/src", f), "utf8");
+      expect(src).not.toMatch(/from\s+["'](node:)?child_process["']|from\s+["']\.\/(exec|probe|fix|qa|poster)\.js["']/);
+    }
+    expect(readFileSync(resolve(web, "../../packages/media/src/reel-plan.ts"), "utf8")).not.toMatch(/^import /m);
   });
 });

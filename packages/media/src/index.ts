@@ -7,4 +7,6 @@ export * from "./parse.js";
 export * from "./poster.js";
 export * from "./probe.js";
 export * from "./qa.js";
+export * from "./reel.js";
+export * from "./storage.js";
 export * from "./touchup.js";

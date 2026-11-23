@@ -14,6 +14,8 @@ export const QUEUES = {
   weeklyDraft: "weekly-draft",
   dailyInstagram: "daily-instagram",
   weeklyReport: "weekly-report",
+  /** F20 E "Make a reel": one queued media_edits row per minute. */
+  mediaReel: "media-reel-tick",
 } as const;
 
 export function createQueue(databaseUrl: string): PgBoss {
