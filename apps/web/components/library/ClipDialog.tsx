@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { LibraryClip, TouchUpClip } from "../../lib/library/data.js";
 import { cardStage, durationText, scheduledLong, type ClipUseLine } from "../../lib/library/screen.js";
-import { ButtonLink, Chip, cx, Dialog, FOCUS, Icon, Thumb } from "../ui/index.js";
+import { ButtonLink, Chip, cx, Dialog, FOCUS, Icon } from "../ui/index.js";
+import { ClipVideo } from "./ClipVideo.js";
 import { FixState, IssueList } from "./TouchUp.js";
 
 /**
@@ -51,7 +52,7 @@ export function ClipDialog({
     >
       <div className="flex flex-col gap-5">
         <div className="flex items-start gap-4 sm:gap-5">
-          <Thumb mediaId={clip.hasPoster ? clip.mediaId : null} alt={`${clip.label} poster`} duration={durationText(clip.durationS)} className="w-[96px] sm:w-[160px]" />
+          <ClipVideo mediaId={clip.mediaId} hasPoster={clip.hasPoster} label={clip.label} duration={durationText(clip.durationS)} />
           <div className="flex min-w-0 flex-1 flex-col gap-5">
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
               {facts.map((f) => (

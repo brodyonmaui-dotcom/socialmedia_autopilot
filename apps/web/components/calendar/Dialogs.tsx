@@ -1,7 +1,9 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Platform } from "@autopilot/core";
 import { approveAllAction, editTextAction, moveAction, moveTomorrowAction, rejectItemsAction, rescheduleMissedAction } from "../../app/calendar/actions.js";
 import type { ReschedulePlanRow } from "../../lib/calendar/reschedule.js";
+import { NO_SLOT_TEXT, nextSlotView, type NextSlotLine } from "../../lib/calendar/next-slot-view.js";
 import { dayTitle, slotText, type ApproveAllView, type Entry } from "../../lib/calendar/model.js";
 import { Button, ButtonLink, Chip, cx, Dialog, EmptyState, FIELD, FOCUS, Icon, Input, PLATFORM_NAME, PlatformLogo } from "../ui/index.js";
 import { itemField, PostCard, type PostCardLinks } from "./PostCard.js";
@@ -102,7 +104,25 @@ export function EditTextDialog({ entry, closeHref, back }: { entry: Entry; close
 }
 
 /** `?move=<entry>`: Tomorrow (editor drafts: the editor slotting) or a date with an optional new time. */
-export function MoveDialog({ entry, closeHref, back, tomorrow }: { entry: Entry; closeHref: string; back: string; tomorrow: string | null }) {
+export function MoveDialog({
+  entry,
+  closeHref,
+  back,
+  tomorrow,
+  nextSlots = [],
+  timeZone = "UTC",
+  rescheduleHref,
+}: {
+  entry: Entry;
+  closeHref: string;
+  back: string;
+  tomorrow: string | null;
+  /** One per platform line: the next open slot (computed by the page only while this dialog is open). */
+  nextSlots?: NextSlotLine[];
+  timeZone?: string;
+  /** The existing "Auto-schedule at nearest slot" confirm for one item (keeps approval). */
+  rescheduleHref?: (itemId: string) => string;
+}) {
   const movable = entry.platforms.filter((p) => p.canEdit);
   const items = movable.map(itemField);
   const formId = `move-${entry.mediaId}`;
@@ -124,6 +144,43 @@ export function MoveDialog({ entry, closeHref, back, tomorrow }: { entry: Entry;
         <p className="text-[14px] text-ds-muted">
           {entry.title}: {movable.map((p) => `${PLATFORM_NAME[p.platform]} ${p.time12 ?? "no time"}`).join(", ")}. The new time is checked against your daily limits; a moved post needs approving again.
         </p>
+        {nextSlots.length ? (
+          <div className="flex flex-col gap-2">
+            {nextSlots.map((line) => {
+              const v = nextSlotView(line, timeZone);
+              const name = PLATFORM_NAME[line.platform as Platform] ?? line.platform;
+              return v.text && v.date && v.time ? (
+                <form key={line.itemId} action={moveAction}>
+                  <Hidden back={back} items={[line.field]} />
+                  <input type="hidden" name="date" value={v.date} />
+                  <input type="hidden" name="time" value={v.time} />
+                  <Button type="submit" variant="outline" block>
+                    <PlatformLogo platform={line.platform as Platform} size={16} />
+                    Next open {name} slot: <span className="ds-num">{v.text}</span>
+                  </Button>
+                </form>
+              ) : (
+                <p key={line.itemId} className="flex min-h-11 items-center gap-2 text-[14px] text-ds-muted">
+                  <PlatformLogo platform={line.platform as Platform} size={16} className="text-ds-text" />
+                  {name}: {NO_SLOT_TEXT}
+                </p>
+              );
+            })}
+          </div>
+        ) : null}
+        {rescheduleHref
+          ? movable
+              .filter((p) => p.missed)
+              .map((p) => (
+                <p key={p.itemId} className="text-[13px] text-ds-muted">
+                  {PLATFORM_NAME[p.platform]} missed its time.{" "}
+                  <Link href={rescheduleHref(p.itemId)} className={cx("inline-flex min-h-11 items-center font-semibold text-ds-accent-fg underline", FOCUS)}>
+                    Auto-schedule at nearest slot
+                  </Link>{" "}
+                  keeps it approved.
+                </p>
+              ))
+          : null}
         {tomorrow && entry.fromEditor ? (
           <form action={moveTomorrowAction}>
             <Hidden back={back} items={items} />
