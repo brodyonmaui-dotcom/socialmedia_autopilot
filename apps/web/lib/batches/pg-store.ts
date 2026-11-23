@@ -63,7 +63,9 @@ export class PgBatchStore implements BatchStore {
     const { rows } = await this.pool.query(
       `select bi.id, bi.batch_id, bi.media_id, bi.platform, bi.caption, bi.title, bi.scheduled_for, bi.status, bi.trial,
               bi.platform_post_id, bi.platform_post_url, bi.approved_at, bi.attempts, bi.last_error, bi.origin, bi.created_at,
-              right(bi.idempotency_key::text, 6) as key_tail, m.source_path, m.r2_key, m.duration_s, m.pillar, m.qa
+              right(bi.idempotency_key::text, 6) as key_tail, m.source_path, m.r2_key, m.duration_s, m.pillar, m.qa,
+              case when bi.status = 'rejected' then (select e.detail->>'reason' from batch_item_events e
+                where e.batch_item_id = bi.id and e.kind = 'reject' order by e.at desc, e.id desc limit 1) end as reject_reason
          from batch_items bi join media m on m.id = bi.media_id
         where bi.batch_id = $1
         order by bi.scheduled_for asc nulls last, bi.platform, bi.created_at`,
@@ -100,6 +102,7 @@ export class PgBatchStore implements BatchStore {
         createdAt: iso(r.created_at) ?? undefined,
         origin: r.origin === "editor" ? "editor" : null,
         editor: r.origin === "editor" ? parseEditorMeta(r.trial) : null,
+        rejectReason: (r.reject_reason as string | null | undefined) ?? null,
         warnings: [],
         ...deriveFlags({ status, platformPostId }),
       };

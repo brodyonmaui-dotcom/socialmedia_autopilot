@@ -66,7 +66,7 @@ export function rollUpBadge(statuses: ItemStatus[]): { label: string; tone: Tone
  * the Approve-all count and dialog, and Home. `needs-approval` = a draft that the approve gate lets through;
  * `needs-fix` = a draft the gate refuses (`fix` carries the reason).
  */
-export type LineState = "needs-approval" | "needs-fix" | "approved" | "posting" | "missed" | "posted" | "failed" | "unknown" | "share-by-hand" | "rejected";
+export type LineState = "needs-approval" | "needs-fix" | "approved" | "posting" | "missed" | "posted" | "failed" | "unknown" | "share-by-hand" | "rejected" | "already-posted";
 
 export const LINE_LABEL: Record<LineState, string> = {
   "needs-approval": "Needs approval",
@@ -79,6 +79,7 @@ export const LINE_LABEL: Record<LineState, string> = {
   unknown: "Check it",
   "share-by-hand": "Share by hand",
   rejected: "Rejected",
+  "already-posted": "Already posted",
 };
 
 export const LINE_TONE: Record<LineState, Tone> = {
@@ -92,7 +93,11 @@ export const LINE_TONE: Record<LineState, Tone> = {
   unknown: "warn",
   "share-by-hand": "accent",
   rejected: "neutral",
+  "already-posted": "neutral",
 };
+
+/** Block warnings a line can be cleared from in one tap with "Already posted on <Platform>: drop it". */
+const DROP_INLINE_CODES: ReadonlySet<Warning["code"]> = new Set<Warning["code"]>(["caption.missing", "duplicate.clip"]);
 
 /**
  * Why a draft can't be approved right now, or null. Mirrors `approveBlocker` in batches/transitions.ts
@@ -132,7 +137,7 @@ export function lineState(i: BatchItemView, now: Date): { state: LineState; fix:
     case "unknown":
       return { state: "unknown", fix: null };
     default:
-      return { state: "rejected", fix: null };
+      return { state: i.rejectReason === "already-posted" ? "already-posted" : "rejected", fix: null };
   }
 }
 
@@ -171,6 +176,13 @@ export interface PlatformEntry {
   tone: Tone;
   /** Why a draft can't be approved (state "needs-fix"), else null. */
   fix: string | null;
+  /** "Already posted on <Platform>: drop it" applies (a draft or approved line the app still controls). */
+  canDropPosted?: boolean;
+  /**
+   * Show that action inline, with this reason next to it: a needs-fix line blocked by an empty caption/title
+   * or a duplicate clip, or an approved line that is a duplicate clip. null otherwise.
+   */
+  dropInline?: string | null;
   /** 12-hour display of `time` ("8:00 AM"). */
   time12: string | null;
   text: { caption: string; title: string | null };
@@ -239,6 +251,10 @@ export function pillarTag(p: string | null | undefined): string | null {
 function platformEntry(i: BatchItemView, timeZone: string, now: Date): PlatformEntry {
   const { state, fix } = lineState(i, now);
   const time = i.scheduledFor ? localHHMM(new Date(i.scheduledFor), timeZone) : null;
+  const canDropPosted = i.editable && (i.status === "draft" || i.status === "approved");
+  const dup = i.warnings.find((w) => w.code === "duplicate.clip" && w.severity === "block");
+  const inline = i.warnings.find((w) => w.severity === "block" && DROP_INLINE_CODES.has(w.code));
+  const dropInline = !canDropPosted ? null : state === "needs-fix" && inline ? fix ?? inline.message : state !== "needs-fix" && dup ? dup.message : null;
   return {
     itemId: i.id,
     batchId: i.batchId,
@@ -251,6 +267,8 @@ function platformEntry(i: BatchItemView, timeZone: string, now: Date): PlatformE
     statusLabel: LINE_LABEL[state],
     tone: LINE_TONE[state],
     fix,
+    canDropPosted,
+    dropInline,
     text: { caption: i.caption, title: i.title },
     warnings: i.warnings,
     canApprove: state === "needs-approval",

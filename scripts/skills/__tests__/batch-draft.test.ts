@@ -66,7 +66,8 @@ describe("checkDraft", () => {
 });
 
 describe("createDraftBatch", () => {
-  function fakeClient(mediaIds: string[], archived: string[] = []) {
+  /** `dups`: "mediaId|platform" pairs the duplicate-clip query reports as already on that platform. */
+  function fakeClient(mediaIds: string[], archived: string[] = [], dups: string[] = []) {
     const calls: Array<{ sql: string; params?: unknown[] }> = [];
     return {
       calls,
@@ -74,6 +75,10 @@ describe("createDraftBatch", () => {
         calls.push({ sql, params });
         if (sql.startsWith("select id, status from media")) return { rows: mediaIds.map((id) => ({ id, status: archived.includes(id) ? "archived" : "ready" })) };
         if (sql.startsWith("insert into batches")) return { rows: [{ id: "batch-1" }] };
+        if (/from batch_items bi\s+where \(bi\.media_id = \$1::uuid/.test(sql)) {
+          const hit = dups.includes(`${params?.[0]}|${params?.[1]}`);
+          return { rows: hit ? [{ id: "existing-1", media_id: params?.[0], platform: params?.[1], status: "published", scheduled_for: null, published_at: new Date() }] : [] };
+        }
         return { rows: [] };
       },
     };
@@ -87,7 +92,7 @@ describe("createDraftBatch", () => {
   it("writes one draft batch and draft items only, inside a transaction", async () => {
     const c = fakeClient(sample.items.map((i) => i.mediaId));
     const res = await createDraftBatch(c, ready(), { now });
-    expect(res).toEqual({ batchId: "batch-1", items: 4 });
+    expect(res).toEqual({ batchId: "batch-1", items: 4, skipped: 0 });
     const sqls = c.calls.map((x) => x.sql);
     expect(sqls[1]).toBe("begin");
     expect(sqls.at(-1)).toBe("commit");
@@ -97,6 +102,24 @@ describe("createDraftBatch", () => {
     expect(sqls.some((s) => /approved/.test(s))).toBe(false);
     // the title is only stored for YouTube
     expect(inserts.find((i) => i.params?.[2] === "instagram")!.params?.[4]).toBeNull();
+  });
+
+  it("cross-post backfill create path: skips a post whose clip is already on that platform, and counts it", async () => {
+    const ids = sample.items.map((i) => i.mediaId);
+    const d = ready();
+    const [platform] = Object.keys(d.items[0]!.posts);
+    const c = fakeClient(ids, [], [`${d.items[0]!.mediaId}|${platform}`]);
+    const res = await createDraftBatch(c, d, { now });
+    expect(res).toEqual({ batchId: "batch-1", items: 3, skipped: 1 });
+    const inserts = c.calls.filter((x) => x.sql.includes("insert into batch_items"));
+    expect(inserts.some((i) => i.params?.[1] === d.items[0]!.mediaId && i.params?.[2] === platform)).toBe(false);
+    // The check runs before every insert, with the post's time and the shared predicate.
+    const checks = c.calls.filter((x) => /status <> 'rejected'/.test(x.sql) && /interval '7 days'/.test(x.sql) && /interval '14 days'/.test(x.sql));
+    expect(checks).toHaveLength(4);
+    // Every post already there → nothing written (rolled back).
+    const all = fakeClient(ids, [], d.items.flatMap((it) => Object.keys(it.posts).map((p) => `${it.mediaId}|${p}`)));
+    await expect(createDraftBatch(all, d, { now })).rejects.toThrow(/already on its platform \(4 duplicate/);
+    expect(all.calls.at(-1)!.sql).toBe("rollback");
   });
 
   it("stores the TikTok draft flag in trial for that row only", async () => {

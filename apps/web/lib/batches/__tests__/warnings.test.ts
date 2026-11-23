@@ -99,12 +99,14 @@ describe("computeWarnings", () => {
     expect(find(map.get(c.id)!, "duplicate.caption")).toHaveLength(0);
   });
 
-  it("duplicate.media warns for the same video twice on one platform", () => {
+  it("the same video twice on one platform within 7 days is a duplicate.clip block (not also duplicate.media)", () => {
     const a = makeItem({ mediaId: "m1" });
     const b = makeItem({ mediaId: "m1" });
     const c = makeItem({ mediaId: "m1", platform: "youtube", title: "A calm title" });
     const map = warningsFor([a, b, c]);
-    expect(find(map.get(a.id)!, "duplicate.media")[0]).toMatchObject({ severity: "warn" });
+    expect(find(map.get(a.id)!, "duplicate.clip")[0]).toMatchObject({ severity: "block" });
+    expect(find(map.get(a.id)!, "duplicate.media")).toHaveLength(0);
+    expect(find(map.get(c.id)!, "duplicate.clip")).toHaveLength(0);
     expect(find(map.get(c.id)!, "duplicate.media")).toHaveLength(0);
   });
 

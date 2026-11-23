@@ -122,6 +122,29 @@ export async function rejectItemsAction(fd: FormData): Promise<void> {
 }
 
 /**
+ * "Already posted on <Platform>: drop it". Fields: itemId (uuid), back. The existing reject transition with
+ * event detail {"reason":"already-posted"}: only a draft or approved line (never queued, publishing, published,
+ * failed or unknown). Nothing is deleted; the line shows as "Already posted" under "Show rejected".
+ */
+export async function alreadyPostedAction(fd: FormData): Promise<void> {
+  const session = await requireSession();
+  await run(fd, ["reject"], async () => {
+    const itemId = str(fd, "itemId");
+    if (!UUID.test(itemId)) throw new UserError("Unknown post.");
+    const pool = getPool();
+    const found = await pool.query(`select batch_id from batch_items where id = $1`, [itemId]);
+    const batchId = found.rows[0]?.batch_id as string | undefined;
+    if (!batchId) throw new UserError("That post isn't there any more: reload.");
+    const now = new Date();
+    const { batch } = await fresh(batchId, now);
+    const plan = planTransition(batch, { kind: "reject", itemIds: [itemId], reason: "already-posted" }, now);
+    if (!plan.ok) throw new UserError(cap(plan.reason));
+    await new PgBatchStore(pool).apply(batchId, plan.changes, plan.batchStatus, session.id, now);
+    return `Dropped: already posted. Kept under "Show rejected".`;
+  });
+}
+
+/**
  * Edit text. Fields: item ("batchId:itemId", repeated), caption:<itemId>, title:<itemId> (YouTube). The
  * existing edit transition (an approved post goes back to "Needs approval"). All or nothing per week.
  */

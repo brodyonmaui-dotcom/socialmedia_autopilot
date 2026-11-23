@@ -7,7 +7,7 @@ import {
   type Platform,
   type ScheduleItem,
 } from "@autopilot/core";
-import { loadCadence } from "@autopilot/db";
+import { findDuplicateClipRow, loadCadence } from "@autopilot/db";
 import { QUEUES } from "../queue.js";
 
 /**
@@ -149,6 +149,8 @@ export interface WeeklyDraftResult {
   unplaced: number;
   /** Items whose ingest_key already existed (a rejected weekly item keeps its key). */
   existingKeys: number;
+  /** (clip, platform) pairs skipped by the duplicate-clip guard (already on that platform within ±7 days, or published in 14). */
+  duplicates: number;
   batchId: string | null;
   alertRaised: boolean;
   skipped: null | "no-tz" | "covered" | "no-clips" | "no-slots";
@@ -163,13 +165,13 @@ export interface WeeklyDraftOptions {
 }
 
 function emptyResult(weekStart: string | null, skipped: WeeklyDraftResult["skipped"], uncoveredDays: string[] = []): WeeklyDraftResult {
-  return { weekStart, uncoveredDays, clipsAdded: 0, postsInserted: 0, unplaced: 0, existingKeys: 0, batchId: null, alertRaised: false, skipped };
+  return { weekStart, uncoveredDays, clipsAdded: 0, postsInserted: 0, unplaced: 0, existingKeys: 0, duplicates: 0, batchId: null, alertRaised: false, skipped };
 }
 
 export function formatWeeklyDraftLine(r: WeeklyDraftResult): string {
   if (r.skipped === "no-tz") return WEEKLY_NO_TZ_LINE;
   const why = r.skipped ? ` · ${r.skipped}` : "";
-  return `[weekly-draft] week ${r.weekStart}: uncovered ${r.uncoveredDays.length} · clips ${r.clipsAdded} · posts ${r.postsInserted} · unplaced ${r.unplaced} · existing ${r.existingKeys} · alert ${r.alertRaised ? "raised" : "none"}${why}`;
+  return `[weekly-draft] week ${r.weekStart}: uncovered ${r.uncoveredDays.length} · clips ${r.clipsAdded} · posts ${r.postsInserted} · unplaced ${r.unplaced} · existing ${r.existingKeys}${r.duplicates ? ` · duplicates ${r.duplicates}` : ""} · alert ${r.alertRaised ? "raised" : "none"}${why}`;
 }
 
 /** Draft items of the week (timed by their time, untimed by their batch's week) with an empty caption or an empty YouTube title. */
@@ -272,7 +274,13 @@ async function draftLocked(
 
   const inserted: Array<{ id: string; mediaId: string }> = [];
   let existingKeys = 0;
+  let duplicates = 0;
   for (const a of assignments) {
+    // Duplicate-clip guard (shared predicate): never a second post of this clip on this platform.
+    if (await findDuplicateClipRow(db, { mediaId: a.key, platform: a.platform, scheduledFor: a.scheduledFor, now })) {
+      duplicates++;
+      continue;
+    }
     const ins = await db.query(
       `insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, status, origin, ingest_key, trial, created_at, updated_at)
        values ($1, $2, $3, '', $4, $5::timestamptz, 'draft', 'weekly', $6, null, $7, $7)
@@ -307,7 +315,7 @@ async function draftLocked(
     );
     alertRaised = raised.rows.length === 1;
   }
-  return { weekStart, uncoveredDays: uncovered, clipsAdded, postsInserted: inserted.length, unplaced: plan.unplaced.length, existingKeys, batchId, alertRaised, skipped: null };
+  return { weekStart, uncoveredDays: uncovered, clipsAdded, postsInserted: inserted.length, unplaced: plan.unplaced.length, existingKeys, duplicates, batchId, alertRaised, skipped: null };
 }
 // End of F14 weekly-draft write.
 

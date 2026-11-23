@@ -5,13 +5,20 @@ import { AUTO_CHECKS, isResettablePlatform, POST_ID_RE, RESET_CHECKLIST, validat
 export type BatchAction =
   | { kind: "approve"; itemIds: string[] }
   | { kind: "approve-all" }
-  | { kind: "reject"; itemIds: string[] }
+  /**
+   * `reason: "already-posted"`: "Already posted on <Platform>: drop it". The same reject (draft/approved only),
+   * with the reason in the event detail so the calendar can show it as "Already posted".
+   */
+  | { kind: "reject"; itemIds: string[]; reason?: RejectReason }
   | { kind: "unapprove"; itemIds: string[] }
   | { kind: "edit"; itemId: string; patch: { caption?: string; title?: string | null; scheduledFor?: string | null } }
   /** F11: "I checked, it's not on the platform" → back to draft (never approves). */
   | { kind: "reset-checked"; itemId: string; checked: string[]; autoCheck: AutoCheck }
   /** F11: "I checked, it IS there" → published, with the URL as evidence. */
   | { kind: "record-published"; itemId: string; url: string; platformPostId?: string };
+
+export const REJECT_REASONS = ["already-posted"] as const;
+export type RejectReason = (typeof REJECT_REASONS)[number];
 
 export interface ItemChange {
   itemId: string;
@@ -144,7 +151,9 @@ export function planTransition(batch: BatchView, action: BatchAction, now: Date)
         if (deriveFlags(item).handedOff) return { ok: false, reason: `can't reject: already handed to the platform (${item.status})`, itemId: item.id };
         if (item.status !== "draft" && item.status !== "approved") return { ok: false, reason: `can't reject: item is ${item.status}`, itemId: item.id };
       }
-      return done(items.map((i) => ({ itemId: i.id, from: i.status, to: "rejected", eventKind: "reject" })));
+      const reason = action.reason;
+      if (reason !== undefined && !(REJECT_REASONS as readonly string[]).includes(reason)) return { ok: false, reason: "can't reject: unknown reason" };
+      return done(items.map((i) => ({ itemId: i.id, from: i.status, to: "rejected", eventKind: "reject", ...(reason ? { detail: { reason } } : {}) })));
     }
 
     case "unapprove": {

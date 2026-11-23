@@ -171,6 +171,21 @@ describe.skipIf(!url)("weekly-draft (db)", () => {
     expect((await client.query(`select count(*)::int as n from batches where week_start = $1::date`, [w])).rows[0].n).toBe(1);
   });
 
+  it("duplicate-clip guard: a clip already published on Instagram in the last 14 days gets YouTube + TikTok only", async () => {
+    const w = week(6);
+    const clip = await media(200, { captured: "2109-12-30T12:00:00Z" });
+    const now = sundayBefore(w);
+    const other = (await client.query(`insert into batches (week_start, status) values ($1::date, 'approved') returning id`, [addCalendarDays(w, -14)])).rows[0].id as string;
+    // Recorded as published without a time (so the 28-day "recently used" filter, which looks at times, misses it).
+    await client.query(
+      `insert into batch_items (batch_id, media_id, platform, caption, scheduled_for, status, platform_post_id, updated_at) values ($1, $2, 'instagram', 'posted', null, 'published', $3, $4)`,
+      [other, clip, `${TAG}-pub`, new Date(now.getTime() - 3 * 86_400_000)],
+    );
+    const r = await runWeeklyDraftOnce(db, { timeZone: TZ, now, log: quiet, loadLibrary: library(() => [clip]) });
+    expect(r).toMatchObject({ clipsAdded: 1, postsInserted: 2, duplicates: 1, skipped: null });
+    expect((await items(client, w)).map((x) => x.platform).sort()).toEqual(["tiktok", "youtube"]);
+  });
+
   it("empty library → nothing created (no batch either), nothing raised", async () => {
     const w = week(2);
     const r = await runWeeklyDraftOnce(db, { timeZone: TZ, now: sundayBefore(w), log: quiet, loadLibrary: async () => [] });
