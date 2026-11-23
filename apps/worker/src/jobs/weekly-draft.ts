@@ -327,7 +327,7 @@ export async function registerWeeklyDraftJob(boss: CronBoss, pool: ConnectPool, 
   }
   await boss.createQueue(QUEUES.weeklyDraft);
   await boss.work(QUEUES.weeklyDraft, async () => {
-    await runWeeklyDraftOnce(pool, { timeZone, log });
+    return await runWeeklyDraftOnce(pool, { timeZone, log }); // stored as the pg-boss job output (diagnose-week reads it)
   });
   await boss.schedule(QUEUES.weeklyDraft, WEEKLY_DRAFT_CRON, {}, { tz: timeZone });
   return true;

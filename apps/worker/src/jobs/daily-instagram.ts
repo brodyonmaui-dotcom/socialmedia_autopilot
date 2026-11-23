@@ -243,7 +243,7 @@ export async function registerDailyInstagramJob(boss: CronBoss, pool: ConnectPoo
   }
   await boss.createQueue(QUEUES.dailyInstagram);
   await boss.work(QUEUES.dailyInstagram, async () => {
-    await runDailyInstagramOnce(pool, { timeZone, log });
+    return await runDailyInstagramOnce(pool, { timeZone, log }); // stored as the pg-boss job output (diagnose-week reads it)
   });
   await boss.schedule(QUEUES.dailyInstagram, DAILY_INSTAGRAM_CRON, {}, { tz: timeZone });
   return true;
