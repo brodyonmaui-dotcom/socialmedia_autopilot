@@ -186,6 +186,22 @@ export class MemoryEngagementStore implements EngagementStore {
     this.killed.push({ reason, at: now.toISOString() });
     this.isKilled = true;
   }
+  /** Reason on a planned row (status untouched); true when it changed. Counts calls in `heldWrites`. */
+  heldWrites = 0;
+  async markHeld(id: string, reason: string, _now: Date): Promise<boolean> {
+    const r = this.get(id);
+    if (r.status !== "planned" || r.lastError === reason) return false;
+    r.lastError = reason;
+    this.heldWrites++;
+    return true;
+  }
+  /** Like the pg store: one alert per kind + platform + message per 24 h. */
+  async recordDailyAlert(alert: EngagementAlert, now: Date): Promise<boolean> {
+    const since = now.getTime() - DAY;
+    if (this.alerts.some((x) => x.kind === alert.kind && x.platform === alert.platform && x.message === alert.message && Date.parse(x.at) > since)) return false;
+    this.alerts.push(alert);
+    return true;
+  }
 
   // ---- ActionHistory ----
   async lastRepliesOn(platform: EngagementPlatform, n: number): Promise<string[]> {

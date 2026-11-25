@@ -41,6 +41,7 @@ export class FakeCommentSource implements CommentSource {
   missingThread: "gone" | "empty";
   reply?: CommentSource["reply"];
   hide?: CommentSource["hide"];
+  replyUnavailableReason?: string;
   private n = 0;
 
   constructor(platform: EngagementPlatform, opts: FakeSourceOptions = {}) {

@@ -2,11 +2,12 @@ import type { Pool } from "pg";
 import { dmWindow } from "@autopilot/engagement/src/dm.js";
 import type { ActionStatus, Bucket, EngagementPlatform } from "@autopilot/engagement";
 import { relativeTime } from "../engagement/queries.js";
+import { replyLink } from "./view.js";
 
 /**
  * Run 4 inbox lists for the designer's pages. Comments and DMs, four filters each:
  *  needs-you: flagged (flag / hide_flag) and not handled · drafted: a shadow reply waits for one tap ·
- *  sent: replies queued or out (planned, sending, sent, failed, unknown) / DM drafts copied ·
+ *  sent ("Sending & sent"): replies approved or out (planned incl. waiting, sending, sent, failed, unknown) / DM drafts copied ·
  *  ignored: promo spam (comments bucket spam_promo, DM threads with ignored_at).
  * Promo never appears outside "ignored". Keyset pagination on (at, id), newest first. Read-only.
  */
@@ -36,6 +37,12 @@ export interface InboxListRow {
   reason: string | null;
   draftedReply: string | null;
   replyStatus: ActionStatus | null;
+  /** The reply row's last_error: why it waits (planned) or failed. */
+  replyLastError?: string | null;
+  /** "3 min ago" for a sent reply. */
+  replySentAgo?: string | null;
+  /** Where the sent reply can be seen (YouTube: the reply itself; else the post). */
+  replyUrl?: string | null;
   /** DM draft id (copy) */
   draftId?: string;
   /** /inbox/item/<id> for comments */
@@ -141,7 +148,9 @@ export async function loadInbox(pool: Pick<Pool, "query">, opts: LoadInboxOption
     const at = filter === "sent" ? "coalesce(a.sent_at, a.updated_at)" : "c.commented_at";
     const { rows } = await pool.query(
       `select c.id, c.platform, c.author_handle, c.author_id, c.text, ${at} as at,
-              t.bucket, t.reasons, t.draft_reply, a.status as action_status, a.text as action_text
+              t.bucket, t.reasons, t.draft_reply, a.status as action_status, a.text as action_text,
+              a.last_error as action_error, a.sent_at as action_sent_at, a.platform_action_id, c.platform_media_id,
+              (select bi.platform_post_url from batch_items bi where bi.id = c.batch_item_id) as post_url
          ${COMMENT_FROM} and ${COMMENT_WHERE[filter]}
           and ($1::timestamptz is null or (${at}, c.id) < ($1::timestamptz, $2::uuid))
           and ($4::text is null or c.platform = $4)
@@ -163,6 +172,9 @@ export async function loadInbox(pool: Pick<Pool, "query">, opts: LoadInboxOption
         reason: Array.isArray(r.reasons) && r.reasons.length ? r.reasons.join("; ") : null,
         draftedReply: r.action_text ?? r.draft_reply ?? null,
         replyStatus: r.action_status ?? null,
+        replyLastError: r.action_error ?? null,
+        replySentAgo: r.action_status === "sent" && r.action_sent_at ? relativeTime(iso(r.action_sent_at), now) : null,
+        replyUrl: r.action_status === "sent" ? replyLink(r.platform, r.post_url, r.platform_media_id, r.platform_action_id) : null,
         href: `/inbox/item/${r.id}`,
         actions: commentActions(filter, r),
       };

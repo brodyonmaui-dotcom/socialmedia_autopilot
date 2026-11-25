@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { approveAndSend, loadInboxItem, type ApproveDeps } from "../item.js";
+import { approveAndSend, loadInboxItem, approveTestReply, type ApproveDeps } from "../item.js";
 import { inboxCounts, loadInbox } from "../list.js";
 import { promoRule } from "@autopilot/engagement/src/rules.js";
 import { addPromoAccount, addPromoAccountByHandle, loadPromoAccounts, markNotSpam, removePromoAccount } from "../promo.js";
@@ -113,6 +113,31 @@ describe.skipIf(!url)("inbox data layer (db)", () => {
     expect((await approveAndSend(deps, ids.flag1!, { text: "again", sessionId: "x", now: NOW })).status).toBe("queued");
     const { rows } = await pool.query(`select status, origin, text from engagement_actions where comment_id = $1`, [ids.flag1]);
     expect(rows).toEqual([{ status: "planned", origin: "manual", text: "Thanks man, full split soon" }]);
+  });
+
+  it("test reply (👍) is the normal approve path: one manual planned row, same refusals, a second tap is 'already queued'", async () => {
+    const id = await comment("thumb", "how long did this take?", "flag", "fan4");
+    expect((await approveTestReply({ ...deps, killEnv: true }, id, { sessionId: "x", now: NOW })).status).toBe("refused");
+    const r = await approveTestReply(deps, id, { sessionId: "x", now: NOW });
+    expect(r).toMatchObject({ status: "queued", already: false });
+    expect(await approveTestReply(deps, id, { sessionId: "x", now: NOW })).toMatchObject({ status: "queued", already: true });
+    const { rows } = await pool.query(`select status, origin, text, idempotency_key is not null as has_key from engagement_actions where comment_id = $1`, [id]);
+    expect(rows).toEqual([{ status: "planned", origin: "manual", text: "👍", has_key: true }]);
+    expect((await approveTestReply(deps, ids.promo!, { sessionId: "x", now: NOW })).status).toBe("refused");
+  });
+
+  it("a held reply stays visible under Sending & sent with its reason, and the item says Waiting", async () => {
+    const id = await comment("held", "what shoes?", "flag", "fan5");
+    await approveAndSend(deps, id, { text: "Thanks man", sessionId: "x", now: NOW });
+    const reason = "YouTube replies are switched off on the server (YT_COMMENT_REPLIES=1 needed)";
+    await pool.query(`update engagement_actions set last_error = $2 where comment_id = $1 and status = 'planned'`, [id, reason]);
+    const list = await loadInbox(pool, { kind: "comments", filter: "sent", limit: 100, now: NOW });
+    const mine = list.rows.find((r) => r.id === id);
+    expect(mine).toMatchObject({ replyStatus: "planned", replyLastError: reason });
+    const item = await loadInboxItem(pool, id, NOW);
+    expect(item).toMatchObject({ state: "queued", reply: { status: "planned", lastError: reason } });
+    const needs = await loadInbox(pool, { kind: "comments", filter: "needs-you", limit: 100, now: NOW });
+    expect(needs.rows.some((r) => r.id === id)).toBe(false); // handled_at is set, as before
   });
 
   it("always ignore: lists the author, moves their open drafted item to promo and cancels its shadow reply", async () => {

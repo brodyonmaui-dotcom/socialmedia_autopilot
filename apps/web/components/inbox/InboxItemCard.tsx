@@ -73,7 +73,13 @@ export function InboxItemCard({ row, filter, now }: { row: InboxListRow; filter:
           {plan.rule}
         </p>
       ) : null}
-      {plan.note ? <p className="text-[13px] leading-snug text-ds-muted">{plan.note}</p> : null}
+      {plan.note ? <p className={cx("text-[13px] leading-snug", plan.status?.tone === "warn" ? "text-ds-text" : "text-ds-muted")}>{plan.note}</p> : null}
+      {plan.link ? (
+        <a href={plan.link.href} target="_blank" rel="noopener noreferrer" className={cx("inline-flex min-h-11 items-center gap-1 self-start rounded-ds-sm px-1 text-[14px] font-semibold text-ds-accent-fg hover:bg-ds-raised lg:min-h-9", FOCUS)}>
+          {plan.link.label}
+          <Icon name="arrowUpRight" size={16} />
+        </a>
+      ) : null}
       {row.kind === "dm" && (filter === "needs-you" || filter === "drafted") ? <DmWindow lastInboundAt={row.at} initialNow={now.toISOString()} /> : null}
 
       {plan.primary === "approve" || plan.primary === "write" ? (

@@ -4,6 +4,9 @@ import { getJson, PlatformRequestError, redactToken, type FetchLike } from "../h
 import { commentCursorSince } from "./instagram.js";
 
 const DISABLED = "tiktok comments disabled: no Zernio credentials (ZERNIO_API_KEY, ZERNIO_TIKTOK_ACCOUNT_ID)";
+/** Shown in the Inbox / Platforms page when a TikTok reply waits on the stub. */
+export const TIKTOK_NOT_CONNECTED = "TikTok isn't connected on the server (ZERNIO_API_KEY and ZERNIO_TIKTOK_ACCOUNT_ID needed)";
+const NOT_CONNECTED = TIKTOK_NOT_CONNECTED;
 
 export interface TikTokCommentsConfig {
   apiKey: string;
@@ -91,22 +94,26 @@ function errText(body: ZernioError): string {
  * account under meta.accountsSkipped) and the source logs one line and returns nothing from then on.
  * Never hides, likes or deletes. reply() runs only through the send gate (live mode or the creator's Approve).
  *
- * Without a config this is the old stub: polling returns nothing and every other method refuses.
+ * Ids (verified 2026-11-25 against docs.zernio.com, research.md "Zernio comment ids"): the postId for
+ * GET/POST /v1/inbox/comments/{postId} is the list row's `id` from GET /v1/inbox/comments ("Pass a row's `id`
+ * and `accountId` to Get post comments"); for TikTok that is the TikTok video id, and Zernio also auto-resolves
+ * its own post ids. The list has no separate platformPostId field. accountId is required on both: query on GET,
+ * body on POST ({accountId, commentId, message}).
+ *
+ * Without a config this is a placeholder: polling returns nothing, there is no reply/hide (the send tick shows
+ * "TikTok isn't connected on the server"), and fetchThread refuses.
  */
 export function createTikTokCommentSource(cfg?: TikTokCommentsConfig): CommentSource {
   if (!cfg) {
+    // No reply/hide: the send tick sees "no capability" and tells the creator what's missing (no silent hold).
     return {
       platform: "tiktok",
+      placeholder: true,
+      replyUnavailableReason: NOT_CONNECTED,
       async fetchRecent(cursor) {
         return { comments: [], cursor };
       },
       async fetchThread() {
-        throw new NonRetryableError(DISABLED);
-      },
-      async reply() {
-        throw new NonRetryableError(DISABLED);
-      },
-      async hide() {
         throw new NonRetryableError(DISABLED);
       },
     };

@@ -8,7 +8,9 @@ import { loadOverview, type PlatformCard } from "../analytics/overview.js";
 import { creatorZone, loadCalendar } from "../calendar/load.js";
 import { loadEngagement } from "../engagement/settings.js";
 import { tokenService, upcomingFor, type TodayCounts, type TokenAlert, type UpcomingRow } from "./view.js";
-import type { EngagementSettings } from "@autopilot/engagement";
+import type { EngagementPlatform, EngagementSettings } from "@autopilot/engagement";
+import { ENGAGEMENT_STATUS_KEY, parseEngagementStatus, type PlatformReplyStatus } from "@autopilot/engagement/src/status.js";
+import { getSetting } from "@autopilot/db";
 
 /** How far ahead "next posts" looks (the calendar loader works per window; 6 weeks covers any planned week). */
 export const UPCOMING_DAYS = 42;
@@ -36,6 +38,8 @@ export interface PlatformPageData {
   token: TokenAlert | null;
   engagement: EngagementSettings;
   killEnv: boolean;
+  /** The worker's reply report for this platform (null: Snapchat, or the worker hasn't ticked yet). */
+  replyStatus: PlatformReplyStatus | null;
   upcoming: UpcomingRow[];
   analytics: PlatformCard | null;
 }
@@ -74,13 +78,14 @@ export async function loadPlatformPage(pool: Pool, p: Platform, now: Date, env: 
   const { timeZone, source } = creatorZone(env);
   const today = localDate(now, timeZone);
   const kill = (env.ENGAGEMENT_KILL ?? "").trim().toLowerCase();
-  const [cadence, counts, token, engagement, calendar, overview] = await Promise.all([
+  const [cadence, counts, token, engagement, calendar, overview, rawStatus] = await Promise.all([
     loadCadence(pool),
     loadTodayCounts(pool, p, today, timeZone),
     loadTokenAlert(pool, p),
     loadEngagement(pool),
     loadCalendar(pool, { from: today, to: addCalendarDays(today, UPCOMING_DAYS), now }),
     loadOverview(pool, { days: ANALYTICS_DAYS, timeZone, now }),
+    getSetting<unknown>(pool, ENGAGEMENT_STATUS_KEY),
   ]);
   return {
     platform: p,
@@ -92,6 +97,7 @@ export async function loadPlatformPage(pool: Pool, p: Platform, now: Date, env: 
     token,
     engagement,
     killEnv: kill === "1" || kill === "true",
+    replyStatus: p === "snapchat" ? null : (parseEngagementStatus(rawStatus)?.platforms[p as EngagementPlatform] ?? null),
     upcoming: upcomingFor(calendar.entries, p, now, today),
     analytics: overview.platforms.find((c) => c.platform === p) ?? null,
   };

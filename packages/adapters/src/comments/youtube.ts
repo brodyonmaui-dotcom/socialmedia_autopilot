@@ -46,6 +46,8 @@ interface YtList<T> extends YtError {
 }
 
 const API = "https://www.googleapis.com/youtube/v3";
+/** Shown in the Inbox / Platforms page when a YouTube reply waits because replies are off. */
+export const YT_REPLIES_OFF = "YouTube replies are switched off on the server (YT_COMMENT_REPLIES=1 needed)";
 
 function toIso(ts: string | undefined): string {
   const t = ts ? Date.parse(ts) : NaN;
@@ -195,6 +197,8 @@ export function createYouTubeCommentSource(cfg: YouTubeCommentsConfig): YouTubeC
       return flattenThread(thread, replies).find((c) => c.platformCommentId === platformCommentId) ?? null;
     },
   };
+
+  if (!canReply) source.replyUnavailableReason = YT_REPLIES_OFF;
 
   if (canReply) {
     /** verified 2026-11-12 docs/research.md YouTube "Comments": comments.insert, snippet.parentId, 50 units, youtube.force-ssl. */

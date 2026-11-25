@@ -35,6 +35,7 @@ describe("inbox actions without a session", () => {
       [
         "approveAndSendAction", "blockAuthorAction", "copyDraftAction", "ignoreAccountAction", "markHandledAction", "notSpamAction", "promoteShadowAction",
         "removePromoAccountAction", "sendManualAction", "setDmDraftsAction", "setKillAction", "setModeAction", "setPingsAction",
+        "testReplyAction",
       ].sort(),
     );
   });

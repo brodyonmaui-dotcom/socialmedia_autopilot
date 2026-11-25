@@ -38,12 +38,14 @@ describe("createYouTubeCommentSource", () => {
     const src = createYouTubeCommentSource(cfg);
     expect(src.reply).toBeUndefined();
     expect(src.hide).toBeUndefined();
+    expect(src.replyUnavailableReason).toBe("YouTube replies are switched off on the server (YT_COMMENT_REPLIES=1 needed)");
     expect(src.capabilities).toEqual({ reply: false, hide: false });
   });
 
   it("canReply: comments.insert with snippet.parentId (the thread) + textOriginal", async () => {
     const r = router([tokenRoute, lookup("UgxThread1.reply1", "UgxThread1"), [(u, i) => i?.method === "POST" && u === "https://www.googleapis.com/youtube/v3/comments?part=snippet", () => json(fixture("yt-comment-insert-ok"))]]);
     const src = createYouTubeCommentSource({ ...cfg, fetch: r.fetch, canReply: true });
+    expect(src.replyUnavailableReason).toBeUndefined();
     expect(src.capabilities.reply).toBe(true);
     const res = await src.reply!("UgxThread1.reply1", "appreciate it", { idempotencyKey: "k" });
     expect(res).toEqual({ platformReplyId: "UgxThread1.reply2" });

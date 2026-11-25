@@ -175,7 +175,8 @@ export const handleLabel = (h: string | null | undefined, fallback = "unknown au
 
 // ---- v3 inbox (run 4): filters, plain-word reasons, card plan. Pure. ----
 
-export const FILTER_LABEL: Record<InboxFilter, string> = { "needs-you": "Needs you", drafted: "Drafted", sent: "Sent", ignored: "Ignored" };
+/** "Sent" also holds approved replies still sending or waiting (a held reply is never lost from view). */
+export const FILTER_LABEL: Record<InboxFilter, string> = { "needs-you": "Needs you", drafted: "Drafted", sent: "Sending & sent", ignored: "Ignored" };
 const FILTER_IDS: readonly InboxFilter[] = ["needs-you", "drafted", "sent", "ignored"];
 /** The old ?tab= values the server actions still redirect to (actions.ts pathFrom). */
 const LEGACY_TAB: Record<string, InboxFilter> = { flagged: "needs-you", shadow: "drafted", sent: "sent" };
@@ -294,7 +295,7 @@ const cap = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
 const stop = (s: string) => (/[.!?]$/.test(s) ? s : `${s}.`);
 
 /** The ?note= / ?error= an action redirected with, in plain words. */
-export function resultNotice(q: { note?: string | undefined; error?: string | undefined }): { tone: "info" | "danger"; text: string } | null {
+export function resultNotice(q: { note?: string | undefined; error?: string | undefined }): { tone: "info" | "warn" | "danger"; text: string } | null {
   if (q.error) {
     const e = q.error.trim();
     if (/killed/.test(e)) return { tone: "danger", text: "Not sent: replies are paused. Resume them in Settings." };
@@ -303,6 +304,7 @@ export function resultNotice(q: { note?: string | undefined; error?: string | un
   const n = q.note?.trim();
   if (!n) return null;
   if (n.startsWith("dry run")) return { tone: "info", text: "Dry run: nothing was sent. The reply is saved as approved." };
+  if (n.startsWith("waiting:")) return { tone: "warn", text: `Approved, but it can't go out yet: ${stop(n.slice("waiting:".length).trim())} It sends once that's fixed.` };
   if (n.startsWith("queued")) return { tone: "info", text: "Approved. It goes out within a few minutes." };
   if (n === "already queued") return { tone: "info", text: "Already approved. It's on its way." };
   return { tone: "info", text: stop(cap(n)) };
@@ -315,6 +317,8 @@ export interface CardPlan {
   note: string | null;
   /** Sent filter: the reply's state. */
   status: { label: string; tone: "neutral" | "accent" | "warn" | "danger" } | null;
+  /** A sent reply: where to see it on the platform. */
+  link?: { href: string; label: string } | null;
   /** Ignored filter: the matched rule in plain words. */
   rule: string | null;
   canHide: boolean;
@@ -324,12 +328,70 @@ export interface CardPlan {
 }
 
 const SENT_STATUS: Partial<Record<string, CardPlan["status"]>> = {
-  planned: { label: "Queued", tone: "neutral" },
+  planned: { label: "Sending", tone: "neutral" },
   sending: { label: "Sending", tone: "neutral" },
-  sent: { label: "Sent", tone: "accent" },
+  sent: { label: "Sent ✓", tone: "accent" },
   failed: { label: "Failed", tone: "danger" },
   unknown: { label: "Check on the platform", tone: "warn" },
 };
+
+/** What the reply row says about itself (from engagement_actions: status, last_error, sent_at, platform_action_id). */
+export interface ReplyRowState {
+  status: ActionStatus | null;
+  lastError: string | null;
+  /** "3 min ago" (precomputed: this module does no clock reads). */
+  sentAgo?: string | null;
+  url?: string | null;
+}
+
+/**
+ * The true reply state, not just "queued": a planned row with a reason waits ("Waiting" + the reason), a sent
+ * one shows when and where, a failed one why. Pure.
+ */
+export function replyStateView(r: ReplyRowState): { status: CardPlan["status"]; note: string | null; link: CardPlan["link"] } {
+  const err = r.lastError?.trim() || null;
+  switch (r.status) {
+    case "planned":
+      return err ? { status: { label: "Waiting", tone: "warn" }, note: `Waiting: ${err}`, link: null } : { status: SENT_STATUS.planned!, note: "Approved. The worker sends it on its next tick.", link: null };
+    case "sending":
+      return { status: SENT_STATUS.sending!, note: null, link: null };
+    case "sent":
+      return {
+        status: { label: r.sentAgo ? `Sent ✓ ${r.sentAgo}` : "Sent ✓", tone: "accent" },
+        note: null,
+        link: r.url ? { href: r.url, label: "See it on the platform" } : null,
+      };
+    case "failed":
+      return { status: SENT_STATUS.failed!, note: err ? `Failed: ${err}` : "Failed. See Notifications.", link: null };
+    case "unknown":
+      return { status: SENT_STATUS.unknown!, note: "The send timed out. Check the thread on the platform before trying again.", link: null };
+    case "cancelled":
+      return { status: { label: "Cancelled", tone: "neutral" }, note: "You had already replied in the thread.", link: null };
+    default:
+      return { status: null, note: null, link: null };
+  }
+}
+
+const SAFE_URL = /^https:\/\/[^\s"'<>]+$/;
+/**
+ * Where a sent reply can be seen: YouTube links straight to the reply (watch?v=<video>&lc=<reply id>); other
+ * platforms open the post (its stored URL). Null when nothing safe is known.
+ */
+export function replyLink(platform: EngagementPlatform, postUrl: string | null | undefined, mediaId: string | null | undefined, platformActionId: string | null | undefined): string | null {
+  if (platform === "youtube" && mediaId && platformActionId && /^[\w-]+$/.test(mediaId)) {
+    return `https://www.youtube.com/watch?v=${encodeURIComponent(mediaId)}&lc=${encodeURIComponent(platformActionId)}`;
+  }
+  return postUrl && SAFE_URL.test(postUrl) ? postUrl : null;
+}
+
+/** The secondary "Send a test reply (👍)" button: only on a comment the creator can still approve, on a platform that can reply. */
+export const TEST_REPLY_TEXT = "👍";
+export function testReplyConfirm(platform: EngagementPlatform, authorName: string): string {
+  return `This posts ${TEST_REPLY_TEXT} as a public reply to ${authorName} on ${PLATFORM_NAME[platform]}. Use it once to prove replies work.`;
+}
+export function canTestReply(plan: Pick<CardPlan, "primary">, canReply: boolean | null | undefined): boolean {
+  return canReply === true && (plan.primary === "approve" || plan.primary === "write");
+}
 
 export function cardPlan(row: InboxListRow, filter: InboxFilter): CardPlan {
   const has = (a: InboxListRow["actions"][number]) => row.actions.includes(a);
@@ -345,7 +407,10 @@ export function cardPlan(row: InboxListRow, filter: InboxFilter): CardPlan {
   };
   // Ignored: "Not spam", or put the account on the always-ignore list (unless the list is why it's here).
   if (filter === "ignored") return { ...base, rule: promoReasonText(row.reason), canDismiss: false, canIgnoreAccount: !(row.reason ?? "").startsWith("promo:list"), canHide: false };
-  if (filter === "sent") return { ...base, status: SENT_STATUS[row.replyStatus ?? ""] ?? null, canDismiss: false, canIgnoreAccount: false, canHide: false };
+  if (filter === "sent") {
+    const v = replyStateView({ status: row.replyStatus, lastError: row.replyLastError ?? null, sentAgo: row.replySentAgo ?? null, url: row.replyUrl ?? null });
+    return { ...base, status: v.status, note: v.note, link: v.link, canDismiss: false, canIgnoreAccount: false, canHide: false };
+  }
   if (row.kind === "dm") return { ...base, primary: row.draftId && row.draftedReply ? "copy" : "none" };
   if (row.bucket === "hide_flag") return { ...base, note: "Flagged as abusive: no reply from here." };
   return { ...base, primary: row.draftedReply?.trim() ? "approve" : "write" };
@@ -360,7 +425,7 @@ export function emptyFor(kind: InboxKind, filter: InboxFilter): { title: string;
   }
   if (filter === "needs-you") return { title: "No one is waiting", body: "Comments that need your own words show up here. Drafted replies wait for one tap.", action: { href: inboxHref("comments", "drafted"), label: "See drafted replies" } };
   if (filter === "drafted") return { title: "No drafts waiting", body: "Replies drafted for praise and simple comments wait here for your OK.", action: { href: inboxHref("comments", "needs-you"), label: "See what needs you" } };
-  if (filter === "sent") return { title: "Nothing sent yet", body: "Replies you approve show up here with their state.", action: { href: inboxHref("comments", "drafted"), label: "See drafted replies" } };
+  if (filter === "sent") return { title: "Nothing sent yet", body: "Replies you approve show up here with their state: sending, waiting (and why), sent or failed.", action: { href: inboxHref("comments", "drafted"), label: "See drafted replies" } };
   return { title: "Nothing ignored", body: "Promo spam (“send it to @page”) lands here and never gets a reply.", action: { href: inboxHref("comments", "needs-you"), label: "Back to the inbox" } };
 }
 
@@ -390,13 +455,13 @@ export function itemPlan(item: Pick<InboxItem, "platform" | "state" | "draftedRe
       if (bucket === "hide_flag") return { ...open, note: "Flagged as abusive: no reply from here.", canHide: item.platform === "instagram" };
       return { ...open, primary: item.draftedReply?.trim() ? "approve" : "write" };
     case "queued":
-      return { ...base, status: SENT_STATUS.planned! };
     case "sent":
-      return { ...base, status: SENT_STATUS.sent! };
     case "failed":
-      return { ...base, status: SENT_STATUS.failed!, note: item.reply?.lastError ? `It failed: ${item.reply.lastError}` : "It failed. See Notifications." };
-    case "unknown":
-      return { ...base, status: SENT_STATUS.unknown!, note: "The send timed out. Check the thread on the platform before trying again." };
+    case "unknown": {
+      const fromState: Record<string, ActionStatus> = { queued: "planned", sent: "sent", failed: "failed", unknown: "unknown" };
+      const v = replyStateView({ status: item.reply?.status ?? fromState[item.state] ?? null, lastError: item.reply?.lastError ?? null, sentAgo: item.reply?.sentAgo ?? null, url: item.reply?.url ?? null });
+      return { ...base, status: v.status, note: v.note, link: v.link };
+    }
     case "cancelled":
       return { ...base, status: { label: "Cancelled", tone: "neutral" }, note: "You had already replied in the thread." };
     case "done":

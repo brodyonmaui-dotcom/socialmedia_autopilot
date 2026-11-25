@@ -15,7 +15,7 @@ import {
   writeEngagementAlert,
 } from "../../lib/engagement/queries.js";
 import { setDmDrafts, setKilled, setMode } from "../../lib/engagement/settings.js";
-import { approveAndSend, approveDepsFromEnv } from "../../lib/inbox/item.js";
+import { approveAndSend, approveDepsFromEnv, approveTestReply } from "../../lib/inbox/item.js";
 import { addPromoAccount, markNotSpam, removePromoAccount } from "../../lib/inbox/promo.js";
 import { setPings } from "../../lib/inbox/status.js";
 import { pathFrom } from "../../lib/inbox/view.js";
@@ -172,6 +172,20 @@ export async function approveAndSendAction(commentId: string, fd?: FormData): Pr
     if (!UUID.test(commentId)) throw new UserError("unknown comment");
     const text = field(fd, "text");
     const r = await approveAndSend(approveDepsFromEnv(getPool()), commentId, { ...(text.trim() ? { text } : {}), sessionId: session.id, now: new Date() });
+    if (r.status === "refused") throw new UserError(r.reason);
+    return r.message;
+  });
+}
+
+/**
+ * "Send a test reply (👍)", behind a confirm on the item page: the same approve path with the text 👍 (same
+ * gates, same single row and idempotency key). Only ever runs on the creator's tap.
+ */
+export async function testReplyAction(commentId: string, fd?: FormData): Promise<void> {
+  const session = await requireSession();
+  await run(UUID.test(commentId) ? itemPath(commentId, fd) : "/inbox", async () => {
+    if (!UUID.test(commentId)) throw new UserError("unknown comment");
+    const r = await approveTestReply(approveDepsFromEnv(getPool()), commentId, { sessionId: session.id, now: new Date() });
     if (r.status === "refused") throw new UserError(r.reason);
     return r.message;
   });
