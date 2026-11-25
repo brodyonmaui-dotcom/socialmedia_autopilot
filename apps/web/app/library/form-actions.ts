@@ -3,7 +3,9 @@
 import { redirect } from "next/navigation";
 import { requireSession } from "../../lib/auth/require.js";
 import { noteParams, safeBack, withNote } from "../../lib/library/screen.js";
-import { dismissIssueAction, keepAllFixesAction, keepFixAction, keepOriginalAction, moveToFolderAction, requestFixAction } from "./actions.js";
+import { addedNote } from "../../lib/library/add-to-calendar.js";
+import { batchRedirect } from "../../lib/calendar/model.js";
+import { addToCalendarAction, dismissIssueAction, keepAllFixesAction, keepFixAction, keepOriginalAction, moveToFolderAction, requestFixAction } from "./actions.js";
 
 /**
  * Form wrappers for the Library / Touch-up pages: each calls the matching server action in ./actions.ts
@@ -47,4 +49,13 @@ export async function moveFolderForm(formData: FormData): Promise<void> {
   await requireSession();
   const r = await moveToFolderAction(formData);
   redirect(withNote(backOf(formData), r.ok ? noteParams({ kind: "moved" }) : noteParams({ kind: "error", reason: r.reason })));
+}
+
+/** "Add to calendar…" confirm: drafts land in the calendar week of the first one; a note says what happened. */
+export async function addToCalendarForm(formData: FormData): Promise<void> {
+  await requireSession();
+  const r = await addToCalendarAction(formData);
+  if (!r.ok) redirect(withNote(backOf(formData), noteParams({ kind: "error", reason: r.reason })));
+  if (r.added === 0 || !r.firstWeek) redirect(withNote(backOf(formData), noteParams({ kind: "error", reason: "nothing was added" })));
+  redirect(`${batchRedirect(r.firstWeek)}&note=${encodeURIComponent(addedNote(r.added, r.skipped.length))}`);
 }

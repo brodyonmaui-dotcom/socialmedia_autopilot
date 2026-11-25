@@ -43,6 +43,7 @@ const clip = (o: Partial<LibraryClip> = {}): LibraryClip => ({
   usedIn: 0,
   derivedFrom: null,
   folder: null,
+  marks: {},
   at: "2026-11-25T12:00:00.000Z",
   focused: false,
   href: "/library",
@@ -73,6 +74,9 @@ describe("library URL state", () => {
       focus: ID,
       clip: ID2,
       group: "week",
+      status: "ready",
+      sort: "newest",
+      select: false,
     });
     expect(parseLibraryParams({ q: ["a", "b"], pillar: "<x>", tag: "nope", cursor: "a/b", focus: "x", clip: "1" })).toEqual({
       q: "a",
@@ -82,7 +86,12 @@ describe("library URL state", () => {
       focus: null,
       clip: null,
       group: "week",
+      status: "ready",
+      sort: "newest",
+      select: false,
     });
+    expect(parseLibraryParams({ status: "posted", sort: "longest", select: "1" })).toMatchObject({ status: "posted", sort: "longest", select: true });
+    expect(parseLibraryParams({ status: "x", sort: "y", select: "0" })).toMatchObject({ status: "ready", sort: "newest", select: false });
     expect(parseLibraryParams({}).q).toBe("");
   });
 

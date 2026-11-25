@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { creatorZone } from "../../lib/calendar/load.js";
 import { requireSession } from "../../lib/auth/require.js";
 import { getPool } from "../../lib/db.js";
-import { dismissIssue, keepAllFixes, keepFix, keepOriginal, moveToFolder, requestFix, type KeepAllResult, type KeepFixResult, type RequestFixResult } from "../../lib/library/data.js";
+import { addToCalendar, parsePlatforms, planAddToCalendar, type AddPlan, type AddResult } from "../../lib/library/add-to-calendar.js";
+import { dismissIssue, keepAllFixes, keepFix, keepOriginal, moveManyToFolder, requestFix, type KeepAllResult, type KeepFixResult, type RequestFixResult } from "../../lib/library/data.js";
 
 /**
  * Touch-up server actions. Every one needs a session; DB errors become a fixed message (never echoed).
@@ -75,5 +77,29 @@ export async function moveToFolderAction(formData: FormData): Promise<ActionResu
   await requireSession();
   const typed = String(formData.get("folder") ?? "").trim();
   const chosen = typed || String(formData.get("existing") ?? "");
-  return guarded("move-folder", async () => moveToFolder(getPool(), String(formData.get("mediaId") ?? ""), chosen));
+  // One or many `mediaId` fields (select mode sends every ticked clip).
+  const ids = strings(formData.getAll("mediaId"));
+  return guarded("move-folder", async () => moveManyToFolder(getPool(), ids, chosen));
+}
+
+/** "Add to calendar…" preview: the time each ticked clip would get per platform. Read-only. */
+export async function previewAddToCalendarAction(mediaIds: string[], platforms: string[]): Promise<ActionResult<{ plan: AddPlan }>> {
+  await requireSession();
+  try {
+    const plan = await planAddToCalendar(getPool(), { mediaIds, platforms: parsePlatforms(platforms), now: new Date(), timeZone: creatorZone().timeZone });
+    return { ok: true, plan };
+  } catch (err) {
+    console.error(`library preview-add failed: ${(err as Error).name}`);
+    return { ok: false, reason: "something went wrong" };
+  }
+}
+
+/** "Add to calendar" confirm (repeated `mediaId` and `platform` fields): DRAFT items only, nothing approved. */
+export async function addToCalendarAction(formData: FormData): Promise<ActionResult<AddResult>> {
+  const session = await requireSession();
+  const ids = strings(formData.getAll("mediaId"));
+  const platforms = parsePlatforms(strings(formData.getAll("platform")));
+  if (ids.length === 0) return { ok: false, reason: "no clips selected" };
+  if (platforms.length === 0) return { ok: false, reason: "no platform chosen" };
+  return guarded("add-to-calendar", async () => ({ ok: true, ...(await addToCalendar(getPool(), { mediaIds: ids, platforms, now: new Date(), timeZone: creatorZone().timeZone, sessionId: session.id })) }));
 }

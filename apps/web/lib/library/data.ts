@@ -4,7 +4,7 @@
  * apps/worker/src/jobs/media-fix.ts), and nothing here publishes. "Keep the fix" re-points DRAFT calendar
  * items only; approved / handed-off items keep the file that was approved.
  */
-import { checkFolderLabel } from "@autopilot/core";
+import { checkFolderLabel, type Platform } from "@autopilot/core";
 import type { Pool } from "pg";
 import { mediaLabel } from "../batches/pg-store.js";
 import { availableOps, flaggedIssues, focusHref, infoTags, issuesOf, resolveOps, type FixOp, type QaIssue } from "./qa-issues.js";
@@ -31,7 +31,22 @@ export interface LibraryQuery {
   /** Media id from `?focus=`: returned first when it exists. */
   focus?: string | null;
   limit?: number;
+  /** Status chip (default "all" here; the page defaults to "ready"). */
+  status?: LibraryStatus;
+  sort?: LibrarySort;
+  /** Used for the per-platform "scheduled" marks (which upcoming item to show). */
+  now?: Date;
 }
+
+export type LibraryStatus = "ready" | "scheduled" | "posted" | "all";
+export const LIBRARY_STATUSES: readonly LibraryStatus[] = ["ready", "scheduled", "posted", "all"];
+export type LibrarySort = "newest" | "oldest" | "longest" | "shortest";
+export const LIBRARY_SORTS: readonly LibrarySort[] = ["newest", "oldest", "longest", "shortest"];
+
+/** The platforms the library shows marks for (Snapchat is hand-off, not scheduled from here). */
+export const MARK_PLATFORMS = ["instagram", "youtube", "tiktok"] as const satisfies readonly Platform[];
+export type PlatformMark = { kind: "posted" } | { kind: "scheduled"; at: string | null };
+export type PlatformMarks = Partial<Record<(typeof MARK_PLATFORMS)[number], PlatformMark>>;
 
 export interface LibraryClip {
   mediaId: string;
@@ -51,6 +66,8 @@ export interface LibraryClip {
   derivedFrom: string | null;
   /** Library folder label (media.folder, migration 0016), or null: the screen groups by week then. */
   folder: string | null;
+  /** Per-platform "posted" / "scheduled at" marks (one batched query per page). */
+  marks: PlatformMarks;
   /** ISO instant the week bucket comes from: captured_at, else created_at. */
   at: string;
   focused: boolean;
@@ -71,16 +88,40 @@ interface LibraryRow {
   qa: unknown;
   poster_key: string | null;
   derived_from: string | null;
-  folder: string | null;
+  folder?: string | null;
   captured_at: Date | null;
   created_at: Date;
   used_in: number;
   dismissed: string[] | null;
 }
 
-const LIBRARY_COLUMNS = `m.id, m.source_path, m.duration_s, m.pillar, m.status, m.qa, m.poster_key, m.derived_from, m.folder, m.captured_at, m.created_at,
+const libraryColumns = (folders: boolean) => `m.id, m.source_path, m.duration_s, m.pillar, m.status, m.qa, m.poster_key, m.derived_from, ${folders ? "m.folder" : "null::text as folder"}, m.captured_at, m.created_at,
   (select count(*)::int from batch_items bi where bi.media_id = m.id and bi.status <> 'rejected') as used_in,
   (select array_agg(td.code) from touchup_dismissals td where td.media_id = m.id and td.undone_at is null) as dismissed`;
+
+// ---------- Migration 0016 guard ----------
+
+const folderColumnCache = new WeakMap<object, { has: boolean; at: number }>();
+const FOLDER_MISS_TTL_MS = 30_000;
+
+/**
+ * Does media.folder exist (migration 0016)? Checked once per process per pool when it does; when it doesn't, re-checked
+ * every 30 s so applying the migration needs no restart. Every folder-aware query asks this first, so a database that is
+ * behind the code shows the library without folders instead of crashing.
+ */
+export async function hasFolderColumn(pool: Db, now: number = Date.now()): Promise<boolean> {
+  const hit = folderColumnCache.get(pool);
+  if (hit && (hit.has || now - hit.at < FOLDER_MISS_TTL_MS)) return hit.has;
+  const { rows } = await pool.query(`select 1 from information_schema.columns where table_schema = current_schema() and table_name = 'media' and column_name = 'folder'`);
+  const has = rows.length > 0;
+  folderColumnCache.set(pool, { has, at: now });
+  return has;
+}
+
+/** Forget what hasFolderColumn learned (tests that add or drop the column). */
+export function resetFolderColumnCache(pool: Db): void {
+  folderColumnCache.delete(pool);
+}
 
 function encodeCursor(r: { created_at: Date; id: string }): string {
   return Buffer.from(`${new Date(r.created_at).toISOString()}|${r.id}`).toString("base64url");
@@ -92,7 +133,7 @@ function decodeCursor(c: string | null | undefined): { at: string; id: string } 
 }
 const likeEscape = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
-function toClip(r: LibraryRow, focused: boolean): LibraryClip {
+function toClip(r: LibraryRow, focused: boolean, marks: PlatformMarks = {}): LibraryClip {
   const issues = issuesOf(r.qa);
   const label = mediaLabel(r.source_path, r.id);
   const n = r.duration_s == null ? null : Number(r.duration_s);
@@ -107,7 +148,8 @@ function toClip(r: LibraryRow, focused: boolean): LibraryClip {
     hasPoster: !!r.poster_key,
     usedIn: r.used_in,
     derivedFrom: r.derived_from,
-    folder: r.folder,
+    folder: r.folder ?? null,
+    marks,
     at: new Date(r.captured_at ?? r.created_at).toISOString(),
     focused,
     href: focusHref(label, r.id),
@@ -116,43 +158,131 @@ function toClip(r: LibraryRow, focused: boolean): LibraryClip {
 
 const matchesTag = (c: LibraryClip, tag: string | undefined) => !tag || (tag === "flagged" ? c.flagged > 0 : c.tags.some((t) => t.code === tag));
 
-/** Newest first, keyset-paged. `q` matches the file name or pillar; the focused clip (if any) comes first on page 1. */
-export async function loadLibrary(pool: Db, query: LibraryQuery = {}): Promise<LibraryPage> {
-  const limit = Math.min(Math.max(query.limit ?? 60, 1), 200);
-  const q = (query.q ?? "").trim().slice(0, 80);
-  const cursor = decodeCursor(query.cursor);
+// ---------- Status filters (Ready to schedule / Scheduled / Posted / All) ----------
+
+const hasItem = (cond: string) => `exists (select 1 from batch_items bi where bi.media_id = m.id and ${cond})`;
+/** Ready: not archived, a clean file, no non-rejected calendar item on any platform. (Hidden clips are excluded for every status.) */
+const READY_SQL = `(m.status <> 'archived' and coalesce(m.r2_key, '') <> '' and not ${hasItem("bi.status <> 'rejected'")})`;
+const SCHEDULED_SQL = hasItem("bi.status not in ('rejected', 'published')");
+const POSTED_SQL = hasItem("bi.status = 'published'");
+/** The clip's file name without its folders (what the creator sees on the card). */
+const NAME_SQL = String.raw`regexp_replace(coalesce(m.source_path, ''), '^.*[\\/]', '')`;
+const STATUS_SQL: Record<LibraryStatus, string | null> = { ready: READY_SQL, scheduled: SCHEDULED_SQL, posted: POSTED_SQL, all: null };
+
+function baseFilter(q: string, pillar: string | null | undefined): { where: string[]; params: unknown[] } {
   const params: unknown[] = [];
   const where = [`not ${HIDDEN}`];
   if (q) {
     params.push(`%${likeEscape(q)}%`);
-    where.push(`(m.source_path ilike $${params.length} or m.pillar ilike $${params.length})`);
+    where.push(`(${NAME_SQL} ilike $${params.length} or m.pillar ilike $${params.length})`);
   }
-  if (query.pillar) {
-    params.push(query.pillar);
+  if (pillar) {
+    params.push(pillar);
     where.push(`m.pillar = $${params.length}`);
   }
+  return { where, params };
+}
+
+const ORDER: Record<LibrarySort, string> = {
+  newest: "m.created_at desc, m.id desc",
+  oldest: "m.created_at asc, m.id asc",
+  longest: "m.duration_s desc nulls last, m.created_at desc, m.id desc",
+  shortest: "m.duration_s asc nulls last, m.created_at desc, m.id desc",
+};
+
+/** Offset cursors ("o60") for the non-default sorts; newest keeps the keyset cursor. */
+const offsetOf = (c: string | null | undefined): number => {
+  const m = /^o(\d{1,6})$/.exec(c ?? "");
+  return m ? Number(m[1]) : 0;
+};
+
+/** Counts for the status chips (same search and topic filters as the grid; the tag filter is not applied). */
+export async function loadLibraryCounts(pool: Db, query: Pick<LibraryQuery, "q" | "pillar"> = {}): Promise<Record<LibraryStatus, number>> {
+  const { where, params } = baseFilter((query.q ?? "").trim().slice(0, 80), query.pillar);
+  const { rows } = await pool.query(
+    `select count(*) filter (where ${READY_SQL})::int as ready, count(*) filter (where ${SCHEDULED_SQL})::int as scheduled,
+            count(*) filter (where ${POSTED_SQL})::int as posted, count(*)::int as total
+       from media m where ${where.join(" and ")}`,
+    params,
+  );
+  const r = rows[0] as { ready: number; scheduled: number; posted: number; total: number };
+  return { ready: r.ready, scheduled: r.scheduled, posted: r.posted, all: r.total };
+}
+
+/**
+ * Per-platform marks for a page of clips: ONE query. Posted wins; else the next upcoming (or, failing that, the latest)
+ * unpublished non-rejected item. Rejected items never show. Untimed drafts show as scheduled with `at: null`.
+ */
+export async function loadPlatformMarks(pool: Db, mediaIds: readonly string[], now: Date = new Date()): Promise<Map<string, PlatformMarks>> {
+  const out = new Map<string, PlatformMarks>();
+  const ids = mediaIds.filter(isUuid);
+  if (ids.length === 0) return out;
+  const { rows } = (await pool.query(
+    `select bi.media_id, bi.platform, bi.status, bi.scheduled_for from batch_items bi
+      where bi.media_id = any($1::uuid[]) and bi.status <> 'rejected' and bi.platform = any($2::text[])`,
+    [ids, [...MARK_PLATFORMS]],
+  )) as { rows: Array<{ media_id: string; platform: (typeof MARK_PLATFORMS)[number]; status: string; scheduled_for: Date | string | null }> };
+  const t = now.getTime();
+  const rank = (at: number | null) => (at == null ? 2 : at >= t ? 0 : 1);
+  const best = new Map<string, { at: number | null }>();
+  for (const r of rows) {
+    const marks = out.get(r.media_id) ?? {};
+    out.set(r.media_id, marks);
+    if (r.status === "published") {
+      marks[r.platform] = { kind: "posted" };
+      continue;
+    }
+    if (marks[r.platform]?.kind === "posted") continue;
+    const when = r.scheduled_for == null ? null : new Date(r.scheduled_for);
+    const at = when && !Number.isNaN(when.getTime()) ? when.getTime() : null;
+    const k = `${r.media_id}|${r.platform}`;
+    const cur = best.get(k);
+    const better = !cur || rank(at) < rank(cur.at) || (rank(at) === rank(cur.at) && at != null && cur.at != null && (rank(at) === 0 ? at < cur.at : at > cur.at));
+    if (better) {
+      best.set(k, { at });
+      marks[r.platform] = { kind: "scheduled", at: at == null ? null : new Date(at).toISOString() };
+    }
+  }
+  return out;
+}
+
+/** Newest first by default, keyset-paged (other sorts page by offset). `q` matches the file name or pillar; the focused clip (if any) comes first on page 1. */
+export async function loadLibrary(pool: Db, query: LibraryQuery = {}): Promise<LibraryPage> {
+  const limit = Math.min(Math.max(query.limit ?? 60, 1), 200);
+  const q = (query.q ?? "").trim().slice(0, 80);
+  const sort = query.sort ?? "newest";
+  const folders = await hasFolderColumn(pool);
+  const cols = libraryColumns(folders);
+  const offset = sort === "newest" ? 0 : offsetOf(query.cursor);
+  const cursor = sort === "newest" ? decodeCursor(query.cursor) : null;
+  const { where, params } = baseFilter(q, query.pillar);
+  const statusSql = STATUS_SQL[query.status ?? "all"];
+  if (statusSql) where.push(statusSql);
   if (cursor) {
     params.push(cursor.at, cursor.id);
     where.push(`(m.created_at, m.id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`);
   }
   // The tag filter runs on mapped issues (legacy rows too), so over-fetch a little when it's set.
-  params.push(query.tag ? limit * 4 : limit + 1);
-  const { rows } = (await pool.query(
-    `select ${LIBRARY_COLUMNS} from media m where ${where.join(" and ")} order by m.created_at desc, m.id desc limit $${params.length}`,
-    params,
-  )) as { rows: LibraryRow[] };
+  const fetch = query.tag ? limit * 4 : limit + 1;
+  params.push(fetch);
+  let sql = `select ${cols} from media m where ${where.join(" and ")} order by ${ORDER[sort]} limit $${params.length}`;
+  if (offset) {
+    params.push(offset);
+    sql += ` offset $${params.length}`;
+  }
+  const { rows } = (await pool.query(sql, params)) as { rows: LibraryRow[] };
 
   const more = rows.length > (query.tag ? limit * 4 - 1 : limit);
-  let clips = rows.map((r) => toClip(r, false)).filter((c) => matchesTag(c, query.tag));
-  const page = clips.slice(0, limit);
-  const lastRow = page.length ? rows.find((r) => r.id === page[page.length - 1]!.mediaId) : undefined;
-  const nextCursor = (more || clips.length > limit) && lastRow ? encodeCursor(lastRow) : null;
-  clips = page;
+  const kept = rows.map((r, i) => ({ r, i })).filter((x) => matchesTag(toClip(x.r, false), query.tag));
+  const pageRows = kept.slice(0, limit);
+  const last = pageRows[pageRows.length - 1];
+  const hasNext = (more || kept.length > limit) && !!last;
+  const nextCursor = !hasNext ? null : sort === "newest" ? encodeCursor(last.r) : `o${offset + last.i + 1}`;
 
-  if (!cursor && isUuid(query.focus)) {
-    const f = (await pool.query(`select ${LIBRARY_COLUMNS} from media m where m.id = $1`, [query.focus])) as { rows: LibraryRow[] };
-    if (f.rows[0]) clips = [toClip(f.rows[0], true), ...clips.filter((c) => c.mediaId !== query.focus)];
-  }
+  const focusRow = !cursor && !offset && isUuid(query.focus) ? ((await pool.query(`select ${cols} from media m where m.id = $1`, [query.focus])) as { rows: LibraryRow[] }).rows[0] : undefined;
+  const marks = await loadPlatformMarks(pool, [...pageRows.map((x) => x.r.id), ...(focusRow ? [focusRow.id] : [])], query.now ?? new Date());
+  let clips = pageRows.map((x) => toClip(x.r, false, marks.get(x.r.id)));
+  if (focusRow) clips = [toClip(focusRow, true, marks.get(focusRow.id)), ...clips.filter((c) => c.mediaId !== query.focus)];
   return { clips, nextCursor };
 }
 
@@ -163,8 +293,9 @@ export interface FolderCount {
   clips: number;
 }
 
-/** The labels in use (library-visible clips only), biggest first then A to Z: feeds the "Move to folder" picker. */
+/** The labels in use (library-visible clips only), biggest first then A to Z: feeds the "Move to folder" picker. Empty without migration 0016. */
 export async function loadFolders(pool: Db): Promise<FolderCount[]> {
+  if (!(await hasFolderColumn(pool))) return [];
   const { rows } = (await pool.query(
     `select m.folder, count(*)::int as n from media m where m.folder is not null and not ${HIDDEN} group by m.folder order by n desc, m.folder`,
   )) as { rows: Array<{ folder: string; n: number }> };
@@ -175,12 +306,19 @@ export type MoveResult = { ok: true; folder: string | null } | { ok: false; reas
 
 /** Sets (or clears, with null/blank) one clip's folder label. Touches nothing else; never deletes. */
 export async function moveToFolder(pool: Db, mediaId: string, raw: unknown): Promise<MoveResult> {
-  if (!isUuid(mediaId)) return { ok: false, reason: "unknown clip" };
+  return moveManyToFolder(pool, [mediaId], raw);
+}
+
+/** Same as moveToFolder for several clips at once (select mode). Unknown ids are skipped; none known → "unknown clip". */
+export async function moveManyToFolder(pool: Db, mediaIds: readonly string[], raw: unknown): Promise<MoveResult> {
+  const ids = [...new Set(mediaIds.filter(isUuid))].slice(0, 500);
+  if (ids.length === 0) return { ok: false, reason: mediaIds.length ? "unknown clip" : "no clips selected" };
+  if (!(await hasFolderColumn(pool))) return { ok: false, reason: "folders need a database update" };
   const blank = raw == null || (typeof raw === "string" && raw.trim() === "");
   const check = blank ? null : checkFolderLabel(raw);
   if (check && !check.ok) return { ok: false, reason: check.reason };
   const folder = check?.ok ? check.folder : null;
-  const r = await pool.query("update media set folder = $2 where id = $1", [mediaId, folder]);
+  const r = await pool.query("update media set folder = $2 where id = any($1::uuid[])", [ids, folder]);
   return (r.rowCount ?? 0) > 0 ? { ok: true, folder } : { ok: false, reason: "unknown clip" };
 }
 

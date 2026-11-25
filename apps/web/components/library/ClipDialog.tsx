@@ -23,7 +23,8 @@ export function ClipDialog({
   /** The next few calendar items using it (clipUseLines), listed under the count. */
   uses?: readonly ClipUseLine[];
   /** Folder labels already in use (loadFolders), for "Move to folder…". */
-  folders?: readonly string[];
+  /** null = folders unavailable (migration 0016 not applied): the Move section is hidden. */
+  folders?: readonly string[] | null;
   closeHref: string;
   back: string;
 }) {
@@ -111,6 +112,7 @@ export function ClipDialog({
             {more > 0 ? <li className="ds-helper px-1 py-2">and {more} more in the calendar</li> : null}
           </ul>
         ) : null}
+        {folders ? (
         <details className="rounded-ds-md border border-ds-line">
           <summary className={cx("flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-[15px] font-semibold text-ds-text [&::-webkit-details-marker]:hidden", FOCUS)}>
             <span>Move to folder…</span>
@@ -133,6 +135,7 @@ export function ClipDialog({
             </Button>
           </form>
         </details>
+        ) : null}
         {touch ? (
           <section aria-labelledby="clip-touchup" className="flex flex-col gap-3 rounded-ds-md border border-ds-line p-3">
             <h3 id="clip-touchup" className="text-[15px] font-semibold text-ds-text">
