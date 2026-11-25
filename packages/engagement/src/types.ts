@@ -40,6 +40,10 @@ export interface CommentSource {
   fetchThread(platformCommentId: string, opts?: { signal?: AbortSignal }): Promise<InboundComment | null>;
   reply?(platformCommentId: string, text: string, opts: { signal?: AbortSignal; idempotencyKey: string }): Promise<{ platformReplyId: string }>;
   hide?(platformCommentId: string, opts?: { signal?: AbortSignal }): Promise<void>;
+  /** Plain words for why reply() is missing ("YouTube replies are switched off on the server (YT_COMMENT_REPLIES=1 needed)"). */
+  replyUnavailableReason?: string;
+  /** A no-credentials placeholder (polls return nothing): not a real source for the status page. */
+  placeholder?: boolean;
 }
 
 export interface TriageResult {
@@ -138,6 +142,23 @@ export interface EngagementStore extends ActionHistory {
   recentOutcomes(platform: EngagementPlatform, n: number): Promise<Array<{ ok: boolean; error?: string }>>; // newest first, for the auto-trip
   recordAlert(alert: EngagementAlert): Promise<boolean>; // true when new (dedupe per kind+action)
   setKilled(reason: string, now: Date): Promise<void>;
+  /**
+   * Stores why a planned row is held (last_error) without touching its status. True when the reason is new
+   * for that row (so the tick logs it once). Optional: older stores just don't record it.
+   */
+  markHeld?(id: string, reason: string, now: Date): Promise<boolean>;
+  /** Inserts an alert unless one with the same kind + platform + message exists in the last 24 h. True when new. */
+  recordDailyAlert?(alert: EngagementAlert, now: Date): Promise<boolean>;
+}
+
+/** A due row the gate (or a failed thread check) held this tick. Status stays planned. */
+export interface HeldAction {
+  platform: EngagementPlatform;
+  actionId: string;
+  origin: ActionOrigin;
+  reason: string;
+  /** too-early / limits: clears by itself, so no alert. */
+  transient: boolean;
 }
 
 export interface SendTickResult {
@@ -151,6 +172,8 @@ export interface SendTickResult {
   staleSettled: number;
   killedNow: string | null;
   alerts: EngagementAlert[];
+  /** Manual (creator-approved) rows held this tick, with the plain-words reason stored on the row. */
+  held: HeldAction[];
 }
 
 export interface SendTickConfig {

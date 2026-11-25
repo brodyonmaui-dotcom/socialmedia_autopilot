@@ -3,7 +3,9 @@
 // poll/triage/DM jobs need (comments, triage rows, cursors, DM threads + drafts). Nothing here sends.
 
 import {
+  ENGAGEMENT_STATUS_KEY,
   normalizeEngagement,
+  type EngagementStatus,
   type ActionKind,
   type ActionStatus,
   type EngagementActionRow,
@@ -29,6 +31,9 @@ const DAY = 24 * HOUR;
 export const ALERT_DEDUPE_PREFIX = 80;
 
 const iso = (v: string | Date | null | undefined): string | null => (v == null ? null : new Date(v).toISOString());
+
+/** What the DB knows per platform for the reply status (engagement-send.ts adds the live/capability bits). */
+export type ReplyStatusFacts = Partial<Record<EngagementPlatform, { lastSentAt: string | null; lastError: string | null; lastHeldReason: string | null; waiting: number }>>;
 
 /** An untriaged comment as the triage job sees it. */
 export interface UntriagedComment {
@@ -251,6 +256,51 @@ export class PgEngagementStore implements EngagementJobStore, InboxJobStore {
       [alert.kind, alert.platform, alert.message, alert.at],
     );
     return rows.length === 1;
+  }
+
+  /** Reason on a held planned row (status, attempts and updated_at untouched). True when the reason is new for the row. */
+  async markHeld(id: string, reason: string, now: Date): Promise<boolean> {
+    void now;
+    const { rows } = await this.pool.query(
+      `update engagement_actions set last_error = $2 where id = $1 and status = 'planned' and last_error is distinct from $2 returning id`,
+      [id, reason],
+    );
+    return rows.length === 1;
+  }
+
+  /** One alert per kind + platform + exact message per 24 h (acknowledged or not). True when inserted. */
+  async recordDailyAlert(alert: EngagementAlert, now: Date): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      `insert into alerts (kind, batch_item_id, platform, message, created_at)
+       select $1, null, $2, $3, $4
+        where not exists (select 1 from alerts where kind = $1 and platform = $2 and message = $3 and created_at > $5::timestamptz - interval '24 hours')
+       returning id`,
+      [alert.kind, alert.platform, alert.message, alert.at, now],
+    );
+    return rows.length === 1;
+  }
+
+  /** Per platform, for `engagement_status`: newest sent reply, newest failed/unknown error, newest waiting reason. */
+  async replyStatusFacts(): Promise<ReplyStatusFacts> {
+    const { rows } = await this.pool.query(
+      `select c.platform,
+              max(a.sent_at) filter (where a.status = 'sent') as last_sent_at,
+              (array_agg(a.last_error order by a.updated_at desc) filter (where a.status in ('failed','unknown') and a.last_error is not null))[1] as last_error,
+              (array_agg(a.last_error order by a.updated_at desc, a.created_at desc) filter (where a.status = 'planned' and a.origin = 'manual' and a.last_error is not null))[1] as last_held,
+              count(*) filter (where a.status in ('planned','sending') and a.origin = 'manual')::int as waiting
+         ${FROM_ACTIONS}
+        where a.kind = 'reply'
+        group by c.platform`,
+    );
+    const out: ReplyStatusFacts = {};
+    for (const r of rows as Array<Record<string, any>>) {
+      out[r.platform as EngagementPlatform] = { lastSentAt: iso(r.last_sent_at), lastError: r.last_error ?? null, lastHeldReason: r.last_held ?? null, waiting: Number(r.waiting ?? 0) };
+    }
+    return out;
+  }
+
+  async saveEngagementStatus(status: EngagementStatus): Promise<void> {
+    await setSetting(this.pool, ENGAGEMENT_STATUS_KEY, status);
   }
 
   // ---- ActionHistory ----

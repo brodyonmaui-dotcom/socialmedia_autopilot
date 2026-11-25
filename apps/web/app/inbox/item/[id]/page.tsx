@@ -11,6 +11,7 @@ import {
   Card,
   CardLink,
   Chip,
+  ConfirmSheet,
   DataList,
   DataRow,
   Icon,
@@ -22,10 +23,11 @@ import {
 } from "../../../../components/ui/index.js";
 import { requireSession } from "../../../../lib/auth/require.js";
 import { getPool } from "../../../../lib/db.js";
-import { loadInboxItem } from "../../../../lib/inbox/item.js";
+import { replyReadiness } from "@autopilot/engagement/src/status.js";
+import { loadInboxItem, loadWorkerReplyStatus } from "../../../../lib/inbox/item.js";
 import { loadReplyStatus } from "../../../../lib/inbox/status.js";
-import { itemPlan, reasonChip, resultNotice } from "../../../../lib/inbox/view.js";
-import { approveAndSendAction, blockAuthorAction, ignoreAccountAction, markHandledAction, notSpamAction, sendManualAction } from "../../actions.js";
+import { canTestReply, itemPlan, reasonChip, resultNotice, TEST_REPLY_TEXT, testReplyConfirm } from "../../../../lib/inbox/view.js";
+import { approveAndSendAction, blockAuthorAction, ignoreAccountAction, markHandledAction, notSpamAction, sendManualAction, testReplyAction } from "../../actions.js";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Comment · My Socials" };
@@ -42,6 +44,8 @@ export default async function InboxItemPage({ params, searchParams }: { params: 
   const pool = getPool();
   const [item, status] = await Promise.all([loadInboxItem(pool, id), loadReplyStatus(pool)]);
   if (!item) notFound();
+  const worker = await loadWorkerReplyStatus(pool, item.platform);
+  const readiness = replyReadiness(item.platform, worker);
 
   const plan = itemPlan(item);
   const chip = item.state === "ignored" ? null : reasonChip(item.triage?.bucket, item.triage?.reasons.join("; "));
@@ -52,6 +56,18 @@ export default async function InboxItemPage({ params, searchParams }: { params: 
   // A refusal for this item's reply shows under the field; everything else at the top.
   const notice = resultNotice({ note: param(sp.note), error: composing ? undefined : error });
   const fieldError = composing && error ? (resultNotice({ error })?.text ?? error) : undefined;
+
+  // Secondary, behind a confirm: the normal approve path with 👍, to prove replies reach the platform.
+  const testReply = canTestReply(plan, worker?.canReply) ? (
+    <ConfirmSheet
+      triggerLabel={`Send a test reply (${TEST_REPLY_TEXT})`}
+      triggerVariant="ghost"
+      title="Send a test reply?"
+      confirmLabel={`Post ${TEST_REPLY_TEXT}`}
+      formAction={testReplyAction.bind(null, item.commentId)}
+      body={<p>{testReplyConfirm(item.platform, item.authorName)}</p>}
+    />
+  ) : null;
 
   const dismiss = plan.canDismiss ? (
     <form action={markHandledAction.bind(null, item.commentId)}>
@@ -110,6 +126,12 @@ export default async function InboxItemPage({ params, searchParams }: { params: 
             </p>
           ) : null}
           {plan.note ? <p className="text-[14px] leading-snug text-ds-muted">{plan.note}</p> : null}
+          {plan.link ? (
+            <a href={plan.link.href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 self-start rounded-ds-sm px-2 text-[14px] font-semibold text-ds-accent-fg hover:bg-ds-raised lg:min-h-9">
+              {plan.link.label}
+              <Icon name="arrowUpRight" size={16} />
+            </a>
+          ) : null}
 
           {composing ? (
             <ReplyComposer
@@ -118,7 +140,12 @@ export default async function InboxItemPage({ params, searchParams }: { params: 
               draft={item.draftedReply}
               error={fieldError}
               size="lg"
-              extra={dismiss}
+              extra={
+                <>
+                  {testReply}
+                  {dismiss}
+                </>
+              }
             />
           ) : (
             <>
@@ -153,6 +180,7 @@ export default async function InboxItemPage({ params, searchParams }: { params: 
           <DataList label="About this comment">
             <DataRow icon="message" title="Why it's here" meta={item.state === "ignored" ? "Promo spam: never replied to" : (chip?.label ?? "Sorted by the reply rules")} />
             <DataRow icon="reply" title={`Replies on ${platform}`} meta={mode ? MODE_WORD[mode.label] : "Off"} />
+            <DataRow icon="reply" title="Delivery" meta={readiness.text} />
             <DataRow icon="clock" title="Received" meta={item.age} />
           </DataList>
           {plan.canIgnoreAccount || (item.authorId && !item.isOwn) ? (

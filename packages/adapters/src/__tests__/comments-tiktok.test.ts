@@ -1,7 +1,7 @@
 import { NonRetryableError } from "@autopilot/core";
 import { describe, expect, it } from "vitest";
 import { PlatformRequestError } from "../http.js";
-import { createTikTokCommentSource, parseTikTokCommentKey, tiktokCommentKey } from "../comments/tiktok.js";
+import { createTikTokCommentSource, parseTikTokCommentKey, tiktokCommentKey, TIKTOK_NOT_CONNECTED } from "../comments/tiktok.js";
 import { fixture, hasLocationKey, json, router, type Route } from "./helpers.js";
 
 const BASE = "https://zernio.com/api/v1";
@@ -15,12 +15,15 @@ describe("createTikTokCommentSource (stub, no Zernio keys)", () => {
   it("fetchRecent returns nothing and keeps the cursor (a poll never errors)", async () => {
     await expect(createTikTokCommentSource().fetchRecent({ since: "x" })).resolves.toEqual({ comments: [], cursor: { since: "x" } });
   });
-  it("reply, hide and fetchThread throw NonRetryableError", async () => {
+  it("has no reply/hide (the send tick shows what's missing instead of holding silently); fetchThread refuses", async () => {
     const src = createTikTokCommentSource();
-    await expect(src.reply!("c1", "hi", { idempotencyKey: "k" })).rejects.toBeInstanceOf(NonRetryableError);
-    await expect(src.reply!("c1", "hi", { idempotencyKey: "k" })).rejects.toThrow(/tiktok comments disabled: no Zernio credentials/);
-    await expect(src.hide!("c1")).rejects.toBeInstanceOf(NonRetryableError);
+    expect(src.reply).toBeUndefined();
+    expect(src.hide).toBeUndefined();
+    expect(src.placeholder).toBe(true);
+    expect(src.replyUnavailableReason).toBe(TIKTOK_NOT_CONNECTED);
+    expect(TIKTOK_NOT_CONNECTED).toMatch(/ZERNIO_API_KEY and ZERNIO_TIKTOK_ACCOUNT_ID/);
     await expect(src.fetchThread("c1")).rejects.toBeInstanceOf(NonRetryableError);
+    await expect(src.fetchThread("c1")).rejects.toThrow(/tiktok comments disabled: no Zernio credentials/);
   });
 });
 
@@ -125,5 +128,25 @@ describe("createTikTokCommentSource (Zernio Comments API)", () => {
   it("reply without a comment id in the response is an error (the send tick checks the thread before any retry)", async () => {
     const r = router([[() => true, () => json({ success: false })]]);
     await expect(createTikTokCommentSource({ ...cfgBase, fetch: r.fetch }).reply!(`${POST}:1`, "hi there", { idempotencyKey: "k" })).rejects.toBeInstanceOf(PlatformRequestError);
+  });
+
+  it("ids (verified 2026-11-25, docs.zernio.com): the list row's `id` (the TikTok video id) is the postId for the thread read and the reply; accountId on both", async () => {
+    const list = fixture("zernio-tt-commented-posts");
+    expect(list.data[0].id).toBe(POST); // numeric TikTok video id, no separate platformPostId in the list
+    expect(Object.keys(list.data[0])).not.toContain("platformPostId");
+    const r = router([listRoute, threadRoute, replyRoute]);
+    const src = createTikTokCommentSource({ ...cfgBase, fetch: r.fetch });
+    const { comments } = await src.fetchRecent(undefined);
+    const q = comments.find((c) => c.text === "how many sets?")!;
+    expect(q.platformMediaId).toBe(POST);
+    await src.fetchThread(q.platformCommentId);
+    await src.reply!(q.platformCommentId, "👍", { idempotencyKey: "engage:k" });
+    const gets = r.calls.filter((c) => c.method === "GET" && c.url.startsWith(`${BASE}/inbox/comments/`));
+    expect(gets.length).toBeGreaterThan(0);
+    expect(gets.every((c) => c.url.startsWith(`${BASE}/inbox/comments/${POST}?accountId=acct_tt_fake&`))).toBe(true);
+    const post = r.calls.find((c) => c.method === "POST")!;
+    expect(post.url).toBe(`${BASE}/inbox/comments/${POST}`);
+    expect(post.json).toEqual({ accountId: "acct_tt_fake", commentId: "7302000000000000021", message: "👍" });
+    expect(post.headers["idempotency-key"]).toBe("engage:k");
   });
 });

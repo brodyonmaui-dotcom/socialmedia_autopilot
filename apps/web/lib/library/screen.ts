@@ -7,7 +7,7 @@ import { localClock12, localDate, weekFolderLabel, type Platform } from "@autopi
 import { dayLabel } from "../batches/view-model.js";
 import { batchRedirect, mondayOf } from "../calendar/model.js";
 import { PLATFORM_NAME } from "../platforms/view.js";
-import type { ClipUse, FixStats, FixState, LibraryClip, TouchUpClip } from "./data.js";
+import { LIBRARY_SORTS, LIBRARY_STATUSES, type ClipUse, type FixStats, type FixState, type LibraryClip, type LibrarySort, type LibraryStatus, type PlatformMark, type TouchUpClip } from "./data.js";
 import type { FixOp } from "./qa-issues.js";
 import { tagLabel } from "./qa-issues.js";
 
@@ -28,6 +28,11 @@ export interface LibraryParams {
   /** Media id whose Dialog is open. */
   clip: string | null;
   group: LibraryGroup;
+  /** Status chip; "ready" (Ready to schedule) by default. */
+  status: LibraryStatus;
+  sort: LibrarySort;
+  /** Select mode: checkboxes on the cards and the bottom bar. */
+  select: boolean;
 }
 
 /** How the grid is sectioned: by week (default), by folder label, or not at all. */
@@ -49,7 +54,12 @@ export function parseLibraryParams(sp: Record<string, Raw>): LibraryParams {
   const focus = first(sp.focus) ?? "";
   const clip = first(sp.clip) ?? "";
   const group = first(sp.group) ?? "";
+  const status = first(sp.status) ?? "";
+  const sort = first(sp.sort) ?? "";
   return {
+    status: (LIBRARY_STATUSES as readonly string[]).includes(status) ? (status as LibraryStatus) : "ready",
+    sort: (LIBRARY_SORTS as readonly string[]).includes(sort) ? (sort as LibrarySort) : "newest",
+    select: first(sp.select) === "1",
     group: (GROUPS as readonly string[]).includes(group) ? (group as LibraryGroup) : "week",
     q,
     pillar: /^[\w -]{1,40}$/.test(pillar) ? pillar : null,
@@ -70,6 +80,9 @@ export function libraryUrl(p: Partial<LibraryParams>): string {
   if (p.focus) s.set("focus", p.focus);
   if (p.clip) s.set("clip", p.clip);
   if (p.group && p.group !== "week") s.set("group", p.group);
+  if (p.status && p.status !== "ready") s.set("status", p.status);
+  if (p.sort && p.sort !== "newest") s.set("sort", p.sort);
+  if (p.select) s.set("select", "1");
   const q = s.toString();
   return q ? `/library?${q}` : "/library";
 }
@@ -102,10 +115,45 @@ export function tagOptions(p: LibraryParams): FilterOption[] {
 }
 
 /** "Group by" Dropdown: Week / Folder / None. Changing it drops the page cursor and any open dialog. */
-export function groupOptions(p: LibraryParams): FilterOption[] {
+export function groupOptions(p: LibraryParams, folders = true): FilterOption[] {
   const base = { ...p, cursor: null, clip: null, focus: null };
-  return ([["week", "Week"], ["folder", "Folder"], ["none", "None"]] as const).map(([g, label]) => ({ label, href: libraryUrl({ ...base, group: g }), current: p.group === g }));
+  return ([["week", "Week"], ["folder", "Folder"], ["none", "None"]] as const)
+    .filter(([g]) => folders || g !== "folder")
+    .map(([g, label]) => ({ label, href: libraryUrl({ ...base, group: g }), current: p.group === g }));
 }
+
+// ---------- Status chips, sort, per-platform marks ----------
+
+export const STATUS_LABEL: Record<LibraryStatus, string> = { ready: "Ready to schedule", scheduled: "Scheduled", posted: "Posted", all: "All" };
+export const SORT_LABEL: Record<LibrarySort, string> = { newest: "Newest", oldest: "Oldest", longest: "Longest", shortest: "Shortest" };
+
+/** The four status chips with counts; changing one drops the page cursor and any open dialog (select mode stays). */
+export function statusChips(p: LibraryParams, counts: Record<LibraryStatus, number>): Array<{ status: LibraryStatus; label: string; count: number; href: string; current: boolean }> {
+  const base = { ...p, cursor: null, clip: null, focus: null };
+  return LIBRARY_STATUSES.map((status) => ({ status, label: STATUS_LABEL[status], count: counts[status], href: libraryUrl({ ...base, status }), current: p.status === status }));
+}
+
+/** Sort Dropdown: Newest / Oldest / Longest / Shortest. */
+export function sortOptions(p: LibraryParams): FilterOption[] {
+  const base = { ...p, cursor: null, clip: null, focus: null };
+  return LIBRARY_SORTS.map((sort) => ({ label: SORT_LABEL[sort], href: libraryUrl({ ...base, sort }), current: p.sort === sort }));
+}
+
+/** One mark on a card: "Posted" or "Tue 24 Nov, 6:00 PM" (creator-local, 12-hour); an untimed draft says "Draft". */
+export function markText(m: PlatformMark, timeZone: string): string {
+  if (m.kind === "posted") return "Posted";
+  const at = m.at ? new Date(m.at) : null;
+  if (!at || Number.isNaN(at.getTime())) return "Draft";
+  return `${dayLabel(localDate(at, timeZone))}, ${localClock12(at, timeZone)}`;
+}
+
+/** Empty-state words per status chip. */
+export const EMPTY_BY_STATUS: Record<LibraryStatus, { title: string; body: string }> = {
+  ready: { title: "Nothing ready to schedule", body: "Every clip is already in the calendar. Pick All to see them." },
+  scheduled: { title: "Nothing scheduled", body: "Clips with an upcoming post show up here." },
+  posted: { title: "Nothing posted yet", body: "Clips that went out show up here." },
+  all: { title: "No clips yet", body: "Drop renders into the editor folder. They show up here after the next ingest." },
+};
 
 export interface ClipSection<T> {
   key: string;
@@ -311,7 +359,7 @@ export function fixingText(f: FixState): string {
 // ---------- Result notes (after a form action, via the URL) ----------
 
 /** Reasons the actions return; anything else shows a generic line (a URL can't inject text). */
-const REASONS = new Set(["unknown clip", "folder name is empty", "folder name can't contain slashes", "folder name is longer than 60 characters", "folder name has invalid characters", "folder must be text", "no clips selected", "something went wrong", "this fix isn't ready to keep", "unknown fix", "this fix can't be discarded", "unknown clip or issue"]);
+const REASONS = new Set(["unknown clip", "folder name is empty", "folder name can't contain slashes", "folder name is longer than 60 characters", "folder name has invalid characters", "folder must be text", "no clips selected", "something went wrong", "this fix isn't ready to keep", "unknown fix", "this fix can't be discarded", "unknown clip or issue", "folders need a database update", "no platform chosen", "nothing was added"]);
 
 export type NoteParams = Record<string, string | number>;
 

@@ -35,6 +35,7 @@ import {
   parsePlatform,
   PLATFORM_NAME,
   replyView,
+  replySendView,
   routeSentence,
   routeWord,
   todayView,
@@ -68,11 +69,13 @@ function StatusCard({ d, className }: { d: PlatformPageData; className?: string 
   const p = d.platform;
   const conn = connectionView(p, d.token);
   const reply = replyView(p, d.engagement, d.killEnv);
+  const sending = replySendView(p, d.replyStatus);
   const rows: Array<{ icon: IconName; title: string; meta: string; value: string; tone: Tone }> = [
     { icon: "send", title: "How posts go out", meta: p === "snapchat" ? "Share sheet on your phone" : p === "tiktok" ? "Approved partner, holds the clock" : p === "youtube" ? "YouTube holds the clock" : "The server posts at each time", value: routeWord(p), tone: "neutral" },
     { icon: "lock", title: "Connection", meta: conn.detail, value: conn.label, tone: conn.tone },
     { icon: "sliders", title: "Daily limit", meta: "Change it in Settings", value: `${d.cap} a day`, tone: "neutral" },
     { icon: "reply", title: "Replies", meta: reply.detail, value: reply.label, tone: reply.tone },
+    ...(sending ? [{ icon: "send" as IconName, title: "Reply sending", meta: sending.detail, value: sending.label, tone: sending.tone }] : []),
   ];
   return (
     <Card title="Status" titleId="status" action={<CardLink href="/settings">Settings</CardLink>} className={className}>

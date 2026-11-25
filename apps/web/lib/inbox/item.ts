@@ -4,6 +4,8 @@ import { normalizeEngagement } from "@autopilot/engagement/src/settings.js";
 import type { ActionStatus, Bucket, EngagementPlatform } from "@autopilot/engagement";
 import { getSetting } from "@autopilot/db";
 import { createManualAction, relativeTime } from "../engagement/queries.js";
+import { ENGAGEMENT_STATUS_KEY, parseEngagementStatus, replyReadiness, type PlatformReplyStatus } from "@autopilot/engagement/src/status.js";
+import { replyLink, TEST_REPLY_TEXT } from "./view.js";
 
 /**
  * Run 4: one inbox item (/inbox/item/[id], the push deep link) and "Approve & send".
@@ -31,7 +33,20 @@ export interface InboxItem {
   triage: { bucket: Bucket; reasons: string[]; confidence: number | null; model: string | null; decidedAt: string; handledAt: string | null; notSpamAt: string | null } | null;
   /** The reply that would go out: the action's text, else the triage draft. */
   draftedReply: string | null;
-  reply: { actionId: string; status: ActionStatus; origin: "auto" | "manual"; text: string | null; sentAt: string | null; lastError: string | null } | null;
+  reply: {
+    actionId: string;
+    status: ActionStatus;
+    origin: "auto" | "manual";
+    text: string | null;
+    sentAt: string | null;
+    /** Why it waits (planned) or failed, as the worker stored it. */
+    lastError: string | null;
+    platformActionId?: string | null;
+    /** "3 min ago" once sent. */
+    sentAgo?: string | null;
+    /** Where the sent reply can be seen. */
+    url?: string | null;
+  } | null;
   state: InboxItemState;
 }
 
@@ -45,7 +60,10 @@ export type ApproveResult =
 
 export interface ApproveDeps {
   pool: Pool;
-  /** True unless the server env says DRY_RUN=false (the worker additionally needs its live flag). */
+  /**
+   * The web env's DRY_RUN, used only until the worker has written settings.engagement_status (its own live
+   * state wins: the worker needs DRY_RUN=false AND its live start).
+   */
   dryRun: boolean;
   /** ENGAGEMENT_KILL in the env. */
   killEnv: boolean;
@@ -100,7 +118,8 @@ export async function loadInboxItem(pool: Pick<Pool, "query">, id: string, now: 
     `select c.id, c.platform, c.author_handle, c.author_id, c.text, c.commented_at, c.is_own,
             bi.caption, bi.title, bi.platform_post_url, bi.media_id,
             t.bucket, t.reasons, t.confidence, t.model, t.decided_at, t.handled_at, t.not_spam_at, t.draft_reply,
-            a.id as action_id, a.status as action_status, a.origin as action_origin, a.text as action_text, a.sent_at, a.last_error
+            a.id as action_id, a.status as action_status, a.origin as action_origin, a.text as action_text, a.sent_at, a.last_error,
+            a.platform_action_id, c.platform_media_id
        from comments c
        left join comment_triage t on t.comment_id = c.id
        left join batch_items bi on bi.id = c.batch_item_id
@@ -122,7 +141,17 @@ export async function loadInboxItem(pool: Pick<Pool, "query">, id: string, now: 
       }
     : null;
   const reply: InboxItem["reply"] = r.action_id
-    ? { actionId: r.action_id, status: r.action_status, origin: r.action_origin, text: r.action_text ?? null, sentAt: iso(r.sent_at), lastError: r.last_error ?? null }
+    ? {
+        actionId: r.action_id,
+        status: r.action_status,
+        origin: r.action_origin,
+        text: r.action_text ?? null,
+        sentAt: iso(r.sent_at),
+        lastError: r.last_error ?? null,
+        platformActionId: r.platform_action_id ?? null,
+        sentAgo: r.action_status === "sent" && r.sent_at ? relativeTime(iso(r.sent_at)!, now) : null,
+        url: r.action_status === "sent" ? replyLink(r.platform, r.platform_post_url, r.platform_media_id, r.platform_action_id) : null,
+      }
     : null;
   const commentedAt = iso(r.commented_at)!;
   return {
@@ -165,12 +194,29 @@ async function ackReplyReady(pool: Pick<Pool, "query">, commentId: string, sessi
   );
 }
 
-const queuedMessage = (dryRun: boolean, already: boolean) =>
-  already
-    ? "already queued"
-    : dryRun
-      ? "dry run: recorded what would be sent; the worker will not send it while DRY_RUN is on"
-      : "queued: the worker sends it on its next tick (kill switch, limits and the thread check still apply)";
+/** The worker's own report (settings.engagement_status, written after every send tick). Null until it has ticked. */
+export async function loadWorkerReplyStatus(pool: Pick<Pool, "query">, platform: EngagementPlatform): Promise<PlatformReplyStatus | null> {
+  const st = parseEngagementStatus(await getSetting<unknown>(pool as Pool, ENGAGEMENT_STATUS_KEY));
+  return st?.platforms[platform] ?? null;
+}
+
+/**
+ * The approve message from what the WORKER reports (engagement_status), not the web's own env: the web's
+ * DRY_RUN says nothing about whether the worker will send. Without a report yet, the web env is the fallback.
+ */
+export function queuedMessage(platform: EngagementPlatform, worker: PlatformReplyStatus | null, fallbackDryRun: boolean, already: boolean): { dryRun: boolean; message: string } {
+  const dryRun = worker ? !worker.live : fallbackDryRun;
+  if (already) return { dryRun, message: "already queued" };
+  if (!worker) {
+    return dryRun
+      ? { dryRun, message: "dry run: recorded what would be sent; the worker will not send it while DRY_RUN is on" }
+      : { dryRun, message: "queued: the worker sends it on its next tick (kill switch, limits and the thread check still apply)" };
+  }
+  const ready = replyReadiness(platform, worker);
+  if (!worker.live) return { dryRun, message: "dry run: the worker is in dry run, so nothing goes out; the reply stays approved and sends once the worker runs live" };
+  if (!ready.ready) return { dryRun, message: `waiting: ${ready.text}` };
+  return { dryRun, message: "queued: the worker sends it on its next tick (kill switch, limits and the thread check still apply)" };
+}
 
 /**
  * One-tap "Approve & send". Idempotent: a second tap reports "already queued/sent". Refuses promo spam,
@@ -182,13 +228,15 @@ export async function approveAndSend(deps: ApproveDeps, id: string, input: Appro
   const item = await loadInboxItem(pool, id, now);
   if (!item) return { status: "refused", reason: "unknown comment" };
   if (item.isOwn) return { status: "refused", reason: "that's your own comment" };
+  const worker = await loadWorkerReplyStatus(pool, item.platform);
+  const queued = (already: boolean, actionId: string): ApproveResult => ({ status: "queued", already, actionId, ...queuedMessage(item.platform, worker, deps.dryRun, already) });
 
   // Double tap / already decided: report the existing row, never create a second one.
   const existing = item.reply;
   if (existing && existing.status !== "shadow") {
     if (existing.status === "sent") return { status: "sent", already: true, actionId: existing.actionId, message: "already sent" };
     if (existing.status === "planned" || existing.status === "sending")
-      return { status: "queued", already: true, dryRun: deps.dryRun, actionId: existing.actionId, message: queuedMessage(deps.dryRun, true) };
+      return queued(true, existing.actionId);
     if (existing.status === "unknown") return { status: "refused", reason: "the last send has an unknown outcome: check the thread on the platform first" };
     if (existing.status === "failed") return { status: "refused", reason: "the last send failed: see Alerts" };
     return { status: "refused", reason: "this reply was cancelled (you had already replied in the thread)" };
@@ -224,7 +272,7 @@ export async function approveAndSend(deps: ApproveDeps, id: string, input: Appro
       const again = await loadInboxItem(pool, id, now); // lost a race with another tap: report what won
       const a = again?.reply;
       if (a?.status === "sent") return { status: "sent", already: true, actionId: a.actionId, message: "already sent" };
-      if (a && (a.status === "planned" || a.status === "sending")) return { status: "queued", already: true, dryRun: deps.dryRun, actionId: a.actionId, message: queuedMessage(deps.dryRun, true) };
+      if (a && (a.status === "planned" || a.status === "sending")) return queued(true, a.actionId);
       return { status: "refused", reason: "this reply changed meanwhile: reload" };
     }
   } else {
@@ -233,14 +281,23 @@ export async function approveAndSend(deps: ApproveDeps, id: string, input: Appro
       const again = await loadInboxItem(pool, id, now);
       const a = again?.reply;
       if (a?.status === "sent") return { status: "sent", already: true, actionId: a.actionId, message: "already sent" };
-      if (a) return { status: "queued", already: true, dryRun: deps.dryRun, actionId: a.actionId, message: queuedMessage(deps.dryRun, true) };
+      if (a) return queued(true, a.actionId);
       return { status: "refused", reason: r.reason };
     }
     actionId = r.id;
   }
   await pool.query(`update comment_triage set handled_at = coalesce(handled_at, $2) where comment_id = $1`, [id, now]);
   await ackReplyReady(pool, id, input.sessionId, now);
-  return { status: "queued", already: false, dryRun: deps.dryRun, actionId, message: queuedMessage(deps.dryRun, false) };
+  return queued(false, actionId);
+}
+
+/**
+ * "Send a test reply (👍)": the creator's explicit tap (behind a confirm) on one comment. Exactly the normal
+ * approve path with the text 👍: same refusals, same single (comment_id, kind) row, same worker gates and
+ * idempotency key. No bypass of anything.
+ */
+export async function approveTestReply(deps: ApproveDeps, id: string, input: Omit<ApproveInput, "text">): Promise<ApproveResult> {
+  return approveAndSend(deps, id, { ...input, text: TEST_REPLY_TEXT });
 }
 
 /** Server env → deps (DRY_RUN defaults on; only the literal "false" turns it off). Values are never logged. */

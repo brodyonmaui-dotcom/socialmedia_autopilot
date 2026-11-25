@@ -67,7 +67,7 @@ describe("filters and URLs", () => {
 
   it("dropdown options carry counts and mark the current one", () => {
     const o = filterOptions("comments", COUNTS, "drafted");
-    expect(o.map((x) => x.label)).toEqual(["Needs you · 15", "Drafted · 18", "Sent · 3", "Ignored · 8"]);
+    expect(o.map((x) => x.label)).toEqual(["Needs you · 15", "Drafted · 18", "Sending & sent · 3", "Ignored · 8"]);
     expect(o.find((x) => x.current)?.href).toBe("/inbox?filter=drafted");
     expect(o.filter((x) => x.current)).toHaveLength(1);
   });
@@ -162,7 +162,7 @@ describe("card plan", () => {
   it("sent shows the state, no buttons", () => {
     const p = cardPlan(row({ draftedReply: "thanks!", replyStatus: "planned" }), "sent");
     expect(p.primary).toBe("none");
-    expect(p.status).toEqual({ label: "Queued", tone: "neutral" });
+    expect(p.status).toEqual({ label: "Sending", tone: "neutral" });
     expect(cardPlan(row({ replyStatus: "unknown" }), "sent").status?.tone).toBe("warn");
     expect(p.canDismiss).toBe(false);
   });
@@ -205,8 +205,8 @@ describe("item plan", () => {
     expect(itemPlan({ ...I, triage: { ...T, bucket: "hide_flag" } })).toMatchObject({ primary: "none", canHide: true });
   });
   it("after the fact: state, no button", () => {
-    expect(itemPlan({ ...I, state: "sent" })).toMatchObject({ primary: "none", status: { label: "Sent", tone: "accent" } });
-    expect(itemPlan({ ...I, state: "queued" }).status?.label).toBe("Queued");
+    expect(itemPlan({ ...I, state: "sent" })).toMatchObject({ primary: "none", status: { label: "Sent ✓", tone: "accent" } });
+    expect(itemPlan({ ...I, state: "queued" }).status?.label).toBe("Sending");
     expect(itemPlan({ ...I, state: "done" }).note).toMatch(/without a reply/);
     expect(itemPlan({ ...I, state: "ignored", triage: { ...T, bucket: "spam_promo", reasons: ["promo:growth"] } })).toMatchObject({
       canNotSpam: true,

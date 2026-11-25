@@ -11,6 +11,7 @@ import {
 } from "@autopilot/core";
 import { sendGate } from "./gate.js";
 import { shouldTripKill } from "./kill.js";
+import { REPLY_PLATFORM_NAME } from "./status.js";
 import type {
   CommentSource,
   EngagementActionRow,
@@ -70,8 +71,53 @@ export function normaliseReplyText(s: string): string {
 const errMessage = (err: unknown): string => redactSecrets((err as Error | undefined)?.message ?? String(err));
 
 /**
+ * A thread-read error as a short, stable class for the row / alert ("HTTP 400 PLATFORM_LIMITATION", "timed out").
+ * Stable so the daily alert dedupe works; never the raw body (no ids, no tokens).
+ */
+export function threadErrorClass(err: unknown): string {
+  if (err instanceof PublishTimeoutError) return "timed out";
+  const msg = errMessage(err);
+  if (/PLATFORM_LIMITATION/.test(msg)) return "PLATFORM_LIMITATION (connect TikTok through the Business app in Zernio)";
+  const http = /HTTP (\d{3})/.exec(msg);
+  if (http) {
+    const code = /HTTP \d{3}\s+([A-Za-z][A-Za-z0-9_]{2,40})\b/.exec(msg)?.[1];
+    return `HTTP ${http[1]}${code && /[_A-Z]/.test(code) && code === code.toUpperCase() ? ` ${code}` : ""}`;
+  }
+  if (/abort|timeout|timed out/i.test(msg)) return "timed out";
+  if (/ECONNREFUSED|ENOTFOUND|ECONNRESET|fetch failed|network/i.test(msg)) return "network error";
+  const name = (err as Error | undefined)?.name;
+  return name && name !== "Error" ? name : "error";
+}
+
+/**
+ * Why a gate held a row, in plain words for the creator (stored on the row, shown in the Inbox).
+ * Never includes KILL_PATTERN words (a planned row's last_error feeds the kill auto-trip after a retry).
+ */
+export function heldReason(a: EngagementActionRow, reason: SendGateReason, detail: string | undefined, source: CommentSource | undefined): { text: string; transient: boolean } {
+  const name = REPLY_PLATFORM_NAME[a.platform];
+  switch (reason) {
+    case "dry-run":
+      return { text: "Worker is in dry run (it sends only with DRY_RUN=false and the live start)", transient: false };
+    case "killed":
+      return { text: "Replies are paused (kill switch is on)", transient: false };
+    case "no-capability":
+      if (!source) return { text: `${name} isn't connected on the server`, transient: false };
+      return { text: source.replyUnavailableReason ?? `${name} ${a.kind === "hide" ? "hiding" : "replies"} aren't available on the server`, transient: false };
+    case "mode":
+      return { text: detail === "hide disabled" ? `Hiding is switched off for ${name} in Settings` : `${name} replies are ${detail ?? "off"}`, transient: false };
+    case "too-early":
+      return { text: `Waiting for its send time${detail ? ` (${detail})` : ""}`, transient: true };
+    case "limit":
+      return { text: `Waiting for the reply cap to free up${detail ? ` (${detail})` : ""}`, transient: true };
+    default:
+      return { text: reason, transient: false };
+  }
+}
+
+/**
  * One send tick. Rows the gate holds (dry-run, mode, killed, too-early, limit, no-capability) keep
- * status `planned` and are only counted in `skipped`. Timeouts become `unknown` and are never retried.
+ * status `planned` and are counted in `skipped`; a held manual row also gets the reason on the row
+ * (`markHeld`) and, unless transient, one daily engagement-failure alert (see `hold`). Timeouts become `unknown` and are never retried.
  * A lost claim is logged and not counted (no SendGateReason fits; another worker owns the row).
  */
 export async function runSendTick(
@@ -84,7 +130,7 @@ export async function runSendTick(
   const log = cfg.log ?? (() => {});
   const dryRun = cfg.dryRun ?? true;
   const timeoutMs = cfg.timeoutMs ?? policy.publishTimeoutMs;
-  const result: SendTickResult = { considered: 0, sent: 0, skipped: {}, retried: 0, failed: 0, unknown: 0, cancelled: 0, staleSettled: 0, killedNow: null, alerts: [] };
+  const result: SendTickResult = { considered: 0, sent: 0, skipped: {}, retried: 0, failed: 0, unknown: 0, cancelled: 0, staleSettled: 0, killedNow: null, alerts: [], held: [] };
 
   const skip = (a: EngagementActionRow, reason: SendGateReason, detail?: string): void => {
     result.skipped[reason] = (result.skipped[reason] ?? 0) + 1;
@@ -92,6 +138,22 @@ export async function runSendTick(
   };
   const raise = async (alert: EngagementAlert): Promise<void> => {
     if (!(await store.recordAlert(alert))) return;
+    result.alerts.push(alert);
+    if (cfg.alerts) await cfg.alerts.send(alert);
+  };
+  /**
+   * A creator-approved (manual) row is held: store the reason on the row (status stays planned, so it sends
+   * once the cause is gone, and still only once), log it once per new reason, and (non-transient) raise one
+   * engagement-failure alert per (platform, reason) per day. Auto rows keep the plain skip log.
+   */
+  const hold = async (a: EngagementActionRow, text: string, transient: boolean): Promise<void> => {
+    result.held.push({ platform: a.platform, actionId: a.id, origin: a.origin, reason: text, transient });
+    const fresh = store.markHeld ? await store.markHeld(a.id, text, now) : true;
+    if (fresh) log(`[engage] waiting ${a.platform} ${a.kind} ${a.id}: ${text}`);
+    if (transient) return;
+    const alert: EngagementAlert = { kind: "engagement-failure", platform: a.platform, actionId: null, message: `${REPLY_PLATFORM_NAME[a.platform]} reply waiting: ${text}`, at: now.toISOString() };
+    const isNew = store.recordDailyAlert ? await store.recordDailyAlert(alert, now) : await store.recordAlert(alert);
+    if (!isNew) return;
     result.alerts.push(alert);
     if (cfg.alerts) await cfg.alerts.send(alert);
   };
@@ -118,11 +180,18 @@ export async function runSendTick(
     const counts = await store.limitCounts(a.platform, a.authorId, cfg.settings.limits, now);
     const gate = sendGate(a, cfg.settings, { dryRun, killEnv: cfg.killEnv }, counts, now, caps);
     if (!gate.ok) {
-      skip(a, gate.reason, gate.detail);
+      if (a.origin === "manual") {
+        result.skipped[gate.reason] = (result.skipped[gate.reason] ?? 0) + 1;
+        const h = heldReason(a, gate.reason, gate.detail, source);
+        await hold(a, h.text, h.transient);
+      } else skip(a, gate.reason, gate.detail);
       continue;
     }
     if (!source) {
-      skip(a, "no-capability", "no source");
+      if (a.origin === "manual") {
+        result.skipped["no-capability"] = (result.skipped["no-capability"] ?? 0) + 1;
+        await hold(a, heldReason(a, "no-capability", undefined, undefined).text, false);
+      } else skip(a, "no-capability", "no source");
       continue;
     }
     if (a.kind === "reply" && !a.text?.trim()) {
@@ -141,7 +210,8 @@ export async function runSendTick(
         thread = await withTimeout((signal) => source.fetchThread(a.platformCommentId, { signal }), policy.lookupTimeoutMs);
       } catch (err) {
         // The lookup sends nothing, so leaving the row planned and looking again next tick is safe.
-        log(`[engage] hold ${a.platform} ${a.id}: thread check failed (${errMessage(err)}); will look again`);
+        if (a.origin === "manual") await hold(a, `${REPLY_PLATFORM_NAME[a.platform]} thread couldn't be read: ${threadErrorClass(err)}`, false);
+        else log(`[engage] hold ${a.platform} ${a.id}: thread check failed (${errMessage(err)}); will look again`);
         continue;
       }
       if (!thread) {

@@ -54,14 +54,16 @@ describe("buildCommentSources / commentCredentialsFromEnv", () => {
     expect(commentCredentialsFromEnv({}).instagram).toBeUndefined();
   });
 
-  it("TikTok: Zernio keys → the Zernio source (reply, no hide); none → the stub", () => {
+  it("TikTok: Zernio keys → the Zernio source (reply, no hide); none → the placeholder (no reply)", () => {
     expect(commentCredentialsFromEnv({}).tiktok).toBe(true);
     const creds = commentCredentialsFromEnv({ ZERNIO_API_KEY: "k", ZERNIO_TIKTOK_ACCOUNT_ID: "acct" });
     expect(creds.tiktok).toEqual({ apiKey: "k", accountId: "acct" });
     const tt = buildCommentSources(creds).get("tiktok")!;
     expect(typeof tt.reply).toBe("function");
     expect(tt.hide).toBeUndefined();
-    expect(typeof buildCommentSources({ tiktok: true }).get("tiktok")!.hide).toBe("function"); // the stub refuses everything
+    const stub = buildCommentSources({ tiktok: true }).get("tiktok")!;
+    expect(stub.reply).toBeUndefined(); // the stub has no reply/hide: the send tick reports what is missing
+    expect(stub).toMatchObject({ placeholder: true, replyUnavailableReason: expect.stringMatching(/ZERNIO_API_KEY/) });
   });
 });
 

@@ -118,6 +118,38 @@ describe.skipIf(!url)("PgEngagementStore (db)", () => {
     expect((await store.listDueActions(new Date(now.getTime() + 1000), 500)).some((r) => r.commentId === id)).toBe(false);
   });
 
+  it("markHeld stores the reason on a planned row only (status untouched, true once per new reason); daily alert dedupe; status facts", async () => {
+    await store.upsertComments([comment("held")], now);
+    const cid = await idOf("held");
+    const { rows } = await pool.query(
+      `insert into engagement_actions (comment_id, kind, text, status, not_before, origin, created_at, updated_at) values ($1, 'reply', '👍', 'planned', $2, 'manual', $2, $2) returning id`,
+      [cid, now],
+    );
+    const id = rows[0].id as string;
+    const reason = `test ${run}: YouTube replies are switched off on the server`;
+    expect(await store.markHeld(id, reason, now)).toBe(true);
+    expect(await store.markHeld(id, reason, now)).toBe(false);
+    const row = (await pool.query("select status, attempts, last_error from engagement_actions where id = $1", [id])).rows[0];
+    expect(row).toEqual({ status: "planned", attempts: 0, last_error: reason });
+    const facts = await store.replyStatusFacts();
+    expect(facts.youtube!.waiting).toBeGreaterThanOrEqual(1);
+
+    const alert = { kind: "engagement-failure" as const, platform: "youtube" as const, actionId: null, message: `YouTube reply waiting: ${reason}`, at: now.toISOString() };
+    expect(await store.recordDailyAlert(alert, now)).toBe(true);
+    expect(await store.recordDailyAlert(alert, new Date(now.getTime() + 60_000))).toBe(false);
+    await pool.query("update alerts set acknowledged_at = now() where message = $1", [alert.message]);
+    expect(await store.recordDailyAlert(alert, new Date(now.getTime() + 3_600_000))).toBe(false); // acked still counts for the day
+    expect(await store.recordDailyAlert({ ...alert, at: new Date(now.getTime() + 25 * 3_600_000).toISOString() }, new Date(now.getTime() + 25 * 3_600_000))).toBe(true);
+    await pool.query("update alerts set acknowledged_at = now() where message = $1 and acknowledged_at is null", [alert.message]);
+
+    // Once the cause is gone it is still claimable exactly once.
+    expect(await store.claimAction(id, now)).toBe(true);
+    expect(await store.claimAction(id, now)).toBe(false);
+    expect(await store.markHeld(id, "other", now)).toBe(false); // not planned any more
+    await store.markSent(id, `test-${run}-r`, now);
+    expect((await store.replyStatusFacts()).youtube!.lastSentAt).not.toBeNull();
+  });
+
   it("recordAlert dedupes on kind + message prefix while unacknowledged", async () => {
     const msg = `test ${run}: reply failed: ${"x".repeat(90)}`;
     const alert = { kind: "engagement-failure" as const, platform: "youtube" as const, actionId: null, message: msg, at: now.toISOString() };

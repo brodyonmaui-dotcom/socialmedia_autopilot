@@ -6,8 +6,8 @@ import { createTikTokCommentSource } from "./tiktok.js";
 import { createYouTubeCommentSource, resolveYouTubeChannelId } from "./youtube.js";
 
 export { createInstagramCommentSource, commentCursorSince, type InstagramCommentsConfig, type InstagramCommentsCursor } from "./instagram.js";
-export { createYouTubeCommentSource, resolveYouTubeChannelId, clearYouTubeChannelIdCache, type YouTubeCommentsConfig, type YouTubeCommentSource } from "./youtube.js";
-export { createTikTokCommentSource, tiktokCommentKey, parseTikTokCommentKey, type TikTokCommentsConfig } from "./tiktok.js";
+export { createYouTubeCommentSource, resolveYouTubeChannelId, clearYouTubeChannelIdCache, YT_REPLIES_OFF, type YouTubeCommentsConfig, type YouTubeCommentSource } from "./youtube.js";
+export { createTikTokCommentSource, tiktokCommentKey, parseTikTokCommentKey, TIKTOK_NOT_CONNECTED, type TikTokCommentsConfig } from "./tiktok.js";
 export { createInstagramDmSource, type InstagramDmConfig } from "./dm-instagram.js";
 
 export interface CommentCredentials {

@@ -16,3 +16,6 @@ logs/*
 *.mp4
 *.mov
 apps/web/tsconfig.tsbuildinfo
+
+# BuildPartner.ai local self-improving state (per machine)
+.buildpartner/

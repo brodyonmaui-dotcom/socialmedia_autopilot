@@ -37,7 +37,7 @@ describe("inbox UI never sends a DM or anything else on its own", () => {
   const inboxDir = join(here, "../../../app/inbox");
   // The only allowed mentions: the manual reply button + its action, the exact live-mode warning text,
   // and the exact F15 DM drafts switch label (which promises the opposite).
-  const ALLOWED = ["Send this reply", "sendManualAction", "approveAndSendAction", "approveAndSend", "Approve & send", "Approve &amp; send", "Turn on DM drafts (read-only, never sends)","Live sending also needs DRY_RUN=false on the worker"];
+  const ALLOWED = ["Send this reply", "Send a test reply", "sendManualAction", "approveAndSendAction", "approveAndSend", "Approve & send", "Approve &amp; send", "Turn on DM drafts (read-only, never sends)","Live sending also needs DRY_RUN=false on the worker"];
   const files = walk(inboxDir).filter((f) => /\.(ts|tsx)$/.test(f));
 
   it("finds the inbox files", () => {

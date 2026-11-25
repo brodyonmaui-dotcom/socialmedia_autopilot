@@ -1,6 +1,7 @@
 // Pure view logic for /platforms/[platform]. No DB, no React. Tested in __tests__/view.test.ts.
 import { addCalendarDays, CAPABILITIES, PLATFORMS, weekdayIndex, type Platform } from "@autopilot/core";
 import type { EngagementSettings, Mode } from "@autopilot/engagement";
+import { replyReadiness, type PlatformReplyStatus } from "@autopilot/engagement/src/status.js";
 import type { Entry } from "../calendar/model.js";
 
 export const PLATFORM_NAME: Record<Platform, string> = { instagram: "Instagram", youtube: "YouTube", tiktok: "TikTok", snapchat: "Snapchat" };
@@ -78,6 +79,21 @@ export function replyView(p: Platform, s: Pick<EngagementSettings, "mode" | "kil
   if (m === "live") return { label: MODE_WORD[m], tone: "accent", detail: "Routine replies go out on their own after the veto window." };
   if (m === "shadow") return { label: MODE_WORD[m], tone: "neutral", detail: "Replies are drafted for you; nothing goes out unless you send it." };
   return { label: MODE_WORD[m], tone: "neutral", detail: "Comments are collected but no replies are drafted." };
+}
+
+/**
+ * "Reply sending" row from the worker's own report (settings.engagement_status): "Ready to send", or what's
+ * missing ("YouTube replies are switched off on the server (YT_COMMENT_REPLIES=1 needed)"). Null for Snapchat.
+ */
+export function replySendView(p: Platform, s: PlatformReplyStatus | null | undefined): { label: string; tone: Tone; detail: string } | null {
+  if (p === "snapchat") return null;
+  const r = replyReadiness(p, s);
+  if (r.ready) {
+    const waiting = s?.waiting ?? 0;
+    return { label: "Ready to send", tone: "accent", detail: waiting > 0 ? `${waiting} approved repl${waiting === 1 ? "y" : "ies"} going out on the next worker tick` : "Approved replies go out on the next worker tick." };
+  }
+  const held = s?.lastHeldReason && s.lastHeldReason !== r.text ? ` Last held: ${s.lastHeldReason}.` : "";
+  return { label: "Not ready", tone: "warn", detail: `${r.text}.${held}`.replace(/\.\./g, ".") };
 }
 
 export interface UpcomingRow {

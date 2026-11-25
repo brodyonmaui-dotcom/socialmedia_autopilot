@@ -12,4 +12,5 @@ export * from "./pings.js";
 export * from "./gate.js";
 export * from "./kill.js";
 export * from "./send.js";
+export * from "./status.js";
 // testing/fake-store.ts + fake-source.ts are imported by deep path from tests and scripts, not exported here.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_ENGAGEMENT } from "@autopilot/engagement/src/settings.js";
 import type { Entry, PlatformEntry } from "../../calendar/model.js";
-import { connectionView, dayLabel, followerNote, fmtCount, fmtRate, parsePlatform, replyView, routeSentence, todayView, tokenService, upcomingFor } from "../view.js";
+import { connectionView, dayLabel, followerNote, fmtCount, fmtRate, parsePlatform, replySendView, replyView, routeSentence, todayView, tokenService, upcomingFor } from "../view.js";
 
 const item = (over: Partial<PlatformEntry>): PlatformEntry => ({
   itemId: "i1",
@@ -108,5 +108,23 @@ describe("platforms view", () => {
     expect(followerNote(120, 30)).toBe("+120 in 30 days");
     expect(followerNote(-3, 30)).toBe("−3 in 30 days");
     expect(followerNote(null, 30)).toBeNull();
+  });
+});
+
+describe("reply sending row (worker engagement_status)", () => {
+  const base = { source: true, canReply: true, live: true, killed: false, lastSentAt: null, lastHeldReason: null, lastError: null };
+  it("Ready to send, or what's missing", () => {
+    expect(replySendView("snapchat", base)).toBeNull();
+    expect(replySendView("tiktok", base)).toMatchObject({ label: "Ready to send", tone: "accent" });
+    expect(replySendView("youtube", { ...base, canReply: false, replyUnavailableReason: "YouTube replies are switched off on the server (YT_COMMENT_REPLIES=1 needed)" })).toEqual({
+      label: "Not ready",
+      tone: "warn",
+      detail: "YouTube replies are switched off on the server (YT_COMMENT_REPLIES=1 needed).",
+    });
+    expect(replySendView("tiktok", { ...base, source: false, canReply: false })?.detail).toBe("TikTok isn't connected on the server.");
+    expect(replySendView("instagram", { ...base, live: false })?.detail).toMatch(/^Worker is in dry run/);
+    expect(replySendView("instagram", { ...base, killed: true })?.detail).toMatch(/kill switch/);
+    expect(replySendView("instagram", null)?.detail).toMatch(/hasn't reported/);
+    expect(replySendView("tiktok", { ...base, live: false, lastHeldReason: "TikTok thread couldn't be read: HTTP 404" })?.detail).toMatch(/Last held: TikTok thread couldn't be read: HTTP 404\.$/);
   });
 });
