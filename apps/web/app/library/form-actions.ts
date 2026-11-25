@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { requireSession } from "../../lib/auth/require.js";
 import { noteParams, safeBack, withNote } from "../../lib/library/screen.js";
-import { dismissIssueAction, keepAllFixesAction, keepFixAction, keepOriginalAction, requestFixAction } from "./actions.js";
+import { dismissIssueAction, keepAllFixesAction, keepFixAction, keepOriginalAction, moveToFolderAction, requestFixAction } from "./actions.js";
 
 /**
  * Form wrappers for the Library / Touch-up pages: each calls the matching server action in ./actions.ts
@@ -41,4 +41,10 @@ export async function dismissForm(formData: FormData): Promise<void> {
   await requireSession();
   const r = await dismissIssueAction(formData);
   redirect(withNote(backOf(formData), r.ok ? noteParams({ kind: "dismissed" }) : noteParams({ kind: "error", reason: r.reason })));
+}
+
+export async function moveFolderForm(formData: FormData): Promise<void> {
+  await requireSession();
+  const r = await moveToFolderAction(formData);
+  redirect(withNote(backOf(formData), r.ok ? noteParams({ kind: "moved" }) : noteParams({ kind: "error", reason: r.reason })));
 }

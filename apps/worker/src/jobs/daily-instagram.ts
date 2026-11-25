@@ -10,7 +10,7 @@ import {
   weekdayIndex,
   type ScheduleItem,
 } from "@autopilot/core";
-import { getSetting, loadCadence } from "@autopilot/db";
+import { findDuplicateClipRow, getSetting, loadCadence } from "@autopilot/db";
 import { QUEUES } from "../queue.js";
 import {
   loadLibraryClips,
@@ -71,6 +71,8 @@ export interface DailyInstagramResult {
   postsInserted: number;
   unplaced: number;
   existingKeys: number;
+  /** Clips skipped by the duplicate-clip guard (already on Instagram within ±7 days, or published in 14). */
+  duplicates: number;
   batchId: string | null;
   alertRaised: boolean;
   skipped: null | "no-tz" | "enough" | "no-clips" | "no-slots";
@@ -91,6 +93,7 @@ const empty = (date: string | null, skipped: DailyInstagramResult["skipped"], mi
   postsInserted: 0,
   unplaced: 0,
   existingKeys: 0,
+  duplicates: 0,
   batchId: null,
   alertRaised: false,
   skipped,
@@ -99,7 +102,7 @@ const empty = (date: string | null, skipped: DailyInstagramResult["skipped"], mi
 export function formatDailyInstagramLine(r: DailyInstagramResult): string {
   if (r.skipped === "no-tz") return DAILY_NO_TZ_LINE;
   const why = r.skipped ? ` · ${r.skipped}` : "";
-  return `[daily-instagram] ${r.date}: min ${r.min} · have ${r.existing} · posts ${r.postsInserted} · unplaced ${r.unplaced} · existing ${r.existingKeys} · alert ${r.alertRaised ? "raised" : "none"}${why}`;
+  return `[daily-instagram] ${r.date}: min ${r.min} · have ${r.existing} · posts ${r.postsInserted} · unplaced ${r.unplaced} · existing ${r.existingKeys}${r.duplicates ? ` · duplicates ${r.duplicates}` : ""} · alert ${r.alertRaised ? "raised" : "none"}${why}`;
 }
 
 /** One transaction: lock the week of tomorrow → count → pick → slot → batch → items + 'add' events → one alert. */
@@ -187,7 +190,13 @@ async function draftLocked(
 
   const inserted: string[] = [];
   let existingKeys = 0;
+  let duplicates = 0;
   for (const a of assignments) {
+    // Duplicate-clip guard (shared predicate): never a second Instagram post of this clip.
+    if (await findDuplicateClipRow(db, { mediaId: a.key, platform: "instagram", scheduledFor: a.scheduledFor, now })) {
+      duplicates++;
+      continue;
+    }
     const key = dailyIngestKey(date, a.key);
     const caption = pickCaptionTemplate(pillarOf.get(a.key), key, avoid);
     const ins = await db.query(
@@ -223,7 +232,7 @@ async function draftLocked(
     );
     alertRaised = raised.rows.length === 1;
   }
-  return { date, min, existing: have, postsInserted: inserted.length, unplaced: plan.unplaced.length, existingKeys, batchId, alertRaised, skipped: null };
+  return { date, min, existing: have, postsInserted: inserted.length, unplaced: plan.unplaced.length, existingKeys, duplicates, batchId, alertRaised, skipped: null };
 }
 
 /** Daily 17:00 creator-local. No TZ_CREATOR → one log line, nothing registered. */
@@ -234,7 +243,7 @@ export async function registerDailyInstagramJob(boss: CronBoss, pool: ConnectPoo
   }
   await boss.createQueue(QUEUES.dailyInstagram);
   await boss.work(QUEUES.dailyInstagram, async () => {
-    await runDailyInstagramOnce(pool, { timeZone, log });
+    return await runDailyInstagramOnce(pool, { timeZone, log }); // stored as the pg-boss job output (diagnose-week reads it)
   });
   await boss.schedule(QUEUES.dailyInstagram, DAILY_INSTAGRAM_CRON, {}, { tz: timeZone });
   return true;

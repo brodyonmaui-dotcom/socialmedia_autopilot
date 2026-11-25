@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "../../lib/auth/require.js";
 import { getPool } from "../../lib/db.js";
-import { dismissIssue, keepAllFixes, keepFix, keepOriginal, requestFix, type KeepAllResult, type KeepFixResult, type RequestFixResult } from "../../lib/library/data.js";
+import { dismissIssue, keepAllFixes, keepFix, keepOriginal, moveToFolder, requestFix, type KeepAllResult, type KeepFixResult, type RequestFixResult } from "../../lib/library/data.js";
 
 /**
  * Touch-up server actions. Every one needs a session; DB errors become a fixed message (never echoed).
@@ -65,4 +65,15 @@ export async function dismissIssueAction(formData: FormData): Promise<ActionResu
   const mediaId = String(formData.get("mediaId") ?? "");
   const code = String(formData.get("code") ?? "");
   return guarded("dismiss", async () => ((await dismissIssue(getPool(), mediaId, code, session.id)).ok ? { ok: true } : { ok: false, reason: "unknown clip or issue" }));
+}
+
+/**
+ * "Move to folder…" (form fields `mediaId`, `folder` = a new name, `existing` = a label already in use; a typed
+ * name wins, both blank clears the folder). Same label rules as the ingest `--folder` flag. Only the label changes.
+ */
+export async function moveToFolderAction(formData: FormData): Promise<ActionResult<{ folder: string | null }>> {
+  await requireSession();
+  const typed = String(formData.get("folder") ?? "").trim();
+  const chosen = typed || String(formData.get("existing") ?? "");
+  return guarded("move-folder", async () => moveToFolder(getPool(), String(formData.get("mediaId") ?? ""), chosen));
 }

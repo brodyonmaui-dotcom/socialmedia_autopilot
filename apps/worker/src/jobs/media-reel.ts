@@ -8,7 +8,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
 import { addCalendarDays, assignSlots, diffCalendarDays, localDate, localToUtc, weekdayIndex, type ScheduleItem } from "@autopilot/core";
-import { loadCadence } from "@autopilot/db";
+import { findDuplicateClipRow, loadCadence } from "@autopilot/db";
 import {
   FFMPEG_MISSING_MESSAGE,
   FixError,
@@ -142,7 +142,7 @@ export interface ReelDraftInput {
  * nothing) + an 'add' event + one 'ready-for-approval' alert. Status 'draft', approved_at never set.
  * No free slot or no TZ_CREATOR → the item is untimed in the window's first week (the creator picks a time).
  */
-export async function writeReelDraft(q: Queryable, i: ReelDraftInput): Promise<{ batchItemId: string; scheduledFor: string | null; inserted: boolean }> {
+export async function writeReelDraft(q: Queryable, i: ReelDraftInput): Promise<{ batchItemId: string; scheduledFor: string | null; inserted: boolean; duplicate?: boolean }> {
   const key = reelIngestKey(i.editId);
   const notBefore = new Date(i.now.getTime() + REEL_LEAD_MS);
   const notAfter = new Date(i.now.getTime() + REEL_WINDOW_DAYS * 86_400_000);
@@ -178,6 +178,11 @@ export async function writeReelDraft(q: Queryable, i: ReelDraftInput): Promise<{
     const plan = assignSlots({ weekStart: firstDay, days: diffCalendarDays(firstDay, lastDay) + 1, items: [item], cadence: await loadCadence(q), timeZone: tz, existing, now: i.now });
     scheduledFor = plan.assignments[0]?.scheduledFor ?? null;
   }
+  // Duplicate-clip guard (shared predicate): the same rendered clip already on Instagram → no second draft;
+  // the edit points at the existing item instead.
+  const dup = await findDuplicateClipRow(q, { mediaId: i.mediaId, platform: "instagram", scheduledFor, now: i.now });
+  if (dup) return { batchItemId: dup.id, scheduledFor: dup.scheduledFor, inserted: false, duplicate: true };
+
   const week = scheduledFor && tz ? mondayOf(localDate(new Date(scheduledFor), tz)) : weeks[0]!;
 
   const found = await q.query(`select id from batches where week_start = $1::date and status <> 'archived' order by created_at desc, id desc limit 1`, [week]);

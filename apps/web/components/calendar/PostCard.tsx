@@ -1,5 +1,5 @@
 import type { Platform } from "@autopilot/core";
-import { approveItemsAction } from "../../app/calendar/actions.js";
+import { alreadyPostedAction, approveItemsAction } from "../../app/calendar/actions.js";
 import { formatDuration } from "../../lib/batches/view-model.js";
 import { type CardLinks, type Entry, type PlatformEntry, type Tone } from "../../lib/calendar/model.js";
 import { Badge, Chip, cx, Icon, Menu, PLATFORM_NAME, PlatformLogo, type MenuItem } from "../ui/index.js";
@@ -25,7 +25,8 @@ export function previewOf(e: Entry): PreviewData {
 /**
  * The ⋯ menu (same on every surface): "Approve <Platform>" per approvable line (+ "Approve all N on this card"),
  * a disabled "Can't approve <Platform>: <reason>" per blocked draft, "Auto-schedule at nearest slot" per missed
- * post, Edit text / Move… / Reject, Retry or record, Open handoff.
+ * post, "Already posted on <Platform>: drop it" per draft/approved line, Edit text / Move… / Reject, Retry or
+ * record, Open handoff.
  */
 export function menuItems(e: Entry, back: string, links: PostCardLinks): MenuItem[] {
   const approvable = e.platforms.filter((p) => p.state === "needs-approval");
@@ -37,6 +38,9 @@ export function menuItems(e: Entry, back: string, links: PostCardLinks): MenuIte
   if (approvable.length > 1) items.push({ label: `Approve all ${approvable.length} on this card`, icon: "check", action: approveItemsAction, fields: { back, item: approvable.map(itemField) } });
   for (const p of blocked) items.push({ label: `Can't approve ${PLATFORM_NAME[p.platform]}: ${p.fix ?? "needs a fix"}`, icon: "alert", disabled: true });
   for (const p of missed) items.push({ label: missed.length > 1 ? `Auto-schedule ${PLATFORM_NAME[p.platform]} at nearest slot` : "Auto-schedule at nearest slot", icon: "clock", href: links.reschedule(p.itemId, e.day), scroll: false });
+  for (const p of e.platforms) {
+    if (p.canDropPosted) items.push({ label: `Already posted on ${PLATFORM_NAME[p.platform]}: drop it`, icon: "check", action: alreadyPostedAction, fields: { back, itemId: p.itemId } });
+  }
   if (editable.length) {
     items.push({ label: "Edit text", icon: "message", href: links.edit(e.key) });
     items.push({ label: "Move…", icon: "calendar", href: links.move(e.key) });
@@ -58,10 +62,28 @@ const PostedMark = ({ className }: { className?: string }) => (
 /** One platform line's own chip (state word; Posted is the quiet mark). */
 function LineChip({ p }: { p: PlatformEntry }) {
   if (p.state === "posted") return <PostedMark />;
+  if (p.state === "already-posted") return <span className="text-[12px] text-ds-muted">{p.statusLabel}</span>;
   return (
     <Chip size="sm" tone={TONE[p.tone]}>
       {p.statusLabel}
     </Chip>
+  );
+}
+
+/** The one-tap "Already posted: drop it" next to a stuck line's reason (same server action as the ⋯ menu entry). */
+function DropInline({ itemId, platform, back }: { itemId: string; platform: Platform; back: string }) {
+  return (
+    <form action={alreadyPostedAction} className="inline-flex">
+      <input type="hidden" name="back" value={back} />
+      <input type="hidden" name="itemId" value={itemId} />
+      <button
+        type="submit"
+        aria-label={`Already posted on ${PLATFORM_NAME[platform]}: drop it`}
+        className="inline-flex min-h-8 items-center text-[12px] font-semibold text-ds-accent underline-offset-2 hover:underline focus-visible:underline"
+      >
+        Already posted: drop it
+      </button>
+    </form>
   );
 }
 
@@ -124,6 +146,8 @@ export function PostCard({
               <span className="ds-num">{p.time12 ?? "–"}</span>
               <LineChip p={p} />
               {p.fix && p.state === "needs-fix" ? <span className="text-[12px] text-ds-muted">{p.fix}</span> : null}
+              {p.dropInline && p.state !== "needs-fix" ? <span className="text-[12px] text-ds-muted">{p.dropInline}</span> : null}
+              {p.dropInline ? <DropInline itemId={p.itemId} platform={p.platform} back={back} /> : null}
             </li>
           ))}
         </ul>

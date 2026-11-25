@@ -12,6 +12,7 @@ import {
   libraryUrl,
   loudnessText,
   noteParams,
+  groupClips,
   parseLibraryParams,
   pillarOptions,
   resultNote,
@@ -41,6 +42,8 @@ const clip = (o: Partial<LibraryClip> = {}): LibraryClip => ({
   hasPoster: true,
   usedIn: 0,
   derivedFrom: null,
+  folder: null,
+  at: "2026-11-25T12:00:00.000Z",
   focused: false,
   href: "/library",
   ...o,
@@ -69,6 +72,7 @@ describe("library URL state", () => {
       cursor: "abc_-1",
       focus: ID,
       clip: ID2,
+      group: "week",
     });
     expect(parseLibraryParams({ q: ["a", "b"], pillar: "<x>", tag: "nope", cursor: "a/b", focus: "x", clip: "1" })).toEqual({
       q: "a",
@@ -77,6 +81,7 @@ describe("library URL state", () => {
       cursor: null,
       focus: null,
       clip: null,
+      group: "week",
     });
     expect(parseLibraryParams({}).q).toBe("");
   });
@@ -270,5 +275,46 @@ describe("keepAllNote (F20 C)", () => {
     const { keepAllNote } = await import("../screen.js");
     expect(keepAllNote(12, 0, 0, 8, 3)).toBe("Kept 12 · 8 still fixing · 3 can't be fixed automatically");
     expect(keepAllNote(1, 0, 0)).toBe("Kept 1");
+  });
+});
+
+describe("library grouping", () => {
+  const at = (d: string) => `${d}T12:00:00.000Z`;
+  const clips = [
+    clip({ mediaId: "a", at: at("2026-11-26") }),
+    clip({ mediaId: "b", at: at("2026-11-24") }),
+    clip({ mediaId: "c", at: at("2026-11-17") }),
+    clip({ mediaId: "d", at: at("2026-11-10"), folder: "Upper body" }),
+    clip({ mediaId: "e", at: at("2026-11-25"), folder: "Week of Nov 23" }),
+  ];
+
+  it("group param: week by default, folder and none kept, junk falls back; the URL leaves week out", () => {
+    expect(parseLibraryParams({}).group).toBe("week");
+    expect(parseLibraryParams({ group: "folder" }).group).toBe("folder");
+    expect(parseLibraryParams({ group: "none" }).group).toBe("none");
+    expect(parseLibraryParams({ group: "x" }).group).toBe("week");
+    expect(libraryUrl({ group: "week" })).toBe("/library");
+    expect(libraryUrl({ q: "a", group: "folder" })).toBe("/library?q=a&group=folder");
+  });
+
+  it("week: folder label if set, else the week of captured/created; newest section first, with counts", () => {
+    const s = groupClips(clips, "week", "UTC");
+    expect(s.map((x) => [x.title, x.count])).toEqual([["Week of Nov 23", 3], ["Week of Nov 16", 1], ["Upper body", 1]]);
+    expect(s[0]!.clips.map((c) => c.mediaId)).toEqual(["a", "b", "e"]);
+  });
+
+  it("week uses the creator zone for the day", () => {
+    const s = groupClips([clip({ at: "2026-11-29T23:00:00.000Z" })], "week", "Pacific/Auckland");
+    expect(s[0]!.title).toBe("Week of Nov 30");
+  });
+
+  it("folder: labels newest first, unlabelled clips last under No folder", () => {
+    const s = groupClips(clips, "folder", "UTC");
+    expect(s.map((x) => [x.title, x.count])).toEqual([["Week of Nov 23", 1], ["Upper body", 1], ["No folder", 3]]);
+  });
+
+  it("none: one flat section without a title; empty list: no sections", () => {
+    expect(groupClips(clips, "none", "UTC")).toMatchObject([{ title: null, count: 5 }]);
+    expect(groupClips([], "week", "UTC")).toEqual([]);
   });
 });

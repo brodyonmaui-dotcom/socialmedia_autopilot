@@ -1,12 +1,12 @@
 import { AppFrame } from "../../components/AppFrame.js";
 import { loadFrameCounts } from "../../components/frame-counts.js";
 import { ClipDialog, ClipTile, FocusScroll } from "../../components/library/index.js";
-import { Button, ButtonLink, Dropdown, EmptyState, InlineNotice, PageHeader, SearchField } from "../../components/ui/index.js";
+import { Button, ButtonLink, cx, Dropdown, EmptyState, FOCUS, Icon, InlineNotice, PageHeader, SearchField } from "../../components/ui/index.js";
 import { requireSession } from "../../lib/auth/require.js";
 import { getPool } from "../../lib/db.js";
-import { loadClipUses, loadLibrary, loadTouchUp, type LibraryClip } from "../../lib/library/data.js";
+import { loadClipUses, loadFolders, loadLibrary, loadTouchUp, type LibraryClip } from "../../lib/library/data.js";
 import { loadPillars } from "../../lib/library/pillars.js";
-import { clipUseLines, libraryUrl, parseLibraryParams, pillarOptions, resultNote, tagOptions } from "../../lib/library/screen.js";
+import { clipUseLines, groupClips, groupOptions, libraryUrl, parseLibraryParams, pillarOptions, resultNote, tagOptions } from "../../lib/library/screen.js";
 import { creatorZone } from "../../lib/calendar/load.js";
 
 export const dynamic = "force-dynamic"; // always the latest ingest
@@ -21,10 +21,11 @@ export default async function LibraryPage({ searchParams }: { searchParams: Sear
   const p = parseLibraryParams(sp);
   const pool = getPool();
 
-  const [counts, page, pillars] = await Promise.all([
+  const [counts, page, pillars, folders] = await Promise.all([
     loadFrameCounts(pool),
     loadLibrary(pool, { q: p.q, pillar: p.pillar ?? undefined, tag: p.tag ?? undefined, cursor: p.cursor, focus: p.focus }),
     loadPillars(pool),
+    loadFolders(pool),
   ]);
 
   // The open clip: from this page, else on its own (a deep link to a clip further down).
@@ -37,6 +38,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Sear
   const filtered = Boolean(p.q || p.pillar || p.tag);
   const note = resultNote(sp);
   const toTouch = counts.touchUp ?? 0;
+  const sections = groupClips(page.clips, p.group, creatorZone().timeZone);
   const focusId = page.clips[0]?.focused ? page.clips[0].mediaId : null;
 
   return (
@@ -63,12 +65,14 @@ export default async function LibraryPage({ searchParams }: { searchParams: Sear
         <form action="/library" method="get" role="search" className="flex min-w-0 flex-1 gap-2">
           <SearchField label="Search clips" name="q" defaultValue={p.q} placeholder="File name or topic" autoComplete="off" className="min-w-0 flex-1 sm:max-w-[420px]" />
           {p.pillar ? <input type="hidden" name="pillar" value={p.pillar} /> : null}
+          {p.group !== "week" ? <input type="hidden" name="group" value={p.group} /> : null}
           {p.tag ? <input type="hidden" name="tag" value={p.tag} /> : null}
           <Button type="submit" variant="outline">
             Search
           </Button>
         </form>
         <div className="flex gap-2">
+          <Dropdown label="Group by" align="start" options={groupOptions(p)} />
           <Dropdown label="Topic" align="start" options={pillarOptions(pillars, p)} />
           <Dropdown label="Tag" align="end" options={tagOptions(p)} />
         </div>
@@ -102,22 +106,38 @@ export default async function LibraryPage({ searchParams }: { searchParams: Sear
         </div>
       ) : (
         <>
-          <ul aria-label="Clips" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-4">
-            {page.clips.map((c) => (
-              <li key={c.mediaId} className="min-w-0">
-                <ClipTile clip={c} href={libraryUrl({ ...p, clip: c.mediaId })} />
-              </li>
-            ))}
-          </ul>
+          {sections.map((sec) => {
+            const grid = (
+              <ul aria-label={sec.title ?? "Clips"} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-4">
+                {sec.clips.map((c) => (
+                  <li key={c.mediaId} className="min-w-0">
+                    <ClipTile clip={c} href={libraryUrl({ ...p, clip: c.mediaId })} />
+                  </li>
+                ))}
+              </ul>
+            );
+            return sec.title === null ? (
+              <div key={sec.key}>{grid}</div>
+            ) : (
+              <details key={sec.key} open className="mb-4 lg:mb-6">
+                <summary className={cx("mb-2 flex min-h-11 cursor-pointer list-none items-center gap-2 text-[15px] font-semibold text-ds-text [&::-webkit-details-marker]:hidden", FOCUS)}>
+                  <Icon name="chevronDown" size={16} className="text-ds-muted" />
+                  <span>{sec.title}</span>
+                  <span className="ds-num font-normal text-ds-muted">{sec.count}</span>
+                </summary>
+                {grid}
+              </details>
+            );
+          })}
           {page.nextCursor || p.cursor ? (
             <div className="mt-4 flex flex-wrap justify-center gap-2 lg:mt-6">
               {p.cursor ? (
-                <ButtonLink href={libraryUrl({ q: p.q, pillar: p.pillar, tag: p.tag })} variant="ghost">
+                <ButtonLink href={libraryUrl({ q: p.q, pillar: p.pillar, tag: p.tag, group: p.group })} variant="ghost">
                   Back to the newest
                 </ButtonLink>
               ) : null}
               {page.nextCursor ? (
-                <ButtonLink href={libraryUrl({ q: p.q, pillar: p.pillar, tag: p.tag, cursor: page.nextCursor })} variant="outline">
+                <ButtonLink href={libraryUrl({ q: p.q, pillar: p.pillar, tag: p.tag, group: p.group, cursor: page.nextCursor })} variant="outline">
                   Show more
                 </ButtonLink>
               ) : null}
@@ -127,7 +147,7 @@ export default async function LibraryPage({ searchParams }: { searchParams: Sear
       )}
 
       {focusId && !open ? <FocusScroll targetId={`clip-${focusId}`} /> : null}
-      {open ? <ClipDialog clip={open} touch={touch} uses={uses} closeHref={libraryUrl({ ...p, clip: null })} back={libraryUrl(p)} /> : null}
+      {open ? <ClipDialog clip={open} touch={touch} uses={uses} folders={folders.map((f) => f.folder)} closeHref={libraryUrl({ ...p, clip: null })} back={libraryUrl(p)} /> : null}
     </AppFrame>
   );
 }

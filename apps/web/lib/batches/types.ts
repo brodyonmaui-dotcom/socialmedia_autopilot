@@ -21,6 +21,8 @@ export type WarningCode =
   | "cap.breach"
   | "duplicate.caption"
   | "duplicate.media"
+  /** Same clip on the same platform: another live item within ±7 days, or published in the last 14 days. Blocks. */
+  | "duplicate.clip"
   | "media.qa"
   | "media.no-clean-file"
   | "tiktok.needs-sound"
@@ -95,6 +97,8 @@ export interface BatchItemView {
   origin?: "editor" | null;
   /** F15: trial.editor, only when origin = 'editor'. */
   editor?: EditorMeta | null;
+  /** Rejected items only: detail.reason of the latest reject event ("already-posted" = dropped because it's already on the platform). */
+  rejectReason?: string | null;
   /** Filled by computeWarnings. */
   warnings: Warning[];
   /** status draft|approved and not handedOff. */

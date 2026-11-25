@@ -11,12 +11,14 @@ import {
   ResetDialog,
   RescheduleDialog,
   WeekView,
+  itemField,
   type PostCardLinks,
 } from "../../components/calendar/index.js";
 import { PostingBanner } from "../../components/status/PostingBanner.js";
 import { Button, ButtonLink, Card, EmptyState, Icon, IconLink, InlineNotice, PageHeader, TabLinks, cx } from "../../components/ui/index.js";
 import { requireSession } from "../../lib/auth/require.js";
 import { getPool } from "../../lib/db.js";
+import { nextAvailableSlot } from "../../lib/calendar/next-slot.js";
 import { creatorZone, loadCalendar } from "../../lib/calendar/load.js";
 import {
   approveAllView,
@@ -95,6 +97,19 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
   const reschedule = state.reschedule
     ? await previewRescheduleMissed(pool, state.reschedule === "all" ? "all" : [state.reschedule], now, zone.timeZone)
     : null;
+
+  const nextSlots = moveEntry
+    ? await Promise.all(
+        moveEntry.platforms
+          .filter((p) => p.canEdit && p.platform !== "snapchat")
+          .map(async (p) => ({
+            itemId: p.itemId,
+            field: itemField(p),
+            platform: p.platform,
+            slot: await nextAvailableSlot(pool, p.platform, now, zone.timeZone, [p.itemId]).catch(() => null),
+          })),
+      )
+    : [];
 
   const title = state.view === "week" ? weekTitle(state.d) : monthTitle(state.d);
   const error = param(sp.error);
@@ -224,7 +239,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Sea
         />
       ) : null}
       {editEntry ? <EditTextDialog entry={editEntry} closeHref={closeToDay} back={closeToDay} /> : null}
-      {moveEntry ? <MoveDialog entry={moveEntry} closeHref={closeToDay} back={closeToDay} tomorrow={data.timeZoneSource === "env" ? tomorrowOf(now, data.timeZone) : null} /> : null}
+      {moveEntry ? <MoveDialog entry={moveEntry} closeHref={closeToDay} back={closeToDay} nextSlots={nextSlots} timeZone={zone.timeZone} rescheduleHref={links.reschedule} tomorrow={data.timeZoneSource === "env" ? tomorrowOf(now, data.timeZone) : null} /> : null}
       {rejectEntry ? <RejectDialog entry={rejectEntry} closeHref={closeToDay} back={closeToDay} /> : null}
       {resetItem ? (
         <ResetDialog

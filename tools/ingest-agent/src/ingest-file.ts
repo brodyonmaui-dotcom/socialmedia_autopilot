@@ -10,8 +10,10 @@ export interface IngestFileDeps extends PosterDeps {
   /** Location-capable tag keys still present (packages/media `probeLocationTagKeys`). */
   locationTagKeys(filePath: string): Promise<string[]>;
   upload(key: string, cleanPath: string): Promise<void>;
-  /** Insert params: content_hash, source_path, r2_key, duration_s, width, height, pillar, qa json, captured_at, poster_key. */
+  /** Insert params: content_hash, source_path, r2_key, duration_s, width, height, pillar, qa json, captured_at, poster_key, then folder only when one applies (11th). */
   insert(params: unknown[]): Promise<void>;
+  /** Folder label for a new clip from its captured date (`--folder` / `--folder-from week`); absent or null = none. */
+  folderFor?(capturedAt: string | null): string | null;
   tmpDir(): string;
   cleanup(dir: string): void;
 }
@@ -42,6 +44,8 @@ export function createIngestFile(d: IngestFileDeps): (file: FoundFile, hash: str
       const key = `library/${hash}.mp4`;
       await d.upload(key, cleanPath);
       const posterKey = await tryPoster(d, { videoPath: cleanPath, tmpDir: tmp, cleanKey: key, durationS: qa.probe.durationS, name: base ?? "file" });
+      const capturedAt = qa.probe.capturedAt ?? null;
+      const folder = d.folderFor?.(capturedAt) ?? null;
       await d.insert(
         mediaInsertParams({
           contentHash: hash,
@@ -52,9 +56,9 @@ export function createIngestFile(d: IngestFileDeps): (file: FoundFile, hash: str
           height: qa.probe.height,
           pillar: file.pillar,
           qa,
-          capturedAt: qa.probe.capturedAt ?? null,
+          capturedAt,
           posterKey,
-        }),
+        }).concat(folder ? [folder] : []),
       );
       return `INGESTED ${base} · ${file.pillar} · ${qa.probe.durationS.toFixed(1)}s · ${qa.warnings.length} warning(s)`;
     } finally {

@@ -143,8 +143,8 @@ try {
   const pool = createPool(process.env.DATABASE_URL);
   const client = await pool.connect();
   try {
-    const { batchId, items } = await createDraftBatch(client, draft, { blocklist });
-    console.log(`weekly-batch: OK draft batch ${batchId} with ${items} item(s), ${check.warnings} warning(s); approve it on the phone → ${log}`);
+    const { batchId, items, skipped } = await createDraftBatch(client, draft, { blocklist });
+    console.log(`weekly-batch: OK draft batch ${batchId} with ${items} item(s), ${skipped} duplicate clip(s) skipped, ${check.warnings} warning(s); approve it on the phone → ${log}`);
   } finally {
     client.release();
     await pool.end();

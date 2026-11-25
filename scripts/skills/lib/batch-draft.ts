@@ -1,4 +1,5 @@
 import type { Platform } from "../../../packages/core/src/index.js";
+import { findDuplicateClipRow } from "../../../packages/db/src/duplicate-clip.js";
 import { isPillar, lintText, type LintIssue, type Pillar } from "../../../packages/research/src/index.js";
 
 /**
@@ -112,8 +113,15 @@ export interface InsertClient {
  * Writes the draft as ONE batch with status 'draft' and its items with status 'draft'.
  * Never approves anything: approval is the creator's tap on the phone (non-negotiable 2).
  * Media must exist in the library. Callers run checkDraft first; this re-checks creatable.
+ * Duplicate-clip guard (the shared predicate in packages/db): a post whose clip is already on that platform
+ * (another non-rejected item within ±7 days, or published in the last 14) is skipped and counted in
+ * `skipped`; if every post is skipped nothing is written. This is the cross-post backfill's create path too.
  */
-export async function createDraftBatch(pool: InsertClient, draft: BatchDraft, opts: { blocklist?: string[]; now?: Date } = {}): Promise<{ batchId: string; items: number }> {
+export async function createDraftBatch(
+  pool: InsertClient,
+  draft: BatchDraft,
+  opts: { blocklist?: string[]; now?: Date } = {},
+): Promise<{ batchId: string; items: number; skipped: number }> {
   const check = checkDraft(draft, opts);
   if (!check.creatable) throw new Error(`draft not creatable: ${check.errors} error(s)${check.ok ? ", missing times" : ""}`);
   const mediaIds = [...new Set(draft.items.map((i) => i.mediaId))];
@@ -129,10 +137,17 @@ export async function createDraftBatch(pool: InsertClient, draft: BatchDraft, op
     const { rows } = await pool.query("insert into batches (week_start, status) values ($1, 'draft') returning id", [draft.weekStart]);
     const batchId = rows[0].id as string;
     let items = 0;
+    let skipped = 0;
+    const now = opts.now ?? new Date();
     for (const it of draft.items) {
       for (const platform of PLATFORMS) {
         const post = it.posts[platform];
         if (!post) continue;
+        const at = new Date(post.scheduledFor!).toISOString();
+        if (await findDuplicateClipRow(pool, { mediaId: it.mediaId, platform, scheduledFor: at, now })) {
+          skipped++;
+          continue;
+        }
         await pool.query(
           `insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, trial, status)
            values ($1, $2, $3, $4, $5, $6, $7::jsonb, 'draft')`,
@@ -149,8 +164,9 @@ export async function createDraftBatch(pool: InsertClient, draft: BatchDraft, op
         items++;
       }
     }
+    if (items === 0) throw new Error(`every post is already on its platform (${skipped} duplicate clip(s)), nothing created`);
     await pool.query("commit");
-    return { batchId, items };
+    return { batchId, items, skipped };
   } catch (err) {
     await pool.query("rollback");
     throw err;

@@ -3,7 +3,7 @@
  * pages pass the loaders' rows in (lib/library/data.ts) and render what comes out. Tested in
  * __tests__/screen.test.ts.
  */
-import { localClock12, localDate, type Platform } from "@autopilot/core";
+import { localClock12, localDate, weekFolderLabel, type Platform } from "@autopilot/core";
 import { dayLabel } from "../batches/view-model.js";
 import { batchRedirect, mondayOf } from "../calendar/model.js";
 import { PLATFORM_NAME } from "../platforms/view.js";
@@ -27,7 +27,12 @@ export interface LibraryParams {
   focus: string | null;
   /** Media id whose Dialog is open. */
   clip: string | null;
+  group: LibraryGroup;
 }
+
+/** How the grid is sectioned: by week (default), by folder label, or not at all. */
+export type LibraryGroup = "week" | "folder" | "none";
+export const GROUPS: readonly LibraryGroup[] = ["week", "folder", "none"];
 
 /** "Needs a touch-up" first, then the info tags the library shows on cards (qa-issues TAG_LABELS). */
 export const TAG_FILTERS: readonly string[] = ["flagged", "no-sound", "silence-gaps", "landscape", "square", "tall", "frozen-middle", "black-middle", "too-long", "recheck"];
@@ -43,7 +48,9 @@ export function parseLibraryParams(sp: Record<string, Raw>): LibraryParams {
   const cursor = first(sp.cursor) ?? "";
   const focus = first(sp.focus) ?? "";
   const clip = first(sp.clip) ?? "";
+  const group = first(sp.group) ?? "";
   return {
+    group: (GROUPS as readonly string[]).includes(group) ? (group as LibraryGroup) : "week",
     q,
     pillar: /^[\w -]{1,40}$/.test(pillar) ? pillar : null,
     tag: TAG_FILTERS.includes(tag) ? tag : null,
@@ -62,6 +69,7 @@ export function libraryUrl(p: Partial<LibraryParams>): string {
   if (p.cursor) s.set("cursor", p.cursor);
   if (p.focus) s.set("focus", p.focus);
   if (p.clip) s.set("clip", p.clip);
+  if (p.group && p.group !== "week") s.set("group", p.group);
   const q = s.toString();
   return q ? `/library?${q}` : "/library";
 }
@@ -91,6 +99,43 @@ export function tagOptions(p: LibraryParams): FilterOption[] {
     { label: "Any tag", href: libraryUrl({ ...base, tag: null }), current: !p.tag },
     ...TAG_FILTERS.map((t) => ({ label: tagFilterLabel(t), href: libraryUrl({ ...base, tag: t }), current: p.tag === t })),
   ];
+}
+
+/** "Group by" Dropdown: Week / Folder / None. Changing it drops the page cursor and any open dialog. */
+export function groupOptions(p: LibraryParams): FilterOption[] {
+  const base = { ...p, cursor: null, clip: null, focus: null };
+  return ([["week", "Week"], ["folder", "Folder"], ["none", "None"]] as const).map(([g, label]) => ({ label, href: libraryUrl({ ...base, group: g }), current: p.group === g }));
+}
+
+export interface ClipSection<T> {
+  key: string;
+  /** null for "None" (one flat grid, no header). */
+  title: string | null;
+  count: number;
+  clips: T[];
+}
+
+export const NO_FOLDER = "No folder";
+
+/**
+ * Sections for the grid. Week: the folder label when set, else "Week of <Mon DD>" of captured/created (creator-local);
+ * clips sharing a title share a section. Folder: the label, "No folder" last. Sections newest first (by their newest
+ * clip); clips keep the loader's order inside a section.
+ */
+export function groupClips<T extends Pick<LibraryClip, "folder" | "at">>(clips: readonly T[], group: LibraryGroup, timeZone: string): Array<ClipSection<T>> {
+  if (group === "none") return clips.length ? [{ key: "all", title: null, count: clips.length, clips: [...clips] }] : [];
+  const by = new Map<string, { title: string; newest: number; clips: T[] }>();
+  for (const c of clips) {
+    const t = Date.parse(c.at);
+    const title = c.folder ?? (group === "week" ? weekFolderLabel(new Date(t), timeZone) : NO_FOLDER);
+    const g = by.get(title) ?? { title, newest: -Infinity, clips: [] };
+    g.newest = Math.max(g.newest, Number.isNaN(t) ? 0 : t);
+    g.clips.push(c);
+    by.set(title, g);
+  }
+  return [...by.values()]
+    .sort((a, b) => Number(a.title === NO_FOLDER && group === "folder") - Number(b.title === NO_FOLDER && group === "folder") || b.newest - a.newest || a.title.localeCompare(b.title))
+    .map((g) => ({ key: g.title, title: g.title, count: g.clips.length, clips: g.clips }));
 }
 
 // ---------- Clip facts ----------
@@ -266,7 +311,7 @@ export function fixingText(f: FixState): string {
 // ---------- Result notes (after a form action, via the URL) ----------
 
 /** Reasons the actions return; anything else shows a generic line (a URL can't inject text). */
-const REASONS = new Set(["no clips selected", "something went wrong", "this fix isn't ready to keep", "unknown fix", "this fix can't be discarded", "unknown clip or issue"]);
+const REASONS = new Set(["unknown clip", "folder name is empty", "folder name can't contain slashes", "folder name is longer than 60 characters", "folder name has invalid characters", "folder must be text", "no clips selected", "something went wrong", "this fix isn't ready to keep", "unknown fix", "this fix can't be discarded", "unknown clip or issue"]);
 
 export type NoteParams = Record<string, string | number>;
 
@@ -276,6 +321,7 @@ export function noteParams(r:
   | { kind: "keptall"; kept: number; stayed: number; failed: number; stillFixing?: number; cantFix?: number }
   | { kind: "original" }
   | { kind: "dismissed" }
+  | { kind: "moved" }
   | { kind: "error"; reason: string }): NoteParams {
   switch (r.kind) {
     case "queued":
@@ -327,6 +373,8 @@ export function resultNote(sp: Record<string, Raw>): { tone: "info" | "danger"; 
       return { tone: int(sp.failed) && !int(sp.n) ? "danger" : "info", text: keepAllNote(int(sp.n), int(sp.stayed), int(sp.failed), int(sp.fixing), int(sp.cant)) };
     case "original":
       return { tone: "info", text: "Kept the original. The fixed copy is hidden, not deleted." };
+    case "moved":
+      return { tone: "info", text: "Moved. The clip's folder is updated." };
     case "dismissed":
       return { tone: "info", text: "Dismissed. It won't count as needing a touch-up." };
     case "error": {

@@ -1,4 +1,4 @@
-import { findCapBreaches, localDate, type CadenceSettings, type Platform } from "@autopilot/core";
+import { findCapBreaches, findDuplicateClip, localClock12, localDate, weekdayIndex, type CadenceSettings, type ClipSibling, type Platform } from "@autopilot/core";
 import { isPillar, lintText } from "@autopilot/research";
 import type { BatchItemView, Warning } from "./types.js";
 
@@ -11,6 +11,23 @@ export interface WarningContext {
   existing: Array<{ platform: Platform; scheduledFor: string }>;
   /** PRIVACY_BLOCKLIST terms (from .env at runtime). */
   blocklist: string[];
+  /**
+   * Duplicate-clip guard: other batch_items (any batch, any status) for the same clips, fetched by the loader
+   * with duplicateClipSql (@autopilot/db). This batch's own items are added here, with their current (or
+   * planned) times, so a Move is re-checked against the new time. Optional: absent = this batch only.
+   */
+  clipSiblings?: ClipSibling[];
+}
+
+const PLATFORM_WORD: Record<Platform, string> = { instagram: "Instagram", youtube: "YouTube", tiktok: "TikTok", snapchat: "Snapchat" };
+const WEEKDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** "Same clip is already on TikTok Thu 9:00 AM" (12-hour, creator zone); untimed siblings have no time. */
+export function duplicateClipMessage(s: Pick<ClipSibling, "platform" | "scheduledFor" | "publishedAt" | "status">, timeZone: string): string {
+  const iso = s.scheduledFor ?? (s.status === "published" ? s.publishedAt ?? null : null);
+  const at = iso ? new Date(iso) : null;
+  const when = at && !Number.isNaN(at.getTime()) ? ` ${WEEKDAY[weekdayIndex(localDate(at, timeZone))]} ${localClock12(at, timeZone)}` : "";
+  return `Same clip is already on ${PLATFORM_WORD[s.platform]}${when}`;
 }
 
 const PLACEHOLDER = /\{\{[^}]*\}\}/;
@@ -47,6 +64,12 @@ export function computeWarnings(items: BatchItemView[], ctx: WarningContext): Ma
   const live = items.filter((i) => i.status !== "rejected");
   const captionCounts = tally(live.filter((i) => i.caption.trim() !== "").map(captionKey));
   const mediaCounts = tally(live.map(mediaKey));
+  // This batch's items win over the loader's copies (they may carry planned times).
+  const own = new Set(items.map((i) => i.id));
+  const siblings: ClipSibling[] = [
+    ...(ctx.clipSiblings ?? []).filter((s) => !own.has(s.id)),
+    ...items.map((i) => ({ id: i.id, mediaId: i.mediaId, platform: i.platform, status: i.status, scheduledFor: i.scheduledFor, publishedAt: i.scheduledFor })),
+  ];
 
   for (const item of items) {
     if (item.status !== "draft" && item.status !== "approved") {
@@ -103,7 +126,10 @@ export function computeWarnings(items: BatchItemView[], ctx: WarningContext): Ma
     if (item.caption.trim() !== "" && (captionCounts.get(captionKey(item)) ?? 0) > 1) {
       ws.push({ code: "duplicate.caption", severity: "warn", message: `same caption as another ${item.platform} post this week`, field: "caption" });
     }
-    if ((mediaCounts.get(mediaKey(item)) ?? 0) > 1) {
+    const dup = findDuplicateClip({ id: item.id, mediaId: item.mediaId, platform: item.platform, scheduledFor: item.scheduledFor }, siblings, ctx.now);
+    if (dup) {
+      ws.push({ code: "duplicate.clip", severity: "block", message: duplicateClipMessage(dup, ctx.timeZone) });
+    } else if ((mediaCounts.get(mediaKey(item)) ?? 0) > 1) {
       ws.push({ code: "duplicate.media", severity: "warn", message: `this video is planned twice this week for ${item.platform}` });
     }
 

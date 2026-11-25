@@ -5,14 +5,19 @@
 //   pnpm --filter @autopilot/ingest-agent ingest            # real run
 //   pnpm --filter @autopilot/ingest-agent ingest --dry-run  # scan + hash + dedupe check only:
 //                                                           # no QA, no upload, no DB writes
+//   ... --folder "Week of Nov 23"      # label every NEW clip with a library folder
+//   ... --folder-from week             # label each NEW clip "Week of <Mon DD>" from its captured date
+//   ... --folder "<label>" --retag     # also re-label clips already in the library (matched by hash)
 // Exit codes: 0 ok · 1 some files failed · 2 stopped because the DB connection was lost (re-run).
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadRepoEnv } from "./load-env.js";
+import { assertTimeZone } from "@autopilot/core";
 import { createPool } from "@autopilot/db";
 import { makePoster, probeLocationTagKeys, runQa, sha256File, touchUp } from "@autopilot/media";
 import { parseIngestRoots } from "./config.js";
+import { folderForClip, parseIngestFlags } from "./folder-flags.js";
 import { createIngestFile } from "./ingest-file.js";
 import { createR2Client, uploadToR2 } from "./r2.js";
 import { withRetry } from "./retry.js";
@@ -21,7 +26,19 @@ import { findVideoFiles } from "./scan.js";
 
 loadRepoEnv();
 
-const dryRun = process.argv.includes("--dry-run");
+const parsed = parseIngestFlags(process.argv.slice(2));
+if (!parsed.ok) {
+  console.error(`ingest: ${parsed.error}`);
+  process.exit(1);
+}
+const { dryRun, retag } = parsed.flags;
+const folderZone = (() => {
+  try {
+    return process.env.TZ_CREATOR ? assertTimeZone(process.env.TZ_CREATOR) : "UTC";
+  } catch {
+    return "UTC";
+  }
+})();
 
 function need(name: string): string {
   const v = process.env[name];
@@ -57,6 +74,9 @@ const summary = await runIngest({
   dryRun,
   hash: sha256File,
   exists: async (hash) => (await pool.query("select 1 from media where content_hash = $1", [hash])).rows.length > 0,
+  retag: retag
+    ? async (hash) => ((await pool.query("update media set folder = $2 where content_hash = $1 and folder is distinct from $2", [hash, parsed.flags.folder])).rowCount ?? 0) > 0
+    : undefined,
   ping: async () => {
     await pool.query("select 1");
   },
@@ -72,10 +92,13 @@ const summary = await runIngest({
     makePoster,
     uploadPoster: (key, jpgPath) => withRetry(() => uploadToR2(r2!, bucket, key, jpgPath, "image/jpeg")),
     log: (line) => console.log(line),
+    folderFor: (capturedAt) => folderForClip(parsed.flags, capturedAt, folderZone),
     insert: async (params) => {
+      // The folder column needs migration 0016, so it is only named when a folder flag gave this clip one.
+      const withFolder = params.length > 10;
       await pool.query(
-        `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, qa, captured_at, poster_key, qa_checked_at)
-         values ($1, $2, $3, $4, $5, $6, $7, 'ready', $8, $9, $10, now())`,
+        `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, qa, captured_at, poster_key, qa_checked_at${withFolder ? ", folder" : ""})
+         values ($1, $2, $3, $4, $5, $6, $7, 'ready', $8, $9, $10, now()${withFolder ? ", $11" : ""})`,
         params,
       );
     },

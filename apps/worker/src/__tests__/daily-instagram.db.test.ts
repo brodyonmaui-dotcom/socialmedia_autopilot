@@ -110,6 +110,29 @@ describe.skipIf(!url)("daily-instagram (db)", () => {
     await client.query(`delete from settings where key = 'instagram_daily_min'`);
   });
 
+  it("duplicate-clip guard: a clip published on Instagram in the last 14 days is skipped", async () => {
+    const d = day(5);
+    const now = at17(d);
+    const mk = async (n: number) =>
+      (
+        await client.query(
+          `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, captured_at) values ($1, '/x/y.MOV', $2, 12, 1080, 1920, 'workout-log', 'ready', '2109-12-30T12:00:00Z') returning id`,
+          [`${TAG}-dup-${n}`, `library/${TAG}-dup-${n}.mp4`],
+        )
+      ).rows[0].id as string;
+    const posted = await mk(1);
+    const fresh = await mk(2);
+    const other = (await client.query(`insert into batches (week_start, status) values ($1::date, 'approved') returning id`, [addCalendarDays(d, -20)])).rows[0].id as string;
+    await client.query(
+      `insert into batch_items (batch_id, media_id, platform, caption, scheduled_for, status, platform_post_id, updated_at) values ($1, $2, 'instagram', 'posted', null, 'published', $3, $4)`,
+      [other, posted, `${TAG}-pub`, new Date(now.getTime() - 2 * 86_400_000)],
+    );
+    const lib = async (q: Queryable) => (await loadLibraryClips(q)).filter((r) => r.id === posted || r.id === fresh);
+    const r = await runDailyInstagramOnce(db, { timeZone: TZ, now, log: quiet, loadLibrary: lib });
+    expect(r).toMatchObject({ postsInserted: 1, duplicates: 1 });
+    expect((await rowsFor(d)).map((x) => x.media_id)).toEqual([fresh]);
+  });
+
   it("no TZ_CREATOR → nothing created", async () => {
     const before = (await client.query(`select (select count(*) from batch_items)::int as i, (select count(*) from alerts)::int as a`)).rows[0];
     const r = await runDailyInstagramOnce(db, { timeZone: undefined, now: at17(day(4)), log: quiet, loadLibrary: fixtures });

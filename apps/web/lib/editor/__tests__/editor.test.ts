@@ -35,7 +35,7 @@ describe("view", () => {
   });
 
   it("groups one render's platforms, IG first, and only editor drafts", () => {
-    const b = withWarnings(makeBatch([ed("tiktok"), ed("instagram"), ed("youtube"), makeItem({ mediaId: "media-r1" }), ed("instagram", { mediaId: "m2", status: "rejected" })]));
+    const b = withWarnings(makeBatch([ed("tiktok"), ed("instagram"), ed("youtube"), makeItem({ mediaId: "media-r1", platform: "snapchat" }), ed("instagram", { mediaId: "m2", status: "rejected" })]));
     const rs = groupRenders(b.items, NOW, TZ);
     expect(rs).toHaveLength(1);
     expect(rs[0]!.lines.map((l) => l.platform)).toEqual(["instagram", "youtube", "tiktok"]);

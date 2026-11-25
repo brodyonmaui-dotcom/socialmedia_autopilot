@@ -32,7 +32,7 @@ describe("calendar actions without a session", () => {
   it("exports the expected actions", () => {
     expect(exported.map(([n]) => n).sort()).toEqual(
       [
-        "approveAllAction", "approveItemsAction", "editTextAction", "fillTimesAction", "igCheckAction", "moveAction", "moveTomorrowAction",
+        "alreadyPostedAction", "approveAllAction", "approveItemsAction", "editTextAction", "fillTimesAction", "igCheckAction", "moveAction", "moveTomorrowAction",
         "recordPublishedAction", "rejectItemsAction", "rescheduleMissedAction", "resetCheckedAction",
       ].sort(),
     );
@@ -71,6 +71,7 @@ describe("calendar actions with a session (fake pool)", () => {
     const calls: Array<{ sql: string; params: unknown[] }> = [];
     const answer = (sql: string, params: unknown[] = []) => {
       calls.push({ sql, params });
+      if (/^select batch_id from batch_items where id = \$1/.test(sql)) return { rows: [{ batch_id: BATCH }], rowCount: 1 };
       if (/from batches where id = \$1/.test(sql)) return { rows: [{ id: BATCH, week_start: "2099-01-05", status: "approved", approved_at: new Date() }], rowCount: 1 };
       if (/from batch_items bi join media/.test(sql))
         return {
@@ -113,6 +114,36 @@ describe("calendar actions with a session (fake pool)", () => {
     const b = calls.find((c) => /^update batches/.test(c.sql.trim()))!;
     expect(b.params[1]).toBe("draft");
     expect(client.release).toHaveBeenCalled();
+  });
+
+  it("alreadyPostedAction: the reject transition with detail {reason: already-posted}, audited, back with a note", async () => {
+    auth.requireSession.mockResolvedValue(SESSION);
+    for (const status of ["draft", "approved"]) {
+      const { pool, calls } = fakePool(status);
+      db.getPool.mockReturnValue(pool);
+      await expect(actions.alreadyPostedAction(form({ back: BACK, itemId: ITEM }))).rejects.toMatchObject({ url: expect.stringMatching(/^\/calendar\?d=2099-01-06&day=2099-01-06&note=Dropped/) });
+      const upd = calls.find((c) => /^update batch_items/.test(c.sql.trim()))!;
+      expect(upd.sql).toMatch(/and status = \$5/);
+      expect(upd.sql).not.toMatch(/idempotency_key/);
+      expect(upd.params.slice(0, 5)).toEqual(["rejected", expect.any(Date), SESSION.id, ITEM, status]);
+      const ev = calls.find((c) => /insert into batch_item_events/.test(c.sql))!;
+      expect(ev.params.slice(0, 4)).toEqual([ITEM, "reject", status, "rejected"]);
+      expect(JSON.parse(ev.params[4] as string)).toEqual({ reason: "already-posted" });
+    }
+  });
+
+  it("alreadyPostedAction refuses published / queued / publishing / failed / unknown and bad ids, writing nothing", async () => {
+    auth.requireSession.mockResolvedValue(SESSION);
+    for (const status of ["published", "queued", "publishing", "failed", "unknown"]) {
+      const { pool, calls } = fakePool(status);
+      db.getPool.mockReturnValue(pool);
+      await expect(actions.alreadyPostedAction(form({ back: BACK, itemId: ITEM }))).rejects.toMatchObject({ url: expect.stringContaining("error=Can%27t+reject") });
+      expect(writes(calls)).toEqual([]);
+    }
+    const { pool, calls } = fakePool("draft");
+    db.getPool.mockReturnValue(pool);
+    await expect(actions.alreadyPostedAction(form({ back: "https://evil.example.com", itemId: "nope" }))).rejects.toMatchObject({ url: "/calendar?error=Unknown+post." });
+    expect(calls).toEqual([]);
   });
 
   it("resetCheckedAction: IG check runs server-side (no creds → 'error'), explicit reset SQL, alert ack, never approves", async () => {
