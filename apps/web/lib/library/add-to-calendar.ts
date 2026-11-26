@@ -12,7 +12,7 @@ import type { Pool } from "pg";
 import { mediaLabel } from "../batches/pg-store.js";
 import { dayLabel } from "../batches/view-model.js";
 import { mondayOf } from "../calendar/model.js";
-import { createSlotPicker } from "../calendar/next-slot.js";
+import { createSlotPicker, NEXT_SLOT_HORIZON_MS } from "../calendar/next-slot.js";
 import { isUuid, MARK_PLATFORMS, type Db } from "./data.js";
 
 /** Instagram, YouTube, TikTok: the platforms scheduled from the library, in the order they are planned. */
@@ -148,9 +148,14 @@ export async function addToCalendar(
         locked.add(w);
       }
     };
-    await lock(first.lines.map((l) => weekOf(l.scheduledFor)));
+    // Lock every week the planner can reach (its horizon, a day either side) up front, in sorted order, so the
+    // re-plan below can't land in an unlocked week and two runs can't deadlock (audit 2026-11-26).
+    const reach: string[] = [];
+    for (let t = o.now.getTime() - 86_400_000; t <= o.now.getTime() + NEXT_SLOT_HORIZON_MS + 86_400_000; t += 86_400_000) reach.push(weekOf(new Date(t).toISOString()));
+    await lock([...reach, ...first.lines.map((l) => weekOf(l.scheduledFor))]);
     const plan = await planAddToCalendar(client, o); // after the lock: what is really there
-    await lock(plan.lines.map((l) => weekOf(l.scheduledFor)));
+    const unlocked = plan.lines.map((l) => weekOf(l.scheduledFor)).filter((w) => !locked.has(w));
+    if (unlocked.length) throw new Error("add-to-calendar: plan reached a week outside its lock; try again");
 
     const pillar = new Map<string, string | null>();
     if (plan.lines.length) {
