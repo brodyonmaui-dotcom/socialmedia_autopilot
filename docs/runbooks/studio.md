@@ -19,6 +19,10 @@ the original audio → one 1080x1920 video, 3–90 s.
   (bold = box behind, plain = soft shadow), kept inside the safe margins (top 12%, bottom 22%: clear of Instagram's
   buttons). Every text must pass the caption lint's privacy rules (no places, no real-time whereabouts, no
   PRIVACY_BLOCKLIST term) before the export is queued.
+  Text v2 (F25): each text may also carry `x`/`y` (0..1 anchor, dragged on the preview; they win over the
+  top/center/bottom preset), `size` (3–16% of the width), `color` and `bgColor` (8-colour palette), `bg` look
+  (none, shadow, outline, box at 60% opacity) and `align`. Wrapping depends on the size, over-wide lines shrink to fit,
+  and the block is clamped inside the frame. Old edits without these fields render as before.
 - **Location:** all metadata and chapters dropped; the output is re-probed and refused if a location tag survived.
 - **Cover:** the poster is taken at the chosen cover frame.
 

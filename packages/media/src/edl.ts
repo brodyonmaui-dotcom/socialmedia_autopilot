@@ -18,12 +18,41 @@ export interface EdlClip {
   outS: number;
   speed: EdlSpeed;
 }
+export const TEXT_COLORS = ["#FFFFFF", "#000000", "#FFD60A", "#FF3B30", "#34C759", "#0A84FF", "#FF2D92", "#BF5AF2"] as const;
+export const EDL_TEXT_BGS = ["none", "shadow", "outline", "box"] as const;
+export const EDL_TEXT_ALIGNS = ["left", "center", "right"] as const;
+export const EDL_TEXT_SIZE = { min: 0.03, max: 0.16 } as const;
 export interface EdlText {
   text: string;
   startS: number;
   endS: number;
+  /** Kept for old EDLs and the quick presets; x/y win when present. */
   position: "top" | "center" | "bottom";
+  /** Font weight (bold = DejaVuSans-Bold). */
   style: "bold" | "plain";
+  /** 0..1 anchor in the 1080x1920 frame (y = block centre; x per align). */
+  x?: number;
+  y?: number;
+  /** Font px as a fraction of the width, 0.03..0.16. */
+  size?: number;
+  color?: string;
+  bg?: "none" | "shadow" | "outline" | "box";
+  /** Box colour (drawn at 60% opacity). */
+  bgColor?: string;
+  align?: "left" | "center" | "right";
+}
+/** Resolved layout, shared by the renderer AND the browser preview so they match exactly. */
+export interface TextLayout {
+  lines: string[];
+  px: number;
+  lineH: number;
+  x: number;
+  y: number;
+  align: "left" | "center" | "right";
+  color: string;
+  bg: "none" | "shadow" | "outline" | "box";
+  bgColor: string;
+  bold: boolean;
 }
 export interface EdlSound {
   soundId: string;
@@ -130,7 +159,31 @@ export function parseEdl(raw: unknown): { ok: true; edl: Edl } | { ok: false; er
     if (t.startS >= total) return no(`Text ${n} starts after the video ends.`);
     if (!(EDL_POSITIONS as readonly unknown[]).includes(t.position)) return no(`Text ${n}: pick top, center or bottom.`);
     if (!(EDL_STYLES as readonly unknown[]).includes(t.style)) return no(`Text ${n}: pick bold or plain.`);
-    texts.push({ text, startS: r3(t.startS), endS: r3(Math.min(t.endS, total)), position: t.position as EdlText["position"], style: t.style as EdlText["style"] });
+    const out: EdlText = { text, startS: r3(t.startS), endS: r3(Math.min(t.endS, total)), position: t.position as EdlText["position"], style: t.style as EdlText["style"] };
+    for (const k of ["x", "y"] as const) {
+      if (t[k] == null) continue;
+      if (!isNum(t[k]) || (t[k] as number) < 0 || (t[k] as number) > 1) return no(`Text ${n}: the position must be between 0 and 1.`);
+      out[k] = r3(t[k] as number);
+    }
+    if (t.size != null) {
+      if (!isNum(t.size) || t.size < EDL_TEXT_SIZE.min || t.size > EDL_TEXT_SIZE.max) return no(`Text ${n}: the size must be between ${EDL_TEXT_SIZE.min} and ${EDL_TEXT_SIZE.max}.`);
+      out.size = r3(t.size);
+    }
+    for (const k of ["color", "bgColor"] as const) {
+      if (t[k] == null) continue;
+      const hit = typeof t[k] === "string" ? TEXT_COLORS.find((c) => c === (t[k] as string).toUpperCase()) : undefined;
+      if (!hit) return no(`Text ${n}: pick a colour from the palette.`);
+      out[k] = hit;
+    }
+    if (t.bg != null) {
+      if (!(EDL_TEXT_BGS as readonly unknown[]).includes(t.bg)) return no(`Text ${n}: pick none, shadow, outline or box.`);
+      out.bg = t.bg as EdlText["bg"];
+    }
+    if (t.align != null) {
+      if (!(EDL_TEXT_ALIGNS as readonly unknown[]).includes(t.align)) return no(`Text ${n}: pick left, center or right.`);
+      out.align = t.align as EdlText["align"];
+    }
+    texts.push(out);
   }
 
   let sound: EdlSound | null = null;
@@ -240,24 +293,60 @@ export function wrapText(text: string, max: number = EDL_WRAP_CHARS): string[] {
 }
 
 /**
- * One drawtext per wrapped line, each centred horizontally; the block sits inside the safe margins (top 12%,
- * bottom 22%) or centred. The font size shrinks when the longest line wouldn't fit 90% of the width.
+ * Resolves a text's layout (defaults, wrap, shrink-to-fit, clamping). Pure; the browser preview calls it too so the
+ * preview and the render agree.
  */
+export function textLayout(t: EdlText): TextLayout {
+  const W = EDL_LIMITS.width;
+  const H = EDL_LIMITS.height;
+  const bold = t.style === "bold";
+  const size = Math.min(EDL_TEXT_SIZE.max, Math.max(EDL_TEXT_SIZE.min, t.size ?? (bold ? 0.07 : 0.06)));
+  let px = Math.round(size * W);
+  const maxChars = Math.max(4, Math.floor((0.9 * W) / (px * 0.55)));
+  const lines = wrapText(t.text, maxChars);
+  const longest = Math.max(1, ...lines.map((l) => [...l].length));
+  if (longest * px * 0.6 > 0.92 * W) px = Math.floor((0.92 * W) / (longest * 0.6));
+  const lineH = Math.round(px * 1.3);
+  const half = (lines.length * lineH) / 2 / H;
+  const rawY = t.y ?? (t.position === "top" ? EDL_LIMITS.topMargin + half : t.position === "center" ? 0.5 : 1 - EDL_LIMITS.bottomMargin - half);
+  const y = r3(Math.min(Math.max(rawY, Math.min(half, 0.5)), Math.max(1 - half, 0.5)));
+  const x = r3(Math.min(1, Math.max(0, t.x ?? 0.5)));
+  return {
+    lines,
+    px,
+    lineH,
+    x,
+    y,
+    align: t.align ?? "center",
+    color: t.color ?? "#FFFFFF",
+    bg: t.bg ?? (bold ? "box" : "shadow"),
+    bgColor: t.bgColor ?? "#000000",
+    bold,
+  };
+}
+
+/** One drawtext per wrapped line, positioned from `textLayout`. */
 function drawtexts(t: EdlText, fontPath: string): string[] {
   const W = EDL_LIMITS.width;
   const H = EDL_LIMITS.height;
-  const lines = wrapText(t.text);
-  const longest = Math.max(1, ...lines.map((l) => [...l].length));
-  const size = Math.min(t.style === "bold" ? 76 : 64, Math.floor((W * 0.9) / (longest * 0.62)));
-  const lineH = Math.round(size * 1.3);
-  const blockH = lines.length * lineH;
-  const top = t.position === "top" ? H * EDL_LIMITS.topMargin : t.position === "center" ? (H - blockH) / 2 : H * (1 - EDL_LIMITS.bottomMargin) - blockH;
-  const look = t.style === "bold" ? "box=1:boxcolor=black@0.45:boxborderw=14" : "shadowcolor=black@0.6:shadowx=3:shadowy=3";
+  const L = textLayout(t);
+  const blockH = L.lines.length * L.lineH;
+  const top = L.y * H - blockH / 2;
+  const X = Math.round(L.x * W);
+  const xe = L.align === "center" ? `${X}-text_w/2` : L.align === "right" ? `${X}-text_w` : `${X}`;
+  const look =
+    L.bg === "box"
+      ? `box=1:boxcolor=${L.bgColor}@0.6:boxborderw=${Math.round(L.px * 0.22)}`
+      : L.bg === "shadow"
+        ? "shadowcolor=black@0.6:shadowx=3:shadowy=3"
+        : L.bg === "outline"
+          ? `borderw=${Math.max(2, Math.round(L.px * 0.07))}:bordercolor=${L.color.toUpperCase() === "#000000" ? "white" : "black"}`
+          : "";
   const when = `enable='between(t,${f(t.startS)},${f(t.endS)})'`;
-  return lines.map(
+  return L.lines.map(
     (line, k) =>
       `drawtext=fontfile=${escapeDrawtext(fontPath)}:expansion=none:text=${escapeDrawtext(line)}` +
-      `:fontcolor=white:fontsize=${size}:${look}:x=(w-text_w)/2:y=${Math.round(top + k * lineH)}:${when}`,
+      `:fontcolor=${L.color}:fontsize=${L.px}:${look ? `${look}:` : ""}x='max(0,min(w-text_w,${xe}))':y=${Math.round(top + k * L.lineH)}:${when}`,
   );
 }
 
