@@ -216,3 +216,40 @@ describe("A9: overlapping ticks on one store", () => {
     expect(store.posts.get("sr")!.status).toBe("queued");
   });
 });
+
+describe("audit: two posts sharing a caption never adopt each other's platform id", () => {
+  function twin(script: Record<string, FakeOutcome[]> = {}) {
+    const clock = new FakeClock(T0);
+    const store = new MemoryOutboxStore();
+    const fake = new FakePlatform({ platform: "instagram", script, lookupBy: "caption" }, clock);
+    const cfg: EngineConfig = { adapters: { instagram: fake.adapter() }, dryRun: false, cadence: DEFAULT_CADENCE, timeZone: TZ, now: clock.now, nativeLeadMs: 0 };
+    return { clock, store, fake, cfg };
+  }
+  it("retry path: B's existence check skips A's media id, so B is resent (not marked published as A)", async () => {
+    const { clock, store, fake, cfg } = twin({ "idem-b": ["reject"] });
+    store.add(makePost({ id: "a", idempotencyKey: "idem-a", platform: "instagram", scheduledFor: T0, caption: "Same words #gym" }));
+    store.add(makePost({ id: "b", idempotencyKey: "idem-b", platform: "instagram", scheduledFor: T0, caption: "Same words #gym" }));
+    await runOutboxTick(store, cfg);
+    expect(store.posts.get("a")!.status).toBe("published");
+    expect(store.posts.get("b")!.status).toBe("queued");
+    clock.advanceMs(DEFAULT_RETRY_POLICY.baseBackoffMs + 1);
+    await runOutboxTick(store, cfg);
+    const a = store.posts.get("a")!;
+    const b = store.posts.get("b")!;
+    expect(b.status).toBe("published");
+    expect(b.platformPostId).not.toBe(a.platformPostId);
+    expect(fake.created).toHaveLength(2);
+    expect(fake.doublePosts()).toEqual([]);
+  });
+  it("stale path: a crashed B never recovers as A's post; it goes unknown", async () => {
+    const { clock, store, fake, cfg } = twin();
+    store.add(makePost({ id: "a", idempotencyKey: "idem-a", platform: "instagram", scheduledFor: T0, caption: "Same words #gym" }));
+    await runOutboxTick(store, cfg);
+    store.add(makePost({ id: "b", idempotencyKey: "idem-b", platform: "instagram", scheduledFor: T0, caption: "Same words #gym", status: "publishing", updatedAt: T0 }));
+    clock.advanceMs(DEFAULT_RETRY_POLICY.publishTimeoutMs + 1);
+    await runOutboxTick(store, cfg);
+    expect(store.posts.get("b")!.status).toBe("unknown");
+    expect(store.posts.get("b")!.platformPostId).toBeUndefined();
+    expect(fake.created).toHaveLength(1);
+  });
+});

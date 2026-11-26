@@ -121,11 +121,16 @@ async function renderLibrary(p: ReturnType<typeof parseLibraryParams>, sp: Await
         title="Library"
         subtitle="Every clip from your editors. Pick what to schedule next."
         action={
-          toTouch > 0 ? (
-            <ButtonLink href="/library/touch-up" variant="outline">
-              {toTouch === 1 ? "1 needs a touch-up" : `${toTouch} need a touch-up`}
+          <div className="flex flex-wrap gap-2">
+            {toTouch > 0 ? (
+              <ButtonLink href="/library/touch-up" variant="outline">
+                {toTouch === 1 ? "1 needs a touch-up" : `${toTouch} need a touch-up`}
+              </ButtonLink>
+            ) : null}
+            <ButtonLink href="/library/upload" variant="solid">
+              Upload
             </ButtonLink>
-          ) : undefined
+          </div>
         }
       />
 

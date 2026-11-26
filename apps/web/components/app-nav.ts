@@ -56,6 +56,7 @@ export function sidebarNav(counts: FrameCounts = {}): NavEntry[] {
       icon: "library",
       children: [
         { id: "library", label: "All clips", href: "/library" },
+        { id: "library/upload", label: "Upload", href: "/library/upload" },
         { id: "library/touch-up", label: "Touch-up", href: "/library/touch-up", badge: badgeOf(counts.touchUp) },
       ],
     },

@@ -1,5 +1,5 @@
-import { NonRetryableError, type OutboxPost, type PlatformAdapter, type PublishOptions, type PublishResult } from "@autopilot/core";
-import { assertNoLocationFields, countHashtags, getJson, PlatformRequestError, type FetchLike } from "./http.js";
+import { NonRetryableError, type FindExistingOptions, type OutboxPost, type PlatformAdapter, type PublishOptions, type PublishResult } from "@autopilot/core";
+import { assertNoLocationFields, countHashtags, getJson, PlatformRequestError, UploadAmbiguousError, type FetchLike, type JsonResult } from "./http.js";
 
 export interface InstagramAdapterConfig {
   /** Page access token (Facebook Login, never expires; data access re-authorized every 90 days). */
@@ -118,8 +118,22 @@ export function createInstagramAdapter(cfg: InstagramAdapterConfig): PlatformAda
       }
       if (status !== "FINISHED" && status !== "PUBLISHED") throw new Error(`instagram container ${container} still ${status} after ${maxPolls} polls; will retry with a new container`);
 
-      const pub = await getJson<ContainerStatus>(fetchImpl, `${base}/${cfg.igUserId}/media_publish`, { method: "POST", headers: auth, body: new URLSearchParams({ creation_id: container }) }, signal);
-      if (!pub.body.id) throw new PlatformRequestError("instagram", pub.status, pub.body, `instagram media_publish rejected: ${pub.body.error?.message ?? JSON.stringify(pub.body)}`);
+      // A real trial container (not the fallback): trial reels may not appear in /{ig-user}/media, so a retry's
+      // existence check can't be trusted. Any media_publish failure is therefore "unknown" (TimeoutError-class,
+      // never resent automatically). Failures before this point published nothing and stay retryable.
+      const isTrial = !!post.trial && !trialFellBack;
+      let pub: JsonResult<ContainerStatus>;
+      try {
+        pub = await getJson<ContainerStatus>(fetchImpl, `${base}/${cfg.igUserId}/media_publish`, { method: "POST", headers: auth, body: new URLSearchParams({ creation_id: container }) }, signal);
+      } catch (err) {
+        if (isTrial) throw new UploadAmbiguousError("instagram", `instagram trial reel media_publish failed (${(err as Error)?.message ?? "error"}); trials may not list in /media, so the outcome is unknown`, undefined, undefined, { cause: err });
+        throw err;
+      }
+      if (!pub.body.id) {
+        const msg = `instagram media_publish rejected: ${pub.body.error?.message ?? JSON.stringify(pub.body)}`;
+        if (isTrial) throw new UploadAmbiguousError("instagram", `${msg} (trial reel: may not list in /media, so the outcome is unknown)`, pub.status, pub.body);
+        throw new PlatformRequestError("instagram", pub.status, pub.body, msg);
+      }
 
       let permalink: string | undefined;
       try {
@@ -136,9 +150,11 @@ export function createInstagramAdapter(cfg: InstagramAdapterConfig): PlatformAda
      * Instagram has no idempotency key, so "does it exist?" is a caption match on the account's recent
      * media (up to 2 pages = 50 posts) within 36 h of scheduled_for. Only ever used to AVOID a resend.
      * Returns the post or null ("looked, not there"). A response that has no `data` (token/permission/API
-     * error) THROWS: that is "can't check", never "not found".
+     * error) THROWS: that is "can't check", never "not found". Media ids in `opts.excludeIds` (stored on another
+     * batch_items row) are never returned, so two posts sharing a caption can't be confused.
      */
-    async findExisting(post: OutboxPost, opts: PublishOptions = {}): Promise<PublishResult | null> {
+    async findExisting(post: OutboxPost, opts: FindExistingOptions = {}): Promise<PublishResult | null> {
+      const exclude = opts.excludeIds ?? new Set<string>();
       // IG rewrites whitespace / Unicode form / case / adds hashtags, so compare normalised captions or the
       // 60-char hashtag-free prefix (F19 S6). OutboxPost has no first-attempt time: window stays ±36 h.
       const target = normaliseCaption(post.caption);
@@ -153,6 +169,7 @@ export function createInstagramAdapter(cfg: InstagramAdapterConfig): PlatformAda
           throw new PlatformRequestError("instagram", r.status, r.body, `instagram media list unreadable (can't check): ${e?.message ?? `HTTP ${r.status}, no data`}${e ? ` (code ${e.code}/${e.error_subcode})` : ""}`);
         }
         const hit = data.find((m) => {
+          if (exclude.has(m.id)) return false; // already another row's post: never adopt it
           if (m.timestamp && !(Math.abs(Date.parse(m.timestamp) - at) <= 36 * 3_600_000)) return false;
           const c = m.caption ?? "";
           if (target.length > 0 && normaliseCaption(c) === target) return true;

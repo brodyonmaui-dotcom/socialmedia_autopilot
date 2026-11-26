@@ -28,6 +28,12 @@ export interface OutboxStore {
    * (kind, post) alert already exists, so a held post doesn't page the creator every minute.
    */
   recordAlert(alert: OutboxAlert): Promise<boolean>;
+  /**
+   * Platform post ids already stored on OTHER rows of this platform near the post (the pg store: ±3 days, wider
+   * for YouTube's upload-time window). Passed to findExisting as `excludeIds` so a caption/title match can never
+   * adopt another post's id. Optional (stores without it pass nothing); a throw counts as "can't check".
+   */
+  knownPlatformPostIds?(post: OutboxPost): Promise<Set<string>>;
 }
 
 export interface AlertSink {
@@ -100,6 +106,24 @@ export function postForAdapter(post: OutboxPost, now: Date): OutboxPost {
   return Date.parse(post.scheduledFor) < floor ? { ...post, scheduledFor: new Date(floor).toISOString() } : post;
 }
 
+/**
+ * Which other rows' platform ids to exclude from a lookup: scheduled_for within ±3 days of the post (Instagram's
+ * caption match is ±36 h). YouTube matches on upload time up to 14 days before scheduled_for, so it looks back 15.
+ */
+export function knownIdsWindow(platform: Platform): { beforeMs: number; afterMs: number } {
+  const DAY = 86_400_000;
+  return { beforeMs: (platform === "youtube" ? 15 : 3) * DAY, afterMs: 3 * DAY };
+}
+
+/** findExisting with the other rows' platform ids excluded (see OutboxStore.knownPlatformPostIds). */
+async function lookupExisting(store: OutboxStore, adapter: PlatformAdapter, post: OutboxPost, signal: AbortSignal): Promise<PublishResult | null> {
+  const excludeIds = store.knownPlatformPostIds ? await store.knownPlatformPostIds(post) : undefined;
+  const found = await adapter.findExisting!(post, excludeIds ? { signal, excludeIds } : { signal });
+  // Belt and braces: an adapter that ignores excludeIds still can't hand back another row's id.
+  if (found && excludeIds?.has(found.platformPostId)) return null;
+  return found;
+}
+
 function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>, ms: number): Promise<T> {
   const ctl = new AbortController();
   return new Promise<T>((resolve, reject) => {
@@ -169,7 +193,7 @@ export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Prom
     let found: PublishResult | null = null;
     if (adapter?.findExisting && !cfg.dryRun) {
       try {
-        found = await withTimeout((signal) => adapter.findExisting!(post, { signal }), policy.lookupTimeoutMs);
+        found = await withTimeout((signal) => lookupExisting(store, adapter, post, signal), policy.lookupTimeoutMs);
       } catch {
         found = null;
       }
@@ -249,7 +273,7 @@ export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Prom
     if (post.attempts > 0 && adapter.findExisting) {
       let found: PublishResult | null | undefined;
       try {
-        found = await withTimeout((signal) => adapter.findExisting!(post, { signal }), policy.lookupTimeoutMs);
+        found = await withTimeout((signal) => lookupExisting(store, adapter, post, signal), policy.lookupTimeoutMs);
       } catch (err) {
         // The lookup sends nothing, so waiting and looking again is always safe. It still counts as an attempt (bounded).
         const message = `existence check failed: ${sanitizeError(err)}`;

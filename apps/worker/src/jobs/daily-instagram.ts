@@ -198,7 +198,7 @@ async function draftLocked(
       continue;
     }
     const key = dailyIngestKey(date, a.key);
-    const caption = pickCaptionTemplate(pillarOf.get(a.key), key, avoid);
+    const caption = pickCaptionTemplate(pillarOf.get(a.key), key, avoid) ?? ""; // pool exhausted → "needs a caption"
     const ins = await db.query(
       `insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, status, origin, ingest_key, trial, created_at, updated_at)
        values ($1, $2, 'instagram', $3, null, $4::timestamptz, 'draft', 'daily', $5, null, $6, $6)
@@ -211,7 +211,7 @@ async function draftLocked(
       existingKeys++;
       continue;
     }
-    avoid.add(caption);
+    if (caption) avoid.add(caption);
     inserted.push(id);
     await db.query(
       `insert into batch_item_events (batch_item_id, kind, from_status, to_status, detail, session_id, at) values ($1, 'add', null, 'draft', $2::jsonb, null, $3)`,

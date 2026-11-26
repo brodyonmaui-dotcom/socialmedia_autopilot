@@ -1,4 +1,4 @@
-import { NonRetryableError, type OutboxPost, type PlatformAdapter, type PublishOptions, type PublishResult } from "@autopilot/core";
+import { NonRetryableError, type FindExistingOptions, type OutboxPost, type PlatformAdapter, type PublishOptions, type PublishResult } from "@autopilot/core";
 import { assertNoLocationFields, countHashtags, getJson, PlatformRequestError, UploadAmbiguousError, type FetchLike } from "./http.js";
 import { normaliseCaption } from "./instagram.js";
 
@@ -151,7 +151,7 @@ export function createYouTubeAdapter(cfg: YouTubeAdapterConfig): PlatformAdapter
      * lookup / marks a stale row unknown — never treats it as "not found"). Unverified (research.md):
      * whether private/scheduled uploads always appear here, and how fast — a miss is not proof of absence.
      */
-    async findExisting(post: OutboxPost, opts: PublishOptions = {}): Promise<PublishResult | null> {
+    async findExisting(post: OutboxPost, opts: FindExistingOptions = {}): Promise<PublishResult | null> {
       const signal = opts.signal;
       const target = normaliseCaption(youtubeTitle(post));
       if (!target) return null;
@@ -182,6 +182,7 @@ export function createYouTubeAdapter(cfg: YouTubeAdapterConfig): PlatformAdapter
         const sn = item?.snippet;
         if (!sn || typeof sn.title !== "string" || normaliseCaption(sn.title) !== target) continue;
         const videoId = sn.resourceId?.videoId;
+        if (videoId && opts.excludeIds?.has(videoId)) continue; // another row's video with the same title: never adopt it
         const uploadedAt = typeof sn.publishedAt === "string" ? Date.parse(sn.publishedAt) : NaN;
         // A title match we can't place in time (or can't point at) is uncertainty, not absence.
         if (!videoId || !Number.isFinite(uploadedAt)) throw lookupFailed("playlistItems.list", pl.status, pl.body, "title match without snippet.publishedAt / resourceId.videoId");

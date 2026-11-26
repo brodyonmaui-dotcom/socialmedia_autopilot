@@ -37,6 +37,9 @@ const LINT_RULES_COVERED = new Set(["numbers.placeholder"]);
 const capKey = (platform: Platform, day: string) => `${platform}|${day}`;
 const captionKey = (i: BatchItemView) => `${i.platform}|${i.caption.trim().toLowerCase()}`;
 const mediaKey = (i: BatchItemView) => `${i.platform}|${i.mediaId}`;
+/** Same normalisation as the Instagram adapter's existence check (NFC, whitespace collapsed, trimmed, lower-cased). */
+const igCaptionNorm = (c: string) => c.normalize("NFC").replace(/\s+/gu, " ").trim().toLowerCase();
+const IG_SAME_CAPTION_WINDOW_MS = 36 * 3_600_000;
 
 function tally(keys: string[]): Map<string, number> {
   const m = new Map<string, number>();
@@ -123,7 +126,16 @@ export function computeWarnings(items: BatchItemView[], ctx: WarningContext): Ma
       }
     }
 
-    if (item.caption.trim() !== "" && (captionCounts.get(captionKey(item)) ?? 0) > 1) {
+    // Audit #1c: Instagram has no idempotency key; its existence check matches captions within ±36 h, so two live
+    // Instagram posts with the same normalised caption that close together could be confused on a retry → block.
+    const igTwin = item.platform === "instagram" && item.caption.trim() !== "" && item.scheduledFor != null && live.some((o) => {
+      if (o.id === item.id || o.platform !== "instagram" || o.scheduledFor == null) return false;
+      const d = Math.abs(Date.parse(o.scheduledFor) - Date.parse(item.scheduledFor!));
+      return Number.isFinite(d) && d <= IG_SAME_CAPTION_WINDOW_MS && igCaptionNorm(o.caption) === igCaptionNorm(item.caption);
+    });
+    if (igTwin) {
+      ws.push({ code: "duplicate.caption", severity: "block", message: "same caption as another Instagram post within 36 h: change one", field: "caption" });
+    } else if (item.caption.trim() !== "" && (captionCounts.get(captionKey(item)) ?? 0) > 1) {
       ws.push({ code: "duplicate.caption", severity: "warn", message: `same caption as another ${item.platform} post this week`, field: "caption" });
     }
     const dup = findDuplicateClip({ id: item.id, mediaId: item.mediaId, platform: item.platform, scheduledFor: item.scheduledFor }, siblings, ctx.now);

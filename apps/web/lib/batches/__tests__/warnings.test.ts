@@ -90,13 +90,30 @@ describe("computeWarnings", () => {
 
   it("duplicate.caption warns for same trimmed, case-insensitive caption on the same platform", () => {
     const a = makeItem({ caption: "Same words here." });
-    const b = makeItem({ caption: "  same WORDS here.  " });
+    const b = makeItem({ caption: "  same WORDS here.  ", scheduledFor: "2026-11-21T15:00:00.000Z" }); // > 36 h apart: warn, not block
     const c = makeItem({ caption: "Same words here.", platform: "tiktok", tiktokDraft: false });
     const d = makeItem({ caption: "Same words here.", status: "rejected" });
     const map = warningsFor([a, b, c, d]);
     expect(find(map.get(a.id)!, "duplicate.caption")[0]).toMatchObject({ severity: "warn" });
     expect(find(map.get(b.id)!, "duplicate.caption")).toHaveLength(1);
     expect(find(map.get(c.id)!, "duplicate.caption")).toHaveLength(0);
+  });
+
+  it("duplicate.caption BLOCKS for two Instagram items with the same normalised caption within 36 h (the existence check can't tell them apart)", () => {
+    const a = makeItem({ caption: "Same words\n\nhere. #gym", scheduledFor: "2026-11-18T15:00:00.000Z" });
+    const b = makeItem({ caption: "  same   WORDS here. #GYM ", scheduledFor: "2026-11-19T20:00:00.000Z" }); // 29 h later
+    const far = makeItem({ caption: "Same words\n\nhere. #gym", scheduledFor: "2026-11-22T15:00:00.000Z" }); // 72 h after b
+    const rejected = makeItem({ caption: "Same words here. #gym", scheduledFor: "2026-11-22T16:00:00.000Z", status: "rejected" });
+    const map = warningsFor([a, b, far, rejected]);
+    expect(find(map.get(a.id)!, "duplicate.caption")).toEqual([expect.objectContaining({ severity: "block", field: "caption" })]);
+    expect(find(map.get(b.id)!, "duplicate.caption")[0]).toMatchObject({ severity: "block" });
+    expect(hasBlock(map.get(a.id)!)).toBe(true);
+    // far: same caption, but nothing live within 36 h (rejected doesn't count) → still a warn.
+    expect(find(map.get(far.id)!, "duplicate.caption")).toEqual([expect.objectContaining({ severity: "warn" })]);
+    // Elsewhere it stays a warn even when close in time.
+    const t1 = makeItem({ caption: "Same words here.", platform: "tiktok", tiktokDraft: false });
+    const t2 = makeItem({ caption: "Same words here.", platform: "tiktok", tiktokDraft: false });
+    expect(find(warningsFor([t1, t2]).get(t1.id)!, "duplicate.caption")[0]).toMatchObject({ severity: "warn" });
   });
 
   it("the same video twice on one platform within 7 days is a duplicate.clip block (not also duplicate.media)", () => {

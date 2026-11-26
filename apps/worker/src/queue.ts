@@ -16,6 +16,8 @@ export const QUEUES = {
   weeklyReport: "weekly-report",
   /** F20 E "Make a reel": one queued media_edits row per minute. */
   mediaReel: "media-reel-tick",
+  /** F23 browser upload: one 'uploaded' uploads row per minute → strip → Library. */
+  mediaIngest: "media-ingest-tick",
 } as const;
 
 export function createQueue(databaseUrl: string): PgBoss {

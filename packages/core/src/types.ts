@@ -62,6 +62,15 @@ export interface PublishOptions {
   signal?: AbortSignal;
 }
 
+export interface FindExistingOptions extends PublishOptions {
+  /**
+   * Platform post ids already stored on OTHER outbox rows (same platform, near this post). A caption/title
+   * match must never return one of these: two posts that share a caption would otherwise let a retry adopt
+   * the other post's id and mark this one published when it never went out (non-negotiable 3).
+   */
+  excludeIds?: ReadonlySet<string>;
+}
+
 /** Implemented per platform; this is the shared contract the outbox engine drives. */
 export interface PlatformAdapter {
   platform: Platform;
@@ -71,7 +80,7 @@ export interface PlatformAdapter {
    * retry, so a resend can never double-post. Returns null when nothing is found. Adapters without a
    * platform-side lookup leave it undefined; the engine then retries only deliberate rejections.
    */
-  findExisting?(post: OutboxPost, opts?: PublishOptions): Promise<PublishResult | null>;
+  findExisting?(post: OutboxPost, opts?: FindExistingOptions): Promise<PublishResult | null>;
 }
 
 /** Every alerts.kind the code writes: the single source for AlertKind (db re-exports it) and for runtime validation. */

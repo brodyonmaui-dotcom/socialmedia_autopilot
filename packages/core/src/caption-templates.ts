@@ -81,14 +81,15 @@ function hash(s: string): number {
 }
 
 /**
- * Deterministic: the same (pillar, seed) with the same `avoid` always gives the same caption. Skips any template in
- * `avoid` (exact caption text, e.g. used in the last 14 days); when every one was used, the least-bad choice is the
- * full pool.
+ * Deterministic: the same (pillar, seed) with the same `avoid` always gives the same caption. Never returns a template
+ * in `avoid` (exact caption text, e.g. used in the last 14 days): when every one was used it returns null and the
+ * caller leaves the caption empty ("needs a caption"). Two posts sharing a caption would let an existence check match
+ * the wrong post (non-negotiable 3), so there is no fall-back to the full pool.
  */
-export function pickCaptionTemplate(pillar: string | null | undefined, seed: string, avoid: Iterable<string> = []): string {
+export function pickCaptionTemplate(pillar: string | null | undefined, seed: string, avoid: Iterable<string> = []): string | null {
   const pool = CAPTION_TEMPLATES[captionGroupFor(pillar)];
   const used = new Set(avoid);
   const fresh = pool.filter((t) => !used.has(t));
-  const from = fresh.length > 0 ? fresh : pool;
-  return from[hash(seed) % from.length]!;
+  if (fresh.length === 0) return null;
+  return fresh[hash(seed) % fresh.length]!;
 }

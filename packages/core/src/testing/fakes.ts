@@ -3,8 +3,8 @@
  * The FakePlatform is the oracle: it records every post it *created*, keyed by idempotency key,
  * so a double-post is observable even when the engine's own bookkeeping says all is well.
  */
-import type { OutboxAlert, OutboxPost, Platform, PlatformAdapter, PublishOptions, PublishResult } from "../types.js";
-import type { OutboxStore } from "../outbox/engine.js";
+import type { FindExistingOptions, OutboxAlert, OutboxPost, Platform, PlatformAdapter, PublishOptions, PublishResult } from "../types.js";
+import { knownIdsWindow, type OutboxStore } from "../outbox/engine.js";
 import { localDate } from "../time.js";
 
 export class FakeClock {
@@ -144,9 +144,9 @@ export class FakePlatform {
       },
     };
     if (this.opts.canLookup !== false) {
-      adapter.findExisting = async (post: OutboxPost): Promise<PublishResult | null> => {
+      adapter.findExisting = async (post: OutboxPost, opts?: FindExistingOptions): Promise<PublishResult | null> => {
         const at = Date.parse(post.scheduledFor);
-        const near = (c: FakeCreated) => Math.abs(Date.parse(c.at) - at) <= 36 * 3_600_000;
+        const near = (c: FakeCreated) => !opts?.excludeIds?.has(c.platformPostId) && Math.abs(Date.parse(c.at) - at) <= 36 * 3_600_000;
         const existing =
           self.opts.lookupBy === "caption"
             ? self.created.find((c) => near(c) && normaliseCaption(c.caption) === normaliseCaption(post.caption))
@@ -216,6 +216,15 @@ export class MemoryOutboxStore implements OutboxStore {
   }
   async countSentOn(platform: Platform, localDay: string, timeZone: string): Promise<number> {
     return this.all().filter((p) => p.platform === platform && (p.status === "published" || p.status === "publishing" || p.status === "unknown") && localDate(new Date(p.scheduledFor), timeZone) === localDay).length;
+  }
+  async knownPlatformPostIds(post: OutboxPost): Promise<Set<string>> {
+    const at = Date.parse(post.scheduledFor);
+    const w = knownIdsWindow(post.platform);
+    return new Set(
+      this.all()
+        .filter((p) => p.id !== post.id && p.platform === post.platform && p.platformPostId && Date.parse(p.scheduledFor) >= at - w.beforeMs && Date.parse(p.scheduledFor) <= at + w.afterMs)
+        .map((p) => p.platformPostId!),
+    );
   }
   async recordAlert(alert: OutboxAlert): Promise<boolean> {
     if (this.alerts.some((a) => a.kind === alert.kind && a.postId === alert.postId)) return false;

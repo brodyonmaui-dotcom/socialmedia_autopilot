@@ -117,6 +117,14 @@ export interface AddResult {
   skipped: PlanSkip[];
   /** Monday (YYYY-MM-DD) of the earliest added item's week, or null when nothing was added. */
   firstWeek: string | null;
+  /** The draft items this call inserted (not the skipped ones), for approving them next. */
+  created: Array<{ itemId: string; batchId: string; mediaId: string; platform: Platform }>;
+}
+
+/** Text the creator typed for a clip: replaces the template caption (all platforms) and sets the YouTube title. */
+export interface ClipText {
+  caption?: string;
+  title?: string;
 }
 
 /**
@@ -124,7 +132,10 @@ export interface AddResult {
  * per week the newest non-archived batch, else a new draft batch → draft items + 'add' events. A second submit finds the
  * clips already scheduled (duplicate guard) and inserts nothing.
  */
-export async function addToCalendar(pool: Pool, o: { mediaIds: readonly string[]; platforms: readonly Platform[]; now: Date; timeZone: string; sessionId: string | null }): Promise<AddResult> {
+export async function addToCalendar(
+  pool: Pool,
+  o: { mediaIds: readonly string[]; platforms: readonly Platform[]; now: Date; timeZone: string; sessionId: string | null; overrides?: Readonly<Record<string, ClipText>> },
+): Promise<AddResult> {
   const first = await planAddToCalendar(pool, o);
   const client = await pool.connect();
   try {
@@ -161,27 +172,31 @@ export async function addToCalendar(pool: Pool, o: { mediaIds: readonly string[]
       return id;
     };
 
-    const result: AddResult = { added: 0, skipped: [...plan.skipped], firstWeek: null };
+    const result: AddResult = { added: 0, skipped: [...plan.skipped], firstWeek: null, created: [] };
     let firstAt: string | null = null;
     const touched = new Set<string>();
     for (const l of [...plan.lines].sort((a, b) => a.scheduledFor.localeCompare(b.scheduledFor) || a.platform.localeCompare(b.platform))) {
       const week = weekOf(l.scheduledFor);
       const batchId = await batchFor(week);
       const key = libraryIngestKey(l.mediaId, l.platform, localDate(new Date(l.scheduledFor), o.timeZone));
-      const caption = l.platform === "instagram" ? pickCaptionTemplate(pillar.get(l.mediaId), key, avoid) : "";
+      const over = o.overrides?.[l.mediaId];
+      const typed = over?.caption === undefined ? undefined : over.caption.trim();
+      const caption = typed !== undefined ? typed : l.platform === "instagram" ? (pickCaptionTemplate(pillar.get(l.mediaId), key, avoid) ?? "") : "";
+      const title = l.platform === "youtube" ? (over?.title?.trim() ?? "") : null;
       const ins = await client.query(
         `insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, status, origin, ingest_key, trial, created_at, updated_at)
          values ($1, $2, $3, $4, $5, $6::timestamptz, 'draft', 'library', $7, null, $8, $8)
          on conflict (ingest_key) where ingest_key is not null do nothing
          returning id`,
-        [batchId, l.mediaId, l.platform, caption, l.platform === "youtube" ? "" : null, l.scheduledFor, key, o.now],
+        [batchId, l.mediaId, l.platform, caption, title, l.scheduledFor, key, o.now],
       );
       const id = ins.rows[0]?.id as string | undefined;
       if (!id) {
         result.skipped.push({ mediaId: l.mediaId, label: l.label, platform: l.platform, reason: "duplicate" });
         continue;
       }
-      if (caption) avoid.add(caption);
+      if (caption && typed === undefined) avoid.add(caption);
+      result.created.push({ itemId: id, batchId, mediaId: l.mediaId, platform: l.platform });
       await client.query(
         `insert into batch_item_events (batch_item_id, kind, from_status, to_status, detail, session_id, at) values ($1, 'add', null, 'draft', $2::jsonb, $3, $4)`,
         [id, JSON.stringify({ origin: "library", group: captionGroupFor(pillar.get(l.mediaId)) }), o.sessionId && isUuid(o.sessionId) ? o.sessionId : null, o.now],

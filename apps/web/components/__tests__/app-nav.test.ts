@@ -9,7 +9,7 @@ describe("sidebarNav", () => {
     const hrefs = nav.flatMap((n) => [n.href, ...(n.children ?? []).map((c) => c.href)]);
     for (const h of hrefs) expect(h.startsWith("/app")).toBe(false);
     expect(nav.find((n) => n.id === "analytics")!.children!.map((c) => c.label)).toEqual(["Overview", "Instagram", "YouTube", "TikTok", "Snapchat"]);
-    expect(nav.find((n) => n.id === "library")!.children!.map((c) => c.href)).toEqual(["/library", "/library/touch-up"]);
+    expect(nav.find((n) => n.id === "library")!.children!.map((c) => c.href)).toEqual(["/library", "/library/upload", "/library/touch-up"]);
     expect(nav.find((n) => n.id === "platforms")!.children!.map((c) => c.href)).toEqual([
       "/platforms/instagram",
       "/platforms/youtube",

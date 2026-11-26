@@ -130,6 +130,26 @@ describe("createTikTokCommentSource (Zernio Comments API)", () => {
     await expect(createTikTokCommentSource({ ...cfgBase, fetch: r.fetch }).reply!(`${POST}:1`, "hi there", { idempotencyKey: "k" })).rejects.toBeInstanceOf(PlatformRequestError);
   });
 
+  it("reply: a 5xx after the POST was sent is unknown (TimeoutError-class, never resent): Zernio's Idempotency-Key on this endpoint isn't verified", async () => {
+    for (const status of [500, 502, 503]) {
+      const r = router([[() => true, () => json({ error: "upstream" }, status)]]);
+      const err = await createTikTokCommentSource({ ...cfgBase, fetch: r.fetch }).reply!(`${POST}:1`, "hi there", { idempotencyKey: "k" }).catch((e) => e);
+      expect(err.name).toBe("TimeoutError");
+      expect(String(err.message)).not.toContain("sk_fake_zernio");
+    }
+  });
+
+  it("reply: a network error after the POST is unknown too; 4xx stays a failure; 429 may retry", async () => {
+    const net = await createTikTokCommentSource({ ...cfgBase, fetch: async () => { throw new TypeError("fetch failed"); } }).reply!(`${POST}:1`, "hi", { idempotencyKey: "k" }).catch((e) => e);
+    expect(net.name).toBe("TimeoutError");
+    const bad = router([[() => true, () => json({ error: "bad request" }, 400)]]);
+    await expect(createTikTokCommentSource({ ...cfgBase, fetch: bad.fetch }).reply!(`${POST}:1`, "hi", { idempotencyKey: "k" })).rejects.toBeInstanceOf(NonRetryableError);
+    const busy = router([[() => true, () => json({ error: "rate limited" }, 429)]]);
+    const e429 = await createTikTokCommentSource({ ...cfgBase, fetch: busy.fetch }).reply!(`${POST}:1`, "hi", { idempotencyKey: "k" }).catch((e) => e);
+    expect(e429).toBeInstanceOf(PlatformRequestError);
+    expect(e429.name).not.toBe("TimeoutError");
+  });
+
   it("ids (verified 2026-11-25, docs.zernio.com): the list row's `id` (the TikTok video id) is the postId for the thread read and the reply; accountId on both", async () => {
     const list = fixture("zernio-tt-commented-posts");
     expect(list.data[0].id).toBe(POST); // numeric TikTok video id, no separate platformPostId in the list
