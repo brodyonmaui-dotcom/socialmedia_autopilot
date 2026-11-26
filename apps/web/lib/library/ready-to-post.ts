@@ -25,7 +25,9 @@ export interface ReadyClip {
 export async function loadReadyToPost(db: Db, now: Date): Promise<ReadyClip[]> {
   const folders = await hasFolderColumn(db, now.getTime());
   const since = new Date(now.getTime() - READY_DAYS * 86_400_000).toISOString();
-  const { rows } = (await db.query(
+  // The page must not crash before migration 0017 is applied: no uploads table → only Studio renders are listed.
+  const hasUploads = (await db.query(`select to_regclass('public.uploads') is not null as ok`)).rows[0]?.ok === true;
+  const { rows } = (hasUploads ? await db.query(
     `select distinct on (m.id) u.id as upload_id, m.id, m.source_path, m.duration_s, m.pillar, m.poster_key, ${folders ? "m.folder" : "null::text as folder"}, coalesce(u.finished_at, u.updated_at) as done_at
        from uploads u
        join media m on m.id = u.media_id
@@ -34,7 +36,7 @@ export async function loadReadyToPost(db: Db, now: Date): Promise<ReadyClip[]> {
         and not exists (select 1 from batch_items bi where bi.media_id = m.id and bi.status <> 'rejected')
       order by m.id, done_at desc`,
     [since],
-  )) as { rows: Array<{ upload_id: string; id: string; source_path: string | null; duration_s: string | number | null; pillar: string | null; poster_key: string | null; folder: string | null; done_at: Date }> };
+  ) : { rows: [] }) as { rows: Array<{ upload_id: string; id: string; source_path: string | null; duration_s: string | number | null; pillar: string | null; poster_key: string | null; folder: string | null; done_at: Date }> };
   // Studio outputs: the render's result media, not yet on the calendar. `upload_id` is "" (no upload row).
   const studioSince = new Date(now.getTime() - STUDIO_READY_DAYS * 86_400_000).toISOString();
   const studio = (await db.query(
