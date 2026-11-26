@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { queueStudioRenderAction } from "../../app/studio/actions.js";
 import { Button, Chip, cx, Icon, InlineNotice, SegmentBar, SegmentButton } from "../ui/index.js";
-import { fmtTime, initialState, LIMITS, problems, reducer, restore, toEdl, totalDuration } from "../../lib/studio/editor-state.js";
+import { fmtTime, initialState, LIMITS, nextUid, problems, reducer, restore, toEdl, totalDuration } from "../../lib/studio/editor-state.js";
 import { isFinished, parseStatus, POLL_MS, statusLabel, type StatusRow } from "../../lib/studio/status.js";
 import type { StudioClip, StudioSound } from "../../lib/studio/types.js";
 import { ClipPicker } from "./ClipPicker.js";
@@ -25,6 +25,7 @@ export function StudioEditor({ clips, sounds, initial }: { clips: StudioClip[]; 
   const [playing, setPlaying] = useState(false);
   const [nonce, setNonce] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  const [selText, setSelText] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>("clips");
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -86,7 +87,7 @@ export function StudioEditor({ clips, sounds, initial }: { clips: StudioClip[]; 
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-8">
       <div className="flex min-w-0 flex-col gap-4">
         <div className="mx-auto w-full max-w-[220px] sm:max-w-[260px] lg:max-w-[340px]">
-          <PreviewPlayer state={state} t={t} playing={playing} seekNonce={nonce} onTime={setT} onPlaying={setPlaying} />
+          <PreviewPlayer state={state} t={t} playing={playing} seekNonce={nonce} onTime={setT} onPlaying={setPlaying} selectedText={selText} onSelectText={(u) => { setSelText(u); if (u) setPanel("text"); }} onPatchText={(uid, patch) => dispatch({ type: "editText", uid, patch })} />
         </div>
         <p className="text-center text-[13px] text-ds-muted">Preview is approximate, the export is exact.</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -112,7 +113,15 @@ export function StudioEditor({ clips, sounds, initial }: { clips: StudioClip[]; 
         {panel === "clips" ? (
           <ClipPicker clips={clips} used={used} full={state.clips.length >= LIMITS.maxClips} onAdd={(c) => { dispatch({ type: "addClip", mediaId: c.mediaId, name: c.name, durationS: c.durationS }); }} />
         ) : null}
-        {panel === "text" ? <TextPanel texts={state.texts} t={t} dispatch={dispatch} /> : null}
+        {panel === "text" ? <TextPanel
+            texts={state.texts}
+            t={t}
+            selected={selText}
+            onSelect={setSelText}
+            onAdd={() => { setSelText(nextUid(state, "t")); dispatch({ type: "addText", at: t }); }}
+            onDuplicate={(u) => { setSelText(nextUid(state, "t")); dispatch({ type: "duplicateText", uid: u }); }}
+            dispatch={dispatch}
+          /> : null}
         {panel === "sound" ? <SoundPanel sounds={sounds} sound={state.sound} originalVolume={state.originalVolume} dispatch={dispatch} /> : null}
         {panel === "look" ? (
           <div className="flex flex-col gap-3">

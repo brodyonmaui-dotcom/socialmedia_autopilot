@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { studioFonts, runEdl, makeCoverPoster } from "../edl-run.js";
-import { edlArgs, edlLoudnessArgs, escapeDrawtext, outputDuration, parseEdl, wrapText, type Edl } from "../edl.js";
+import { TEXT_COLORS, edlArgs, edlLoudnessArgs, escapeDrawtext, outputDuration, parseEdl, textLayout, wrapText, type Edl, type EdlText } from "../edl.js";
 import { runChecked } from "../exec.js";
 import { FixError } from "../fix.js";
 import { probe, probeLocationTagKeys } from "../probe.js";
@@ -116,7 +116,7 @@ describe("edlArgs (pure)", () => {
     expect(g).toContain("boxblur=20:2"); // fit = blurred pad
     expect(g).toContain("drawtext=fontfile=\\'/f/Bold.ttf\\':expansion=none:text=\\'Leg day: 100% effort\\'");
     expect(g).toContain("enable='between(t,0.5,3)'");
-    expect(g).toContain(":x=(w-text_w)/2:y=1399:enable"); // bottom: 22% margin minus one 99 px line
+    expect(g).toContain("fontcolor=#FFFFFF:fontsize=76:box=1:boxcolor=#000000@0.6:boxborderw=17:x='max(0,min(w-text_w,540-text_w/2))':y=1398:enable"); // bottom preset: 78% minus half a 99 px line
     expect(g).toContain("[a_cat]volume=1[a_orig]");
     expect(g).toMatch(/\[2:a:0\]atrim=start=2:end=10,.*volume=0\.6,afade=t=in:st=0:d=0\.3,afade=t=out:st=7:d=1\[a_snd\]/);
     expect(g).toContain("[a_orig][a_snd]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a_mix]");
@@ -172,6 +172,68 @@ describe("wrapText + per-line drawtext", () => {
   });
 });
 
+const T: EdlText = { text: "hi", startS: 0, endS: 1, position: "top", style: "plain" };
+const g1 = (t: Partial<EdlText>) => graphOf(edlArgs(ok(base({ texts: [{ ...T, ...t }] })), { clipPaths: ["/a", "/b"], soundPath: "/s", fontPath: "/B", plainFontPath: "/P", outPath: "/o" }));
+
+describe("EDL text v2", () => {
+  const withText = (extra: Record<string, unknown>) => bad(base({ texts: [{ ...T, ...extra }] }));
+  it("parse accepts the new fields, normalises colours, and leaves old EDLs untouched", () => {
+    const t = ok(base({ texts: [{ ...T, x: 0.25, y: 1, size: 0.1, color: "#ffd60a", bg: "outline", bgColor: "#FF3B30", align: "left" }] })).texts[0]!;
+    expect(t).toMatchObject({ x: 0.25, y: 1, size: 0.1, color: "#FFD60A", bg: "outline", bgColor: "#FF3B30", align: "left" });
+    const old = ok(base({ texts: [T] })).texts[0]!;
+    expect(Object.keys(old).sort()).toEqual(["endS", "position", "startS", "style", "text"]);
+    expect(TEXT_COLORS).toHaveLength(8);
+  });
+  it("parse rejects out-of-range numbers, off-palette colours and bad enums", () => {
+    expect(withText({ x: -0.1 })).toMatch(/between 0 and 1/);
+    expect(withText({ y: 1.1 })).toMatch(/between 0 and 1/);
+    expect(withText({ x: "0.5" })).toMatch(/between 0 and 1/);
+    expect(withText({ size: 0.02 })).toMatch(/size/);
+    expect(withText({ size: 0.17 })).toMatch(/size/);
+    expect(withText({ color: "#123456" })).toMatch(/palette/);
+    expect(withText({ bgColor: "red" })).toMatch(/palette/);
+    expect(withText({ bg: "glow" })).toMatch(/none, shadow, outline or box/);
+    expect(withText({ align: "justify" })).toMatch(/left, center or right/);
+  });
+  it("textLayout defaults for an old text", () => {
+    expect(textLayout({ ...T, style: "bold" })).toMatchObject({ px: 76, lineH: 99, x: 0.5, align: "center", color: "#FFFFFF", bg: "box", bgColor: "#000000", bold: true });
+    expect(textLayout(T)).toMatchObject({ px: 65, bg: "shadow", bold: false });
+    const half = 99 / 2 / 1920;
+    expect(textLayout({ ...T, style: "bold", position: "top" }).y).toBeCloseTo(0.12 + half, 3);
+    expect(textLayout({ ...T, position: "center" }).y).toBe(0.5);
+    expect(textLayout({ ...T, style: "bold", position: "bottom" }).y).toBeCloseTo(0.78 - half, 3);
+  });
+  it("textLayout wraps by size, shrinks to fit, and clamps", () => {
+    const small = textLayout({ ...T, text: "slow and steady wins the race every time", size: 0.03 });
+    const big = textLayout({ ...T, text: "slow and steady wins the race every time", size: 0.16 });
+    expect(small.lines.length).toBeLessThan(big.lines.length);
+    const long = textLayout({ ...T, text: "a".repeat(30), size: 0.16 }); // maxChars 6 -> wraps, never wider than 92%
+    expect(Math.max(...long.lines.map((l) => l.length)) * long.px * 0.6).toBeLessThanOrEqual(0.92 * 1080);
+    const wide = textLayout({ ...T, text: "WWWWWWWWWWWW", size: 0.16 });
+    expect(wide.px).toBeLessThanOrEqual(173);
+    const c = textLayout({ ...T, x: 1, y: 0, size: 0.1 });
+    expect(c.x).toBe(1);
+    expect(c.y).toBeCloseTo((c.lines.length * c.lineH) / 2 / 1920, 3);
+    expect(textLayout({ ...T, y: 1 }).y).toBeLessThan(1);
+  });
+  it("drawtext args per look", () => {
+    expect(g1({ bg: "none" })).not.toMatch(/box=1|shadowcolor|borderw/);
+    expect(g1({ bg: "shadow" })).toContain("shadowcolor=black@0.6:shadowx=3:shadowy=3");
+    expect(g1({ bg: "outline", size: 0.1 })).toContain("borderw=8:bordercolor=black");
+    expect(g1({ bg: "outline", color: "#000000" })).toContain("bordercolor=white");
+    expect(g1({ bg: "box", bgColor: "#0A84FF", size: 0.1 })).toContain("boxcolor=#0A84FF@0.6:boxborderw=24");
+    expect(g1({ color: "#FF2D92" })).toContain("fontcolor=#FF2D92");
+  });
+  it("drawtext x per align, clamped, y from the layout", () => {
+    expect(g1({ align: "left", x: 0.1 })).toContain("x='max(0,min(w-text_w,108))'");
+    expect(g1({ align: "right", x: 0.9 })).toContain("x='max(0,min(w-text_w,972-text_w))'");
+    expect(g1({ align: "center", x: 0.3 })).toContain("x='max(0,min(w-text_w,324-text_w/2))'");
+    const l = textLayout({ ...T, y: 0.5 });
+    expect(g1({ y: 0.5 })).toContain(`y=${Math.round(0.5 * 1920 - l.lineH / 2)}:`);
+    expect(g1({ font: undefined } as never)).toContain("fontfile=\\'/P\\'");
+  });
+});
+
 describe("studioFonts", () => {
   it("env override wins; else the first font that exists; else the image default", () => {
     expect(studioFonts({ STUDIO_FONT_PATH: "/x/B.ttf" }, () => false)).toEqual({ bold: "/x/B.ttf", plain: "/x/B.ttf" });
@@ -218,6 +280,7 @@ describe.skipIf(!HAS_FFMPEG || !HAS_FONT)("runEdl (real ffmpeg)", () => {
       texts: [
         { text: "it's 100% [done]: a\\b, c;d\nline two", startS: 0.2, endS: 2.5, position: "top", style: "bold" },
         { text: "plain", startS: 3, endS: 4, position: "center", style: "plain" },
+        { text: "dragged\nbottom right", startS: 0, endS: 4, position: "top", style: "bold", x: 0.9, y: 0.7, size: 0.1, color: "#FFD60A", bg: "outline", align: "right" },
       ],
       sound: { soundId: S, offsetS: 0.5, volume: 0.7 },
       originalVolume: 1,

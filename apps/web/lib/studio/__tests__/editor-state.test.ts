@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeTexts, clipStart, fmtTime, initialState, locate, outputTimeOf, problems, reducer, restore, toEdl, totalDuration, type Action, type EditorState } from "../editor-state.js";
+import { activeTexts, clipStart, fmtTime, initialState, locate, nextUid, outputTimeOf, problems, reducer, restore, toEdl, totalDuration, type Action, type EditorState } from "../editor-state.js";
 
 const run = (acts: Action[], s: EditorState = initialState()) => acts.reduce(reducer, s);
 const three = () =>
@@ -103,7 +103,7 @@ describe("texts, sound, misc", () => {
     s = reducer(s, { type: "cover", t: 500 });
     s = reducer(s, { type: "fit", fit: "fit" });
     const e = toEdl(s);
-    expect(e.texts).toEqual([{ text: "Hi", startS: 1, endS: 20, position: "bottom", style: "bold" }]);
+    expect(e.texts).toEqual([{ text: "Hi", startS: 1, endS: 20, position: "center", style: "bold", x: 0.5, y: 0.5 }]);
     expect(e.coverS).toBe(19.9);
     expect(e.fit).toBe("fit");
     expect(e.clips[0]).toEqual({ mediaId: "a", inS: 0, outS: 10, speed: 1 });
@@ -129,5 +129,33 @@ describe("texts, sound, misc", () => {
     const r = restore(JSON.parse(JSON.stringify(s)), new Set(["a", "c"]), new Set());
     expect(r!.clips.map((c) => c.mediaId)).toEqual(["a", "c"]);
     expect(restore("nope", new Set(), new Set())).toBeNull();
+  });
+});
+
+describe("text v2 (F25)", () => {
+  it("clamps x/y/size, duplicates with an offset, and keeps old texts valid", () => {
+    let s = reducer(three(), { type: "addText", at: 0 });
+    const id = s.texts[0]!.uid;
+    expect(nextUid(s, "t")).toBe(`t${s.seq + 1}`);
+    s = reducer(s, { type: "editText", uid: id, patch: { x: 3, y: -1, size: 0.9, color: "#FFD60A", bg: "outline", align: "left" } });
+    expect(s.texts[0]).toMatchObject({ x: 1, y: 0, size: 0.16, color: "#FFD60A", bg: "outline", align: "left" });
+    s = reducer(s, { type: "editText", uid: id, patch: { size: 0.001, y: 0.5 } });
+    expect(s.texts[0]!.size).toBe(0.03);
+    const before = s.seq;
+    s = reducer(s, { type: "duplicateText", uid: id });
+    expect(s.texts).toHaveLength(2);
+    expect(s.texts[1]).toMatchObject({ uid: `t${before + 1}`, y: 0.56, color: "#FFD60A" });
+    expect(reducer(s, { type: "duplicateText", uid: "nope" })).toBe(s);
+  });
+  it("toEdl carries the v2 fields but never the editor uid; restore accepts old texts", () => {
+    let s = reducer(three(), { type: "addText", at: 0 });
+    s = reducer(s, { type: "editText", uid: s.texts[0]!.uid, patch: { text: "A\nB", size: 0.1, bgColor: "#000000", bg: "box" } });
+    const e = toEdl(s).texts[0]!;
+    expect(e).toMatchObject({ text: "A\nB", size: 0.1, bg: "box", bgColor: "#000000", x: 0.5 });
+    expect("uid" in e).toBe(false);
+    const old = { clips: [{ uid: "c1", mediaId: "a", name: "A", durationS: 5, inS: 0, outS: 5, speed: 1 }], texts: [{ uid: "t1", text: "old", startS: 0, endS: 2, position: "top", style: "plain" }] };
+    const r = restore(old, new Set(["a"]), new Set());
+    expect(r?.texts[0]).toMatchObject({ text: "old", position: "top" });
+    expect(toEdl(r!).texts[0]).toEqual({ text: "old", startS: 0, endS: 2, position: "top", style: "plain" });
   });
 });

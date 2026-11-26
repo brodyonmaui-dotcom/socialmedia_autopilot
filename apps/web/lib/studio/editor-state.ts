@@ -1,11 +1,13 @@
 /** Studio editor state: one pure reducer + timeline maths (output time <-> clip/source time). No React, no DOM. */
-import type { Edl, Speed, TextPosition, TextStyle } from "./edl-types.js";
+import type { Edl, EdlText, Speed } from "./edl-types.js";
 import { SPEEDS } from "./edl-types.js";
+import { clamp01, r3, SIZE_MAX, SIZE_MIN } from "./text-geometry.js";
 
 export const LIMITS = { minS: 3, maxS: 90, maxClips: 10, maxTexts: 10, maxTextLen: 80, minClipS: 0.3, maxVolume: 1.5 } as const;
 
 export interface EClip { uid: string; mediaId: string; name: string; durationS: number; inS: number; outS: number; speed: Speed }
-export interface EText { uid: string; text: string; startS: number; endS: number; position: TextPosition; style: TextStyle }
+/** An EDL text plus an editor id. Every F25 field is optional so old saved projects load (missing = defaults). */
+export type EText = { uid: string } & EdlText;
 export interface ESound { soundId: string; name: string; durationS: number | null; offsetS: number; volume: number }
 export interface EditorState {
   clips: EClip[];
@@ -27,6 +29,7 @@ export type Action =
   | { type: "speed"; uid: string; speed: Speed }
   | { type: "addText"; at: number }
   | { type: "editText"; uid: string; patch: Partial<Omit<EText, "uid">> }
+  | { type: "duplicateText"; uid: string }
   | { type: "deleteText"; uid: string }
   | { type: "setSound"; sound: Omit<ESound, "offsetS" | "volume"> | null }
   | { type: "patchSound"; patch: { offsetS?: number; volume?: number } }
@@ -71,6 +74,8 @@ export function outputTimeOf(clips: EClip[], index: number, sourceS: number): nu
 }
 
 const uid = (s: EditorState, p: string) => `${p}${s.seq + 1}`;
+/** The uid the next addClip / addText / duplicateText will create (so the UI can select it). */
+export const nextUid = (s: Pick<EditorState, "seq">, p: "c" | "t") => `${p}${s.seq + 1}`;
 
 export function reducer(s: EditorState, a: Action): EditorState {
   switch (a.type) {
@@ -120,7 +125,7 @@ export function reducer(s: EditorState, a: Action): EditorState {
     case "addText": {
       if (s.texts.length >= LIMITS.maxTexts) return s;
       const start = r2(Math.max(0, a.at));
-      return { ...s, texts: [...s.texts, { uid: uid(s, "t"), text: "", startS: start, endS: r2(start + 3), position: "bottom", style: "bold" }], seq: s.seq + 1 };
+      return { ...s, texts: [...s.texts, { uid: uid(s, "t"), text: "", startS: start, endS: r2(start + 3), position: "center", style: "bold", x: 0.5, y: 0.5 }], seq: s.seq + 1 };
     }
     case "editText":
       return {
@@ -131,9 +136,22 @@ export function reducer(s: EditorState, a: Action): EditorState {
           n.text = n.text.slice(0, LIMITS.maxTextLen);
           n.startS = r2(Math.max(0, n.startS));
           n.endS = r2(Math.max(n.endS, n.startS + 0.5));
+          if (n.x != null) n.x = clamp01(n.x);
+          if (n.y != null) n.y = clamp01(n.y);
+          if (n.size != null) n.size = r3(clamp(n.size, SIZE_MIN, SIZE_MAX));
           return n;
         }),
       };
+    case "duplicateText": {
+      const src = s.texts.find((t) => t.uid === a.uid);
+      if (!src || s.texts.length >= LIMITS.maxTexts) return s;
+      const copy: EText = { ...src, uid: uid(s, "t") };
+      if (copy.y != null) copy.y = r3(clamp(copy.y + 0.06, 0, 1));
+      const at = s.texts.indexOf(src);
+      const next = [...s.texts];
+      next.splice(at + 1, 0, copy);
+      return { ...s, texts: next, seq: s.seq + 1 };
+    }
     case "deleteText":
       return { ...s, texts: s.texts.filter((t) => t.uid !== a.uid) };
     case "setSound":
@@ -162,7 +180,7 @@ export function toEdl(s: EditorState): Edl {
     clips: s.clips.map((c) => ({ mediaId: c.mediaId, inS: c.inS, outS: c.outS, speed: c.speed })),
     texts: s.texts
       .filter((t) => t.text.trim() && t.startS < total)
-      .map((t) => ({ text: t.text.trim(), startS: t.startS, endS: r2(Math.min(t.endS, total)), position: t.position, style: t.style })),
+      .map(({ uid: _uid, ...t }) => ({ ...t, text: t.text.trim(), endS: r2(Math.min(t.endS, total)) })),
     sound: s.sound ? { soundId: s.sound.soundId, offsetS: s.sound.offsetS, volume: s.sound.volume } : null,
     originalVolume: s.originalVolume,
     coverS: s.coverS == null ? null : r2(Math.min(s.coverS, Math.max(0, total - 0.1))),

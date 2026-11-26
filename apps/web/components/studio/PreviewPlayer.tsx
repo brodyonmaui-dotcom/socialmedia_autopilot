@@ -1,18 +1,18 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { posterSrc } from "../ui/index.js";
-import { activeTexts, clipLen, locate, outputTimeOf, totalDuration, type EClip, type EditorState } from "../../lib/studio/editor-state.js";
+import { activeTexts, clipLen, locate, outputTimeOf, totalDuration, type EClip, type EditorState, type EText } from "../../lib/studio/editor-state.js";
 import { cx } from "../ui/index.js";
+import { TextOverlay } from "./TextOverlay.js";
 
 const clipUrl = (id: string) => `/app/media/clip/${encodeURIComponent(id)}`;
 const soundUrl = (id: string) => `/app/media/sound/${encodeURIComponent(id)}`;
-const POS: Record<string, string> = { top: "top-[12%]", center: "top-1/2 -translate-y-1/2", bottom: "bottom-[22%]" };
 
 /**
- * One <video> that swaps src/currentTime per clip (honouring in/out/speed), CSS text overlays in the IG safe zones,
+ * One <video> that swaps src/currentTime per clip (honouring in/out/speed), draggable text overlays (textLayout, same as the export),
  * an <audio> for the sound. The parent owns the playhead `t`; it bumps `seekNonce` to move it. Approximate by design.
  */
-export function PreviewPlayer({ state, t, playing, seekNonce, onTime, onPlaying }: { state: EditorState; t: number; playing: boolean; seekNonce: number; onTime: (t: number) => void; onPlaying: (p: boolean) => void }) {
+export function PreviewPlayer({ state, t, playing, seekNonce, onTime, onPlaying, selectedText, onSelectText, onPatchText }: { state: EditorState; t: number; playing: boolean; seekNonce: number; onTime: (t: number) => void; onPlaying: (p: boolean) => void; selectedText: string | null; onSelectText: (uid: string | null) => void; onPatchText: (uid: string, patch: Partial<Omit<EText, "uid">>) => void }) {
   const vid = useRef<HTMLVideoElement>(null);
   const aud = useRef<HTMLAudioElement>(null);
   const idx = useRef(0);
@@ -119,11 +119,11 @@ export function PreviewPlayer({ state, t, playing, seekNonce, onTime, onPlaying 
   useEffect(() => { if (aud.current && state.sound) aud.current.volume = Math.min(1, state.sound.volume); }, [state.sound?.volume, state.sound]);
 
   const first = state.clips[0];
-  const texts = activeTexts(state.texts, t);
+  const activeIds = useMemo(() => new Set(activeTexts(state.texts, t).map((x) => x.uid)), [state.texts, t]);
   const cur = state.clips[locate(state.clips, t)?.index ?? 0];
   void clipLen;
   return (
-    <div className="@container relative mx-auto aspect-[9/16] w-full overflow-hidden rounded-ds-lg border border-ds-line bg-ds-raised">
+    <div onPointerDown={() => onSelectText(null)} className="@container relative mx-auto aspect-[9/16] w-full overflow-hidden rounded-ds-lg border border-ds-line bg-ds-raised">
       {first ? (
         <video
           ref={vid}
@@ -144,11 +144,7 @@ export function PreviewPlayer({ state, t, playing, seekNonce, onTime, onPlaying 
         <div className="absolute inset-0 grid place-items-center p-6 text-center text-[14px] text-ds-muted">Add a clip to start.</div>
       )}
       {state.sound ? <audio ref={aud} src={soundUrl(state.sound.soundId)} preload="auto" loop /> : null}
-      {texts.map((x) => (
-        <div key={x.uid} className={cx("pointer-events-none absolute inset-x-[8%] text-center text-[clamp(14px,5.5cqw,26px)] leading-tight text-white [text-shadow:0_1px_6px_rgb(0_0_0/0.8)]", POS[x.position], x.style === "bold" ? "font-black" : "font-normal")}>
-          {x.text}
-        </div>
-      ))}
+      <TextOverlay texts={state.texts} activeIds={activeIds} selected={selectedText} onSelect={onSelectText} onPatch={onPatchText} />
     </div>
   );
 }
