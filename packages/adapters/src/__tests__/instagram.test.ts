@@ -150,4 +150,51 @@ describe("createInstagramAdapter", () => {
     const r = router([[isList, () => json({ data })]]);
     expect(await createInstagramAdapter({ ...cfg, fetch: r.fetch }).findExisting!(samplePost)).toBeNull();
   });
+
+  it("findExisting skips media ids already stored on another row (excludeIds): a shared caption never adopts the other post", async () => {
+    const data = [
+      { id: "OTHER", caption: samplePost.caption, permalink: "https://www.instagram.com/reel/O/", timestamp: "2026-12-01T09:00:00+0000" },
+      { id: "OURS", caption: samplePost.caption, permalink: "https://www.instagram.com/reel/U/", timestamp: "2026-12-01T09:01:00+0000" },
+    ];
+    const r = router([[isList, () => json({ data })]]);
+    const adapter = createInstagramAdapter({ ...cfg, fetch: r.fetch });
+    expect(await adapter.findExisting!(samplePost, { excludeIds: new Set(["OTHER"]) })).toEqual({ platformPostId: "OURS", platformPostUrl: "https://www.instagram.com/reel/U/" });
+    expect(await adapter.findExisting!(samplePost, { excludeIds: new Set(["OTHER", "OURS"]) })).toBeNull();
+  });
+
+  it("trial reel: a media_publish failure is ambiguous (trials may not list in /media) → TimeoutError-class, never a plain retry", async () => {
+    const r = router([
+      [isCreate, () => json(fixture("ig-container-created"))],
+      [isStatus, () => json(fixture("ig-status-finished"))],
+      [isPublish, () => json({ error: { message: "An unknown error occurred", code: 1 } }, 500)],
+    ]);
+    const adapter = createInstagramAdapter({ ...cfg, fetch: r.fetch });
+    const err = await adapter.publish({ ...samplePost, trial: { graduationStrategy: "MANUAL" } }).catch((e) => e);
+    expect(err.name).toBe("TimeoutError");
+    expect(String(err.message)).toMatch(/trial/);
+    // A plain reel keeps the old behaviour (retryable rejection; the existence check covers it).
+    const plain = await adapter.publish(samplePost).catch((e) => e);
+    expect(plain).toBeInstanceOf(PlatformRequestError);
+  });
+
+  it("trial reel that fell back to a regular reel: media_publish failure stays a plain rejection", async () => {
+    const r = router([
+      [(u, i) => isCreate(u, i) && new URLSearchParams(i!.body as URLSearchParams).has("trial_params"), () => json(fixture("ig-trial-refused"), 400)],
+      [isCreate, () => json(fixture("ig-container-created"))],
+      [isStatus, () => json(fixture("ig-status-finished"))],
+      [isPublish, () => json({ error: { message: "An unknown error occurred", code: 1 } }, 500)],
+    ]);
+    const err = await createInstagramAdapter({ ...cfg, fetch: r.fetch }).publish({ ...samplePost, trial: { graduationStrategy: "MANUAL" } }).catch((e) => e);
+    expect(err).toBeInstanceOf(PlatformRequestError);
+  });
+
+  it("trial reel: a network error on media_publish is still unknown-class", async () => {
+    const r = router([
+      [isCreate, () => json(fixture("ig-container-created"))],
+      [isStatus, () => json(fixture("ig-status-finished"))],
+      [isPublish, () => { throw new TypeError("fetch failed"); }],
+    ]);
+    const err = await createInstagramAdapter({ ...cfg, fetch: r.fetch }).publish({ ...samplePost, trial: { graduationStrategy: "MANUAL" } }).catch((e) => e);
+    expect(err.name === "TimeoutError" || err instanceof TypeError).toBe(true);
+  });
 });

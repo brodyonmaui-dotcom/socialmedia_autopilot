@@ -3,6 +3,9 @@ WORKDIR /app
 RUN corepack enable
 # Touch-up fixes run ffmpeg/ffprobe in the worker: the distro package of this Alpine base (no static download).
 RUN apk add --no-cache ffmpeg
+# Studio text overlays (F24) draw with DejaVu Sans: /usr/share/fonts/dejavu/DejaVuSans{,-Bold}.ttf
+# (STUDIO_FONT_PATH in packages/media edl-run.ts; override with the STUDIO_FONT_PATH env name).
+RUN apk add --no-cache font-dejavu
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml tsconfig.json ./
 # Every workspace package the app imports, directly or through another package (F8 review: engagement/analytics/research/adapters were missing).
 COPY packages/core/package.json packages/core/package.json

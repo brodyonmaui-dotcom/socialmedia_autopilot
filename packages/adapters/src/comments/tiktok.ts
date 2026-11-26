@@ -1,6 +1,6 @@
 import { NonRetryableError } from "@autopilot/core";
 import type { CommentSource, InboundComment } from "@autopilot/engagement";
-import { getJson, PlatformRequestError, redactToken, type FetchLike } from "../http.js";
+import { getJson, PlatformRequestError, redactToken, UploadAmbiguousError, type FetchLike, type JsonResult } from "../http.js";
 import { commentCursorSince } from "./instagram.js";
 
 const DISABLED = "tiktok comments disabled: no Zernio credentials (ZERNIO_API_KEY, ZERNIO_TIKTOK_ACCOUNT_ID)";
@@ -262,14 +262,28 @@ export function createTikTokCommentSource(cfg?: TikTokCommentsConfig): CommentSo
       const k = parseTikTokCommentKey(platformCommentId);
       if (!k) throw new NonRetryableError(`tiktok reply: bad comment id ${platformCommentId}`);
       const body = { accountId: cfg.accountId, commentId: k.topId, message: text };
-      const r = await call<ZernioReply>(
-        "comments.reply",
-        `${base}/inbox/comments/${encodeURIComponent(k.postId)}`,
-        { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": opts.idempotencyKey }, body: JSON.stringify(body) },
-        opts.signal,
-      );
-      const id = r.data?.commentId;
-      if (r.success === false || !id) throw new PlatformRequestError("tiktok", 200, r, "tiktok (zernio) reply returned no comment id");
+      // Audit #3: Zernio's Idempotency-Key on this endpoint isn't verified, so once the POST has left, a 5xx or a
+      // network error means "may have posted": UploadAmbiguousError (TimeoutError-class) → the send tick marks it
+      // unknown + engagement-unknown alert and never resends. 4xx stays a failure; 429 (nothing accepted) may retry.
+      const redact = (m: string) => redactToken(m).split(cfg!.apiKey).join("***");
+      let r: JsonResult<ZernioReply>;
+      try {
+        r = await getJson<ZernioReply>(
+          fetchImpl,
+          `${base}/inbox/comments/${encodeURIComponent(k.postId)}`,
+          { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": opts.idempotencyKey, Authorization: `Bearer ${cfg.apiKey}` }, body: JSON.stringify(body) },
+          opts.signal,
+        );
+      } catch (err) {
+        if ((err as { name?: string } | undefined)?.name === "AbortError") throw err; // the tick's own deadline: already unknown-class
+        throw new UploadAmbiguousError("tiktok", redact(`tiktok (zernio) comments.reply: no response (${(err as Error)?.message ?? "network error"}); outcome unknown, not resent`), undefined, undefined, { cause: err });
+      }
+      if (r.status >= 500) {
+        throw new UploadAmbiguousError("tiktok", redact(`tiktok (zernio) comments.reply: HTTP ${r.status} ${errCode(r.body) ?? ""} ${errText(r.body)}; outcome unknown, not resent`.replace(/\s+/g, " ").trim()), r.status, r.body);
+      }
+      if (r.status >= 300) fail("comments.reply", r.status, r.body);
+      const id = r.body.data?.commentId;
+      if (r.body.success === false || !id) throw new PlatformRequestError("tiktok", 200, r.body, "tiktok (zernio) reply returned no comment id");
       return { platformReplyId: tiktokCommentKey(k.postId, k.topId, id) };
     },
   };

@@ -1,4 +1,5 @@
 import {
+  knownIdsWindow,
   runOutboxTick,
   sanitizeForLog,
   type AlertSink,
@@ -163,12 +164,29 @@ export class PgOutboxStore implements OutboxStore {
   }
 
   async claim(postId: string, now: Date): Promise<boolean> {
+    // F20-F + audit #4: the Settings default trial is written onto the row at claim time (only when the row has no
+    // trial of its own), so a retry or a stale-row recovery after a crash still knows this post went out as a trial
+    // (no migration: `trial` is the existing jsonb column; markPublished merges fellBack/flags into it later).
+    const dflt = this.defaultTrial.get(postId);
     const { rows } = await this.pool.query(
-      `update batch_items set status = 'publishing', next_attempt_at = null, updated_at = $2
+      `update batch_items set status = 'publishing', next_attempt_at = null, updated_at = $2,
+         trial = case when trial is null and $3::jsonb is not null then $3::jsonb else trial end
        where id = $1 and status in ('approved', 'queued') returning id`,
-      [postId, now.toISOString()],
+      [postId, now.toISOString(), dflt ? JSON.stringify({ graduationStrategy: dflt }) : null],
     );
     return rows.length === 1;
+  }
+
+  /** Audit #1b: platform ids already stored on OTHER rows of this platform near the post (engine → findExisting excludeIds). */
+  async knownPlatformPostIds(post: OutboxPost): Promise<Set<string>> {
+    const at = Date.parse(post.scheduledFor);
+    const w = knownIdsWindow(post.platform);
+    const { rows } = await this.pool.query(
+      `select distinct platform_post_id from batch_items
+       where platform = $1 and id <> $2 and platform_post_id is not null and scheduled_for between $3::timestamptz and $4::timestamptz`,
+      [post.platform, post.id, new Date(at - w.beforeMs).toISOString(), new Date(at + w.afterMs).toISOString()],
+    );
+    return new Set((rows as Array<{ platform_post_id: string }>).map((r) => String(r.platform_post_id)));
   }
 
   async markPublished(postId: string, result: PublishResult, attempts: number, now: Date): Promise<void> {
@@ -216,9 +234,18 @@ export class PgOutboxStore implements OutboxStore {
   }
 
   async recordAlert(alert: OutboxAlert): Promise<boolean> {
+    // Audit #2: a missed-slot alert carries the missed time in its message. After a manual Move, a NEW miss (different
+    // message) reopens the acknowledged row so the creator hears about it; the same miss, once acknowledged, stays
+    // closed; an open one is left alone. Other kinds keep one alert per (kind, item). Never a DELETE.
+    const onConflict =
+      alert.kind === "missed-slot"
+        ? `on conflict (kind, batch_item_id) do update set acknowledged_at = null, acknowledged_session = null, message = excluded.message,
+             created_at = excluded.created_at, pushed_at = null
+           where alerts.acknowledged_at is not null and alerts.message is distinct from excluded.message`
+        : `on conflict (kind, batch_item_id) do nothing`;
     const { rows } = await this.pool.query(
       `insert into alerts (kind, batch_item_id, platform, message, created_at) values ($1, $2, $3, $4, $5)
-       on conflict (kind, batch_item_id) do nothing returning id`,
+       ${onConflict} returning id`,
       [alert.kind, alert.postId, alert.platform, sanitizeForLog(alert.message), alert.at],
     );
     return rows.length === 1;

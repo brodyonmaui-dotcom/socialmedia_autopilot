@@ -114,6 +114,11 @@ describe("YouTube findExisting", () => {
     expect(r.calls.find((c) => isItems(c.url))!.url).toBe("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,status&playlistId=UUfakeChannelId000000000&maxResults=50");
   });
 
+  it("never returns a video id already stored on another row (excludeIds)", async () => {
+    const { adapter } = lookup();
+    expect(await adapter.findExisting!(post, { excludeIds: new Set(["fakeVid0001"]) })).toBeNull();
+  });
+
   it("falls back to the caption's first line when the post has no title (same as publish)", async () => {
     const { adapter } = lookup();
     expect(await adapter.findExisting!({ ...post, title: undefined })).toEqual(hit);

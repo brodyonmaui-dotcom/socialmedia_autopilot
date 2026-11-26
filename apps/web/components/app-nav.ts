@@ -56,9 +56,11 @@ export function sidebarNav(counts: FrameCounts = {}): NavEntry[] {
       icon: "library",
       children: [
         { id: "library", label: "All clips", href: "/library" },
+        { id: "library/upload", label: "Upload", href: "/library/upload" },
         { id: "library/touch-up", label: "Touch-up", href: "/library/touch-up", badge: badgeOf(counts.touchUp) },
       ],
     },
+    { id: "studio", label: "Studio", href: "/studio", icon: "film" },
     { id: "platforms", label: "Platforms", href: "/platforms/instagram", icon: "platforms", children: PLATFORM_LINKS("/platforms", "platforms") },
     { id: "settings", label: "Settings", href: "/settings", icon: "settings" },
   ];

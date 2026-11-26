@@ -121,7 +121,7 @@ describe.skipIf(!url)("worker heartbeat + missed-slot guard (db)", () => {
     expect(new Date(after.updated_at).getTime()).toBe(new Date(before.updated_at).getTime());
     // unique (kind, batch_item_id): one missed-slot row per item, ever (a re-run of this test finds the first one, acknowledged).
     const alerts = (await pool.query("select kind, platform, message from alerts where batch_item_id = $1 and kind = 'missed-slot'", [late])).rows;
-    expect(alerts).toEqual([{ kind: "missed-slot", platform: "instagram", message: "post missed its time (instagram, 10:59 2099-07-08); move it in the calendar" }]);
+    expect(alerts).toEqual([{ kind: "missed-slot", platform: "instagram", message: "post missed its time (instagram, 10:59 AM 2099-07-08); move it in the calendar" }]);
 
     const row = await status();
     expect(row.value).toEqual({ mode: "live", reason: null, startedAt: info.startedAt, lastTickAt: TICK_AT.toISOString(), missed: 1, dueNow: 0 });

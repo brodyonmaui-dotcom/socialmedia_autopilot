@@ -25,11 +25,13 @@ describe("caption templates", () => {
     expect(captionGroupFor(null)).toBe("lifestyle");
     expect(captionGroupFor("yap")).toBe("lifestyle");
   });
-  it("deterministic, avoids used, falls back to the pool", () => {
+  it("deterministic, avoids used, null when the pool is exhausted (never repeats inside the window)", () => {
     const a = pickCaptionTemplate("gym", "seed-1");
     expect(pickCaptionTemplate("gym", "seed-1")).toBe(a);
-    const b = pickCaptionTemplate("gym", "seed-1", [a]);
+    const b = pickCaptionTemplate("gym", "seed-1", [a!]);
     expect(b).not.toBe(a);
-    expect(CAPTION_TEMPLATES.gym).toContain(pickCaptionTemplate("gym", "x", CAPTION_TEMPLATES.gym));
+    expect(pickCaptionTemplate("gym", "x", CAPTION_TEMPLATES.gym)).toBeNull();
+    const last = CAPTION_TEMPLATES.gym[CAPTION_TEMPLATES.gym.length - 1]!;
+    expect(pickCaptionTemplate("gym", "x", CAPTION_TEMPLATES.gym.slice(0, -1))).toBe(last);
   });
 });

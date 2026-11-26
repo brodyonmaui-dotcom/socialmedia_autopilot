@@ -10,6 +10,7 @@ Short, step-by-step procedures built from facts already in the repo (`CLAUDE.md`
 | [failed-or-unknown-post.md](failed-or-unknown-post.md) | A batch item shows `failed` or `unknown` |
 | [not-posting.md](not-posting.md) | Approved posts didn't go out: run `infra/diagnose-posting.sh` (read-only), paste the output, fix the first VERDICT |
 | [weekly-loop.md](weekly-loop.md) | Sunday "batch ready" push, captioning next week, Monday report alert |
+| [uploads.md](uploads.md) | Upload videos or a whole folder from the laptop browser; Approve & schedule |
 | [restore.md](restore.md) | Backup drill, or the database is lost or corrupted |
 | [dashboard-password.md](dashboard-password.md) | Set or change the /app basic-auth password (first layer) |
 | [login.md](login.md) | Add a device (passkey), lost phone, how batch approval gates the worker |

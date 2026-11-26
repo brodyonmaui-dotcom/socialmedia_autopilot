@@ -3,6 +3,9 @@
 // upload library/<hash>.mp4 + posters/<hash>.jpg → new media row (derived_from = the clip) → ONE draft
 // Instagram item (origin 'reel', never approved) + one 'ready-for-approval' alert → status 'done'.
 // Nothing here publishes: listDue needs approved_at in an approved batch, and only the creator's tap sets it.
+// Studio (F24): a row with kind = 'studio' carries an EDL in params → runEdl (every distinct clip + the sound
+// downloaded once) → the same QA/hash/upload/poster steps → a media row in folder "Studio" (derived_from = the
+// first clip). NO batch item: the result shows up in Ready to post, where the creator approves it.
 // No delete statement in this file; the source clip and the sound are only read.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -15,11 +18,17 @@ import {
   hasBinary,
   insertMediaRow,
   isReelAudio,
+  makeCoverPoster,
   makePoster,
+  parseEdl,
   planReel,
   runQa,
+  runEdl,
   runReel,
   sha256File,
+  studioFonts,
+  type Edl,
+  type RunEdlInputs,
   type FixStats,
   type MediaStorage,
   type QaResult,
@@ -52,6 +61,29 @@ export const ffmpegReelRunner: ReelRunner = {
   poster: (path, jpg, durationS) => makePoster(path, jpg, { durationS }),
 };
 
+/** The Studio ffmpeg side (F24), injectable like ReelRunner. */
+export interface StudioRunner {
+  render(edl: Edl, inputs: RunEdlInputs, opts: { timeoutMs?: number }): Promise<{ outPath: string; durationS: number; after: FixStats }>;
+  qa(path: string): Promise<QaResult>;
+  poster(path: string, jpg: string, opts: { durationS: number; coverS: number | null }): Promise<void>;
+}
+
+export const ffmpegStudioRunner: StudioRunner = {
+  render: (edl, inputs, opts) => runEdl(edl, inputs, opts),
+  qa: (path) => runQa(path),
+  poster: (path, jpg, opts) => makeCoverPoster(path, jpg, opts),
+};
+
+/** Library folder every Studio export lands in. */
+export const STUDIO_FOLDER = "Studio";
+
+/** "<first clip's file stem>-studio.mp4" (file name only, never the laptop folders). */
+export function studioSourcePath(firstSourcePath: string | null): string {
+  const name = (firstSourcePath ?? "").split(/[\\/]/).pop() ?? "";
+  const stem = name ? basename(name, extname(name)) : "";
+  return stem ? `${stem}-studio.mp4` : "studio.mp4";
+}
+
 /** One transaction on its own pool client (the draft write's advisory lock needs one). */
 export function poolTransaction(pool: ConnectPool): <T>(fn: (q: Queryable) => Promise<T>) => Promise<T> {
   return async (fn) => {
@@ -78,6 +110,9 @@ export interface MediaReelDeps {
   /** TZ_CREATOR. Unset → the draft item is left untimed (never a guessed zone). */
   timeZone: string | undefined;
   runner?: ReelRunner;
+  studioRunner?: StudioRunner;
+  /** Font lookup env (STUDIO_FONT_PATH / STUDIO_FONT_PLAIN_PATH); default process.env. */
+  env?: Record<string, string | undefined>;
   hasFfmpeg?: () => Promise<boolean>;
   timeoutMs?: number;
   log?: (line: string) => void;
@@ -90,6 +125,7 @@ export interface MediaReelDeps {
 export type MediaReelOutcome =
   | { kind: "idle" }
   | { kind: "done"; editId: string; mediaId: string; batchItemId: string; scheduledFor: string | null }
+  | { kind: "studio-done"; editId: string; mediaId: string }
   | { kind: "failed"; editId: string; reason: string };
 
 export function reelIngestKey(editId: string): string {
@@ -229,10 +265,10 @@ export async function runMediaReelOnce(d: MediaReelDeps): Promise<MediaReelOutco
     `update media_edits set status = 'running', started_at = now()
       where id = (select id from media_edits where status = 'queued' and ($1::uuid[] is null or id = any($1))
                    order by requested_at for update skip locked limit 1)
-      returning id, source_media_id, sound_id, params, caption`,
+      returning id, kind, source_media_id, sound_id, params, caption`,
     [only],
   );
-  const job = claimed.rows[0] as { id: string; source_media_id: string; sound_id: string | null; params: unknown; caption: string } | undefined;
+  const job = claimed.rows[0] as { id: string; kind: string; source_media_id: string; sound_id: string | null; params: unknown; caption: string } | undefined;
   if (!job) return { kind: "idle" };
   const failed = async (reason: string): Promise<MediaReelOutcome> => {
     await fail(d.db, job.id, reason);
@@ -247,6 +283,7 @@ export async function runMediaReelOnce(d: MediaReelDeps): Promise<MediaReelOutco
     await raiseMediaConfigAlert(d.db, REEL_FFMPEG_ALERT, d.now?.());
     return failed(FFMPEG_MISSING_MESSAGE);
   }
+  if (job.kind === "studio") return runStudioJob(d, job, failed, log);
 
   const media = (await d.db.query("select id, r2_key, duration_s, qa, pillar, source_path, captured_at from media where id = $1", [job.source_media_id])).rows[0] as
     | { id: string; r2_key: string | null; duration_s: string | number | null; qa: QaResult | null; pillar: string | null; source_path: string | null; captured_at: Date | string | null }
@@ -321,6 +358,99 @@ export async function runMediaReelOnce(d: MediaReelDeps): Promise<MediaReelOutco
     rmSync(tmp, { recursive: true, force: true }); // the job's own temp dir only
   }
 }
+
+// F24 Studio render
+type StudioMedia = { id: string; r2_key: string | null; pillar: string | null; source_path: string | null; captured_at: Date | string | null };
+
+/**
+ * The Studio branch: EDL from params (re-validated with the web's own parseEdl) → each distinct clip and the sound
+ * downloaded once → runEdl → QA → hash → upload → poster at coverS → media row (folder "Studio", derived_from = the
+ * first clip) → status 'done'. No batch item, no alert, nothing approved.
+ */
+async function runStudioJob(
+  d: MediaReelDeps,
+  job: { id: string; params: unknown },
+  failed: (reason: string) => Promise<MediaReelOutcome>,
+  log: (line: string) => void,
+): Promise<MediaReelOutcome> {
+  const runner = d.studioRunner ?? ffmpegStudioRunner;
+  const parsed = parseEdl(job.params);
+  if (!parsed.ok) return failed(`The Studio edit couldn't be used: ${parsed.error}`);
+  const edl = parsed.edl;
+  const ids = [...new Set(edl.clips.map((c) => c.mediaId))];
+  const rows = (
+    await d.db.query(`select id, r2_key, pillar, source_path, captured_at from media where id = any($1::uuid[]) and status <> 'archived' and r2_key is not null`, [ids])
+  ).rows as StudioMedia[];
+  const byId = new Map(rows.map((r) => [String(r.id), r]));
+  if (ids.some((id) => !byId.get(id)?.r2_key)) return failed("A clip in this edit isn't in the library any more, so it can't be made.");
+  let soundKey: string | null = null;
+  if (edl.sound) {
+    const s = (await d.db.query("select r2_key from sounds where id = $1", [edl.sound.soundId])).rows[0];
+    if (!s?.r2_key) return failed("The sound for this edit is missing. Pick another one.");
+    soundKey = String(s.r2_key);
+  }
+  const first = byId.get(edl.clips[0]!.mediaId)!;
+  const storage = d.storage!;
+
+  const tmp = (d.tmpDir ?? (() => mkdtempSync(join(tmpdir(), "autopilot-studio-"))))();
+  try {
+    const local = new Map<string, string>();
+    for (const [k, id] of ids.entries()) {
+      const p = join(tmp, `clip-${k}.mp4`);
+      await storage.download(byId.get(id)!.r2_key!, p); // each distinct clip once
+      local.set(id, p);
+    }
+    const sound = soundKey ? join(tmp, `sound${extname(soundKey) || ".m4a"}`) : undefined;
+    if (soundKey && sound) await storage.download(soundKey, sound);
+    const fonts = studioFonts(d.env ?? process.env);
+    const out = join(tmp, "studio.mp4");
+    const r = await runner.render(
+      edl,
+      { clipPaths: edl.clips.map((c) => local.get(c.mediaId)!), soundPath: sound, fontPath: fonts.bold, plainFontPath: fonts.plain, outPath: out },
+      { timeoutMs: d.timeoutMs },
+    );
+
+    const qa = await runner.qa(out);
+    const hash = await sha256File(out);
+    const key = `library/${hash}.mp4`;
+    await storage.upload(key, out, "video/mp4");
+    const durationS = qa.probe?.durationS ?? r.durationS;
+    let posterKey: string | null = `posters/${hash}.jpg`;
+    try {
+      const jpg = join(tmp, "poster.jpg");
+      await runner.poster(out, jpg, { durationS, coverS: edl.coverS });
+      await storage.upload(posterKey, jpg, "image/jpeg");
+    } catch (err) {
+      log(`[media-reel] studio poster skipped for edit ${job.id.slice(0, 8)}: ${String((err as Error).message).split("\n")[0]}`);
+      posterKey = null;
+    }
+    const row = await insertMediaRow(d.db, {
+      contentHash: hash,
+      sourcePath: studioSourcePath(first.source_path),
+      r2Key: key,
+      durationS,
+      width: qa.probe?.width ?? r.after.width,
+      height: qa.probe?.height ?? r.after.height,
+      pillar: first.pillar,
+      qa,
+      capturedAt: first.captured_at ? new Date(first.captured_at).toISOString() : null,
+      posterKey,
+      derivedFrom: first.id,
+      folder: STUDIO_FOLDER,
+    });
+    await d.db.query(`update media_edits set status = 'done', finished_at = now(), result_media_id = $2, error = null where id = $1 and status = 'running'`, [job.id, row.id]);
+    log(`[media-reel] studio done ${job.id.slice(0, 8)} · ${edl.clips.length} clips · ${r.durationS}s`);
+    return { kind: "studio-done", editId: job.id, mediaId: row.id };
+  } catch (err) {
+    const reason = err instanceof FixError ? err.message : "The Studio export failed (storage or processing error). Nothing was posted.";
+    if (err instanceof FixError && err.code === "ffmpeg-missing") await raiseMediaConfigAlert(d.db, REEL_FFMPEG_ALERT, d.now?.());
+    if (!(err instanceof FixError)) log(`[media-reel] studio failed ${job.id.slice(0, 8)}: ${(err as Error)?.name ?? "error"}`);
+    return failed(reason);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true }); // the job's own temp dir only
+  }
+}
+// End of F24 Studio render.
 
 /** The pg-boss surface this job uses. */
 export interface ReelBoss {
