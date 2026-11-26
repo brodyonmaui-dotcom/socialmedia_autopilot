@@ -62,7 +62,7 @@ describe.skipIf(!url)("Ready to post, add-to-calendar overrides, approve & sched
       r2_key text not null, s3_upload_id text, parts jsonb not null default '[]',
       status text not null default 'uploading' check (status in ('uploading','uploaded','processing','done','duplicate','failed','aborted')),
       media_id uuid references media(id), error text, created_at timestamptz not null default now(), updated_at timestamptz not null default now(), finished_at timestamptz)`);
-    for (const k of ["a", "b", "c", "d", "e", "f", "g", "h", "i"]) await media(k, k === "f" ? { status: "archived" } : {});
+    for (const k of ["a", "b", "c", "d", "e", "f", "g", "h", "i", "s1", "s2", "s3", "s4", "s5", "s6"]) await media(k, k === "f" ? { status: "archived" } : {});
     await upload("a", "done", days(1)); // ready
     await upload("b", "done", days(8)); // too old
     await upload("c", "done", days(1)); // has a draft item
@@ -70,9 +70,18 @@ describe.skipIf(!url)("Ready to post, add-to-calendar overrides, approve & sched
     await upload("e", "processing", days(1)); // not done
     await upload("f", "done", days(1)); // archived
     await upload("g", "done", days(3)); // ready (older than a)
+    const studio = (key: string, status: string, kind: string, finishedAt: string) =>
+      db.query(`insert into media_edits (kind, source_media_id, params, status, result_media_id, requested_at, finished_at) values ($1, $2, '{}'::jsonb, $3, $4, $5::timestamptz, $5::timestamptz)`, [kind, id.a, status, id[key], finishedAt]);
+    await studio("s1", "done", "studio", days(0.5)); // ready (newest)
+    await studio("s2", "done", "studio", days(10)); // ready: inside 14 days
+    await studio("s3", "done", "studio", days(15)); // too old
+    await studio("s4", "running", "studio", days(1)); // not done
+    await studio("s5", "done", "reel", days(1)); // a reel, not studio
+    await studio("s6", "done", "studio", days(1)); // has a draft item
     const batch = (await db.query("insert into batches (week_start, status) values ('2098-01-05', 'draft') returning id")).rows[0].id;
     await db.query(`insert into batch_items (batch_id, media_id, platform, caption, scheduled_for, status) values ($1, $2, 'instagram', 'x', '2099-03-03T10:00:00Z', 'draft')`, [batch, id.c]);
     await db.query(`insert into batch_items (batch_id, media_id, platform, caption, scheduled_for, status) values ($1, $2, 'tiktok', 'x', '2099-03-03T11:00:00Z', 'rejected')`, [batch, id.d]);
+    await db.query(`insert into batch_items (batch_id, media_id, platform, caption, scheduled_for, status) values ($1, $2, 'instagram', 'x', '2099-03-03T12:00:00Z', 'draft')`, [batch, id.s6]);
     id.batch = batch;
   });
   afterAll(async () => {
@@ -85,10 +94,15 @@ describe.skipIf(!url)("Ready to post, add-to-calendar overrides, approve & sched
 
   it("Ready to post: done in the last 7 days, not archived, nothing non-rejected on the calendar; newest first", async () => {
     const clips = mine(await loadReadyToPost(db, NOW));
-    expect(clips.map((c) => keyOf(c.mediaId))).toEqual(["a", "d", "g"]);
+    expect(clips.map((c) => keyOf(c.mediaId))).toEqual(["s1", "a", "d", "g", "s2"]);
     expect(clips[0]!.suggestion).not.toBe("");
     expect(new Set(clips.map((c) => c.suggestion)).size).toBe(clips.length);
     expect(clips[0]!.hasPoster).toBe(true);
+  });
+
+  it("Ready to post also lists done studio renders (14 days) with nothing on the calendar", async () => {
+    const clips = mine(await loadReadyToPost(db, NOW));
+    expect(clips.map((c) => keyOf(c.mediaId))).toEqual(["s1", "a", "d", "g", "s2"]);
   });
 
   it("without the media.folder column (database behind the code) it still lists clips, folder null", async () => {
@@ -100,7 +114,7 @@ describe.skipIf(!url)("Ready to post, add-to-calendar overrides, approve & sched
       },
     } as never;
     const clips = mine(await loadReadyToPost(behind, NOW));
-    expect(clips.map((c) => keyOf(c.mediaId))).toEqual(["a", "d", "g"]);
+    expect(clips.map((c) => keyOf(c.mediaId))).toEqual(["s1", "a", "d", "g", "s2"]);
     expect(clips.every((c) => c.folder === null)).toBe(true);
     expect(sqls.some((s) => /\bm\.folder\b/.test(s))).toBe(false);
   });

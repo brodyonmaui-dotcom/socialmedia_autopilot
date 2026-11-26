@@ -10,7 +10,7 @@ import { ReadyToPostForm } from "./ReadyToPostForm.js";
 export async function ReadyToPost({ now = new Date() }: { now?: Date }) {
   const clips = await loadReadyToPost(getPool(), now);
   return (
-    <section aria-labelledby="ready-title" className="mt-8 lg:mt-10">
+    <section id="ready" aria-labelledby="ready-title" className="mt-8 scroll-mt-20 lg:mt-10">
       <div className="mb-3 flex items-baseline gap-2 lg:mb-4">
         <h2 id="ready-title" className="ds-heading text-ds-text">
           Ready to post

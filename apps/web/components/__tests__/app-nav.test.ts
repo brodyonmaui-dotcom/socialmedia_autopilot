@@ -5,7 +5,7 @@ import { FRAME_COUNT_SQL } from "../frame-counts.js";
 describe("sidebarNav", () => {
   it("is the v3 sidebar in order with basePath-free hrefs", () => {
     const nav = sidebarNav();
-    expect(nav.map((n) => n.label)).toEqual(["Home", "Calendar", "Inbox", "Analytics", "Research", "Library", "Platforms", "Settings"]);
+    expect(nav.map((n) => n.label)).toEqual(["Home", "Calendar", "Inbox", "Analytics", "Research", "Library", "Studio", "Platforms", "Settings"]);
     const hrefs = nav.flatMap((n) => [n.href, ...(n.children ?? []).map((c) => c.href)]);
     for (const h of hrefs) expect(h.startsWith("/app")).toBe(false);
     expect(nav.find((n) => n.id === "analytics")!.children!.map((c) => c.label)).toEqual(["Overview", "Instagram", "YouTube", "TikTok", "Snapchat"]);
@@ -16,6 +16,7 @@ describe("sidebarNav", () => {
       "/platforms/tiktok",
       "/platforms/snapchat",
     ]);
+    expect(nav.find((n) => n.id === "studio")).toMatchObject({ href: "/studio", icon: "film" });
     expect(nav.every((n) => n.badge === undefined)).toBe(true);
   });
 
