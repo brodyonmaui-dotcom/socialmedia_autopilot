@@ -10,4 +10,8 @@ export * from "./daily-min.js";
 export * from "./outbox/index.js";
 export * from "./log/sanitize.js";
 export * from "./duplicate-clip.js";
+export * from "./video-fingerprint.js";
 export * from "./folder.js";
+export * from "./hashtags.js";
+export * from "./caption-compose.js";
+export * from "./judge.js";

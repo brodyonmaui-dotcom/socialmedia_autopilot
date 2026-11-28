@@ -6,8 +6,8 @@
  * draft batch), the duplicate-clip guard, `ingest_key` + on conflict do nothing, an 'add' event per item.
  * No delete statement in this file.
  */
-import { captionGroupFor, localDate, localClock12, pickCaptionTemplate, type Platform } from "@autopilot/core";
-import { findDuplicateClipRow } from "@autopilot/db";
+import { captionGroupFor, composeTemplateCaption, hashtagSetsOf, localDate, localClock12, VIDEO_REPEAT, type Platform } from "@autopilot/core";
+import { loadVideoIndex, recentVideoUse } from "@autopilot/db";
 import type { Pool } from "pg";
 import { mediaLabel } from "../batches/pg-store.js";
 import { dayLabel } from "../batches/view-model.js";
@@ -82,6 +82,7 @@ export async function planAddToCalendar(db: Db, o: { mediaIds: readonly string[]
   const clips = await loadClips(db, ids);
   const names = new Map(((await db.query(`select id, source_path from media where id = any($1::uuid[])`, [ids])).rows as Array<{ id: string; source_path: string | null }>).map((r) => [r.id, mediaLabel(r.source_path, r.id)]));
   const picker = await createSlotPicker(db as Pool, o.now, o.timeZone);
+  const videoIndex = await loadVideoIndex(db as Pool);
   for (const id of ids) {
     const clip = clips.get(id);
     if (!clip) {
@@ -94,7 +95,11 @@ export async function planAddToCalendar(db: Db, o: { mediaIds: readonly string[]
         plan.skipped.push({ mediaId: id, label: clip.label, platform, reason: "no-slot" });
         continue;
       }
-      if (await findDuplicateClipRow(db as Pool, { mediaId: id, platform, scheduledFor: at, now: o.now })) {
+      // Duplicate guard v2 (F26 A): the same video (lineage / fingerprint / name) on this platform within 90 days, in the
+      // calendar or earlier in this same selection (a re-upload picked next to its original).
+      const use = await recentVideoUse(db as Pool, { mediaId: id, platform, at, now: o.now, index: videoIndex });
+      const twin = plan.lines.some((l) => l.platform === platform && use.family.get(l.mediaId)?.relation === "same" && Math.abs(Date.parse(l.scheduledFor) - Date.parse(at)) <= VIDEO_REPEAT.blockDays * 86_400_000);
+      if (use.level === "block" || twin) {
         picker.release(platform, at);
         plan.skipped.push({ mediaId: id, label: clip.label, platform, reason: "duplicate" });
         continue;
@@ -186,7 +191,7 @@ export async function addToCalendar(
       const key = libraryIngestKey(l.mediaId, l.platform, localDate(new Date(l.scheduledFor), o.timeZone));
       const over = o.overrides?.[l.mediaId];
       const typed = over?.caption === undefined ? undefined : over.caption.trim();
-      const caption = typed !== undefined ? typed : l.platform === "instagram" ? (pickCaptionTemplate(pillar.get(l.mediaId), key, avoid) ?? "") : "";
+      const caption = typed !== undefined ? typed : l.platform === "instagram" ? (composeTemplateCaption({ group: captionGroupFor(pillar.get(l.mediaId)), platform: "instagram", clipContext: l.label, recentCaptions: avoid, recentHashtagSets: hashtagSetsOf([...avoid].slice(-5).reverse()), seed: key }) ?? "") : "";
       const title = l.platform === "youtube" ? (over?.title?.trim() ?? "") : null;
       const ins = await client.query(
         `insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, status, origin, ingest_key, trial, created_at, updated_at)

@@ -5,3 +5,4 @@ export * from "./MonthGrid.js";
 export * from "./WeekView.js";
 export * from "./Dialogs.js";
 export * from "./ResetDialog.js";
+export * from "./PlayThumb.js";

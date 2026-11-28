@@ -11,7 +11,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join } from "node:path";
 import { addCalendarDays, assignSlots, diffCalendarDays, localDate, localToUtc, weekdayIndex, type ScheduleItem } from "@autopilot/core";
-import { findDuplicateClipRow, loadCadence } from "@autopilot/db";
+import { loadCadence, recentVideoUse } from "@autopilot/db";
 import {
   FFMPEG_MISSING_MESSAGE,
   FixError,
@@ -37,6 +37,7 @@ import {
 } from "@autopilot/media";
 import { QUEUES } from "../queue.js";
 import { raiseMediaConfigAlert, type Queryable } from "./media-fix.js";
+import { fingerprintNewMedia, type Fingerprinter } from "./media-fingerprint.js";
 import type { ConnectPool } from "./weekly-draft.js";
 
 export const REEL_STORAGE_MISSING = "Storage (R2) is not set up in the worker, so reels can't be made";
@@ -120,6 +121,8 @@ export interface MediaReelDeps {
   /** Tests only: claim only these edit ids. */
   onlyEditIds?: string[];
   now?: () => Date;
+  /** F26 A: fingerprint of the rendered file (default ffmpeg; tests inject). */
+  fingerprint?: Fingerprinter;
 }
 
 export type MediaReelOutcome =
@@ -214,10 +217,11 @@ export async function writeReelDraft(q: Queryable, i: ReelDraftInput): Promise<{
     const plan = assignSlots({ weekStart: firstDay, days: diffCalendarDays(firstDay, lastDay) + 1, items: [item], cadence: await loadCadence(q), timeZone: tz, existing, now: i.now });
     scheduledFor = plan.assignments[0]?.scheduledFor ?? null;
   }
-  // Duplicate-clip guard (shared predicate): the same rendered clip already on Instagram → no second draft;
-  // the edit points at the existing item instead.
-  const dup = await findDuplicateClipRow(q, { mediaId: i.mediaId, platform: "instagram", scheduledFor, now: i.now });
-  if (dup) return { batchItemId: dup.id, scheduledFor: dup.scheduledFor, inserted: false, duplicate: true };
+  // Duplicate guard v2 (F26 A, recentVideoUse): the same video (this clip, its lineage without new edits, a fingerprint
+  // or name match) already on Instagram within 90 days → no second draft; the edit points at the existing item instead.
+  // A reel with ≥ 3 s of new edits (new sound, trim) is "derived": a warning in the calendar, not a block.
+  const dup = await recentVideoUse(q, { mediaId: i.mediaId, platform: "instagram", at: scheduledFor, now: i.now });
+  if (dup.level === "block" && dup.hit) return { batchItemId: dup.hit.id, scheduledFor: dup.hit.scheduledFor, inserted: false, duplicate: true };
 
   const week = scheduledFor && tz ? mondayOf(localDate(new Date(scheduledFor), tz)) : weeks[0]!;
 
@@ -337,8 +341,11 @@ export async function runMediaReelOnce(d: MediaReelDeps): Promise<MediaReelOutco
       posterKey,
       derivedFrom: media.id,
     });
+    if (row.inserted) await fingerprintNewMedia(d.db, row.id, out, qa.probe?.durationS ?? after.durationS, { fingerprint: d.fingerprint, log, tag: "media-reel" });
     const now = d.now?.() ?? new Date();
     const draft = await tx(async (q) => {
+      // Link the result first, so the duplicate guard sees this reel's edits (sound / trim) when it relates it to its source.
+      await q.query(`update media_edits set result_media_id = $2 where id = $1 and status = 'running'`, [job.id, row.id]);
       const w = await writeReelDraft(q, { editId: job.id, mediaId: row.id, pillar: media.pillar, caption: job.caption, now, timeZone: d.timeZone });
       await q.query(
         `update media_edits set status = 'done', finished_at = now(), result_media_id = $2, batch_item_id = $3, error = null where id = $1 and status = 'running'`,
@@ -438,6 +445,7 @@ async function runStudioJob(
       derivedFrom: first.id,
       folder: STUDIO_FOLDER,
     });
+    if (row.inserted) await fingerprintNewMedia(d.db, row.id, out, durationS, { fingerprint: d.fingerprint, log, tag: "media-reel" });
     await d.db.query(`update media_edits set status = 'done', finished_at = now(), result_media_id = $2, error = null where id = $1 and status = 'running'`, [job.id, row.id]);
     log(`[media-reel] studio done ${job.id.slice(0, 8)} · ${edl.clips.length} clips · ${r.durationS}s`);
     return { kind: "studio-done", editId: job.id, mediaId: row.id };

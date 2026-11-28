@@ -25,6 +25,7 @@ import {
 } from "@autopilot/media";
 import { QUEUES } from "../queue.js";
 import { autoQueueFix, raiseMediaConfigAlert, type Queryable } from "./media-fix.js";
+import { fingerprintNewMedia, type Fingerprinter } from "./media-fingerprint.js";
 import type { ReelBoss } from "./media-reel.js";
 
 export const INGEST_STORAGE_MISSING = "Storage (R2) is not set up in the worker, so uploads can't be processed";
@@ -82,6 +83,8 @@ export interface MediaIngestDeps {
   /** Tests only: touch only these upload ids (claim, stale and cleanup). */
   onlyUploadIds?: string[];
   now?: () => Date;
+  /** F26 A: fingerprint of the clean file (default ffmpeg; tests inject). */
+  fingerprint?: Fingerprinter;
 }
 
 export type MediaIngestOutcome =
@@ -210,6 +213,7 @@ export async function runMediaIngestOnce(d: MediaIngestDeps): Promise<MediaInges
       });
       mediaId = row.id;
       inserted = row.inserted;
+      if (inserted) await fingerprintNewMedia(d.db, mediaId, out, qa.probe.durationS, { fingerprint: d.fingerprint, log, tag: "media-ingest" });
     }
     const status = inserted ? "done" : "duplicate";
     await d.db.query(`update uploads set status = $2, media_id = $3, error = null, updated_at = now(), finished_at = now() where id = $1 and status = 'processing'`, [

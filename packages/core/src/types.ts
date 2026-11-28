@@ -97,6 +97,7 @@ export const ALERT_KINDS = [
   "report-ready", // F14: Monday, last week had published posts; the 7-day analytics view is ready (page-only)
   "missed-slot", // F18: an approved post is > 60 min past its time and was held, not sent (page-only)
   "trial-reels-ready", // F20-F: Instagram reached the follower minimum for trial reels; the toggle is in Settings (pushed, once)
+  "duplicate-held", // F26 A: the outbox held an approved post because the same video already went out on that platform (pushed)
 ] as const;
 
 /** F20-F: Instagram trial reels by default. Setting keys + defaults shared by the worker and Settings. */
@@ -124,6 +125,7 @@ export const PUSH_KINDS_DEFAULT: readonly AlertKind[] = [
   "auto-scheduled", // only while Settings → Editor approval counts is on; one per item
   "batch-ready", // F14: at most one per Sunday run; "report-ready" stays page-only
   "trial-reels-ready", // F20-F: once, when Instagram first reaches the follower minimum
+  "duplicate-held", // F26 A: one per held item (the alert dedupes per kind + item)
 ];
 
 /** Raised by the outbox for anything a human must look at. Delivered by an AlertSink (log, DB, push). */

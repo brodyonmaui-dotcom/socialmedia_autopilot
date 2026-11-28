@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Button, cx, FOCUS, Icon, Select, Thumb } from "../ui/index.js";
 import { SPEEDS, type Speed } from "../../lib/studio/edl-types.js";
 import { clipLen, fmtTime, type Action, type EClip } from "../../lib/studio/editor-state.js";
-import { RangeField, SecField } from "./parts.js";
+import { SecField } from "./parts.js";
+import { TrimBar } from "./TrimBar.js";
 
 /** Ordered clip cards (drag to reorder on desktop) + the inspector for the selected clip: trim, speed, move, split, remove. */
 export function ClipStrip({ clips, selected, onSelect, dispatch, onSplit }: { clips: EClip[]; selected: string | null; onSelect: (uid: string) => void; dispatch: (a: Action) => void; onSplit: () => void }) {
@@ -36,12 +37,17 @@ export function ClipStrip({ clips, selected, onSelect, dispatch, onSplit }: { cl
       {sel ? (
         <div className="flex flex-col gap-2 rounded-ds-lg border border-ds-line bg-ds-card p-3" role="group" aria-label={`Clip ${i + 1} settings`}>
           <p className="truncate text-[14px] font-semibold text-ds-text">{i + 1}. {sel.name}</p>
-          <div className="grid grid-cols-2 gap-x-3">
-            <RangeField label="Start" value={sel.inS} min={0} max={sel.durationS} onChange={(v) => dispatch({ type: "trim", uid: sel.uid, inS: v })} display={`${sel.inS.toFixed(1)} s`} />
-            <RangeField label="End" value={sel.outS} min={0} max={sel.durationS} onChange={(v) => dispatch({ type: "trim", uid: sel.uid, outS: v })} display={`${sel.outS.toFixed(1)} s`} />
-            <SecField label="Start (s)" value={sel.inS} max={sel.durationS} onChange={(v) => dispatch({ type: "trim", uid: sel.uid, inS: v })} />
-            <SecField label="End (s)" value={sel.outS} max={sel.durationS} onChange={(v) => dispatch({ type: "trim", uid: sel.uid, outS: v })} />
-          </div>
+          <TrimBar mediaId={sel.mediaId} durationS={sel.durationS} inS={sel.inS} outS={sel.outS} onChange={(v) => dispatch({ type: "trim", uid: sel.uid, inS: v.inS, outS: v.outS })} label={`Clip ${i + 1} trim`} />
+          <details className="group border-t border-ds-line">
+            <summary className={cx("flex min-h-11 cursor-pointer list-none items-center gap-2 text-[14px] text-ds-text [&::-webkit-details-marker]:hidden", FOCUS)}>
+              Exact times
+              <Icon name="chevronDown" size={16} className="ml-auto text-ds-muted transition-transform duration-300 ease-ds group-open:rotate-180" />
+            </summary>
+            <div className="grid grid-cols-2 gap-x-3 pb-2">
+              <SecField label="Start (s)" value={sel.inS} max={sel.durationS} onChange={(v) => dispatch({ type: "trim", uid: sel.uid, inS: v })} />
+              <SecField label="End (s)" value={sel.outS} max={sel.durationS} onChange={(v) => dispatch({ type: "trim", uid: sel.uid, outS: v })} />
+            </div>
+          </details>
           <Select label="Speed" value={String(sel.speed)} onChange={(e) => dispatch({ type: "speed", uid: sel.uid, speed: Number(e.target.value) as Speed })}>
             {SPEEDS.map((s) => <option key={s} value={s}>{s}x</option>)}
           </Select>
