@@ -246,10 +246,12 @@ async function draftLocked(
     `select distinct media_id from batch_items where status <> 'rejected' and scheduled_for is not null and scheduled_for >= $1::timestamptz`,
     [since.toISOString()],
   );
-  // F26 A: also skip every clip that is the same video (lineage / fingerprint / name) as one on any of these platforms within 90 days.
+  // F26 A: also skip every clip that is the same video (lineage / fingerprint / name) as one on EVERY one of these
+  // platforms within 90 days; a clip blocked on some of them still goes to the others (the guard below drops the rest).
   const videoIndex = await loadVideoIndex(db);
-  const blocked: string[] = [];
-  for (const p of WEEKLY_PLATFORMS) blocked.push(...(await blockedVideoIds(db, { platform: p, now, at: from.toISOString(), index: videoIndex })));
+  const perPlatform: Array<Set<string>> = [];
+  for (const p of WEEKLY_PLATFORMS) perPlatform.push(await blockedVideoIds(db, { platform: p, now, at: from.toISOString(), index: videoIndex }));
+  const blocked = [...perPlatform[0]!].filter((id) => perPlatform.every((set) => set.has(id)));
   const picked = pickClips(await c.loadLibrary(db), { count: uncovered.length, recentlyUsed: [...recent.rows.map((r) => String(r.media_id)), ...blocked] });
   if (picked.length === 0) return emptyResult(weekStart, "no-clips", uncovered);
 

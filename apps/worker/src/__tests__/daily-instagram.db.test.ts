@@ -129,7 +129,8 @@ describe.skipIf(!url)("daily-instagram (db)", () => {
     );
     const lib = async (q: Queryable) => (await loadLibraryClips(q)).filter((r) => r.id === posted || r.id === fresh);
     const r = await runDailyInstagramOnce(db, { timeZone: TZ, now, log: quiet, loadLibrary: lib });
-    expect(r).toMatchObject({ postsInserted: 1, duplicates: 1 });
+    // F26 A: the picker already skips the posted clip (blockedVideoIds), so the guard below it has nothing to drop.
+    expect(r).toMatchObject({ postsInserted: 1, duplicates: 0 });
     expect((await rowsFor(d)).map((x) => x.media_id)).toEqual([fresh]);
   });
 
