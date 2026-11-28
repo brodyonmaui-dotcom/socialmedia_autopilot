@@ -62,7 +62,8 @@ describe.skipIf(!url)("weekly-draft (db)", () => {
     const r = await client.query(
       `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, captured_at)
        values ($1, $2, $3, 12, 1080, 1920, $4, $5, $6) returning id`,
-      [hash, PATHLIKE, over.r2 === undefined ? `library/${hash}.mp4` : over.r2, over.pillar ?? ["gym", "meal", "trading"][i % 3], over.status ?? "ready", over.captured ?? `2109-0${1 + (i % 9)}-15T12:00:00Z`],
+      [hash, PATHLIKE.replace("IMG_4821", `IMG_${4821 + i}`), // distinct names: the same basename + duration is the same video (F26 A)
+       over.r2 === undefined ? `library/${hash}.mp4` : over.r2, over.pillar ?? ["gym", "meal", "trading"][i % 3], over.status ?? "ready", over.captured ?? `2109-0${1 + (i % 9)}-15T12:00:00Z`],
     );
     return r.rows[0].id as string;
   }

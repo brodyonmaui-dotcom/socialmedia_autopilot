@@ -44,7 +44,7 @@ describe.skipIf(!url)("daily-instagram (db)", () => {
     for (const [i, pillar] of pillars.entries()) {
       const hash = `${TAG}-${i}`;
       const r = await client.query(
-        `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, captured_at) values ($1, '/x/y.MOV', $2, 12, 1080, 1920, $3, 'ready', $4) returning id`,
+        `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, captured_at) values ($1, '/x/' || $1 || '.MOV', $2, 12, 1080, 1920, $3, 'ready', $4) returning id`,
         [hash, `library/${hash}.mp4`, pillar, `2109-0${1 + (i % 9)}-15T12:00:00Z`],
       );
       ids.push(r.rows[0].id);
@@ -116,7 +116,7 @@ describe.skipIf(!url)("daily-instagram (db)", () => {
     const mk = async (n: number) =>
       (
         await client.query(
-          `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, captured_at) values ($1, '/x/y.MOV', $2, 12, 1080, 1920, 'workout-log', 'ready', '2109-12-30T12:00:00Z') returning id`,
+          `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status, captured_at) values ($1, '/x/' || $1 || '.MOV', $2, 12, 1080, 1920, 'workout-log', 'ready', '2109-12-30T12:00:00Z') returning id`,
           [`${TAG}-dup-${n}`, `library/${TAG}-dup-${n}.mp4`],
         )
       ).rows[0].id as string;

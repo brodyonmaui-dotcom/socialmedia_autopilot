@@ -1,14 +1,14 @@
 import { randomBytes } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { isDuplicateClip } from "@autopilot/core";
-import { findDuplicateClipRow } from "@autopilot/db";
+import { shortDay } from "@autopilot/core";
+import { recentVideoUse } from "@autopilot/db";
 import { PgBatchStore } from "../../batches/pg-store.js";
 import { planTransition } from "../../batches/transitions.js";
-import { CALENDAR_SQL, loadBatchFresh, loadCalendar, loadClipSiblings } from "../load.js";
+import { loadBatchFresh, loadCalendar, loadClipSiblings } from "../load.js";
 
 /**
- * Duplicate-clip guard + "already posted" against the dev DB (DATABASE_URL). Own rows only: two archived
+ * Duplicate guard v2 (F26 A) + "already posted" against the dev DB (DATABASE_URL). Own rows only: two archived
  * media rows (archived = no library/job ever picks them) with a random tag, one batch in a random far-future
  * week, items left rejected at the end. Nothing is deleted.
  */
@@ -73,37 +73,41 @@ describe.skipIf(!url)("duplicate clip + already posted (db)", () => {
     vi.unstubAllEnvs();
   });
 
-  it("the shared SQL predicate and the core predicate agree", async () => {
-    const hit = await findDuplicateClipRow(pool, { mediaId: media, platform: "tiktok", scheduledFor: at(4, "15"), now: NOW, excludeId: ids.draft });
-    expect(hit).toMatchObject({ id: ids.approved, platform: "tiktok", status: "approved" });
-    expect(isDuplicateClip({ id: ids.draft, mediaId: media, platform: "tiktok", scheduledFor: at(4, "15") }, hit!, NOW)).toBe(true);
-    // Other platform, rejected sibling, 8 days apart: none.
-    expect(await findDuplicateClipRow(pool, { mediaId: media, platform: "youtube", scheduledFor: at(4, "15"), now: NOW })).toBeNull();
-    expect(await findDuplicateClipRow(pool, { mediaId: other, platform: "youtube", scheduledFor: at(3, "09"), now: NOW, excludeId: ids.yt })).toBeNull();
-    expect(await findDuplicateClipRow(pool, { mediaId: media, platform: "tiktok", scheduledFor: at(11, "09"), now: NOW })).toMatchObject({ id: ids.draft });
-    expect(await findDuplicateClipRow(pool, { mediaId: media, platform: "tiktok", scheduledFor: at(12, "16"), now: NOW })).toBeNull();
+  const SCHED = () => `This video is already scheduled on TikTok for ${shortDay(at(3, "09"), "UTC")}`;
+
+  it("recentVideoUse (F26 A): same clip on the same platform within 90 days blocks; other platform / rejected sibling don't", async () => {
+    const hit = await recentVideoUse(pool, { mediaId: media, platform: "tiktok", at: at(4, "15"), now: NOW, excludeItemId: ids.draft });
+    expect(hit.level).toBe("block");
+    expect(hit.hit).toMatchObject({ id: ids.approved, platform: "tiktok", status: "approved", relation: "same", why: "same-clip" });
+    expect((await recentVideoUse(pool, { mediaId: media, platform: "youtube", at: at(4, "15"), now: NOW })).level).toBeNull();
+    expect((await recentVideoUse(pool, { mediaId: other, platform: "youtube", at: at(3, "09"), now: NOW, excludeItemId: ids.yt })).level).toBeNull();
+    // 8 days apart still blocks now (the window is 90 days); 100 days apart only warns.
+    expect((await recentVideoUse(pool, { mediaId: media, platform: "tiktok", at: at(12, "16"), now: NOW })).level).toBe("block");
+    expect((await recentVideoUse(pool, { mediaId: media, platform: "tiktok", at: at(104, "16"), now: NOW })).level).toBe("warn");
+    // The outbox's last check only counts what went out: two plans never hold each other.
+    expect((await recentVideoUse(pool, { mediaId: media, platform: "tiktok", at: at(4, "15"), now: NOW, excludeItemId: ids.draft, wentOutOnly: true })).level).toBeNull();
   });
 
   it("loadBatchFresh: duplicate.clip blocks the draft (and names the approved post); no warning for other platform / rejected sibling", async () => {
     const fresh = await loadBatchFresh(pool, batchId, NOW, ENV);
     const ws = (k: string) => fresh!.batch.items.find((i) => i.id === ids[k])!.warnings.filter((w) => w.code === "duplicate.clip");
-    expect(ws("draft")).toEqual([{ code: "duplicate.clip", severity: "block", message: "Same clip is already on TikTok Thu 9:00 AM" }]);
+    expect(ws("draft")).toEqual([{ code: "duplicate.clip", severity: "block", message: SCHED(), itemId: ids.approved }]);
     expect(ws("approved")).toHaveLength(1);
     expect(ws("ig")).toEqual([]);
     expect(ws("yt")).toEqual([]);
     const plan = planTransition(fresh!.batch, { kind: "approve", itemIds: [ids.draft!] }, NOW);
-    expect(plan).toMatchObject({ ok: false, reason: "Same clip is already on TikTok Thu 9:00 AM" });
+    expect(plan).toMatchObject({ ok: false, reason: SCHED() });
   });
 
-  it("loadCalendar supplies the siblings with ONE query for every batch in view", async () => {
+  it("loadCalendar supplies the siblings with ONE uses query for every batch in view", async () => {
     const spy = vi.spyOn(pool, "query");
     const data = await loadCalendar(pool, { from: day(0), to: day(6), now: NOW });
-    const sibling = spy.mock.calls.filter((c) => c[0] === CALENDAR_SQL.clipSiblings);
-    expect(sibling).toHaveLength(1);
+    const uses = spy.mock.calls.filter((c) => typeof c[0] === "string" && /from batch_items bi\s+where bi\.media_id = any/.test(c[0]));
+    expect(uses).toHaveLength(1);
     spy.mockRestore();
     const line = data.entries.flatMap((e) => e.platforms).find((p) => p.itemId === ids.draft)!;
-    expect(line).toMatchObject({ state: "needs-fix", fix: "Same clip is already on TikTok Thu 9:00 AM", dropInline: "Same clip is already on TikTok Thu 9:00 AM" });
-    expect(await loadClipSiblings(pool, [], NOW)).toEqual([]);
+    expect(line).toMatchObject({ state: "needs-fix", fix: SCHED(), dropInline: SCHED() });
+    expect(await loadClipSiblings(pool, [], NOW)).toEqual({ siblings: [], families: new Map() });
   });
 
   it("already posted: the reject with reason, then shown as 'Already posted' under Show rejected; the duplicate clears", async () => {
@@ -121,7 +125,10 @@ describe.skipIf(!url)("duplicate clip + already posted (db)", () => {
     const lines = after.entries.flatMap((e) => e.platforms);
     expect(lines.find((p) => p.itemId === ids.draft)).toMatchObject({ state: "already-posted", statusLabel: "Already posted" });
     expect(lines.find((p) => p.itemId === ids.rejected)).toMatchObject({ state: "rejected" });
-    expect(lines.find((p) => p.itemId === ids.approved)!.warnings.some((w) => w.code === "duplicate.clip")).toBe(false);
+    // F26 A: the already-posted reject now counts as posted at its time, so the approved copy of the same video blocks.
+    expect(lines.find((p) => p.itemId === ids.approved)!.warnings.find((w) => w.code === "duplicate.clip")?.message).toBe(
+      `This video was already posted on TikTok on ${shortDay(at(4, "15"), "UTC")}`,
+    );
 
     // Refused once published (or queued): nothing changes.
     await pool.query(`update batch_items set status = 'published', platform_post_id = $2 where id = $1`, [ids.approved, `${TAG}-pp`]);

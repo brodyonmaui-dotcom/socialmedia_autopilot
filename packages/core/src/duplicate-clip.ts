@@ -48,9 +48,16 @@ export interface VideoIndex {
   group: Map<string, string[]>;
 }
 
-/** The file name of a stored source_path (laptop path, upload basename, "<stem>-reel.mp4"). Lower-cased; "" when none. */
+/**
+ * Names apps and phones give to many different files (iOS "FullSizeRender.mov", "video.mp4", "trim.…", a bare
+ * "studio.mp4"): never a name match on their own (lineage and fingerprint still apply).
+ */
+const GENERIC_NAME = /^(fullsizerender|video|movie|clip|trim|untitled|export|exported|download|output|final|edit|reel|studio|upload|recording|screen ?recording|new video)[\s._()\d-]*(-(reel|studio|fixed))?\.[a-z0-9]+$/;
+
+/** The file name of a stored source_path (laptop path, upload basename, "<stem>-reel.mp4"). Lower-cased; "" when none or generic. */
 export function sourceBasename(p: string | null | undefined): string {
-  return (p ?? "").split(/[\\/]/).pop()?.trim().toLowerCase() ?? "";
+  const n = (p ?? "").split(/[\\/]/).pop()?.trim().toLowerCase() ?? "";
+  return GENERIC_NAME.test(n) ? "" : n;
 }
 
 export function buildVideoIndex(rows: readonly VideoIdentity[]): VideoIndex {

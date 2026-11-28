@@ -34,6 +34,7 @@ function fakePool(rows: FakeRow[], opts: { sentToday?: number; settings?: Record
       if (s.startsWith("select")) reads.push(s);
       if (s.startsWith("select value from settings")) return { rows: settings[params[0] as string] === undefined ? [] : [{ value: settings[params[0] as string] }] };
       if (s.startsWith("select count(*)::int as n")) return { rows: [{ n: opts.sentToday ?? 0 }] };
+      if (s.startsWith("select m.id, m.derived_from")) return { rows: [] }; // F26 A duplicate hold: the media index (empty here)
       if (s.startsWith("select bi.id") && s.includes("status = 'publishing'")) return { rows: [] };
       if (s.startsWith("select bi.id")) return { rows };
       writes.push({ sql: s, params });
