@@ -19,8 +19,8 @@ import { lintText } from "../voice-lint.js";
 export const CAPTION_MODEL = "claude-haiku-5-5";
 export const AI_CAPTION_BUDGET_CENTS = 500;
 /** [INF] Haiku-class list price assumed $1 / $5 per million tokens in / out, in cents per token. Raise if the real price is higher. */
-export const CENTS_PER_INPUT_TOKEN = 1e-4;
-export const CENTS_PER_OUTPUT_TOKEN = 5e-4;
+export const CENTS_PER_INPUT_TOKEN = 1e-5; // $0.10 per 1M (claude-haiku-5-5, prompts ≤ 100K)
+export const CENTS_PER_OUTPUT_TOKEN = 5e-5; // $0.50 per 1M
 
 export const spendKey = (now: Date): string => `ai_caption_spend_${now.toISOString().slice(0, 7)}`;
 
@@ -142,7 +142,7 @@ export async function composeCaption(input: ComposeCaptionInput, deps: ComposeCa
     const res = await client.messages.parse(
       {
         model: CAPTION_MODEL,
-        max_tokens: 300,
+        max_tokens: 1024, // room for adaptive thinking (on by default on Haiku 5.5) + the short JSON
         output_config: { effort: "low", format: zodOutputFormat(CaptionSchema) },
         system: CAPTION_SYSTEM_PROMPT,
         messages: [{ role: "user", content: buildCaptionUserMessage({ group: input.group, platform: input.platform, clipContext: input.clipContext, recentCaptions: input.recentCaptions ?? [] }) }],

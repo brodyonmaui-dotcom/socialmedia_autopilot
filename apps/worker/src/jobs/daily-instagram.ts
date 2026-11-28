@@ -120,12 +120,31 @@ export async function runDailyInstagramOnce(pool: ConnectPool, opts: DailyInstag
   const date = addCalendarDays(localDate(now, timeZone), 1);
   const weekStart = addCalendarDays(date, -weekdayIndex(date));
 
+  const loadLibrary = opts.loadLibrary ?? loadLibraryClips;
+  // F26 B: AI captions are composed BEFORE the locked transaction (a network call must not hold the week lock). The
+  // pre-pass runs the same picking without the lock and rolls back; the locked pass re-picks, uses a pre-composed caption
+  // only for a clip it still picks, and composes a template caption (no network) for anything else.
+  const precomposed = new Map<string, string>();
+  if (opts.anthropicKey) {
+    const pre = await pool.connect();
+    try {
+      await pre.query("begin");
+      await draftLocked(pre, { date, weekStart, now, timeZone, loadLibrary, anthropicKey: opts.anthropicKey, log, aiDb: pool, collect: precomposed });
+    } catch (err) {
+      log(`[daily-instagram] caption pre-pass failed (${err instanceof Error ? err.name : "error"}), templates used`);
+      precomposed.clear();
+    } finally {
+      await pre.query("rollback").catch(() => {});
+      pre.release();
+    }
+  }
+
   const client = await pool.connect();
   let result: DailyInstagramResult;
   try {
     await client.query("begin");
     await client.query(`select pg_advisory_xact_lock(hashtext('batch-week:' || $1::text))`, [weekStart]);
-    result = await draftLocked(client, { date, weekStart, now, timeZone, loadLibrary: opts.loadLibrary ?? loadLibraryClips, anthropicKey: opts.anthropicKey, log });
+    result = await draftLocked(client, { date, weekStart, now, timeZone, loadLibrary, log, precomposed });
     await client.query("commit");
   } catch (err) {
     await client.query("rollback").catch(() => {});
@@ -139,7 +158,12 @@ export async function runDailyInstagramOnce(pool: ConnectPool, opts: DailyInstag
 
 async function draftLocked(
   db: Queryable,
-  c: { date: string; weekStart: string; now: Date; timeZone: string; loadLibrary: (db: Queryable) => Promise<LibraryClipRow[]>; anthropicKey?: string; log?: (l: string) => void },
+  c: { date: string; weekStart: string; now: Date; timeZone: string; loadLibrary: (db: Queryable) => Promise<LibraryClipRow[]>; anthropicKey?: string; log?: (l: string) => void;
+    /** Pre-pass only: the pool for the AI spend row (autocommit, survives the rollback) and where captions are collected. */
+    aiDb?: Queryable; collect?: Map<string, string>;
+    /** Locked pass: captions composed before the lock, by media id. */
+    precomposed?: Map<string, string>;
+  },
 ): Promise<DailyInstagramResult> {
   const { date, weekStart, now, timeZone } = c;
   const min = parseInstagramDailyMin(await getSetting<unknown>(db, INSTAGRAM_DAILY_MIN_KEY));
@@ -209,11 +233,20 @@ async function draftLocked(
       continue;
     }
     const key = dailyIngestKey(date, a.key);
-    const composed = await composeCaption(
-      { group: captionGroupFor(pillarOf.get(a.key)), platform: "instagram", clipContext: clipContext.get(a.key) ?? null, recentCaptions: recentCaps, recentHashtagSets: hashtagSetsOf(recentCaps.slice(0, 5)), seed: key },
-      { apiKey: c.anthropicKey, db, now, log: c.log, blocklist },
-    );
+    const pre = c.precomposed?.get(a.key);
+    const composed = pre !== undefined
+      ? { caption: pre || null }
+      : await composeCaption(
+          { group: captionGroupFor(pillarOf.get(a.key)), platform: "instagram", clipContext: clipContext.get(a.key) ?? null, recentCaptions: recentCaps, recentHashtagSets: hashtagSetsOf(recentCaps.slice(0, 5)), seed: key },
+          { apiKey: c.collect ? c.anthropicKey : undefined, db: c.aiDb ?? db, now, log: c.log, blocklist },
+        );
     const caption = composed.caption ?? ""; // nothing fresh left → "needs a caption"
+    if (c.collect) {
+      // pre-pass: remember the caption, write nothing
+      c.collect.set(a.key, caption);
+      if (caption) recentCaps.unshift(caption);
+      continue;
+    }
     const ins = await db.query(
       `insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, status, origin, ingest_key, trial, created_at, updated_at)
        values ($1, $2, 'instagram', $3, null, $4::timestamptz, 'draft', 'daily', $5, null, $6, $6)

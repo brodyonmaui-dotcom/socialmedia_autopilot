@@ -1,5 +1,6 @@
 import {
   knownIdsWindow,
+  videoUseMessage,
   runOutboxTick,
   sanitizeForLog,
   type AlertSink,
@@ -13,7 +14,7 @@ import {
   type TickResult,
 } from "@autopilot/core";
 import { buildAdapters, type AdapterCredentials } from "@autopilot/adapters";
-import { loadCadence } from "@autopilot/db";
+import { loadCadence, recentVideoUse } from "@autopilot/db";
 import { igTrialDefault } from "./trial-reels.js";
 import { blocklistFromEnv, lintText } from "@autopilot/research";
 
@@ -98,6 +99,8 @@ export class PgOutboxStore implements OutboxStore {
     private readonly pool: OutboxPool,
     private readonly publicMediaBase: string,
     private readonly log: (line: string) => void = (line) => console.log(line),
+    /** TZ_CREATOR, for the day named in a duplicate-held alert. */
+    private readonly timeZone: string = "UTC",
   ) {}
 
   /** Null when the row has no media file to send (A11): such a row must never reach an adapter. */
@@ -187,6 +190,18 @@ export class PgOutboxStore implements OutboxStore {
       [post.platform, post.id, new Date(at - w.beforeMs).toISOString(), new Date(at + w.afterMs).toISOString()],
     );
     return new Set((rows as Array<{ platform_post_id: string }>).map((r) => String(r.platform_post_id)));
+  }
+
+  /**
+   * F26 A pre-publish duplicate hold: the same video (this clip, its lineage without new edits, a fingerprint or name
+   * match) already went out on this platform within 90 days → the reason ("This video was already posted on Instagram
+   * on Fri Nov 20"). Only what went out counts here (published / publishing / unknown / rejected as already posted), so
+   * two approved copies never hold each other: the first goes, the second is held. A post without a media id is held.
+   */
+  async duplicateHold(post: OutboxPost, now: Date): Promise<string | null> {
+    if (!post.mediaId) return "the post has no media id, so the duplicate check can't run";
+    const use = await recentVideoUse(this.pool, { mediaId: post.mediaId, platform: post.platform, at: post.scheduledFor, now, excludeItemId: post.id, wentOutOnly: true });
+    return use.level === "block" ? videoUseMessage(use, this.timeZone) : null;
   }
 
   async markPublished(postId: string, result: PublishResult, attempts: number, now: Date): Promise<void> {
@@ -406,7 +421,7 @@ async function tickBody(pool: OutboxPool, adapters: Partial<Record<Platform, Pla
     return zeroResult(cfg.dryRun);
   }
   const cadence = await loadCadence(pool);
-  const store = new PgOutboxStore(pool, cfg.publicMediaBase, log);
+  const store = new PgOutboxStore(pool, cfg.publicMediaBase, log, timeZone);
   const privacy = privacyCaptionGuard(cfg.blocklist ?? blocklistFromEnv());
   const media = mediaUrlGuard(cfg.publicMediaBase);
   // Both refusals are permanent failures (+ final-failure alert); the adapter is never called.

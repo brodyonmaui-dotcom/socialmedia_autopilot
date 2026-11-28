@@ -2,8 +2,8 @@
 // drafts) through PgBatchStore.loadBatch, fills fresh warnings exactly as the batch screen did
 // (loadWarningContext + computeWarnings), and groups the items into entries. Read-only.
 import type { Pool } from "pg";
-import { addCalendarDays, assertTimeZone, localDate, type ClipSibling } from "@autopilot/core";
-import { CLIP_PUBLISHED_AT_SQL, clipSiblingOf, duplicateClipSql } from "@autopilot/db";
+import { addCalendarDays, assertTimeZone, localDate, videoFamily, type ClipSibling } from "@autopilot/core";
+import { loadVideoIndex, loadVideoUses, type VideoFamily } from "@autopilot/db";
 import { loadWarningContext } from "../batches/context.js";
 import { PgBatchStore } from "../batches/pg-store.js";
 import type { BatchItemView, BatchView } from "../batches/types.js";
@@ -13,36 +13,43 @@ import { groupEntries, type Entry } from "./model.js";
 export const CALENDAR_SQL = {
   batches: `select distinct batch_id from batch_items
              where (scheduled_for >= $1 and scheduled_for < $2) or (scheduled_for is null and status = 'draft')`,
-  /**
-   * Duplicate-clip siblings for many items in ONE query: every other batch_items row that the shared
-   * duplicateClipSql predicate matches for any of the (id, media, platform, time) tuples.
-   */
-  clipSiblings: `select distinct on (bi.id) bi.id, bi.media_id, bi.platform, bi.status, bi.scheduled_for, ${CLIP_PUBLISHED_AT_SQL("bi")} as published_at
-      from unnest($1::uuid[], $2::uuid[], $3::text[], $4::timestamptz[]) as t(id, media_id, platform, at)
-      join batch_items bi on ${duplicateClipSql({ alias: "bi", mediaId: "t.media_id", platform: "t.platform", at: "t.at", now: "$5::timestamptz", excludeId: "t.id" })}`,
 } as const;
 
-/** Items the duplicate-clip warning applies to (it only checks draft/approved items). */
+/** Items the duplicate warning applies to (it only checks draft/approved items). */
 const clipCheckable = (i: BatchItemView) => i.status === "draft" || i.status === "approved";
 
-/** Every other item (any batch, any status but rejected) that makes one of `items` a duplicate clip. One query; none when nothing to check. */
-export async function loadClipSiblings(pool: Pick<Pool, "query">, items: BatchItemView[], now: Date): Promise<ClipSibling[]> {
+/** Duplicate guard v2 inputs for many items: every use of their videos (and footage) + each media's family. */
+export interface ClipSiblingSet {
+  siblings: ClipSibling[];
+  families: Map<string, VideoFamily>;
+}
+
+/**
+ * F26 A: for every draft/approved item, the media that are the same video (lineage / fingerprint / name) or its
+ * footage, and every other item (any batch, any time, not failed / plain-rejected) using them on those platforms.
+ * Two queries (media index + uses), none when there is nothing to check.
+ */
+export async function loadClipSiblings(pool: Pick<Pool, "query">, items: BatchItemView[], _now: Date): Promise<ClipSiblingSet> {
   const check = items.filter(clipCheckable);
-  if (check.length === 0) return [];
-  const { rows } = await pool.query(CALENDAR_SQL.clipSiblings, [
-    check.map((i) => i.id),
-    check.map((i) => i.mediaId),
-    check.map((i) => i.platform),
-    check.map((i) => i.scheduledFor),
-    now.toISOString(),
-  ]);
-  return (rows as Array<Record<string, unknown>>).map(clipSiblingOf);
+  if (check.length === 0) return { siblings: [], families: new Map() };
+  const ix = await loadVideoIndex(pool);
+  const families = new Map<string, VideoFamily>();
+  const related = new Set<string>();
+  for (const id of new Set(check.map((i) => i.mediaId))) {
+    const f = videoFamily(ix, id);
+    families.set(id, f);
+    for (const k of f.keys()) related.add(k);
+  }
+  const siblings = await loadVideoUses(pool, { mediaIds: [...related], platforms: [...new Set(check.map((i) => i.platform))] });
+  return { siblings, families };
 }
 
 /** Server-side warnings for an already loaded batch (siblings: preloaded for many batches, else one query). */
-async function freshen(pool: Pool, batch: BatchView, now: Date, env: NodeJS.ProcessEnv | undefined, siblings?: ClipSibling[]) {
+async function freshen(pool: Pool, batch: BatchView, now: Date, env: NodeJS.ProcessEnv | undefined, siblings?: ClipSiblingSet) {
   const ctx = await loadWarningContext({ pool, weekStart: batch.weekStart, batchId: batch.id, now, ...(env ? { env } : {}) });
-  ctx.clipSiblings = siblings ?? (await loadClipSiblings(pool, batch.items, now));
+  const set = siblings ?? (await loadClipSiblings(pool, batch.items, now));
+  ctx.clipSiblings = set.siblings;
+  ctx.videoFamilies = set.families;
   const ws = computeWarnings(batch.items, ctx);
   for (const i of batch.items) i.warnings = ws.get(i.id) ?? [];
   return ctx;

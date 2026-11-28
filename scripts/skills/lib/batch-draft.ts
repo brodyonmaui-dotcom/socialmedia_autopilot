@@ -1,5 +1,5 @@
 import type { Platform } from "../../../packages/core/src/index.js";
-import { findDuplicateClipRow } from "../../../packages/db/src/duplicate-clip.js";
+import { loadVideoIndex, recentVideoUse } from "../../../packages/db/src/duplicate-clip.js";
 import { isPillar, lintText, type LintIssue, type Pillar } from "../../../packages/research/src/index.js";
 
 /**
@@ -139,12 +139,14 @@ export async function createDraftBatch(
     let items = 0;
     let skipped = 0;
     const now = opts.now ?? new Date();
+    const videoIndex = await loadVideoIndex(pool);
     for (const it of draft.items) {
       for (const platform of PLATFORMS) {
         const post = it.posts[platform];
         if (!post) continue;
         const at = new Date(post.scheduledFor!).toISOString();
-        if (await findDuplicateClipRow(pool, { mediaId: it.mediaId, platform, scheduledFor: at, now })) {
+        // Duplicate guard v2 (F26 A): the same video on this platform within 90 days (this draft's earlier rows included).
+        if ((await recentVideoUse(pool, { mediaId: it.mediaId, platform, at, now, index: videoIndex })).level === "block") {
           skipped++;
           continue;
         }
