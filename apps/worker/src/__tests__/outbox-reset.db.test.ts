@@ -48,22 +48,31 @@ describe.skipIf(!url)("outbox tick after an F11 reset + re-approve (db)", () => 
     await pool.query("update batches set status = 'approved', approved_at = now(), updated_at = now() where id = $1", [batchId]);
 
     // The post-reset-and-re-approved state: approved, attempts 1, no error, no platform id, approved_at set.
-    const fixture = async (caption: string, at: string): Promise<string> => {
+    // F26 A: two Instagram posts of the same video 20 minutes apart would (rightly) hold the second, so each row gets its own clip.
+    const ownClip = async (tag: string): Promise<string> =>
+      (
+        await pool.query(
+          `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status) values ($1, $2, $3, 14, 1080, 1920, 'gym', 'archived')
+           on conflict (content_hash) do update set status = 'archived' returning id`,
+          [`test-f11-${tag}`, `f11-${tag}-fixture.mp4`, `library/test-f11-${tag}.mp4`],
+        )
+      ).rows[0].id;
+    const fixture = async (caption: string, at: string, mediaId: string = media.id): Promise<string> => {
       const hit = (await pool.query("select id from batch_items where batch_id = $1 and caption = $2 order by created_at, id limit 1", [batchId, caption])).rows[0];
       const id: string =
         hit?.id ??
-        (await pool.query("insert into batch_items (batch_id, media_id, platform, caption, scheduled_for) values ($1, $2, 'instagram', $3, $4) returning id", [batchId, media.id, caption, at]))
+        (await pool.query("insert into batch_items (batch_id, media_id, platform, caption, scheduled_for) values ($1, $2, 'instagram', $3, $4) returning id", [batchId, mediaId, caption, at]))
           .rows[0].id;
       await pool.query(
-        `update batch_items set status = 'approved', scheduled_for = $2, trial = null, attempts = 1, last_error = null, next_attempt_at = null,
+        `update batch_items set status = 'approved', scheduled_for = $2, media_id = $3, trial = null, attempts = 1, last_error = null, next_attempt_at = null,
                 platform_post_id = null, platform_post_url = null, approved_at = now(), approved_session = null, updated_at = now() where id = $1`,
-        [id, at],
+        [id, at, mediaId],
       );
       return id;
     };
     // Within the F18 missed-slot grace (60 min) of TICK_AT, so the guard doesn't hold them.
     hitRow = await fixture("f11 outbox fixture: already on IG", "2099-02-12T11:20:00Z");
-    missRow = await fixture("f11 outbox fixture: not on IG", "2099-02-12T11:40:00Z");
+    missRow = await fixture("f11 outbox fixture: not on IG", "2099-02-12T11:40:00Z", await ownClip("miss"));
   });
 
   afterAll(async () => {

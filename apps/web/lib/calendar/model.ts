@@ -341,6 +341,10 @@ export interface ApproveAllLine {
   title: string;
   /** "Wed, Nov 18 · 8:00 AM" */
   when: string;
+  /** For the poster + play button in the Approve-all dialog. */
+  mediaId: string;
+  /** The line's warnings (judge chip fallback until the judge result is wired). */
+  warnings: PlatformEntry["warnings"];
 }
 
 export interface ApproveAllView {
@@ -374,7 +378,7 @@ export function approveAllView(entries: Entry[]): ApproveAllView {
       const title = clip60(p.text.title?.trim() || firstLine(p.text.caption) || e.title);
       if (p.state === "needs-approval") {
         const list = by.get(p.platform) ?? by.set(p.platform, []).get(p.platform)!;
-        list.push({ itemId: p.itemId, field: `${p.batchId}:${p.itemId}`, platform: p.platform, title, when: whenText(e.day, p.time) });
+        list.push({ itemId: p.itemId, field: `${p.batchId}:${p.itemId}`, platform: p.platform, title, when: whenText(e.day, p.time), mediaId: e.mediaId, warnings: p.warnings });
       } else if (p.state === "needs-fix") {
         notIncluded.push({ platform: p.platform, title, reason: p.fix ?? "needs a fix" });
       }

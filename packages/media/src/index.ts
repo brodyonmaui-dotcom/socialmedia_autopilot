@@ -12,3 +12,4 @@ export * from "./storage.js";
 export * from "./touchup.js";
 export * from "./edl.js";
 export * from "./edl-run.js";
+export * from "./fingerprint.js";

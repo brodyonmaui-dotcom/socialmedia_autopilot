@@ -13,9 +13,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadRepoEnv } from "./load-env.js";
-import { assertTimeZone } from "@autopilot/core";
+import { assertTimeZone, fingerprintFromFrames } from "@autopilot/core";
 import { createPool } from "@autopilot/db";
-import { makePoster, probeLocationTagKeys, runQa, sha256File, touchUp } from "@autopilot/media";
+import { grabFingerprintFrames, makePoster, probeLocationTagKeys, runQa, sha256File, touchUp } from "@autopilot/media";
 import { parseIngestRoots } from "./config.js";
 import { folderForClip, parseIngestFlags } from "./folder-flags.js";
 import { createIngestFile } from "./ingest-file.js";
@@ -104,6 +104,12 @@ const summary = await runIngest({
     },
     tmpDir: () => mkdtempSync(join(tmpdir(), "autopilot-ingest-")),
     cleanup: (dir) => rmSync(dir, { recursive: true, force: true }),
+    // F26 A: needs migration 0018; before it (or on any error) the worker's backfill tick fills it from R2 instead.
+    fingerprint: async (hash, cleanPath, durationS) => {
+      const g = await grabFingerprintFrames(cleanPath, { durationS });
+      const fp = fingerprintFromFrames(g.durationS, g.frames);
+      if (fp) await pool.query("update media set fingerprint = coalesce(fingerprint, $2), fingerprint_at = now() where content_hash = $1", [hash, fp]);
+    },
   }),
 });
 

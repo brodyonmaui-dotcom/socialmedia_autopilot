@@ -24,6 +24,7 @@ import {
   type QaResult,
 } from "@autopilot/media";
 import type PgBoss from "pg-boss";
+import { fingerprintNewMedia, type Fingerprinter } from "./media-fingerprint.js";
 
 export const MEDIA_FIX_QUEUE = "media-fix-tick";
 
@@ -96,6 +97,8 @@ export interface MediaFixDeps {
   /** Tests only: claim only these fix ids. */
   onlyFixIds?: string[];
   now?: () => Date;
+  /** F26 A: fingerprint of the fixed file (default ffmpeg; tests inject). */
+  fingerprint?: Fingerprinter;
 }
 
 export type MediaFixOutcome = { kind: "idle" } | { kind: "done"; fixId: string; fixedMediaId: string } | { kind: "failed"; fixId: string; reason: string };
@@ -192,6 +195,7 @@ export async function runMediaFixOnce(d: MediaFixDeps): Promise<MediaFixOutcome>
       posterKey,
       derivedFrom: media.id,
     });
+    if (row.inserted) await fingerprintNewMedia(d.db, row.id, out, fixedQa.probe.durationS, { fingerprint: d.fingerprint, log, tag: "media-fix" });
     await d.db.query(
       `update media_fixes set status = 'done', finished_at = now(), fixed_media_id = $2, before = $3::jsonb, after = $4::jsonb, ops = $5, error = null
         where id = $1 and status = 'running'`,

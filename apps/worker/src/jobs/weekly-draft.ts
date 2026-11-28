@@ -7,7 +7,7 @@ import {
   type Platform,
   type ScheduleItem,
 } from "@autopilot/core";
-import { findDuplicateClipRow, loadCadence } from "@autopilot/db";
+import { blockedVideoIds, loadCadence, loadVideoIndex, recentVideoUse } from "@autopilot/db";
 import { QUEUES } from "../queue.js";
 
 /**
@@ -149,7 +149,7 @@ export interface WeeklyDraftResult {
   unplaced: number;
   /** Items whose ingest_key already existed (a rejected weekly item keeps its key). */
   existingKeys: number;
-  /** (clip, platform) pairs skipped by the duplicate-clip guard (already on that platform within ±7 days, or published in 14). */
+  /** (clip, platform) pairs skipped by the duplicate guard (the same video on that platform within 90 days: recentVideoUse). */
   duplicates: number;
   batchId: string | null;
   alertRaised: boolean;
@@ -246,7 +246,13 @@ async function draftLocked(
     `select distinct media_id from batch_items where status <> 'rejected' and scheduled_for is not null and scheduled_for >= $1::timestamptz`,
     [since.toISOString()],
   );
-  const picked = pickClips(await c.loadLibrary(db), { count: uncovered.length, recentlyUsed: recent.rows.map((r) => String(r.media_id)) });
+  // F26 A: also skip every clip that is the same video (lineage / fingerprint / name) as one on EVERY one of these
+  // platforms within 90 days; a clip blocked on some of them still goes to the others (the guard below drops the rest).
+  const videoIndex = await loadVideoIndex(db);
+  const perPlatform: Array<Set<string>> = [];
+  for (const p of WEEKLY_PLATFORMS) perPlatform.push(await blockedVideoIds(db, { platform: p, now, at: from.toISOString(), index: videoIndex }));
+  const blocked = [...perPlatform[0]!].filter((id) => perPlatform.every((set) => set.has(id)));
+  const picked = pickClips(await c.loadLibrary(db), { count: uncovered.length, recentlyUsed: [...recent.rows.map((r) => String(r.media_id)), ...blocked] });
   if (picked.length === 0) return emptyResult(weekStart, "no-clips", uncovered);
 
   const cadence = await loadCadence(db);
@@ -276,8 +282,8 @@ async function draftLocked(
   let existingKeys = 0;
   let duplicates = 0;
   for (const a of assignments) {
-    // Duplicate-clip guard (shared predicate): never a second post of this clip on this platform.
-    if (await findDuplicateClipRow(db, { mediaId: a.key, platform: a.platform, scheduledFor: a.scheduledFor, now })) {
+    // Duplicate guard v2 (recentVideoUse): never the same video twice on this platform within 90 days (this run's own inserts included).
+    if ((await recentVideoUse(db, { mediaId: a.key, platform: a.platform, at: a.scheduledFor, now, index: videoIndex })).level === "block") {
       duplicates++;
       continue;
     }

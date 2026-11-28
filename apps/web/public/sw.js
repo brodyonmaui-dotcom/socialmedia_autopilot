@@ -39,6 +39,7 @@ const KIND_LABELS = {
   "report-ready": "Weekly report",
   "missed-slot": "Missed post",
   "trial-reels-ready": "Trial reels",
+  "duplicate-held": "Duplicate held",
 };
 
 function notificationView(data) {

@@ -67,8 +67,15 @@ describe.skipIf(!url)("runEditorAutoApprove (db)", () => {
     const row = (await pool.query("select value from settings where key = 'editor'")).rows[0];
     existed = !!row;
     original = row?.value ?? {};
-    const media = (await pool.query("select id from media where r2_key is not null and (qa is null or coalesce(jsonb_array_length(qa->'warnings'), 0) = 0) order by created_at, id limit 1")).rows[0];
-    if (!media) throw new Error("seed the dev DB first (pnpm dev:seed): need clean media with an r2_key");
+    // Its own never-posted clip: a seed clip already posted (even long ago) carries a duplicate-guard warning (F26 A),
+    // and "zero warnings" would then rightly keep it from auto-approving.
+    const media = (
+      await pool.query(
+        `insert into media (content_hash, source_path, r2_key, duration_s, width, height, pillar, status) values ($1, $2, $3, 21, 1080, 1920, 'trading', 'ready')
+         on conflict (content_hash) do update set status = 'ready' returning id`,
+        ["test-auto-approve-clip", "auto-approve-fixture-clip.mp4", "library/test-auto-approve-clip.mp4"],
+      )
+    ).rows[0];
     const found = (await pool.query("select id from batches where week_start = $1 order by created_at, id limit 1", [WEEK])).rows[0];
     batchId = found?.id ?? (await pool.query("insert into batches (week_start, status) values ($1, 'draft') returning id", [WEEK])).rows[0].id;
     await pool.query("update batch_items set status = 'rejected', approved_at = null, approved_session = null where batch_id = $1 and status in ('draft', 'approved')", [batchId]);

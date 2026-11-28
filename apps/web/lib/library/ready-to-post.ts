@@ -3,7 +3,7 @@
  * done `media_edits` of kind 'studio', last 14 days), that have no non-rejected calendar item yet, each with the template caption it would get (same pick as the worker's daily-instagram).
  * Read-only.
  */
-import { pickCaptionTemplate } from "@autopilot/core";
+import { captionGroupFor, composeTemplateCaption, hashtagSetsOf } from "@autopilot/core";
 import { hasFolderColumn, type Db } from "./data.js";
 import { mediaLabel } from "../batches/pg-store.js";
 
@@ -56,7 +56,7 @@ export async function loadReadyToPost(db: Db, now: Date): Promise<ReadyClip[]> {
     ((await db.query(`select distinct caption from batch_items where platform = 'instagram' and caption <> '' and created_at >= $1::timestamptz`, [new Date(now.getTime() - CAPTION_REPEAT_DAYS * 86_400_000).toISOString()])).rows as Array<{ caption: string }>).map((r) => String(r.caption)),
   );
   return rows.map((r) => {
-    const suggestion = (pickCaptionTemplate(r.pillar, `ready:${r.id}`, used) as string | null) ?? ""; // null = templates exhausted: no suggestion
+    const suggestion = composeTemplateCaption({ group: captionGroupFor(r.pillar), platform: "instagram", clipContext: [r.folder, mediaLabel(r.source_path, r.id)].filter(Boolean).join(" "), recentCaptions: used, recentHashtagSets: hashtagSetsOf([...used].slice(-5).reverse()), seed: `ready:${r.id}` }) ?? ""; // null = nothing fresh left: no suggestion
     if (suggestion) used.add(suggestion); // two clips in one list don't get the same suggestion
     const d = r.duration_s == null ? null : Number(r.duration_s);
     return { mediaId: r.id, uploadId: r.upload_id, label: mediaLabel(r.source_path, r.id), hasPoster: !!r.poster_key, durationS: d != null && Number.isFinite(d) ? d : null, folder: r.folder, suggestion };

@@ -6,6 +6,7 @@ export * from "./niche.js";
 export * from "./yap.js";
 export * from "./ai-notes.js";
 export * from "./ai-notes-anthropic.js";
+export * from "./caption-ai.js";
 export * from "./settings.js";
 export * from "./refresh.js";
 export * from "./fixture.js";

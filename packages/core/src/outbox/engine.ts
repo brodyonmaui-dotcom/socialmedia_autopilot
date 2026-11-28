@@ -34,6 +34,13 @@ export interface OutboxStore {
    * adopt another post's id. Optional (stores without it pass nothing); a throw counts as "can't check".
    */
   knownPlatformPostIds?(post: OutboxPost): Promise<Set<string>>;
+  /**
+   * F26 A, the last duplicate check right before a post is handed to its adapter (create container / upload / Zernio
+   * call): a reason when the same video already went out on this platform within 90 days (published, publishing,
+   * unknown, or rejected as already posted), else null. A reason (or a throw: fail closed) HOLDS the post: its status
+   * is left unchanged, nothing is sent, and one 'duplicate-held' alert is raised. Optional (stores without it skip it).
+   */
+  duplicateHold?(post: OutboxPost, now: Date): Promise<string | null>;
 }
 
 export interface AlertSink {
@@ -156,7 +163,7 @@ export function isDueNow(post: OutboxPost, now: Date, nativeLeadMs: number): boo
 }
 
 /**
- * One scheduler tick. For each due post: missed-slot guard → cap guard → claim → (retry? existence check) → publish
+ * One scheduler tick. For each due post: missed-slot guard → duplicate hold (F26 A) → cap guard → claim → (retry? existence check) → publish
  * under a deadline → record the decision → alert on final failure / unknown.
  */
 export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Promise<TickResult> {
@@ -240,6 +247,21 @@ export async function runOutboxTick(store: OutboxStore, cfg: EngineConfig): Prom
     if (!adapter) {
       result.skipped++;
       continue;
+    }
+    // F26 A duplicate hold: before the cap, the claim and any platform call; dry-run and live alike (a read only).
+    if (store.duplicateHold) {
+      let held: string | null;
+      try {
+        held = await store.duplicateHold(post, now);
+      } catch (err) {
+        held = `duplicate check failed, so the post is held (not sent): ${sanitizeError(err)}`;
+      }
+      if (held) {
+        result.skipped++;
+        log(`[outbox] held ${post.platform} ${post.id}: same video already went out (${held}); not sent`);
+        await raise({ kind: "duplicate-held", platform: post.platform, postId: post.id, idempotencyKey: post.idempotencyKey, message: held, at: now.toISOString() });
+        continue;
+      }
     }
     const day = localDate(new Date(post.scheduledFor), cfg.timeZone);
     const capKey = `${post.platform}|${day}`;

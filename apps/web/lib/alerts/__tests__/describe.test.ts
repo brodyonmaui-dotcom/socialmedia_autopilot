@@ -37,6 +37,14 @@ describe("describeAlert", () => {
     }
   });
 
+  it("duplicate-held (F26 A): names the platform, says why, links the calendar week", () => {
+    const d = describeAlert(view({ kind: "duplicate-held", source: "instagram", platform: "instagram", message: "This video was already posted on Instagram on Fri Nov 20" }), NOW, TZ);
+    expect(d.title).toBe("A Instagram post was held: this video already went out there");
+    expect(d.body).toContain("already posted on Instagram");
+    expect(d.why).toMatch(/first copy/);
+    expect(d.actions.some((a) => a.kind === "link")).toBe(true);
+  });
+
   it("reply-ready: comment + draft quote, Approve & send and Open in Inbox", () => {
     const d = describeAlert(view({ kind: "reply-ready", source: "instagram", platform: null, batchId: null, batchItemId: null, commentId: COMMENT, commentPlatform: "instagram", commentText: "Love this!", draftReply: "Thank you!" }), NOW, TZ);
     expect(d.title).toBe("Reply drafted for a comment on Instagram");

@@ -75,9 +75,11 @@ describe("createDraftBatch", () => {
         calls.push({ sql, params });
         if (sql.startsWith("select id, status from media")) return { rows: mediaIds.map((id) => ({ id, status: archived.includes(id) ? "archived" : "ready" })) };
         if (sql.startsWith("insert into batches")) return { rows: [{ id: "batch-1" }] };
-        if (/from batch_items bi\s+where \(bi\.media_id = \$1::uuid/.test(sql)) {
-          const hit = dups.includes(`${params?.[0]}|${params?.[1]}`);
-          return { rows: hit ? [{ id: "existing-1", media_id: params?.[0], platform: params?.[1], status: "published", scheduled_for: null, published_at: new Date() }] : [] };
+        // F26 A recentVideoUse: the uses query (media ids + platforms as arrays); the media index is empty here.
+        if (/from batch_items bi\s+where bi\.media_id = any\(\$1::uuid\[\]\) and bi\.platform = any\(\$2::text\[\]\)/.test(sql)) {
+          const [mids, plats] = params as [string[], string[]];
+          const hits = mids.flatMap((mid) => plats.filter((p) => dups.includes(`${mid}|${p}`)).map((p) => ({ id: `existing-${mid}-${p}`, media_id: mid, platform: p, status: "published", scheduled_for: null, published_at: new Date("2030-01-01T10:00:00Z"), already_posted: false })));
+          return { rows: hits };
         }
         return { rows: [] };
       },
@@ -113,8 +115,8 @@ describe("createDraftBatch", () => {
     expect(res).toEqual({ batchId: "batch-1", items: 3, skipped: 1 });
     const inserts = c.calls.filter((x) => x.sql.includes("insert into batch_items"));
     expect(inserts.some((i) => i.params?.[1] === d.items[0]!.mediaId && i.params?.[2] === platform)).toBe(false);
-    // The check runs before every insert, with the post's time and the shared predicate.
-    const checks = c.calls.filter((x) => /status <> 'rejected'/.test(x.sql) && /interval '7 days'/.test(x.sql) && /interval '14 days'/.test(x.sql));
+    // The check (recentVideoUse, the shared duplicate guard v2) runs before every insert.
+    const checks = c.calls.filter((x) => /from batch_items bi\s+where bi\.media_id = any/.test(x.sql));
     expect(checks).toHaveLength(4);
     // Every post already there → nothing written (rolled back).
     const all = fakeClient(ids, [], d.items.flatMap((it) => Object.keys(it.posts).map((p) => `${it.mediaId}|${p}`)));

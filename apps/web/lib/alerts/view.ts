@@ -209,6 +209,13 @@ export function describeAlert(a: AlertView, _now: Date, timeZone: string, extra:
       return { title: `A ${post} was held at the daily limit`, body: msg, actions: calendar };
     case "duplicate":
       return { title: `A ${post} was already posted once`, body: msg, actions: calendar };
+    case "duplicate-held":
+      return {
+        title: `A ${post} was held: this video already went out there`,
+        body: msg,
+        why: "Instagram, TikTok and YouTube push only the first copy of a video. Drop it as already posted, or swap the clip.",
+        actions: calendar,
+      };
     case "token-health":
       return { title: `${where || "A"} connection needs attention`, body: msg, why: "Renew it: docs runbook token-renewal.", actions: [] };
     case "auth":

@@ -16,7 +16,7 @@ export function makeItem(overrides: ItemOverrides = {}): BatchItemView {
     batchId: "batch-1",
     mediaId: `media-${seq}`,
     platform: "instagram",
-    caption: `Quiet morning session, notes on the setup ${seq}.`,
+    caption: `Quiet morning session, notes on the setup ${seq}. #gym`,
     title: null,
     scheduledFor: "2026-11-18T15:00:00.000Z",
     status: "draft",

@@ -21,8 +21,10 @@ export type WarningCode =
   | "cap.breach"
   | "duplicate.caption"
   | "duplicate.media"
-  /** Same clip on the same platform: another live item within ±7 days, or published in the last 14 days. Blocks. */
+  /** F26 A: the same video (clip, lineage, fingerprint or name) on the same platform within 90 days. Blocks. */
   | "duplicate.clip"
+  /** F26 A: the same video over 90 days apart, or footage of a posted/planned clip with ≥ 3 s of new edits. Warns. */
+  | "duplicate.footage"
   | "media.qa"
   | "media.no-clean-file"
   | "tiktok.needs-sound"
@@ -40,6 +42,8 @@ export interface Warning {
   severity: "block" | "warn";
   message: string;
   field?: "caption" | "title" | "time";
+  /** duplicate.clip / duplicate.footage: the other post the message names (the UI can link "open it"). */
+  itemId?: string;
 }
 
 /** F15 editor flags (trial.editor.flags), set by the laptop ingest. */

@@ -14,6 +14,8 @@
 - Earlier: `0003_research.sql` (F6) and `0004_analytics.sql` (F5).
 - `0008_alerts_push.sql` (F8) **pending**: `alerts.pushed_at` + `alerts.acknowledged_session`, the `push_subscriptions` table, an unpushed-alerts index. It **backfills** `pushed_at` on every existing alert so the push job never pages for history. Additive only; apply it before deploying the `/alerts` page (the page reads `acknowledged_session`). The creator applies it on the server.
 
+- `0018_video_fingerprint.sql` (F26 A, duplicate guard v2) **pending**: two nullable columns on `media` (`fingerprint`, `fingerprint_at`) + one partial index. Additive only, re-running is safe. **Order:** back up → migrate → *then* deploy (the new worker and web read `media.fingerprint`; before the migration the calendar, the pickers and the outbox's duplicate check would error, and the outbox then HOLDS posts instead of sending them). After deploy the worker's `media-fingerprint` tick fills existing clips, 20 every 5 minutes (log line `[media-fingerprint] N fingerprinted, …`). Details: [duplicates.md](duplicates.md).
+
 ## Steps (from the laptop, through the SSH tunnel)
 This is the route proven on 2026-11-11: the laptop's `.env` `DATABASE_URL` points at local port 5433, forwarded to the VPS loopback Postgres.
 

@@ -16,6 +16,11 @@ export interface IngestFileDeps extends PosterDeps {
   folderFor?(capturedAt: string | null): string | null;
   tmpDir(): string;
   cleanup(dir: string): void;
+  /**
+   * F26 A (optional): after the row is in, store the clean copy's video fingerprint (duplicate guard v2). Best effort:
+   * a throw is ignored here (the worker's media-fingerprint backfill tick fills any row left without one).
+   */
+  fingerprint?(contentHash: string, cleanPath: string, durationS: number): Promise<void>;
 }
 
 /**
@@ -60,6 +65,7 @@ export function createIngestFile(d: IngestFileDeps): (file: FoundFile, hash: str
           posterKey,
         }).concat(folder ? [folder] : []),
       );
+      if (d.fingerprint) await d.fingerprint(hash, cleanPath, qa.probe.durationS).catch(() => {});
       return `INGESTED ${base} · ${file.pillar} · ${qa.probe.durationS.toFixed(1)}s · ${qa.warnings.length} warning(s)`;
     } finally {
       d.cleanup(tmp);

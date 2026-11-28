@@ -6,11 +6,12 @@ import {
   localDate,
   localToUtc,
   parseInstagramDailyMin,
-  pickCaptionTemplate,
+  hashtagSetsOf,
   weekdayIndex,
   type ScheduleItem,
 } from "@autopilot/core";
-import { findDuplicateClipRow, getSetting, loadCadence } from "@autopilot/db";
+import { blocklistFromEnv, composeCaption } from "@autopilot/research";
+import { blockedVideoIds, getSetting, loadCadence, loadVideoIndex, recentVideoUse } from "@autopilot/db";
 import { QUEUES } from "../queue.js";
 import {
   loadLibraryClips,
@@ -84,6 +85,8 @@ export interface DailyInstagramOptions {
   log?: (line: string) => void;
   /** Library source (default loadLibraryClips); tests narrow it to their fixtures. */
   loadLibrary?: (db: Queryable) => Promise<LibraryClipRow[]>;
+  /** ANTHROPIC_API_KEY for AI captions (F26 B); absent = template bank only. The register function passes the env value. */
+  anthropicKey?: string;
 }
 
 const empty = (date: string | null, skipped: DailyInstagramResult["skipped"], min = 0, existing = 0): DailyInstagramResult => ({
@@ -117,12 +120,31 @@ export async function runDailyInstagramOnce(pool: ConnectPool, opts: DailyInstag
   const date = addCalendarDays(localDate(now, timeZone), 1);
   const weekStart = addCalendarDays(date, -weekdayIndex(date));
 
+  const loadLibrary = opts.loadLibrary ?? loadLibraryClips;
+  // F26 B: AI captions are composed BEFORE the locked transaction (a network call must not hold the week lock). The
+  // pre-pass runs the same picking without the lock and rolls back; the locked pass re-picks, uses a pre-composed caption
+  // only for a clip it still picks, and composes a template caption (no network) for anything else.
+  const precomposed = new Map<string, string>();
+  if (opts.anthropicKey) {
+    const pre = await pool.connect();
+    try {
+      await pre.query("begin");
+      await draftLocked(pre, { date, weekStart, now, timeZone, loadLibrary, anthropicKey: opts.anthropicKey, log, aiDb: pool, collect: precomposed });
+    } catch (err) {
+      log(`[daily-instagram] caption pre-pass failed (${err instanceof Error ? err.name : "error"}), templates used`);
+      precomposed.clear();
+    } finally {
+      await pre.query("rollback").catch(() => {});
+      pre.release();
+    }
+  }
+
   const client = await pool.connect();
   let result: DailyInstagramResult;
   try {
     await client.query("begin");
     await client.query(`select pg_advisory_xact_lock(hashtext('batch-week:' || $1::text))`, [weekStart]);
-    result = await draftLocked(client, { date, weekStart, now, timeZone, loadLibrary: opts.loadLibrary ?? loadLibraryClips });
+    result = await draftLocked(client, { date, weekStart, now, timeZone, loadLibrary, log, precomposed });
     await client.query("commit");
   } catch (err) {
     await client.query("rollback").catch(() => {});
@@ -136,7 +158,12 @@ export async function runDailyInstagramOnce(pool: ConnectPool, opts: DailyInstag
 
 async function draftLocked(
   db: Queryable,
-  c: { date: string; weekStart: string; now: Date; timeZone: string; loadLibrary: (db: Queryable) => Promise<LibraryClipRow[]> },
+  c: { date: string; weekStart: string; now: Date; timeZone: string; loadLibrary: (db: Queryable) => Promise<LibraryClipRow[]>; anthropicKey?: string; log?: (l: string) => void;
+    /** Pre-pass only: the pool for the AI spend row (autocommit, survives the rollback) and where captions are collected. */
+    aiDb?: Queryable; collect?: Map<string, string>;
+    /** Locked pass: captions composed before the lock, by media id. */
+    precomposed?: Map<string, string>;
+  },
 ): Promise<DailyInstagramResult> {
   const { date, weekStart, now, timeZone } = c;
   const min = parseInstagramDailyMin(await getSetting<unknown>(db, INSTAGRAM_DAILY_MIN_KEY));
@@ -159,7 +186,10 @@ async function draftLocked(
     `select distinct media_id from batch_items where status <> 'rejected' and scheduled_for is not null and scheduled_for >= $1::timestamptz`,
     [since.toISOString()],
   );
-  const picked = pickDailyClips(await c.loadLibrary(db), { count: missing, recentlyUsed: recent.rows.map((r) => String(r.media_id)) });
+  // F26 A: also skip every clip that is the same video (lineage / fingerprint / name) as one on Instagram within 90 days.
+  const videoIndex = await loadVideoIndex(db);
+  const blocked = await blockedVideoIds(db, { platform: "instagram", now, at: from.toISOString(), index: videoIndex });
+  const picked = pickDailyClips(await c.loadLibrary(db), { count: missing, recentlyUsed: [...recent.rows.map((r) => String(r.media_id)), ...blocked] });
   if (picked.length === 0) return empty(date, "no-clips", min, have);
 
   const cadence = await loadCadence(db);
@@ -186,19 +216,37 @@ async function draftLocked(
   const avoid = new Set<string>(
     (await db.query(`select distinct caption from batch_items where platform = 'instagram' and caption <> '' and created_at >= $1::timestamptz`, [since14.toISOString()])).rows.map((r) => String(r.caption)),
   );
+  // F26 B: the last 30 days of Instagram captions (similarity) and the newest ones (hashtag-set repeats), plus each clip's folder + file name.
+  const recentRows = (await db.query(`select caption from batch_items where platform = 'instagram' and caption <> '' and created_at >= $1::timestamptz order by created_at desc limit 200`, [new Date(now.getTime() - 30 * 86_400_000).toISOString()])).rows;
+  const recentCaps: string[] = recentRows.map((r) => String(r.caption));
+  const clipContext = await loadClipContext(db, picked.map((p) => p.id));
+  const blocklist = blocklistFromEnv();
   const pillarOf = new Map(picked.map((p) => [p.id, p.pillar]));
 
   const inserted: string[] = [];
   let existingKeys = 0;
   let duplicates = 0;
   for (const a of assignments) {
-    // Duplicate-clip guard (shared predicate): never a second Instagram post of this clip.
-    if (await findDuplicateClipRow(db, { mediaId: a.key, platform: "instagram", scheduledFor: a.scheduledFor, now })) {
+    // Duplicate guard v2 (recentVideoUse): never the same video twice on Instagram within 90 days (this run's own inserts included).
+    if ((await recentVideoUse(db, { mediaId: a.key, platform: "instagram", at: a.scheduledFor, now, index: videoIndex })).level === "block") {
       duplicates++;
       continue;
     }
     const key = dailyIngestKey(date, a.key);
-    const caption = pickCaptionTemplate(pillarOf.get(a.key), key, avoid) ?? ""; // pool exhausted → "needs a caption"
+    const pre = c.precomposed?.get(a.key);
+    const composed = pre !== undefined
+      ? { caption: pre || null }
+      : await composeCaption(
+          { group: captionGroupFor(pillarOf.get(a.key)), platform: "instagram", clipContext: clipContext.get(a.key) ?? null, recentCaptions: recentCaps, recentHashtagSets: hashtagSetsOf(recentCaps.slice(0, 5)), seed: key },
+          { apiKey: c.collect ? c.anthropicKey : undefined, db: c.aiDb ?? db, now, log: c.log, blocklist },
+        );
+    const caption = composed.caption ?? ""; // nothing fresh left → "needs a caption"
+    if (c.collect) {
+      // pre-pass: remember the caption, write nothing
+      c.collect.set(a.key, caption);
+      if (caption) recentCaps.unshift(caption);
+      continue;
+    }
     const ins = await db.query(
       `insert into batch_items (batch_id, media_id, platform, caption, title, scheduled_for, status, origin, ingest_key, trial, created_at, updated_at)
        values ($1, $2, 'instagram', $3, null, $4::timestamptz, 'draft', 'daily', $5, null, $6, $6)
@@ -211,7 +259,10 @@ async function draftLocked(
       existingKeys++;
       continue;
     }
-    if (caption) avoid.add(caption);
+    if (caption) {
+      avoid.add(caption);
+      recentCaps.unshift(caption);
+    }
     inserted.push(id);
     await db.query(
       `insert into batch_item_events (batch_item_id, kind, from_status, to_status, detail, session_id, at) values ($1, 'add', null, 'draft', $2::jsonb, null, $3)`,
@@ -235,6 +286,17 @@ async function draftLocked(
   return { date, min, existing: have, postsInserted: inserted.length, unplaced: plan.unplaced.length, existingKeys, duplicates, batchId, alertRaised, skipped: null };
 }
 
+/** Folder + file name per media id ("Upper body sets"); folder is migration 0016, so the name alone without it. */
+async function loadClipContext(db: Queryable, ids: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (ids.length === 0) return out;
+  const name = (p: unknown) => String(p ?? "").split(/[\\/]/).pop()?.replace(/\.[^.]*$/, "") ?? "";
+  const hasFolder = (await db.query(`select 1 from information_schema.columns where table_schema = current_schema() and table_name = 'media' and column_name = 'folder'`)).rows.length > 0;
+  const { rows } = await db.query(`select id, source_path, ${hasFolder ? "folder" : "null::text as folder"} from media where id = any($1::uuid[])`, [ids]);
+  for (const r of rows) out.set(String(r.id), [r.folder, name(r.source_path)].filter(Boolean).join(" "));
+  return out;
+}
+
 /** Daily 17:00 creator-local. No TZ_CREATOR → one log line, nothing registered. */
 export async function registerDailyInstagramJob(boss: CronBoss, pool: ConnectPool, timeZone: string | undefined, log: (l: string) => void = console.log): Promise<boolean> {
   if (!timeZone) {
@@ -243,7 +305,7 @@ export async function registerDailyInstagramJob(boss: CronBoss, pool: ConnectPoo
   }
   await boss.createQueue(QUEUES.dailyInstagram);
   await boss.work(QUEUES.dailyInstagram, async () => {
-    return await runDailyInstagramOnce(pool, { timeZone, log }); // stored as the pg-boss job output (diagnose-week reads it)
+    return await runDailyInstagramOnce(pool, { timeZone, log, anthropicKey: process.env.ANTHROPIC_API_KEY?.trim() || undefined }); // stored as the pg-boss job output (diagnose-week reads it)
   });
   await boss.schedule(QUEUES.dailyInstagram, DAILY_INSTAGRAM_CRON, {}, { tz: timeZone });
   return true;

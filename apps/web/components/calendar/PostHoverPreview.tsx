@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { Platform } from "@autopilot/core";
 import { cx, FOCUS, PLATFORM_NAME, PlatformLogo, Popover, Thumb } from "../ui/index.js";
+import { PlayOverlay, PlayThumb } from "./PlayThumb.js";
 
 export type PreviewData = {
   mediaId: string;
@@ -43,21 +44,22 @@ export function PostHoverPreview({ data, thumbClassName }: { data: PreviewData; 
       open={open}
       onOpenChange={setOpen}
       trigger={(p) => (
+        <span className="relative block shrink-0 self-start" onPointerEnter={enter} onPointerLeave={leave}>
         <button
           {...p}
           type="button"
           aria-label={`Preview ${data.title}`}
-          onPointerEnter={enter}
-          onPointerLeave={leave}
-          className={cx("shrink-0 rounded-ds-sm", FOCUS)}
+          className={cx("block shrink-0 rounded-ds-sm", FOCUS)}
         >
-          <Thumb mediaId={data.mediaId} alt={`${data.title} poster`} duration={data.duration} className={thumbClassName} />
+          <Thumb mediaId={data.mediaId} alt={`${data.title} poster`} className={thumbClassName} />
         </button>
+        <PlayOverlay mediaId={data.mediaId} title={data.title} size="sm" duration={data.duration} />
+        </span>
       )}
     >
       <div onPointerEnter={enter} onPointerLeave={leave} className="flex flex-col">
         <div className="h-56 p-2 pb-0">
-          <Thumb mediaId={data.mediaId} alt="" fill />
+          <PlayThumb mediaId={data.mediaId} title={data.title} duration={data.duration} fill />
         </div>
         <div className="flex flex-col gap-3 p-3">
           <p className="ds-font-display text-[20px] leading-tight text-ds-text">{data.title}</p>

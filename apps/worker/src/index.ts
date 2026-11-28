@@ -15,6 +15,7 @@ import { killEnvFromEnv } from "@autopilot/engagement";
 import { PgEngagementStore } from "./jobs/engagement-store.js";
 import { r2StorageFromEnv, registerMediaFixJob } from "./jobs/media-fix.js";
 import { registerMediaRecheckJob } from "./jobs/media-recheck.js";
+import { registerMediaFingerprintJob } from "./jobs/media-fingerprint.js";
 import { poolTransaction, registerMediaReelJob } from "./jobs/media-reel.js";
 import { registerMediaIngestJob } from "./jobs/media-ingest.js";
 import { blocklistFromEnv, engagementStartupLine, registerEngagementJobs, triageClientFromEnv } from "./jobs/register-engagement.js";
@@ -95,6 +96,8 @@ await registerDailyInstagramJob(boss, pool, timeZone);
 const mediaStorage = r2StorageFromEnv(process.env);
 await registerMediaFixJob(boss, { db: pool, storage: mediaStorage });
 await registerMediaRecheckJob(boss, { db: pool, storage: mediaStorage });
+// F26 A: duplicate guard v2 fingerprints for clips that have none yet (20 per tick, one ffmpeg at a time).
+await registerMediaFingerprintJob(boss, { db: pool, storage: mediaStorage });
 console.log(`[media-fix] storage=${mediaStorage ? "r2" : "not set (fixes fail with a config alert)"}`);
 
 // Reel maker (F20 E): a library clip + a sound → a new library clip → one DRAFT Instagram item (never approved).

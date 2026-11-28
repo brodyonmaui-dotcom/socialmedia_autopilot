@@ -1,4 +1,4 @@
-import { findCapBreaches, findDuplicateClip, localClock12, localDate, weekdayIndex, type CadenceSettings, type ClipSibling, type Platform } from "@autopilot/core";
+import { classifyVideoUse, extractHashtags, judgeWarnings, findCapBreaches, localDate, videoUseMessage, type CadenceSettings, type ClipSibling, type Platform, type VideoMatchWhy, type VideoRelation } from "@autopilot/core";
 import { isPillar, lintText } from "@autopilot/research";
 import type { BatchItemView, Warning } from "./types.js";
 
@@ -12,23 +12,18 @@ export interface WarningContext {
   /** PRIVACY_BLOCKLIST terms (from .env at runtime). */
   blocklist: string[];
   /**
-   * Duplicate-clip guard: other batch_items (any batch, any status) for the same clips, fetched by the loader
-   * with duplicateClipSql (@autopilot/db). This batch's own items are added here, with their current (or
-   * planned) times, so a Move is re-checked against the new time. Optional: absent = this batch only.
+   * Duplicate guard v2 (F26 A): other batch_items (any batch, any time) that use the same video or its footage on the
+   * same platforms, fetched by the loader (loadClipSiblings → @autopilot/db loadVideoUses). This batch's own items are
+   * added here, with their current (or planned) times, so a Move is re-checked against the new time. Optional: absent =
+   * this batch only.
    */
   clipSiblings?: ClipSibling[];
+  /** media id → its same-video / derived media (@autopilot/db videoFamily). Absent = only the same media id matches. */
+  videoFamilies?: Map<string, Map<string, { relation: VideoRelation; why: VideoMatchWhy }>>;
+  /** F26 judge: other posts' captions (last 30 days, any batch). Absent = only this batch is compared. */
+  recentPosts?: Array<{ id: string; platform: Platform; caption: string }>;
 }
 
-const PLATFORM_WORD: Record<Platform, string> = { instagram: "Instagram", youtube: "YouTube", tiktok: "TikTok", snapchat: "Snapchat" };
-const WEEKDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-/** "Same clip is already on TikTok Thu 9:00 AM" (12-hour, creator zone); untimed siblings have no time. */
-export function duplicateClipMessage(s: Pick<ClipSibling, "platform" | "scheduledFor" | "publishedAt" | "status">, timeZone: string): string {
-  const iso = s.scheduledFor ?? (s.status === "published" ? s.publishedAt ?? null : null);
-  const at = iso ? new Date(iso) : null;
-  const when = at && !Number.isNaN(at.getTime()) ? ` ${WEEKDAY[weekdayIndex(localDate(at, timeZone))]} ${localClock12(at, timeZone)}` : "";
-  return `Same clip is already on ${PLATFORM_WORD[s.platform]}${when}`;
-}
 
 const PLACEHOLDER = /\{\{[^}]*\}\}/;
 /** Covered by our own "placeholder" warning; dropped from lint output so the same problem isn't shown twice. */
@@ -71,7 +66,7 @@ export function computeWarnings(items: BatchItemView[], ctx: WarningContext): Ma
   const own = new Set(items.map((i) => i.id));
   const siblings: ClipSibling[] = [
     ...(ctx.clipSiblings ?? []).filter((s) => !own.has(s.id)),
-    ...items.map((i) => ({ id: i.id, mediaId: i.mediaId, platform: i.platform, status: i.status, scheduledFor: i.scheduledFor, publishedAt: i.scheduledFor })),
+    ...items.map((i) => ({ id: i.id, mediaId: i.mediaId, platform: i.platform, status: i.status, scheduledFor: i.scheduledFor, publishedAt: i.scheduledFor, alreadyPosted: i.rejectReason === "already-posted" })),
   ];
 
   for (const item of items) {
@@ -138,13 +133,22 @@ export function computeWarnings(items: BatchItemView[], ctx: WarningContext): Ma
     } else if (item.caption.trim() !== "" && (captionCounts.get(captionKey(item)) ?? 0) > 1) {
       ws.push({ code: "duplicate.caption", severity: "warn", message: `same caption as another ${item.platform} post this week`, field: "caption" });
     }
-    const dup = findDuplicateClip({ id: item.id, mediaId: item.mediaId, platform: item.platform, scheduledFor: item.scheduledFor }, siblings, ctx.now);
-    if (dup) {
-      ws.push({ code: "duplicate.clip", severity: "block", message: duplicateClipMessage(dup, ctx.timeZone) });
-    } else if ((mediaCounts.get(mediaKey(item)) ?? 0) > 1) {
+    // Duplicate guard v2 (F26 A): same video within 90 days → block ("This video was already posted on Instagram on
+    // Fri Nov 20"); older, or footage with new edits → warn. Already-posted rejects count as posted.
+    const family = ctx.videoFamilies?.get(item.mediaId);
+    const use = classifyVideoUse({ id: item.id, mediaId: item.mediaId, platform: item.platform, scheduledFor: item.scheduledFor }, siblings, (m) => family?.get(m) ?? null, ctx.now);
+    if (use.hit) {
+      ws.push({ code: use.level === "block" ? "duplicate.clip" : "duplicate.footage", severity: use.level === "block" ? "block" : "warn", message: videoUseMessage(use, ctx.timeZone), itemId: use.hit.id });
+    }
+    if (use.level !== "block" && (mediaCounts.get(mediaKey(item)) ?? 0) > 1) {
       ws.push({ code: "duplicate.media", severity: "warn", message: `this video is planned twice this week for ${item.platform}` });
     }
 
+    // F26 judge: platform best-practice checks (hashtag limits/relevance/repeats, near-duplicate captions, hook, length).
+    if (item.caption.trim() !== "") {
+      const others = [...(ctx.recentPosts ?? []), ...items.filter((o) => o.status !== "rejected" && o.status !== "failed").map((o) => ({ id: o.id, platform: o.platform, caption: o.caption }))].filter((o) => o.id !== item.id && o.platform === item.platform && o.caption.trim() !== "");
+      ws.push(...judgeWarnings({ platform: item.platform, caption: item.caption, title: item.title, durationS: item.media.durationS, recent: { captions: others.map((o) => o.caption), hashtagSets: others.map((o) => extractHashtags(o.caption)) } }));
+    }
     if (item.media.qaWarnings.length > 0) ws.push({ code: "media.qa", severity: "warn", message: `media QA: ${item.media.qaWarnings.join("; ")}` });
     if (!item.media.hasCleanFile) ws.push({ code: "media.no-clean-file", severity: "block", message: "no clean file in storage; run touch-up/ingest first" });
 

@@ -39,5 +39,14 @@ export async function loadWarningContext(i: BatchContextInput): Promise<WarningC
     scheduledFor: (r.scheduled_for instanceof Date ? r.scheduled_for : new Date(r.scheduled_for)).toISOString(),
   }));
 
-  return { now: i.now ?? new Date(), cadence, timeZone, timeZoneSource, existing, blocklist: blocklistFromEnv(env) };
+  // F26 judge: captions of other posts in the 30 days around this week (any batch), for repeat/hashtag-set checks.
+  const recent = await i.pool.query(
+    `select id, platform, caption from batch_items
+      where batch_id <> $1 and status not in ('failed', 'rejected') and caption <> ''
+        and coalesce(scheduled_for, created_at) between ($2::date - interval '30 days') and ($2::date + interval '9 days')`,
+    [i.batchId, i.weekStart],
+  );
+  const recentPosts = recent.rows.map((r) => ({ id: String(r.id), platform: r.platform as Platform, caption: String(r.caption) }));
+
+  return { now: i.now ?? new Date(), cadence, timeZone, timeZoneSource, existing, blocklist: blocklistFromEnv(env), recentPosts };
 }

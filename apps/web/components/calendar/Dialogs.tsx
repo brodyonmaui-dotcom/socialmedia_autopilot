@@ -4,6 +4,8 @@ import type { Platform } from "@autopilot/core";
 import { approveAllAction, editTextAction, moveAction, moveTomorrowAction, rejectItemsAction, rescheduleMissedAction } from "../../app/calendar/actions.js";
 import type { ReschedulePlanRow } from "../../lib/calendar/reschedule.js";
 import { NO_SLOT_TEXT, nextSlotView, type NextSlotLine } from "../../lib/calendar/next-slot-view.js";
+import { PlayThumb } from "./PlayThumb.js";
+import { judgeChip, type JudgeResult } from "./judge-chip.js";
 import { dayTitle, slotText, type ApproveAllView, type Entry } from "../../lib/calendar/model.js";
 import { Button, ButtonLink, Chip, cx, Dialog, EmptyState, FIELD, FOCUS, Icon, Input, PLATFORM_NAME, PlatformLogo } from "../ui/index.js";
 import { itemField, PostCard, type PostCardLinks } from "./PostCard.js";
@@ -234,7 +236,7 @@ const SUMMARY = cx("flex min-h-11 cursor-pointer list-none items-center gap-2 te
  * and a separate collapsed "Not included" list (needs a fix first) that is not part of N. N and the ids come
  * from the same line states as the card chips (approveAllView).
  */
-export function ApproveAllDialog({ closeHref, back, view }: { closeHref: string; back: string; view: ApproveAllView }) {
+export function ApproveAllDialog({ closeHref, back, view, judge }: { closeHref: string; back: string; view: ApproveAllView; /** Stream B's result per item id; absent lines fall back to their warnings (no score). */ judge?: Record<string, JudgeResult> }) {
   const { total, groups, notIncluded } = view;
   return (
     <Dialog
@@ -267,13 +269,25 @@ export function ApproveAllDialog({ closeHref, back, view }: { closeHref: string;
                   </span>
                   <Icon name="chevronDown" size={16} className="ml-auto text-ds-muted transition-transform duration-300 ease-ds group-open:rotate-180" />
                 </summary>
-                <ul className="flex flex-col gap-2 pb-3 pl-6">
-                  {g.lines.map((l) => (
-                    <li key={l.itemId} className="flex flex-col text-[14px] leading-snug">
-                      <span className="text-ds-text">{l.title}</span>
-                      <span className="ds-num text-ds-muted">{l.when}</span>
-                    </li>
-                  ))}
+                <ul className="flex flex-col gap-3 pb-3">
+                  {g.lines.map((l) => {
+                    const chip = judgeChip(judge?.[l.itemId], l.warnings);
+                    return (
+                      <li key={l.itemId} className="flex items-start gap-3 text-[14px] leading-snug">
+                        <PlayThumb mediaId={l.mediaId} title={l.title} size="sm" className="w-[54px]" />
+                        <span className="flex min-w-0 flex-1 flex-col gap-1">
+                          <span className="text-ds-text">{l.title}</span>
+                          <span className="ds-num text-ds-muted">{l.when}</span>
+                          {chip ? (
+                            <Chip tone={chip.tone} wrap>
+                              {chip.label}
+                            </Chip>
+                          ) : null}
+                          {chip?.detail.length ? <span className="text-[13px] text-ds-muted">{chip.detail.join(" · ")}</span> : null}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </details>
             ))}
