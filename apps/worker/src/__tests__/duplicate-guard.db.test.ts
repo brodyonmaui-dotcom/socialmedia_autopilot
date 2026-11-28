@@ -97,8 +97,8 @@ describe.skipIf(!url)("duplicate guard v2 (db)", () => {
     await mk("posted-by-hand", { sourcePath: "different.mp4", duration: 9 });
     await mk("fresh", { sourcePath: "brand-new.mp4", duration: 7 });
     // The original went out on Instagram 10 days ago; another clip was dropped as "already posted" on TikTok.
-    await item("published", m.orig, "instagram", at(-10), "published");
-    await item("ap", m["posted-by-hand"], "tiktok", at(-20), "draft");
+    await item("published", m.orig!, "instagram", at(-10), "published");
+    await item("ap", m["posted-by-hand"]!, "tiktok", at(-20), "draft");
     await pool.query(`update batch_items set status = 'rejected' where id = $1`, [items.ap]);
     await pool.query(`insert into batch_item_events (batch_item_id, kind, from_status, to_status, detail, at) values ($1, 'reject', 'draft', 'rejected', '{"reason":"already-posted"}'::jsonb, now())`, [items.ap]);
   });
@@ -161,7 +161,7 @@ describe.skipIf(!url)("duplicate guard v2 (db)", () => {
 
   it("backfill: an unreadable file is stamped (not retried), no fingerprint stored", async () => {
     const id = await mk("garbage", { sourcePath: "garbage.mp4" });
-    const storage = { download: vi.fn(async (_key: string, to: string) => execFileSync("sh", ["-c", `printf 'not a video' > "${to}"`])), upload: vi.fn(async () => {}) };
+    const storage = { download: vi.fn(async (_key: string, to: string): Promise<void> => void execFileSync("sh", ["-c", `printf 'not a video' > "${to}"`])), upload: vi.fn(async () => {}) };
     expect(await runMediaFingerprintOnce({ db: pool, storage, onlyMediaIds: [id] })).toMatchObject({ done: 0, empty: 1 });
     expect((await pool.query(`select fingerprint, fingerprint_at from media where id = $1`, [id])).rows[0]).toMatchObject({ fingerprint: null, fingerprint_at: expect.any(Date) });
     expect(await runMediaFingerprintOnce({ db: pool, storage, onlyMediaIds: [id] })).toMatchObject({ done: 0, empty: 0, failed: 0 });

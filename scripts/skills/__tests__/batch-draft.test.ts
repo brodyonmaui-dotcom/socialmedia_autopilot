@@ -78,7 +78,7 @@ describe("createDraftBatch", () => {
         // F26 A recentVideoUse: the uses query (media ids + platforms as arrays); the media index is empty here.
         if (/from batch_items bi\s+where bi\.media_id = any\(\$1::uuid\[\]\) and bi\.platform = any\(\$2::text\[\]\)/.test(sql)) {
           const [mids, plats] = params as [string[], string[]];
-          const hits = mids.flatMap((mid) => plats.filter((p) => dups.includes(`${mid}|${p}`)).map((p) => ({ id: `existing-${mid}-${p}`, media_id: mid, platform: p, status: "published", scheduled_for: null, published_at: now, already_posted: false })));
+          const hits = mids.flatMap((mid) => plats.filter((p) => dups.includes(`${mid}|${p}`)).map((p) => ({ id: `existing-${mid}-${p}`, media_id: mid, platform: p, status: "published", scheduled_for: null, published_at: new Date("2030-01-01T10:00:00Z"), already_posted: false })));
           return { rows: hits };
         }
         return { rows: [] };

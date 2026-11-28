@@ -42,7 +42,7 @@ describe("computeWarnings", () => {
   });
 
   it("lint.warn: an exclamation mark warns, does not block", () => {
-    const ws = one(makeItem({ caption: "Good session today!" }));
+    const ws = one(makeItem({ caption: "Good session today! #gym" }));
     expect(find(ws, "lint.warn")).toEqual([expect.objectContaining({ severity: "warn", field: "caption" })]);
     expect(hasBlock(ws)).toBe(false);
   });
@@ -76,7 +76,7 @@ describe("computeWarnings", () => {
         { code: "cap.breach", severity: "block", message: "instagram: 5 posts on 2026-11-18, cap 4", field: "time" },
       ]);
     }
-    expect(map.get(other.id)).toEqual([]);
+    expect(find(map.get(other.id)!, "cap.breach")).toEqual([]); // (look-alike fixture captions also get F26 judge warns)
   });
 
   it("cap.breach counts existing posts but not rejected items", () => {
@@ -160,9 +160,17 @@ describe("computeWarnings", () => {
   });
 
   it("blocks sort before warns", () => {
-    const ws = one(makeItem({ caption: "Good one! {{P/L}}", scheduledFor: null, media: { qaWarnings: ["dark"], hasCleanFile: false } }));
+    const ws = one(makeItem({ caption: "Good one! {{P/L}} #gym", scheduledFor: null, media: { qaWarnings: ["dark"], hasCleanFile: false } }));
     const sev = ws.map((w) => w.severity);
     expect(sev.indexOf("warn")).toBeGreaterThan(sev.lastIndexOf("block"));
     expect(ws.map((w) => w.code)).toEqual(["placeholder", "time.missing", "media.no-clean-file", "lint.warn", "media.qa"]);
+  });
+
+  it("F26 judge: a caption copied from a recent post on the same platform blocks; other platforms don't count", () => {
+    const caption = "Upper body day, slow negatives and full stretch on every rep. #gym #hypertrophy";
+    const same = one(makeItem({ caption }), ctx({ recentPosts: [{ id: "old-1", platform: "instagram", caption }] }));
+    expect(hasBlock(same)).toBe(true);
+    const other = one(makeItem({ caption }), ctx({ recentPosts: [{ id: "old-1", platform: "youtube", caption }] }));
+    expect(hasBlock(other)).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import { classifyVideoUse, findCapBreaches, localClock12, localDate, videoUseMessage, weekdayIndex, type CadenceSettings, type ClipSibling, type Platform, type VideoMatchWhy, type VideoRelation } from "@autopilot/core";
+import { classifyVideoUse, extractHashtags, judgeWarnings, findCapBreaches, localDate, videoUseMessage, type CadenceSettings, type ClipSibling, type Platform, type VideoMatchWhy, type VideoRelation } from "@autopilot/core";
 import { isPillar, lintText } from "@autopilot/research";
 import type { BatchItemView, Warning } from "./types.js";
 
@@ -20,18 +20,10 @@ export interface WarningContext {
   clipSiblings?: ClipSibling[];
   /** media id → its same-video / derived media (@autopilot/db videoFamily). Absent = only the same media id matches. */
   videoFamilies?: Map<string, Map<string, { relation: VideoRelation; why: VideoMatchWhy }>>;
+  /** F26 judge: other posts' captions (last 30 days, any batch). Absent = only this batch is compared. */
+  recentPosts?: Array<{ id: string; platform: Platform; caption: string }>;
 }
 
-const PLATFORM_WORD: Record<Platform, string> = { instagram: "Instagram", youtube: "YouTube", tiktok: "TikTok", snapchat: "Snapchat" };
-const WEEKDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-/** "Same clip is already on TikTok Thu 9:00 AM" (12-hour, creator zone); untimed siblings have no time. */
-export function duplicateClipMessage(s: Pick<ClipSibling, "platform" | "scheduledFor" | "publishedAt" | "status">, timeZone: string): string {
-  const iso = s.scheduledFor ?? (s.status === "published" ? s.publishedAt ?? null : null);
-  const at = iso ? new Date(iso) : null;
-  const when = at && !Number.isNaN(at.getTime()) ? ` ${WEEKDAY[weekdayIndex(localDate(at, timeZone))]} ${localClock12(at, timeZone)}` : "";
-  return `Same clip is already on ${PLATFORM_WORD[s.platform]}${when}`;
-}
 
 const PLACEHOLDER = /\{\{[^}]*\}\}/;
 /** Covered by our own "placeholder" warning; dropped from lint output so the same problem isn't shown twice. */
@@ -152,6 +144,11 @@ export function computeWarnings(items: BatchItemView[], ctx: WarningContext): Ma
       ws.push({ code: "duplicate.media", severity: "warn", message: `this video is planned twice this week for ${item.platform}` });
     }
 
+    // F26 judge: platform best-practice checks (hashtag limits/relevance/repeats, near-duplicate captions, hook, length).
+    if (item.caption.trim() !== "") {
+      const others = [...(ctx.recentPosts ?? []), ...items.filter((o) => o.status !== "rejected" && o.status !== "failed").map((o) => ({ id: o.id, platform: o.platform, caption: o.caption }))].filter((o) => o.id !== item.id && o.platform === item.platform && o.caption.trim() !== "");
+      ws.push(...judgeWarnings({ platform: item.platform, caption: item.caption, title: item.title, durationS: item.media.durationS, recent: { captions: others.map((o) => o.caption), hashtagSets: others.map((o) => extractHashtags(o.caption)) } }));
+    }
     if (item.media.qaWarnings.length > 0) ws.push({ code: "media.qa", severity: "warn", message: `media QA: ${item.media.qaWarnings.join("; ")}` });
     if (!item.media.hasCleanFile) ws.push({ code: "media.no-clean-file", severity: "block", message: "no clean file in storage; run touch-up/ingest first" });
 

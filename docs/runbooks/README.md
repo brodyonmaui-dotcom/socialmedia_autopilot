@@ -7,6 +7,7 @@ Short, step-by-step procedures built from facts already in the repo (`CLAUDE.md`
 | [deploy.md](deploy.md) | A PR merged to `main` and should go live |
 | [migrations.md](migrations.md) | A new `packages/db/migrations/*.sql` landed (see the runbook for the applied list) |
 | [token-renewal.md](token-renewal.md) | Meta data access before **2027-02-08**, YouTube or Zernio auth failing |
+| [duplicates.md](duplicates.md) | "This video was already posted…" in the calendar, a `duplicate-held` alert, or a clip that is wrongly treated as a repeat |
 | [failed-or-unknown-post.md](failed-or-unknown-post.md) | A batch item shows `failed` or `unknown` |
 | [not-posting.md](not-posting.md) | Approved posts didn't go out: run `infra/diagnose-posting.sh` (read-only), paste the output, fix the first VERDICT |
 | [weekly-loop.md](weekly-loop.md) | Sunday "batch ready" push, captioning next week, Monday report alert |

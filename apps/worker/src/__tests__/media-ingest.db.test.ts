@@ -219,6 +219,12 @@ describe.skipIf(!HAS_FFMPEG)("stripUpload (real ffmpeg)", () => {
       const stored = join(dir, "stored.mp4");
       writeFileSync(stored, storage.objects.get(key)!);
       expect(await probeLocationTagKeys(stored)).toEqual([]);
+      // F26 A: a new row gets its video fingerprint right away (the backfill tick is only the fallback).
+      if (r.kind === "done") {
+        const fp = (await db.query("select fingerprint, fingerprint_at from media where id = $1", [r.mediaId])).rows[0];
+        expect(fp.fingerprint).toMatch(/^v1:\d+(\.\d+)?:/);
+        expect(fp.fingerprint_at).not.toBeNull();
+      }
     } finally {
       await db.query("rollback");
       db.release();
